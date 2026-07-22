@@ -285,19 +285,31 @@
             <div class="field"><label>Name</label><input name="name" required></div>
             <div class="field"><label>Email</label><input name="email" type="email" required></div>
             <div class="field"><label>Temporary Password</label><input name="password" type="password" required minlength="6"></div>
-            <div class="field"><label>Role</label>
+            <div class="field"><label>Committee Post</label>
               <select name="role" required>
                 <option value="president">President</option>
+                <option value="vicepresident">Vice President</option>
                 <option value="secretary">Secretary</option>
+                <option value="jointsecretary">Joint Secretary</option>
                 <option value="treasurer">Treasurer</option>
-                <option value="staff">Office Staff</option>
-                <option value="auditor">Auditor</option>
                 <option value="superadmin">Super Admin</option>
               </select>
+            </div>
+            <label class="checkbox-row" style="margin-bottom:16px;">
+              <input type="checkbox" name="alsoResident" checked>
+              <span>This person is also a flat resident — create their resident profile too, so they can log into the resident portal with the same email/password.</span>
+            </label>
+            <div id="adminResidentFields">
+              <div class="form-2col">
+                <div class="field"><label>Tower</label><input name="tower"></div>
+                <div class="field"><label>Flat Number</label><input name="flatNumber"></div>
+              </div>
+              <div class="field"><label>Mobile Number</label><input name="mobile" type="tel"></div>
             </div>
             <button class="btn btn-primary btn-block" type="submit">Create Admin Account</button>
           </form>
         </div>
+
       </div>
     </div>
 
@@ -391,19 +403,22 @@ let allPayments = [];
 let selectedFY = currentFinancialYear();
 const charts = {};
 
+const ROLE_LABELS = {
+  superadmin: 'Super Admin', president: 'President', vicepresident: 'Vice President',
+  secretary: 'Secretary', jointsecretary: 'Joint Secretary', treasurer: 'Treasurer'
+};
 const ROLE_NAV = {
   superadmin: ['overview','members','payments','content','importExport','settings','adminUsers','auditLog'],
-  president: ['overview','members','content'],
-  secretary: ['overview','members','content'],
-  treasurer: ['overview','payments','importExport'],
-  staff: ['overview','members','importExport'],
-  auditor: ['overview','payments','auditLog']
+  president: ['overview','members','content','auditLog'],
+  vicepresident: ['overview','members','content','auditLog'],
+  secretary: ['overview','members','content','auditLog'],
+  jointsecretary: ['overview','members','content','auditLog'],
+  treasurer: ['overview','payments','importExport','auditLog']
 };
 const ACTION_PERMS = {
-  approveMembers: ['superadmin','president','secretary'],
+  approveMembers: ['superadmin','president','vicepresident','secretary','jointsecretary'],
   verifyPayments: ['superadmin','treasurer'],
-  manageContent: ['superadmin','president','secretary'],
-  dataEntry: ['superadmin','staff','president','secretary'],
+  manageContent: ['superadmin','president','vicepresident','secretary','jointsecretary'],
   manageAdmins: ['superadmin']
 };
 function can(action) { return (ACTION_PERMS[action] || []).includes(currentAdmin?.role); }
@@ -442,7 +457,7 @@ onAuthStateChanged(auth, async (user) => {
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('appShell').classList.add('active');
   document.getElementById('adminName').textContent = currentAdmin.name || currentAdmin.email;
-  document.getElementById('adminRole').textContent = (currentAdmin.role || '').replace(/^\w/, c => c.toUpperCase());
+  document.getElementById('adminRole').textContent = ROLE_LABELS[currentAdmin.role] || currentAdmin.role || '';
   applyRoleNav();
   await bootData();
 });
@@ -1025,7 +1040,7 @@ async function loadAdmins() {
   if (!can('manageAdmins')) { document.getElementById('view-adminUsers').innerHTML = '<p class="t-muted">Yeh section sirf Super Admin ke liye hai.</p>'; return; }
   const admins = (await getDocs(collection(db, 'admins'))).docs.map(d => ({ id: d.id, ...d.data() }));
   document.getElementById('adminsTableBody').innerHTML = admins.map(a => `
-    <tr><td>${escapeHtml(a.name || '—')}</td><td>${escapeHtml(a.email)}</td><td>${escapeHtml(a.role)}</td>
+    <tr><td>${escapeHtml(a.name || '—')}</td><td>${escapeHtml(a.email)}</td><td>${escapeHtml(ROLE_LABELS[a.role] || a.role)}</td>
     <td>${a.id !== currentAdmin.uid ? `<button class="btn btn-danger btn-sm" data-remove-admin="${a.id}">Remove</button>` : '<span class="t-muted" style="font-size:12px;">(you)</span>'}</td></tr>
   `).join('');
   document.querySelectorAll('[data-remove-admin]').forEach(b => b.addEventListener('click', async () => {
@@ -1036,6 +1051,10 @@ async function loadAdmins() {
     loadAdmins();
   }));
 }
+document.querySelector('#addAdminForm [name="alsoResident"]').addEventListener('change', (e) => {
+  document.getElementById('adminResidentFields').style.display = e.target.checked ? 'block' : 'none';
+});
+
 document.getElementById('addAdminForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const f = e.target;
@@ -1049,9 +1068,24 @@ document.getElementById('addAdminForm').addEventListener('submit', async (e) => 
     const newUid = cred.user.uid;
     await signOut(secondaryAuth);
     await setDoc(doc(db, 'admins', newUid), { uid: newUid, name: f.name.value, email: f.email.value.trim(), role: f.role.value, createdAt: serverTimestamp(), createdBy: currentAdmin.email });
-    await logAudit(auth.currentUser, 'add_admin', { email: f.email.value, role: f.role.value });
-    showToast('Admin account create ho gaya.', 'success');
-    f.reset(); loadAdmins();
+
+    let memberID = null;
+    if (f.alsoResident.checked) {
+      memberID = await generateMemberId();
+      await setDoc(doc(db, 'members', newUid), {
+        uid: newUid, name: f.name.value, fatherHusbandName: '', tower: f.tower.value.trim(),
+        flatNumber: f.flatNumber.value.trim(), mobile: f.mobile.value.trim(), email: f.email.value.trim(),
+        occupation: '', residentType: 'owner', address: '', nomineeName: '', nomineeRelation: '',
+        photoURL: '', idDocURL: '', declarationAccepted: true, memberID, status: 'approved', role: 'resident',
+        source: 'admin_created', createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
+        approvedBy: currentAdmin.email, approvedAt: serverTimestamp()
+      });
+      await reloadMembers(); renderMembersTable(); renderOverview(); populateTowerFilter();
+    }
+
+    await logAudit(auth.currentUser, 'add_admin', { email: f.email.value, role: f.role.value, alsoResident: f.alsoResident.checked, memberID });
+    showToast(memberID ? `Admin created — resident login bhi ready hai (${memberID})` : 'Admin account create ho gaya.', 'success');
+    f.reset(); f.alsoResident.checked = true; loadAdmins();
   } catch (err) {
     showToast(err.message || 'Admin create nahi ho paaya.', 'error');
   } finally { btn.disabled = false; }
