@@ -31,7 +31,7 @@ assets/                       Aapka logo + generated app icons
 - Notice board (English + Hindi), Committee directory
 - Search/filter, Financial Year selector, charts, Excel export
 - Bulk Excel import (dry-run validation) aur bulk ZIP document export
-- Role-based Admin Panel (Super Admin / President / Secretary / Treasurer / Staff / Auditor)
+- Role-based Admin Panel (Super Admin / President / Vice President / Secretary / Joint Secretary / Treasurer)
 - Immutable Audit Log (kaun, kya, kab, kis IP se)
 - Deactivate Member (soft delete — history kabhi delete nahi hoti)
 - One-click Google Drive backup
