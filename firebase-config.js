@@ -10,12 +10,13 @@
    ========================================================================== */
 
 const firebaseConfig = {
-  apiKey: "REPLACE_WITH_YOUR_API_KEY",
-  authDomain: "REPLACE_WITH_YOUR_PROJECT.firebaseapp.com",
-  projectId: "REPLACE_WITH_YOUR_PROJECT_ID",
-  storageBucket: "REPLACE_WITH_YOUR_PROJECT.firebasestorage.app",
-  messagingSenderId: "REPLACE_WITH_YOUR_SENDER_ID",
-  appId: "REPLACE_WITH_YOUR_APP_ID"
+  apiKey: "AIzaSyAoPrgFpUlkjSfnF0560RXkusqAY65ysXY",
+  authDomain: "mhm-portal.firebaseapp.com",
+  projectId: "mhm-portal",
+  storageBucket: "mhm-portal.firebasestorage.app",
+  messagingSenderId: "801279298623",
+  appId: "1:801279298623:web:efeb6532e3c2cd0826fc8a",
+  measurementId: "G-1NT550H0DN" // not used yet — kept here in case you wire up Firebase Analytics later
 };
 
 /* Google Cloud OAuth 2.0 Client ID — powers the "Backup to Google Drive"
