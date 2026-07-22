@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Verify Receipt — MHMRWS</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="assets/favicon-32.png">
+<link rel="stylesheet" href="styles.css">
+<style>
+  body{ background:var(--gradient-navy); min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
+  .vcard{ width:100%; max-width:440px; background:var(--white); border-radius:var(--radius-lg); box-shadow:var(--shadow-pop); padding:40px 32px; text-align:center; }
+  .vcard .seal{ margin:0 auto 20px; }
+  .vstate-title{ font-size:22px; margin-bottom:6px; }
+  .vrow{ display:flex; justify-content:space-between; padding:11px 0; border-bottom:1px solid var(--line); font-size:13.5px; text-align:left; }
+  .vrow:last-child{ border-bottom:none; }
+  .vrow span:first-child{ color:var(--ink-400); }
+  .vrow span:last-child{ font-weight:600; color:var(--navy-950); }
+  .brand-foot{ margin-top:22px; font-size:12px; color:var(--ink-400); }
+</style>
+</head>
+<body>
+
+  <div class="vcard" id="card">
+    <div class="seal seal-lg" id="sealBox">
+      <div class="spinner" style="color:var(--navy-800);"></div>
+    </div>
+    <h1 class="vstate-title" id="stateTitle">Checking receipt…</h1>
+    <p class="t-muted" id="stateSub" style="margin-bottom:18px;">Ek pal ruko, hum record verify kar rahe hain.</p>
+    <div id="details" style="display:none;"></div>
+    <div class="brand-foot">MHMRWS Digital Portal · Official Verification</div>
+  </div>
+
+<script type="module">
+import { db } from './firebase-config.js';
+import { doc, getDoc } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+import { escapeHtml, fmtDate, formatINR } from './app-common.js';
+
+const params = new URLSearchParams(window.location.search);
+const receiptNumber = params.get('receipt');
+
+const sealBox = document.getElementById('sealBox');
+const stateTitle = document.getElementById('stateTitle');
+const stateSub = document.getElementById('stateSub');
+const details = document.getElementById('details');
+
+function renderNotFound(reason) {
+  sealBox.innerHTML = '<span style="font-size:28px;">✕</span>';
+  sealBox.style.color = 'var(--danger)';
+  stateTitle.textContent = 'Receipt Not Found';
+  stateTitle.style.color = 'var(--danger)';
+  stateSub.textContent = reason || 'Yeh receipt number hamare record mein nahi mila. Number dobara jaanch lein.';
+}
+
+function renderVerified(data) {
+  sealBox.innerHTML = '<span style="font-size:30px;color:var(--success);">✓</span>';
+  stateTitle.textContent = 'Verified Receipt';
+  stateTitle.style.color = 'var(--success)';
+  stateSub.textContent = 'Yeh receipt MHMRWS ke official record se match karti hai.';
+  details.style.display = 'block';
+  details.innerHTML = `
+    <div class="vrow"><span>Receipt No.</span><span class="mono">${escapeHtml(data.receiptNumber)}</span></div>
+    <div class="vrow"><span>Resident</span><span>${escapeHtml(data.residentName || '—')}</span></div>
+    <div class="vrow"><span>Flat / Tower</span><span>${escapeHtml(data.flatNumber || '—')} / ${escapeHtml(data.tower || '—')}</span></div>
+    <div class="vrow"><span>Amount</span><span>${formatINR(data.amount)}</span></div>
+    <div class="vrow"><span>Financial Year</span><span>${escapeHtml(data.financialYear || '—')}</span></div>
+    <div class="vrow"><span>Date</span><span>${fmtDate(data.verifiedAt)}</span></div>
+    <div class="vrow"><span>Status</span><span class="t-success">✓ Verified</span></div>
+  `;
+}
+
+(async function run() {
+  if (!receiptNumber) {
+    renderNotFound('Koi receipt number is link mein nahi mila.');
+    return;
+  }
+  try {
+    const snap = await getDoc(doc(db, 'receiptsPublic', receiptNumber));
+    if (snap.exists()) {
+      renderVerified(snap.data());
+    } else {
+      renderNotFound();
+    }
+  } catch (e) {
+    console.error(e);
+    renderNotFound('Verification service abhi available nahi hai. Baad mein try karein.');
+  }
+})();
+</script>
+</body>
+</html>

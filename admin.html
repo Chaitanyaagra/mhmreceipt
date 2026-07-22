@@ -1,0 +1,1075 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Panel — MHMRWS Digital Portal</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="assets/favicon-32.png">
+<link rel="stylesheet" href="styles.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode/1.5.3/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<style>
+  body{ background:var(--paper); }
+  .login-screen{ min-height:100vh; display:grid; place-items:center; background:var(--gradient-navy); padding:20px; }
+  .login-card{ width:100%; max-width:400px; }
+  .login-card .seal{ margin:0 auto 18px; }
+
+  .app-shell{ display:none; }
+  .app-shell.active{ display:grid; grid-template-columns:246px 1fr; min-height:100vh; }
+  .sidebar{ background:var(--navy-950); color:var(--white); padding:22px 14px; position:sticky; top:0; height:100vh; overflow-y:auto; display:flex; flex-direction:column; }
+  .sidebar-brand{ display:flex; gap:10px; align-items:center; padding:0 8px 22px; }
+  .sidebar-brand .full{ font-family:var(--font-display); font-size:14.5px; line-height:1.2; }
+  .sidebar-brand .eyebrow{ color:var(--saffron-300); font-size:10px; }
+  .side-nav button{ display:flex; align-items:center; gap:10px; width:100%; text-align:left; background:none; border:none; color:rgba(255,255,255,.72); padding:11px 12px; border-radius:10px; font-size:13.3px; font-weight:500; cursor:pointer; margin-bottom:2px; }
+  .side-nav button:hover{ background:rgba(255,255,255,.06); color:var(--white); }
+  .side-nav button.active{ background:rgba(255,255,255,.13); color:var(--white); }
+  .side-nav .icon{ width:18px; text-align:center; font-size:14px; }
+  .sidebar-foot{ margin-top:auto; padding-top:16px; border-top:1px solid rgba(255,255,255,.12); }
+  .admin-chip{ font-size:12px; color:rgba(255,255,255,.6); margin-bottom:10px; padding:0 8px; }
+  .admin-chip b{ color:var(--white); display:block; font-size:13px; }
+
+  .main-area{ padding:28px 32px 60px; max-width:1360px; width:100%; }
+  .topbar{ display:flex; justify-content:space-between; align-items:center; margin-bottom:26px; flex-wrap:wrap; gap:14px; }
+  .view-title{ font-size:23px; }
+  .fy-select{ width:auto; }
+
+  .stat-cards{ display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:22px; }
+  .stat-card .num{ font-family:var(--font-display); font-size:26px; color:var(--navy-950); font-weight:600; }
+  .stat-card .lbl{ font-size:12px; color:var(--ink-400); margin-top:2px; }
+  .chart-grid{ display:grid; grid-template-columns:1.3fr 1fr; gap:18px; margin-bottom:22px; }
+  .chart-card canvas{ max-height:250px; }
+
+  .toolbar{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:16px; }
+  .toolbar input, .toolbar select{ width:auto; min-width:120px; }
+  .toolbar .grow{ flex:1; min-width:200px; }
+
+  .view-panel{ display:none; }
+  .view-panel.active{ display:block; }
+  .tab-strip{ display:flex; gap:6px; margin-bottom:18px; flex-wrap:wrap; }
+  .tab-strip button{ padding:8px 16px; border-radius:var(--radius-pill); border:1px solid var(--line); background:var(--white); font-size:12.8px; font-weight:600; color:var(--ink-600); cursor:pointer; }
+  .tab-strip button.active{ background:var(--navy-900); color:var(--white); border-color:var(--navy-900); }
+
+  .settings-grid{ display:grid; grid-template-columns:1fr 1fr; gap:18px; align-items:start; }
+  .list-edit-item{ display:flex; justify-content:space-between; align-items:flex-start; gap:12px; padding:14px; border:1px solid var(--line); border-radius:10px; margin-bottom:10px; }
+  .action-row{ display:flex; gap:8px; flex-wrap:wrap; }
+
+  @media (max-width: 980px){
+    .app-shell.active{ grid-template-columns:1fr; }
+    .sidebar{ position:static; height:auto; flex-direction:row; overflow-x:auto; align-items:center; }
+    .sidebar-brand{ padding:0 10px 0 0; }
+    .side-nav{ display:flex; gap:4px; }
+    .sidebar-foot{ display:none; }
+    .stat-cards{ grid-template-columns:1fr 1fr; }
+    .chart-grid{ grid-template-columns:1fr; }
+    .settings-grid{ grid-template-columns:1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ============================= LOGIN SCREEN ============================= -->
+<div class="login-screen" id="loginScreen">
+  <div class="card card-pad login-card">
+    <div class="seal seal-lg"><img src="assets/logo-mark.png" alt=""></div>
+    <h1 style="text-align:center; font-size:20px; margin-bottom:4px;">Admin Panel</h1>
+    <p class="t-sub" style="text-align:center; font-size:13px; margin-bottom:24px;">Max Heights Majestic RWA</p>
+    <form id="adminLoginForm">
+      <div class="field"><label>Email</label><input type="email" name="email" required autocomplete="username"></div>
+      <div class="field"><label>Password</label><input type="password" name="password" required autocomplete="current-password"></div>
+      <button class="btn btn-primary btn-block" type="submit">Log In</button>
+    </form>
+    <p id="loginError" class="t-danger" style="text-align:center; font-size:13px; margin-top:14px; display:none;"></p>
+    <p style="text-align:center; margin-top:20px;"><a href="index.html" class="t-sub" style="font-size:12.5px; text-decoration:underline;">← Back to Resident Portal</a></p>
+  </div>
+</div>
+
+<!-- ============================= APP SHELL ============================= -->
+<div class="app-shell" id="appShell">
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="seal seal-navy seal-sm"><img src="assets/logo-mark.png" alt=""></div>
+      <div>
+        <div class="eyebrow">MHMRWS</div>
+        <div class="full">Admin Panel</div>
+      </div>
+    </div>
+    <nav class="side-nav" id="sideNav">
+      <button data-view="overview" class="active"><span class="icon">📊</span> Overview</button>
+      <button data-view="members"><span class="icon">👥</span> Members</button>
+      <button data-view="payments"><span class="icon">💳</span> Payments</button>
+      <button data-view="content"><span class="icon">📢</span> Notices &amp; Committee</button>
+      <button data-view="importExport"><span class="icon">🔄</span> Import / Export</button>
+      <button data-view="settings"><span class="icon">⚙️</span> Settings &amp; Backup</button>
+      <button data-view="adminUsers"><span class="icon">🔑</span> Admin Users</button>
+      <button data-view="auditLog"><span class="icon">📜</span> Audit Log</button>
+    </nav>
+    <div class="sidebar-foot">
+      <div class="admin-chip"><b id="adminName">—</b><span id="adminRole">—</span></div>
+      <button class="btn btn-outline on-dark btn-sm btn-block" id="logoutBtn">Logout</button>
+    </div>
+  </aside>
+
+  <main class="main-area">
+
+    <!-- ---------------- OVERVIEW ---------------- -->
+    <div class="view-panel active" id="view-overview">
+      <div class="topbar">
+        <h2 class="view-title">Overview</h2>
+        <select class="fy-select" id="fySelect"></select>
+      </div>
+      <div class="stat-cards">
+        <div class="card card-pad stat-card"><div class="num" id="statTotalMembers">—</div><div class="lbl">Approved Members</div></div>
+        <div class="card card-pad stat-card"><div class="num" id="statPendingApprovals">—</div><div class="lbl">Pending Approvals</div></div>
+        <div class="card card-pad stat-card"><div class="num" id="statPendingPayments">—</div><div class="lbl">Pending Payments</div></div>
+        <div class="card card-pad stat-card"><div class="num" id="statCollected">—</div><div class="lbl">Collected (Selected FY)</div></div>
+      </div>
+      <div class="chart-grid">
+        <div class="card card-pad chart-card"><h3 style="font-size:14.5px; margin-bottom:12px;">Monthly Collections</h3><canvas id="monthlyChart"></canvas></div>
+        <div class="card card-pad chart-card"><h3 style="font-size:14.5px; margin-bottom:12px;">Payment Mode Split</h3><canvas id="modeChart"></canvas></div>
+      </div>
+      <div class="card card-pad">
+        <h3 style="font-size:14.5px; margin-bottom:12px;">Tower-wise Collection</h3>
+        <div class="table-wrap"><table><thead><tr><th>Tower</th><th>Amount Collected</th></tr></thead><tbody id="towerTableBody"></tbody></table></div>
+      </div>
+    </div>
+
+    <!-- ---------------- MEMBERS ---------------- -->
+    <div class="view-panel" id="view-members">
+      <div class="topbar"><h2 class="view-title">Members</h2>
+        <div class="action-row">
+          <button class="btn btn-outline btn-sm" id="exportMembersBtn">⬇ Export Excel</button>
+        </div>
+      </div>
+      <div class="toolbar card card-pad">
+        <input class="grow" id="memberSearch" placeholder="Search name, flat or mobile…">
+        <select id="filterTower"><option value="">All Towers</option></select>
+        <select id="filterStatus">
+          <option value="">All Statuses</option>
+          <option value="pending">Pending</option>
+          <option value="approved">Approved</option>
+          <option value="rejected">Rejected</option>
+          <option value="inactive">Inactive</option>
+        </select>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Resident</th><th>Flat / Tower</th><th>Mobile</th><th>Status</th><th>Member ID</th><th>Actions</th></tr></thead>
+          <tbody id="membersTableBody"><tr><td colspan="6" class="t-muted">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ---------------- PAYMENTS ---------------- -->
+    <div class="view-panel" id="view-payments">
+      <div class="topbar"><h2 class="view-title">Payments</h2>
+        <div class="action-row"><button class="btn btn-outline btn-sm" id="exportPaymentsBtn">⬇ Export Excel</button></div>
+      </div>
+      <div class="tab-strip">
+        <button data-ptab="pending" class="active">Pending Verification</button>
+        <button data-ptab="all">All Payments</button>
+        <button data-ptab="defaulters">Defaulters</button>
+      </div>
+      <div id="paymentsPendingPanel">
+        <div class="table-wrap">
+          <table><thead><tr><th>Resident</th><th>Flat</th><th>Amount</th><th>Mode</th><th>UTR</th><th>Submitted</th><th>Actions</th></tr></thead>
+          <tbody id="pendingPaymentsBody"><tr><td colspan="7" class="t-muted">Loading…</td></tr></tbody></table>
+        </div>
+      </div>
+      <div id="paymentsAllPanel" style="display:none;">
+        <div class="table-wrap">
+          <table><thead><tr><th>Resident</th><th>Flat</th><th>Amount</th><th>Mode</th><th>Status</th><th>Receipt No.</th><th>Date</th></tr></thead>
+          <tbody id="allPaymentsBody"><tr><td colspan="7" class="t-muted">Loading…</td></tr></tbody></table>
+        </div>
+      </div>
+      <div id="paymentsDefaultersPanel" style="display:none;">
+        <div class="toolbar"><button class="btn btn-outline btn-sm" id="emailDefaultersBtn">✉️ Email All (BCC)</button>
+        <span class="t-muted" style="font-size:12.5px;">for FY selected in Overview</span></div>
+        <div class="table-wrap">
+          <table><thead><tr><th>Resident</th><th>Flat / Tower</th><th>Mobile</th><th>Remind</th></tr></thead>
+          <tbody id="defaultersBody"><tr><td colspan="4" class="t-muted">Loading…</td></tr></tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ---------------- CONTENT (Notices + Committee) ---------------- -->
+    <div class="view-panel" id="view-content">
+      <div class="topbar"><h2 class="view-title">Notices &amp; Committee</h2></div>
+      <div class="settings-grid">
+        <div class="card card-pad">
+          <div class="spread" style="margin-bottom:14px;"><h3 style="font-size:15px;">Notice Board</h3><button class="btn btn-primary btn-sm" id="addNoticeBtn">+ Add Notice</button></div>
+          <div id="noticesEditList"></div>
+        </div>
+        <div class="card card-pad">
+          <div class="spread" style="margin-bottom:14px;"><h3 style="font-size:15px;">Committee</h3><button class="btn btn-primary btn-sm" id="addCommitteeBtn">+ Add Member</button></div>
+          <div id="committeeEditList"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ---------------- IMPORT / EXPORT ---------------- -->
+    <div class="view-panel" id="view-importExport">
+      <div class="topbar"><h2 class="view-title">Import / Export</h2></div>
+      <div class="settings-grid">
+        <div class="card card-pad">
+          <h3 style="font-size:15px; margin-bottom:6px;">Bulk Import Residents</h3>
+          <p class="t-sub" style="font-size:13px; margin-bottom:14px;">Upload an .xlsx/.csv with columns: Name, FatherHusbandName, Tower, FlatNumber, Mobile, Email, ResidentType. Rows are dry-run validated before anything is saved.</p>
+          <input type="file" id="importFile" accept=".xlsx,.csv">
+          <div id="importPreview" style="margin-top:16px;"></div>
+        </div>
+        <div class="card card-pad">
+          <h3 style="font-size:15px; margin-bottom:6px;">Bulk Document Export (ZIP)</h3>
+          <p class="t-sub" style="font-size:13px; margin-bottom:14px;">Packages photos, ID documents and receipts for residents registered / payments verified in the chosen month.</p>
+          <div class="field"><label>Month</label><input type="month" id="zipMonth"></div>
+          <button class="btn btn-navy" id="zipExportBtn">📦 Build ZIP</button>
+          <div id="zipStatus" class="t-sub" style="font-size:12.5px; margin-top:10px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ---------------- SETTINGS ---------------- -->
+    <div class="view-panel" id="view-settings">
+      <div class="topbar"><h2 class="view-title">Settings &amp; Backup</h2></div>
+      <div class="settings-grid">
+        <div class="card card-pad">
+          <h3 style="font-size:15px; margin-bottom:14px;">Society Info</h3>
+          <form id="societySettingsForm">
+            <div class="field"><label>Full Name</label><input name="name"></div>
+            <div class="field"><label>Registration Number</label><input name="regNumber"></div>
+            <div class="field"><label>Address (used for map + receipts)</label><textarea name="address" rows="2"></textarea></div>
+            <div class="field"><label>Contact Phone</label><input name="contactPhone"></div>
+            <div class="field"><label>Contact Email</label><input name="contactEmail" type="email"></div>
+            <button class="btn btn-primary" type="submit">Save Society Info</button>
+          </form>
+        </div>
+        <div class="card card-pad">
+          <h3 style="font-size:15px; margin-bottom:14px;">Payment Settings (shown to residents)</h3>
+          <form id="paymentSettingsForm">
+            <div class="field"><label>UPI ID</label><input name="upiId" placeholder="mhmrws@upi"></div>
+            <div class="field"><label>Bank Name</label><input name="bankName"></div>
+            <div class="field"><label>Account Number</label><input name="accountNumber"></div>
+            <div class="field"><label>IFSC</label><input name="ifsc"></div>
+            <div class="field"><label>QR Code Image</label><input type="file" name="qrImage" accept="image/*"></div>
+            <button class="btn btn-primary" type="submit">Save Payment Settings</button>
+          </form>
+        </div>
+        <div class="card card-pad">
+          <h3 style="font-size:15px; margin-bottom:6px;">Document Security</h3>
+          <p class="t-sub" style="font-size:12.8px; margin-bottom:14px;">Access to Aadhaar/PAN uploads is always restricted to Admins by Storage rules. This adds an optional AES-256 encryption layer on top — see SETUP-GUIDE.md for the key-management trade-off before relying on this.</p>
+          <div class="field"><label>Vault Passphrase (session only — never stored)</label><input type="password" id="vaultPassphrase" autocomplete="off"></div>
+          <button class="btn btn-outline btn-block" id="encryptPendingBtn">🔒 Encrypt All Pending Aadhaar/PAN Uploads</button>
+        </div>
+        <div class="card card-pad">
+          <h3 style="font-size:15px; margin-bottom:6px;">Google Drive Backup</h3>
+          <p class="t-sub" style="font-size:12.8px; margin-bottom:14px;">Exports Members, Payments, Notices &amp; Committee as JSON to <span class="mono">MHMRWS/Database</span> in your Google Drive. Requires one-time OAuth setup — see SETUP-GUIDE.md Step 5.</p>
+          <button class="btn btn-primary btn-block" id="backupNowBtn">☁️ Backup Now</button>
+          <div id="backupStatus" class="t-sub" style="font-size:12.5px; margin-top:12px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ---------------- ADMIN USERS ---------------- -->
+    <div class="view-panel" id="view-adminUsers">
+      <div class="topbar"><h2 class="view-title">Admin Users</h2></div>
+      <div class="settings-grid">
+        <div class="card card-pad">
+          <h3 style="font-size:15px; margin-bottom:14px;">Existing Admins</h3>
+          <div class="table-wrap"><table><thead><tr><th>Name</th><th>Email</th><th>Role</th><th></th></tr></thead><tbody id="adminsTableBody"></tbody></table></div>
+        </div>
+        <div class="card card-pad">
+          <h3 style="font-size:15px; margin-bottom:14px;">Add New Admin</h3>
+          <form id="addAdminForm">
+            <div class="field"><label>Name</label><input name="name" required></div>
+            <div class="field"><label>Email</label><input name="email" type="email" required></div>
+            <div class="field"><label>Temporary Password</label><input name="password" type="password" required minlength="6"></div>
+            <div class="field"><label>Role</label>
+              <select name="role" required>
+                <option value="president">President</option>
+                <option value="secretary">Secretary</option>
+                <option value="treasurer">Treasurer</option>
+                <option value="staff">Office Staff</option>
+                <option value="auditor">Auditor</option>
+                <option value="superadmin">Super Admin</option>
+              </select>
+            </div>
+            <button class="btn btn-primary btn-block" type="submit">Create Admin Account</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- ---------------- AUDIT LOG ---------------- -->
+    <div class="view-panel" id="view-auditLog">
+      <div class="topbar"><h2 class="view-title">Audit Log</h2></div>
+      <div class="table-wrap">
+        <table><thead><tr><th>Time</th><th>User</th><th>Action</th><th>Details</th><th>IP</th></tr></thead>
+        <tbody id="auditLogBody"><tr><td colspan="5" class="t-muted">Loading…</td></tr></tbody></table>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ============================= MODALS ============================= -->
+<div class="modal-backdrop" id="memberModalBackdrop">
+  <div class="modal">
+    <div class="modal-head"><h3 style="font-size:16.5px;">Member Details</h3><button class="icon-btn" id="closeMemberModal">✕</button></div>
+    <div class="modal-body" id="memberModalBody"></div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="paymentDetailModalBackdrop">
+  <div class="modal">
+    <div class="modal-head"><h3 style="font-size:16.5px;">Payment Details</h3><button class="icon-btn" id="closePaymentDetailModal">✕</button></div>
+    <div class="modal-body" id="paymentDetailModalBody"></div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="noticeModalBackdrop">
+  <div class="modal">
+    <div class="modal-head"><h3 style="font-size:16.5px;" id="noticeModalTitle">Add Notice</h3><button class="icon-btn" id="closeNoticeModal">✕</button></div>
+    <div class="modal-body">
+      <form id="noticeForm">
+        <input type="hidden" name="id">
+        <div class="field"><label>Title (English)</label><input name="titleEn" required></div>
+        <div class="field"><label>Title (Hindi)</label><input name="titleHi"></div>
+        <div class="field"><label>Body (English)</label><textarea name="bodyEn" rows="3" required></textarea></div>
+        <div class="field"><label>Body (Hindi)</label><textarea name="bodyHi" rows="3"></textarea></div>
+        <div class="field"><label>Attachment <span class="t-muted" style="font-weight:400;">(optional)</span></label><input type="file" name="attachment"></div>
+        <button class="btn btn-primary btn-block" type="submit">Save Notice</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="committeeModalBackdrop">
+  <div class="modal">
+    <div class="modal-head"><h3 style="font-size:16.5px;" id="committeeModalTitle">Add Committee Member</h3><button class="icon-btn" id="closeCommitteeModal">✕</button></div>
+    <div class="modal-body">
+      <form id="committeeForm">
+        <input type="hidden" name="id">
+        <div class="field"><label>Name</label><input name="name" required></div>
+        <div class="field"><label>Role</label><input name="role" required placeholder="e.g. President"></div>
+        <div class="field"><label>Photo</label><input type="file" name="photo" accept="image/*"></div>
+        <button class="btn btn-primary btn-block" type="submit">Save</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div id="toast-region"></div>
+
+<script type="module">
+import { auth, db, storage, firebaseConfig, GOOGLE_OAUTH_CLIENT_ID, SOCIETY } from './firebase-config.js';
+import {
+  initializeApp
+} from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
+import {
+  getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, createUserWithEmailAndPassword
+} from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
+import {
+  doc, getDoc, setDoc, updateDoc, deleteDoc, addDoc, collection, getDocs, query, where, orderBy, serverTimestamp, limit
+} from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+import {
+  ref as storageRef, uploadBytes, getDownloadURL
+} from "https://www.gstatic.com/firebasejs/12.16.0/firebase-storage.js";
+import {
+  showToast, escapeHtml, fmtDate, fmtDateTime, formatINR, currentFinancialYear, financialYearOptions,
+  generateMemberId, generateReceiptNumber, logAudit, generateReceiptPDF, exportToExcel, parseExcelFile,
+  encryptFile, decryptToBlob, backupToDrive, waLink, serializeForExport
+} from './app-common.js';
+
+/* ---------------------------------------------------------------------- */
+/*  State                                                                  */
+/* ---------------------------------------------------------------------- */
+let currentAdmin = null;
+let allMembers = [];
+let allPayments = [];
+let selectedFY = currentFinancialYear();
+const charts = {};
+
+const ROLE_NAV = {
+  superadmin: ['overview','members','payments','content','importExport','settings','adminUsers','auditLog'],
+  president: ['overview','members','content'],
+  secretary: ['overview','members','content'],
+  treasurer: ['overview','payments','importExport'],
+  staff: ['overview','members','importExport'],
+  auditor: ['overview','payments','auditLog']
+};
+const ACTION_PERMS = {
+  approveMembers: ['superadmin','president','secretary'],
+  verifyPayments: ['superadmin','treasurer'],
+  manageContent: ['superadmin','president','secretary'],
+  dataEntry: ['superadmin','staff','president','secretary'],
+  manageAdmins: ['superadmin']
+};
+function can(action) { return (ACTION_PERMS[action] || []).includes(currentAdmin?.role); }
+
+/* ---------------------------------------------------------------------- */
+/*  Auth                                                                   */
+/* ---------------------------------------------------------------------- */
+document.getElementById('adminLoginForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const f = e.target;
+  const btn = f.querySelector('button[type="submit"]');
+  const errEl = document.getElementById('loginError');
+  errEl.style.display = 'none';
+  btn.disabled = true;
+  try {
+    await signInWithEmailAndPassword(auth, f.email.value.trim(), f.password.value);
+  } catch (err) {
+    errEl.textContent = 'Email ya password galat hai.';
+    errEl.style.display = 'block';
+  } finally { btn.disabled = false; }
+});
+
+document.getElementById('logoutBtn').addEventListener('click', async () => { await signOut(auth); location.reload(); });
+
+onAuthStateChanged(auth, async (user) => {
+  if (!user) { document.getElementById('loginScreen').style.display = 'grid'; document.getElementById('appShell').classList.remove('active'); return; }
+  const adminSnap = await getDoc(doc(db, 'admins', user.uid));
+  if (!adminSnap.exists()) {
+    await signOut(auth);
+    const errEl = document.getElementById('loginError');
+    errEl.textContent = 'Yeh account admin panel access nahi rakhta.';
+    errEl.style.display = 'block';
+    return;
+  }
+  currentAdmin = { uid: user.uid, ...adminSnap.data() };
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('appShell').classList.add('active');
+  document.getElementById('adminName').textContent = currentAdmin.name || currentAdmin.email;
+  document.getElementById('adminRole').textContent = (currentAdmin.role || '').replace(/^\w/, c => c.toUpperCase());
+  applyRoleNav();
+  await bootData();
+});
+
+function applyRoleNav() {
+  const allowed = ROLE_NAV[currentAdmin.role] || ['overview'];
+  document.querySelectorAll('#sideNav button').forEach(btn => {
+    btn.style.display = allowed.includes(btn.dataset.view) ? 'flex' : 'none';
+  });
+  if (!allowed.includes('overview')) switchView(allowed[0] || 'overview');
+}
+
+/* ---------------------------------------------------------------------- */
+/*  Nav / view switching                                                  */
+/* ---------------------------------------------------------------------- */
+function switchView(view) {
+  document.querySelectorAll('.view-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('view-' + view)?.classList.add('active');
+  document.querySelectorAll('#sideNav button').forEach(b => b.classList.toggle('active', b.dataset.view === view));
+}
+document.querySelectorAll('#sideNav button').forEach(btn => btn.addEventListener('click', () => switchView(btn.dataset.view)));
+
+/* ---------------------------------------------------------------------- */
+/*  Boot: load core collections once, then render every view               */
+/* ---------------------------------------------------------------------- */
+async function bootData() {
+  const fySel = document.getElementById('fySelect');
+  fySel.innerHTML = financialYearOptions().map(fy => `<option value="${fy}" ${fy === selectedFY ? 'selected' : ''}>FY ${fy}</option>`).join('');
+  fySel.addEventListener('change', () => { selectedFY = fySel.value; renderOverview(); renderDefaulters(); });
+
+  await Promise.all([reloadMembers(), reloadPayments()]);
+  renderOverview();
+  renderMembersTable();
+  renderPendingPayments();
+  renderAllPayments();
+  renderDefaulters();
+  loadContentPanels();
+  loadSettingsForms();
+  loadAdmins();
+  loadAuditLog();
+  populateTowerFilter();
+}
+
+async function reloadMembers() {
+  allMembers = (await getDocs(collection(db, 'members'))).docs.map(d => ({ id: d.id, ...d.data() }));
+}
+async function reloadPayments() {
+  allPayments = (await getDocs(collection(db, 'payments'))).docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
+/* ---------------------------------------------------------------------- */
+/*  Overview                                                               */
+/* ---------------------------------------------------------------------- */
+function renderOverview() {
+  const approved = allMembers.filter(m => m.status === 'approved');
+  const pendingApprovals = allMembers.filter(m => m.status === 'pending');
+  const pendingPayments = allPayments.filter(p => p.status === 'pending_approval' || p.status === 'pending_verification');
+  const verifiedThisFY = allPayments.filter(p => p.status === 'verified' && p.financialYear === selectedFY);
+  const collected = verifiedThisFY.reduce((s, p) => s + Number(p.amount || 0), 0);
+
+  document.getElementById('statTotalMembers').textContent = approved.length;
+  document.getElementById('statPendingApprovals').textContent = pendingApprovals.length;
+  document.getElementById('statPendingPayments').textContent = pendingPayments.length;
+  document.getElementById('statCollected').textContent = formatINR(collected);
+
+  const monthly = {};
+  verifiedThisFY.forEach(p => {
+    const d = p.verifiedAt?.toDate ? p.verifiedAt.toDate() : new Date();
+    const key = d.toLocaleString('en-IN', { month: 'short', year: '2-digit' });
+    monthly[key] = (monthly[key] || 0) + Number(p.amount || 0);
+  });
+  drawChart('monthlyChart', 'bar', Object.keys(monthly), [{ label: 'Collections (₹)', data: Object.values(monthly), backgroundColor: '#F27B0E' }]);
+
+  const modes = {};
+  verifiedThisFY.forEach(p => { modes[p.mode] = (modes[p.mode] || 0) + Number(p.amount || 0); });
+  drawChart('modeChart', 'doughnut', Object.keys(modes), [{ data: Object.values(modes), backgroundColor: ['#0F2547', '#F27B0E', '#C9A227', '#1B7A4D'] }]);
+
+  const towers = {};
+  verifiedThisFY.forEach(p => { towers[p.tower] = (towers[p.tower] || 0) + Number(p.amount || 0); });
+  document.getElementById('towerTableBody').innerHTML = Object.entries(towers).map(([t, amt]) => `<tr><td>${escapeHtml(t)}</td><td>${formatINR(amt)}</td></tr>`).join('') || '<tr><td colspan="2" class="t-muted">No verified payments yet for this FY.</td></tr>';
+}
+
+function drawChart(canvasId, type, labels, datasets) {
+  const ctx = document.getElementById(canvasId);
+  if (!ctx || !window.Chart) return;
+  charts[canvasId]?.destroy();
+  charts[canvasId] = new Chart(ctx, { type, data: { labels, datasets }, options: { responsive: true, plugins: { legend: { display: type === 'doughnut' } } } });
+}
+
+/* ---------------------------------------------------------------------- */
+/*  Members                                                                */
+/* ---------------------------------------------------------------------- */
+function populateTowerFilter() {
+  const towers = [...new Set(allMembers.map(m => m.tower).filter(Boolean))].sort();
+  document.getElementById('filterTower').innerHTML = '<option value="">All Towers</option>' + towers.map(t => `<option>${escapeHtml(t)}</option>`).join('');
+}
+
+function filteredMembers() {
+  const term = document.getElementById('memberSearch').value.toLowerCase();
+  const tower = document.getElementById('filterTower').value;
+  const status = document.getElementById('filterStatus').value;
+  return allMembers.filter(m => {
+    if (status && m.status !== status) return false;
+    if (tower && m.tower !== tower) return false;
+    if (term && !`${m.name} ${m.flatNumber} ${m.mobile} ${m.memberID || ''}`.toLowerCase().includes(term)) return false;
+    return true;
+  });
+}
+
+const statusBadgeHtml = {
+  pending: '<span class="badge badge-warning">Pending</span>',
+  approved: '<span class="badge badge-success">Approved</span>',
+  rejected: '<span class="badge badge-danger">Rejected</span>',
+  inactive: '<span class="badge badge-neutral">Inactive</span>'
+};
+
+function renderMembersTable() {
+  const rows = filteredMembers();
+  document.getElementById('membersTableBody').innerHTML = rows.map(m => `
+    <tr>
+      <td>${escapeHtml(m.name)}</td>
+      <td>${escapeHtml(m.flatNumber)} / ${escapeHtml(m.tower)}</td>
+      <td>${escapeHtml(m.mobile)}</td>
+      <td>${statusBadgeHtml[m.status] || ''}</td>
+      <td class="mono">${escapeHtml(m.memberID || '—')}</td>
+      <td><button class="btn btn-ghost btn-sm" data-view-member="${m.id}">View</button></td>
+    </tr>
+  `).join('') || '<tr><td colspan="6" class="t-muted">No members match these filters.</td></tr>';
+  document.querySelectorAll('[data-view-member]').forEach(b => b.addEventListener('click', () => openMemberModal(b.dataset.viewMember)));
+}
+['memberSearch', 'filterTower', 'filterStatus'].forEach(id => document.getElementById(id).addEventListener('input', renderMembersTable));
+
+document.getElementById('exportMembersBtn').addEventListener('click', () => {
+  exportToExcel(serializeForExport(filteredMembers()).map(m => ({
+    Name: m.name, FatherHusband: m.fatherHusbandName, Tower: m.tower, Flat: m.flatNumber, Mobile: m.mobile,
+    Email: m.email, Type: m.residentType, Status: m.status, MemberID: m.memberID
+  })), 'members.xlsx', 'Members');
+});
+
+function openMemberModal(id) {
+  const m = allMembers.find(x => x.id === id);
+  if (!m) return;
+  const body = document.getElementById('memberModalBody');
+  body.innerHTML = `
+    <div class="row" style="gap:14px; margin-bottom:16px;">
+      <div class="seal seal-md"><img src="${m.photoURL || 'assets/logo-mark.png'}" alt=""></div>
+      <div><b style="font-size:15.5px;">${escapeHtml(m.name)}</b><div class="t-sub" style="font-size:12.5px;">${escapeHtml(m.fatherHusbandName || '')}</div></div>
+      <div style="margin-left:auto;">${statusBadgeHtml[m.status] || ''}</div>
+    </div>
+    <div class="vrow-list" style="font-size:13.5px;">
+      <div class="vrow"><span class="t-muted">Flat / Tower</span><span>${escapeHtml(m.flatNumber)} / ${escapeHtml(m.tower)}</span></div>
+      <div class="vrow"><span class="t-muted">Mobile</span><span>${escapeHtml(m.mobile)}</span></div>
+      <div class="vrow"><span class="t-muted">Email</span><span>${escapeHtml(m.email)}</span></div>
+      <div class="vrow"><span class="t-muted">Occupation</span><span>${escapeHtml(m.occupation || '—')}</span></div>
+      <div class="vrow"><span class="t-muted">Type</span><span>${escapeHtml(m.residentType || '—')}</span></div>
+      <div class="vrow"><span class="t-muted">Address</span><span>${escapeHtml(m.address || '—')}</span></div>
+      <div class="vrow"><span class="t-muted">Nominee</span><span>${escapeHtml(m.nomineeName || '—')} (${escapeHtml(m.nomineeRelation || '—')})</span></div>
+      <div class="vrow"><span class="t-muted">Member ID</span><span class="mono">${escapeHtml(m.memberID || '—')}</span></div>
+    </div>
+    <div style="margin:16px 0; display:flex; gap:10px; flex-wrap:wrap;">
+      ${m.idDocURL ? `<button class="btn btn-outline btn-sm" id="viewDocBtn">${m.idDocEncrypted ? '🔓 Decrypt & View ID Doc' : '📄 View ID Doc'}</button>` : '<span class="t-muted" style="font-size:12.5px;">No ID document uploaded.</span>'}
+    </div>
+    <div class="action-row">
+      ${m.status === 'pending' && can('approveMembers') ? `<button class="btn btn-primary btn-sm" id="approveBtn">✓ Approve</button><button class="btn btn-danger btn-sm" id="rejectBtn">✕ Reject</button>` : ''}
+      ${m.status === 'approved' && can('approveMembers') ? `<button class="btn btn-danger btn-sm" id="deactivateBtn">Deactivate Member</button>` : ''}
+    </div>
+  `;
+  document.getElementById('viewDocBtn')?.addEventListener('click', () => openMemberDoc(m));
+  document.getElementById('approveBtn')?.addEventListener('click', () => approveMember(m.id));
+  document.getElementById('rejectBtn')?.addEventListener('click', () => rejectMember(m.id));
+  document.getElementById('deactivateBtn')?.addEventListener('click', () => deactivateMember(m.id));
+  document.getElementById('memberModalBackdrop').classList.add('open');
+}
+document.getElementById('closeMemberModal').addEventListener('click', () => document.getElementById('memberModalBackdrop').classList.remove('open'));
+
+async function openMemberDoc(m) {
+  if (!m.idDocEncrypted) { window.open(m.idDocURL, '_blank'); return; }
+  const pass = prompt('Vault passphrase daalein:');
+  if (!pass) return;
+  try {
+    const blob = await fetch(m.idDocURL).then(r => r.blob());
+    const decrypted = await decryptToBlob(blob, pass);
+    const url = URL.createObjectURL(decrypted);
+    window.open(url, '_blank');
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  } catch (e) { showToast('Decrypt fail — passphrase galat ho sakta hai.', 'error'); }
+}
+
+async function approveMember(id) {
+  const memberID = await generateMemberId();
+  await updateDoc(doc(db, 'members', id), { status: 'approved', memberID, approvedBy: currentAdmin.email, approvedAt: serverTimestamp(), updatedAt: serverTimestamp() });
+  await logAudit(auth.currentUser, 'approve_member', { id, memberID });
+  showToast(`Approved! Member ID: ${memberID}`, 'success');
+  document.getElementById('memberModalBackdrop').classList.remove('open');
+  await reloadMembers(); renderMembersTable(); renderOverview(); populateTowerFilter();
+}
+async function rejectMember(id) {
+  const reason = prompt('Reject karne ki wajah:');
+  if (reason === null) return;
+  await updateDoc(doc(db, 'members', id), { status: 'rejected', rejectionReason: reason, updatedAt: serverTimestamp() });
+  await logAudit(auth.currentUser, 'reject_member', { id, reason });
+  showToast('Registration reject kar diya gaya.', 'success');
+  document.getElementById('memberModalBackdrop').classList.remove('open');
+  await reloadMembers(); renderMembersTable(); renderOverview();
+}
+async function deactivateMember(id) {
+  const reason = prompt('Deactivate karne ki wajah (history surakshit rahegi):');
+  if (reason === null) return;
+  await updateDoc(doc(db, 'members', id), { status: 'inactive', deactivatedReason: reason, deactivatedAt: serverTimestamp(), updatedAt: serverTimestamp() });
+  await logAudit(auth.currentUser, 'deactivate_member', { id, reason });
+  showToast('Member deactivate ho gaya.', 'success');
+  document.getElementById('memberModalBackdrop').classList.remove('open');
+  await reloadMembers(); renderMembersTable(); renderOverview();
+}
+
+/* ---------------------------------------------------------------------- */
+/*  Payments                                                               */
+/* ---------------------------------------------------------------------- */
+document.querySelectorAll('[data-ptab]').forEach(btn => btn.addEventListener('click', () => {
+  document.querySelectorAll('[data-ptab]').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('paymentsPendingPanel').style.display = btn.dataset.ptab === 'pending' ? 'block' : 'none';
+  document.getElementById('paymentsAllPanel').style.display = btn.dataset.ptab === 'all' ? 'block' : 'none';
+  document.getElementById('paymentsDefaultersPanel').style.display = btn.dataset.ptab === 'defaulters' ? 'block' : 'none';
+}));
+
+function renderPendingPayments() {
+  const rows = allPayments.filter(p => p.status === 'pending_approval' || p.status === 'pending_verification');
+  document.getElementById('pendingPaymentsBody').innerHTML = rows.map(p => `
+    <tr>
+      <td>${escapeHtml(p.residentName)}</td>
+      <td>${escapeHtml(p.flatNumber)}</td>
+      <td>${formatINR(p.amount)}</td>
+      <td>${escapeHtml((p.mode || '').toUpperCase())}</td>
+      <td class="mono">${escapeHtml(p.utrOrChequeNo || '—')}</td>
+      <td>${fmtDate(p.submittedAt)}</td>
+      <td><button class="btn btn-ghost btn-sm" data-pay-detail="${p.id}">View</button></td>
+    </tr>
+  `).join('') || '<tr><td colspan="7" class="t-muted">No pending payments 🎉</td></tr>';
+  document.querySelectorAll('[data-pay-detail]').forEach(b => b.addEventListener('click', () => openPaymentDetail(b.dataset.payDetail)));
+}
+
+function renderAllPayments() {
+  const rows = [...allPayments].sort((a, b) => (b.submittedAt?.seconds || 0) - (a.submittedAt?.seconds || 0));
+  const badge = { pending_approval: 'badge-warning', pending_verification: 'badge-warning', verified: 'badge-success', rejected: 'badge-danger' };
+  document.getElementById('allPaymentsBody').innerHTML = rows.map(p => `
+    <tr>
+      <td>${escapeHtml(p.residentName)}</td><td>${escapeHtml(p.flatNumber)}</td><td>${formatINR(p.amount)}</td>
+      <td>${escapeHtml((p.mode || '').toUpperCase())}</td>
+      <td><span class="badge ${badge[p.status] || 'badge-neutral'}">${escapeHtml((p.status || '').replace('_', ' '))}</span></td>
+      <td class="mono">${escapeHtml(p.receiptNumber || '—')}</td><td>${fmtDate(p.submittedAt)}</td>
+    </tr>
+  `).join('') || '<tr><td colspan="7" class="t-muted">No payments yet.</td></tr>';
+}
+
+document.getElementById('exportPaymentsBtn').addEventListener('click', () => {
+  exportToExcel(serializeForExport(allPayments).map(p => ({
+    Resident: p.residentName, Flat: p.flatNumber, Tower: p.tower, Amount: p.amount, Mode: p.mode,
+    Status: p.status, ReceiptNo: p.receiptNumber, FY: p.financialYear, Submitted: p.submittedAt
+  })), 'payments.xlsx', 'Payments');
+});
+
+function openPaymentDetail(id) {
+  const p = allPayments.find(x => x.id === id);
+  if (!p) return;
+  const body = document.getElementById('paymentDetailModalBody');
+  body.innerHTML = `
+    <div class="vrow-list" style="font-size:13.5px;">
+      <div class="vrow"><span class="t-muted">Resident</span><span>${escapeHtml(p.residentName)}</span></div>
+      <div class="vrow"><span class="t-muted">Flat / Tower</span><span>${escapeHtml(p.flatNumber)} / ${escapeHtml(p.tower)}</span></div>
+      <div class="vrow"><span class="t-muted">Amount</span><span>${formatINR(p.amount)}</span></div>
+      <div class="vrow"><span class="t-muted">Mode</span><span>${escapeHtml((p.mode || '').toUpperCase())}</span></div>
+      <div class="vrow"><span class="t-muted">UTR / Cheque No.</span><span class="mono">${escapeHtml(p.utrOrChequeNo || '—')}</span></div>
+      <div class="vrow"><span class="t-muted">Financial Year</span><span>${escapeHtml(p.financialYear)}</span></div>
+      <div class="vrow"><span class="t-muted">Submitted</span><span>${fmtDateTime(p.submittedAt)}</span></div>
+    </div>
+    ${p.paymentProofURL ? `<a href="${p.paymentProofURL}" target="_blank" class="btn btn-outline btn-sm" style="margin:14px 0; display:inline-flex;">📎 View Payment Proof</a>` : ''}
+    <div class="action-row" style="margin-top:8px;">
+      ${(p.status === 'pending_approval' || p.status === 'pending_verification') && can('verifyPayments') ? `
+        <button class="btn btn-primary btn-sm" id="verifyBtn">✓ Verify &amp; Issue Receipt</button>
+        <button class="btn btn-danger btn-sm" id="rejectPayBtn">✕ Reject</button>` : ''}
+    </div>
+  `;
+  document.getElementById('verifyBtn')?.addEventListener('click', () => verifyPayment(p.id));
+  document.getElementById('rejectPayBtn')?.addEventListener('click', () => rejectPayment(p.id));
+  document.getElementById('paymentDetailModalBackdrop').classList.add('open');
+}
+document.getElementById('closePaymentDetailModal').addEventListener('click', () => document.getElementById('paymentDetailModalBackdrop').classList.remove('open'));
+
+async function verifyPayment(id) {
+  const p = allPayments.find(x => x.id === id);
+  const receiptNumber = await generateReceiptNumber(p.financialYear);
+  await updateDoc(doc(db, 'payments', id), { status: 'verified', receiptNumber, verifiedAt: serverTimestamp(), verifiedBy: currentAdmin.email });
+  await setDoc(doc(db, 'receiptsPublic', receiptNumber), {
+    receiptNumber, residentName: p.residentName, flatNumber: p.flatNumber, tower: p.tower,
+    amount: p.amount, financialYear: p.financialYear, verifiedAt: serverTimestamp(), status: 'Verified'
+  });
+  await logAudit(auth.currentUser, 'verify_payment', { paymentId: id, receiptNumber, amount: p.amount });
+  showToast(`Verified! Receipt: ${receiptNumber}`, 'success');
+  document.getElementById('paymentDetailModalBackdrop').classList.remove('open');
+  await reloadPayments(); renderPendingPayments(); renderAllPayments(); renderOverview(); renderDefaulters();
+}
+async function rejectPayment(id) {
+  const reason = prompt('Reject karne ki wajah:');
+  if (reason === null) return;
+  await updateDoc(doc(db, 'payments', id), { status: 'rejected', remarks: reason });
+  await logAudit(auth.currentUser, 'reject_payment', { paymentId: id, reason });
+  showToast('Payment reject kar diya gaya.', 'success');
+  document.getElementById('paymentDetailModalBackdrop').classList.remove('open');
+  await reloadPayments(); renderPendingPayments(); renderAllPayments();
+}
+
+function renderDefaulters() {
+  const approved = allMembers.filter(m => m.status === 'approved');
+  const paidUids = new Set(allPayments.filter(p => p.status === 'verified' && p.financialYear === selectedFY).map(p => p.memberUid));
+  const defaulters = approved.filter(m => !paidUids.has(m.uid));
+  document.getElementById('defaultersBody').innerHTML = defaulters.map(m => `
+    <tr>
+      <td>${escapeHtml(m.name)}</td><td>${escapeHtml(m.flatNumber)} / ${escapeHtml(m.tower)}</td><td>${escapeHtml(m.mobile)}</td>
+      <td><a class="btn btn-outline btn-sm" target="_blank" href="${waLink(m.mobile, `Dear ${m.name}, this is a reminder from MHMRWS that your maintenance payment for FY ${selectedFY} is pending. Please pay at your earliest convenience via the resident portal.`)}">WhatsApp</a></td>
+    </tr>
+  `).join('') || '<tr><td colspan="4" class="t-muted">No defaulters for this FY 🎉</td></tr>';
+}
+document.getElementById('emailDefaultersBtn').addEventListener('click', () => {
+  const approved = allMembers.filter(m => m.status === 'approved');
+  const paidUids = new Set(allPayments.filter(p => p.status === 'verified' && p.financialYear === selectedFY).map(p => p.memberUid));
+  const emails = approved.filter(m => !paidUids.has(m.uid)).map(m => m.email).filter(Boolean).join(',');
+  if (!emails) return showToast('Koi defaulter email nahi mila.', 'error');
+  const subject = encodeURIComponent('MHMRWS: Maintenance Payment Reminder');
+  const bodyText = encodeURIComponent(`Dear Resident,\n\nThis is a reminder that your maintenance payment for FY ${selectedFY} is pending. Kindly complete it via the resident portal at the earliest.\n\nRegards,\nMHMRWS Committee`);
+  window.location.href = `mailto:?bcc=${emails}&subject=${subject}&body=${bodyText}`;
+});
+
+/* ---------------------------------------------------------------------- */
+/*  Content: Notices + Committee                                          */
+/* ---------------------------------------------------------------------- */
+async function loadContentPanels() {
+  const notices = (await getDocs(query(collection(db, 'notices'), orderBy('postedAt', 'desc')))).docs.map(d => ({ id: d.id, ...d.data() }));
+  document.getElementById('noticesEditList').innerHTML = notices.map(n => `
+    <div class="list-edit-item">
+      <div><b style="font-size:13.5px;">${escapeHtml(n.titleEn)}</b><div class="t-muted" style="font-size:12px;">${fmtDate(n.postedAt)}</div></div>
+      <button class="btn btn-danger btn-sm" data-del-notice="${n.id}">Delete</button>
+    </div>`).join('') || '<p class="t-muted" style="font-size:13px;">No notices yet.</p>';
+  document.querySelectorAll('[data-del-notice]').forEach(b => b.addEventListener('click', async () => {
+    if (!confirm('Yeh notice delete karein?')) return;
+    await deleteDoc(doc(db, 'notices', b.dataset.delNotice));
+    await logAudit(auth.currentUser, 'delete_notice', { id: b.dataset.delNotice });
+    loadContentPanels();
+  }));
+
+  const committee = (await getDocs(collection(db, 'committee'))).docs.map(d => ({ id: d.id, ...d.data() }));
+  document.getElementById('committeeEditList').innerHTML = committee.map(c => `
+    <div class="list-edit-item">
+      <div><b style="font-size:13.5px;">${escapeHtml(c.name)}</b><div class="t-muted" style="font-size:12px;">${escapeHtml(c.role)}</div></div>
+      <button class="btn btn-danger btn-sm" data-del-committee="${c.id}">Delete</button>
+    </div>`).join('') || '<p class="t-muted" style="font-size:13px;">No committee members yet.</p>';
+  document.querySelectorAll('[data-del-committee]').forEach(b => b.addEventListener('click', async () => {
+    if (!confirm('Yeh committee member delete karein?')) return;
+    await deleteDoc(doc(db, 'committee', b.dataset.delCommittee));
+    await logAudit(auth.currentUser, 'delete_committee', { id: b.dataset.delCommittee });
+    loadContentPanels();
+  }));
+}
+document.getElementById('addNoticeBtn').addEventListener('click', () => document.getElementById('noticeModalBackdrop').classList.add('open'));
+document.getElementById('closeNoticeModal').addEventListener('click', () => document.getElementById('noticeModalBackdrop').classList.remove('open'));
+document.getElementById('noticeForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const f = e.target;
+  let attachmentURL = '';
+  if (f.attachment.files[0]) {
+    const r = storageRef(storage, `noticeAttachments/${Date.now()}_${f.attachment.files[0].name}`);
+    await uploadBytes(r, f.attachment.files[0]);
+    attachmentURL = await getDownloadURL(r);
+  }
+  await addDoc(collection(db, 'notices'), {
+    titleEn: f.titleEn.value, titleHi: f.titleHi.value, bodyEn: f.bodyEn.value, bodyHi: f.bodyHi.value,
+    attachmentURL, postedAt: serverTimestamp(), postedBy: currentAdmin.email
+  });
+  await logAudit(auth.currentUser, 'add_notice', { title: f.titleEn.value });
+  showToast('Notice post ho gaya.', 'success');
+  document.getElementById('noticeModalBackdrop').classList.remove('open');
+  f.reset(); loadContentPanels();
+});
+document.getElementById('addCommitteeBtn').addEventListener('click', () => document.getElementById('committeeModalBackdrop').classList.add('open'));
+document.getElementById('closeCommitteeModal').addEventListener('click', () => document.getElementById('committeeModalBackdrop').classList.remove('open'));
+document.getElementById('committeeForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const f = e.target;
+  let photoURL = '';
+  if (f.photo.files[0]) {
+    const r = storageRef(storage, `committeePhotos/${Date.now()}_${f.photo.files[0].name}`);
+    await uploadBytes(r, f.photo.files[0]);
+    photoURL = await getDownloadURL(r);
+  }
+  await addDoc(collection(db, 'committee'), { name: f.name.value, role: f.role.value, photoURL, addedAt: serverTimestamp() });
+  await logAudit(auth.currentUser, 'add_committee', { name: f.name.value });
+  showToast('Committee member added.', 'success');
+  document.getElementById('committeeModalBackdrop').classList.remove('open');
+  f.reset(); loadContentPanels();
+});
+
+/* ---------------------------------------------------------------------- */
+/*  Bulk Import / ZIP Export                                              */
+/* ---------------------------------------------------------------------- */
+let importRows = [];
+document.getElementById('importFile').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const rows = await parseExcelFile(file);
+  const existingFlats = new Set(allMembers.map(m => `${m.tower}|${m.flatNumber}`));
+  importRows = rows.map(r => {
+    const name = r.Name || r.name || '';
+    const tower = r.Tower || r.tower || '';
+    const flat = r.FlatNumber || r.Flat || r.flatNumber || '';
+    const mobile = r.Mobile || r.mobile || '';
+    const errors = [];
+    if (!name) errors.push('Missing name');
+    if (!tower || !flat) errors.push('Missing tower/flat');
+    if (existingFlats.has(`${tower}|${flat}`)) errors.push('Duplicate flat');
+    return { name, tower, flat, mobile, email: r.Email || r.email || '', residentType: (r.ResidentType || r.residentType || 'owner').toLowerCase(), fatherHusbandName: r.FatherHusbandName || '', errors };
+  });
+  const validCount = importRows.filter(r => !r.errors.length).length;
+  document.getElementById('importPreview').innerHTML = `
+    <div class="table-wrap" style="max-height:280px; overflow-y:auto;">
+      <table><thead><tr><th>Name</th><th>Flat</th><th>Mobile</th><th>Status</th></tr></thead>
+      <tbody>${importRows.map(r => `<tr><td>${escapeHtml(r.name)}</td><td>${escapeHtml(r.tower)}/${escapeHtml(r.flat)}</td><td>${escapeHtml(r.mobile)}</td><td>${r.errors.length ? `<span class="badge badge-danger">${escapeHtml(r.errors.join(', '))}</span>` : '<span class="badge badge-success">Valid</span>'}</td></tr>`).join('')}</tbody></table>
+    </div>
+    <button class="btn btn-primary" id="confirmImportBtn" style="margin-top:12px;">Import ${validCount} Valid Rows</button>
+  `;
+  document.getElementById('confirmImportBtn').addEventListener('click', confirmImport);
+});
+
+async function confirmImport() {
+  const btn = document.getElementById('confirmImportBtn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
+  let count = 0;
+  for (const row of importRows) {
+    if (row.errors.length) continue;
+    const memberID = await generateMemberId();
+    await addDoc(collection(db, 'members'), {
+      uid: null, name: row.name, fatherHusbandName: row.fatherHusbandName, tower: row.tower, flatNumber: row.flat,
+      mobile: row.mobile, email: row.email, residentType: row.residentType, address: '', nomineeName: '', nomineeRelation: '',
+      photoURL: '', idDocURL: '', declarationAccepted: true, memberID, status: 'approved', role: 'resident',
+      source: 'bulk_import', createdAt: serverTimestamp(), updatedAt: serverTimestamp()
+    });
+    count++;
+  }
+  await logAudit(auth.currentUser, 'bulk_import', { count });
+  showToast(`${count} residents imported. Note: they'll need to register normally with their email to get portal login access.`, 'success');
+  await reloadMembers(); renderMembersTable(); renderOverview(); populateTowerFilter();
+  document.getElementById('importPreview').innerHTML = ''; document.getElementById('importFile').value = '';
+}
+
+document.getElementById('zipExportBtn').addEventListener('click', async () => {
+  const monthVal = document.getElementById('zipMonth').value; // "YYYY-MM"
+  if (!monthVal) return showToast('Pehle month select karein.', 'error');
+  const statusEl = document.getElementById('zipStatus');
+  statusEl.textContent = 'Gathering files…';
+  const [y, m] = monthVal.split('-').map(Number);
+  const inMonth = (ts) => { if (!ts?.toDate) return false; const d = ts.toDate(); return d.getFullYear() === y && d.getMonth() === m - 1; };
+
+  const files = [];
+  allMembers.forEach(mem => {
+    if (inMonth(mem.createdAt)) {
+      if (mem.photoURL) files.push({ url: mem.photoURL, name: `Photos/${mem.memberID || mem.id}.jpg` });
+      if (mem.idDocURL) files.push({ url: mem.idDocURL, name: `IDDocs/${mem.memberID || mem.id}${mem.idDocEncrypted ? '.enc' : ''}` });
+    }
+  });
+  const verifiedThisMonth = allPayments.filter(p => p.status === 'verified' && inMonth(p.verifiedAt));
+  statusEl.textContent = `Building ${verifiedThisMonth.length} receipts + ${files.length} documents…`;
+  for (const p of verifiedThisMonth) {
+    try {
+      const mem = allMembers.find(x => x.uid === p.memberUid) || {};
+      const societySnap = await getDoc(doc(db, 'settings', 'society'));
+      const society = societySnap.exists() ? societySnap.data() : { fullName: SOCIETY.fullName };
+      const blob = await generateReceiptPDF({ payment: p, member: mem, society, logoDataUrl: null, save: false });
+      files.push({ blob, name: `Receipts/${p.receiptNumber}.pdf` });
+    } catch (e) { /* skip a failed receipt rather than aborting the whole export */ }
+  }
+
+  const zip = new window.JSZip();
+  for (const f of files) {
+    if (f.blob) { zip.file(f.name, f.blob); continue; }
+    try { const b = await fetch(f.url).then(r => r.blob()); zip.file(f.name, b); } catch (e) {}
+  }
+  const zipBlob = await zip.generateAsync({ type: 'blob' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(zipBlob); a.download = `MHMRWS-${monthVal}.zip`; a.click();
+  URL.revokeObjectURL(a.href);
+  await logAudit(auth.currentUser, 'zip_export', { month: monthVal, fileCount: files.length });
+  statusEl.textContent = `Done — ${files.length} files zipped.`;
+});
+
+/* ---------------------------------------------------------------------- */
+/*  Settings                                                               */
+/* ---------------------------------------------------------------------- */
+async function loadSettingsForms() {
+  const societySnap = await getDoc(doc(db, 'settings', 'society'));
+  if (societySnap.exists()) {
+    const s = societySnap.data();
+    const f = document.getElementById('societySettingsForm');
+    f.name.value = s.name || ''; f.regNumber.value = s.regNumber || ''; f.address.value = s.address || '';
+    f.contactPhone.value = s.contactPhone || ''; f.contactEmail.value = s.contactEmail || '';
+  }
+  const paySnap = await getDoc(doc(db, 'settings', 'payment'));
+  if (paySnap.exists()) {
+    const p = paySnap.data();
+    const f = document.getElementById('paymentSettingsForm');
+    f.upiId.value = p.upiId || ''; f.bankName.value = p.bankName || ''; f.accountNumber.value = p.accountNumber || ''; f.ifsc.value = p.ifsc || '';
+  }
+}
+document.getElementById('societySettingsForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const f = e.target;
+  await setDoc(doc(db, 'settings', 'society'), {
+    name: f.name.value, regNumber: f.regNumber.value, address: f.address.value,
+    contactPhone: f.contactPhone.value, contactEmail: f.contactEmail.value, updatedAt: serverTimestamp()
+  }, { merge: true });
+  await logAudit(auth.currentUser, 'update_society_settings', {});
+  showToast('Society info saved.', 'success');
+});
+document.getElementById('paymentSettingsForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const f = e.target;
+  const data = { upiId: f.upiId.value, bankName: f.bankName.value, accountNumber: f.accountNumber.value, ifsc: f.ifsc.value, updatedAt: serverTimestamp() };
+  if (f.qrImage.files[0]) {
+    const r = storageRef(storage, `settings/payment-qr-${Date.now()}`);
+    await uploadBytes(r, f.qrImage.files[0]);
+    data.qrCodeImageURL = await getDownloadURL(r);
+  }
+  await setDoc(doc(db, 'settings', 'payment'), data, { merge: true });
+  await logAudit(auth.currentUser, 'update_payment_settings', {});
+  showToast('Payment settings saved.', 'success');
+});
+
+document.getElementById('encryptPendingBtn').addEventListener('click', async () => {
+  const pass = document.getElementById('vaultPassphrase').value;
+  if (!pass) return showToast('Pehle passphrase daalein.', 'error');
+  if (!confirm('Yeh saare pending Aadhaar/PAN uploads ko is passphrase se encrypt kar dega. Passphrase yaad rakhein — bhoolne par documents access nahi ho sakte. Continue?')) return;
+  const targets = allMembers.filter(m => m.idDocURL && !m.idDocEncrypted);
+  let done = 0;
+  for (const m of targets) {
+    try {
+      const blob = await fetch(m.idDocURL).then(r => r.blob());
+      const encrypted = await encryptFile(blob, pass);
+      const r = storageRef(storage, `documents/${m.uid || m.id}/iddoc_encrypted_${Date.now()}.enc`);
+      await uploadBytes(r, encrypted);
+      const newUrl = await getDownloadURL(r);
+      await updateDoc(doc(db, 'members', m.id), { idDocURL: newUrl, idDocEncrypted: true });
+      done++;
+    } catch (e) { console.warn('Encrypt failed for', m.id, e); }
+  }
+  await logAudit(auth.currentUser, 'encrypt_documents', { count: done });
+  showToast(`${done} document(s) encrypted.`, 'success');
+  await reloadMembers();
+});
+
+document.getElementById('backupNowBtn').addEventListener('click', async () => {
+  const btn = document.getElementById('backupNowBtn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
+  try {
+    const notices = (await getDocs(collection(db, 'notices'))).docs.map(d => ({ id: d.id, ...d.data() }));
+    const committee = (await getDocs(collection(db, 'committee'))).docs.map(d => ({ id: d.id, ...d.data() }));
+    const result = await backupToDrive(GOOGLE_OAUTH_CLIENT_ID, {
+      members: serializeForExport(allMembers), payments: serializeForExport(allPayments),
+      notices: serializeForExport(notices), committee: serializeForExport(committee)
+    });
+    await logAudit(auth.currentUser, 'drive_backup', { fileCount: result.files.length });
+    document.getElementById('backupStatus').innerHTML = `✅ Backed up ${result.files.length} files to <b>${result.folderPath}</b> — ${new Date(result.timestamp).toLocaleString('en-IN')}`;
+    showToast('Google Drive backup safal raha!', 'success');
+  } catch (e) {
+    showToast(e.message || 'Backup fail ho gaya.', 'error');
+  } finally { btn.disabled = false; btn.textContent = '☁️ Backup Now'; }
+});
+
+/* ---------------------------------------------------------------------- */
+/*  Admin Users                                                            */
+/* ---------------------------------------------------------------------- */
+async function loadAdmins() {
+  if (!can('manageAdmins')) { document.getElementById('view-adminUsers').innerHTML = '<p class="t-muted">Yeh section sirf Super Admin ke liye hai.</p>'; return; }
+  const admins = (await getDocs(collection(db, 'admins'))).docs.map(d => ({ id: d.id, ...d.data() }));
+  document.getElementById('adminsTableBody').innerHTML = admins.map(a => `
+    <tr><td>${escapeHtml(a.name || '—')}</td><td>${escapeHtml(a.email)}</td><td>${escapeHtml(a.role)}</td>
+    <td>${a.id !== currentAdmin.uid ? `<button class="btn btn-danger btn-sm" data-remove-admin="${a.id}">Remove</button>` : '<span class="t-muted" style="font-size:12px;">(you)</span>'}</td></tr>
+  `).join('');
+  document.querySelectorAll('[data-remove-admin]').forEach(b => b.addEventListener('click', async () => {
+    if (!confirm('Is admin ka access hata dein? (Login account chalta rahega, sirf admin-role hatega)')) return;
+    await deleteDoc(doc(db, 'admins', b.dataset.removeAdmin));
+    await logAudit(auth.currentUser, 'remove_admin', { id: b.dataset.removeAdmin });
+    showToast('Admin access hata diya gaya.', 'success');
+    loadAdmins();
+  }));
+}
+document.getElementById('addAdminForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const f = e.target;
+  const btn = f.querySelector('button[type="submit"]');
+  btn.disabled = true;
+  try {
+    // Secondary app instance so creating this account doesn't sign the current admin out.
+    const secondaryApp = initializeApp(firebaseConfig, 'Secondary_' + Date.now());
+    const secondaryAuth = getAuth(secondaryApp);
+    const cred = await createUserWithEmailAndPassword(secondaryAuth, f.email.value.trim(), f.password.value);
+    const newUid = cred.user.uid;
+    await signOut(secondaryAuth);
+    await setDoc(doc(db, 'admins', newUid), { uid: newUid, name: f.name.value, email: f.email.value.trim(), role: f.role.value, createdAt: serverTimestamp(), createdBy: currentAdmin.email });
+    await logAudit(auth.currentUser, 'add_admin', { email: f.email.value, role: f.role.value });
+    showToast('Admin account create ho gaya.', 'success');
+    f.reset(); loadAdmins();
+  } catch (err) {
+    showToast(err.message || 'Admin create nahi ho paaya.', 'error');
+  } finally { btn.disabled = false; }
+});
+
+/* ---------------------------------------------------------------------- */
+/*  Audit Log                                                              */
+/* ---------------------------------------------------------------------- */
+async function loadAuditLog() {
+  try {
+    const rows = (await getDocs(query(collection(db, 'auditLogs'), orderBy('timestamp', 'desc'), limit(200)))).docs.map(d => d.data());
+    document.getElementById('auditLogBody').innerHTML = rows.map(r => `
+      <tr><td>${fmtDateTime(r.timestamp)}</td><td>${escapeHtml(r.userEmail)}</td><td>${escapeHtml(r.action)}</td>
+      <td class="mono" style="font-size:11.5px;">${escapeHtml(JSON.stringify(r.details || {}))}</td><td>${escapeHtml(r.ip || '—')}</td></tr>
+    `).join('') || '<tr><td colspan="5" class="t-muted">No audit entries yet.</td></tr>';
+  } catch (e) { document.getElementById('auditLogBody').innerHTML = '<tr><td colspan="5" class="t-muted">Could not load audit log.</td></tr>'; }
+}
+</script>
+<style>.vrow{ display:flex; justify-content:space-between; padding:9px 0; border-bottom:1px solid var(--line); } .vrow:last-child{ border-bottom:none; } .vrow span:first-child{ color:var(--ink-400); }</style>
+</body>
+</html>

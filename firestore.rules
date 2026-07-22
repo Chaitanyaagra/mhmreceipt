@@ -1,0 +1,108 @@
+rules_version = '2';
+
+// ============================================================================
+// MHMRWS Portal — Firestore Security Rules
+// Deploy with: firebase deploy --only firestore:rules
+// (or paste into Firebase Console → Firestore Database → Rules tab)
+//
+// Model: residents can only ever see/edit their OWN member + payment records.
+// Only accounts with a matching document in /admins can approve registrations,
+// verify payments, or assign sequential Member IDs / Receipt Numbers.
+// Nothing is ever hard-deleted from members/payments — see the app's
+// "Deactivate Member" flow, which only flips a status field.
+// ============================================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+    function isAdmin() {
+      return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+    function adminRole() {
+      return get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role;
+    }
+    function isSuperAdmin() {
+      return isAdmin() && adminRole() == 'superadmin';
+    }
+
+    // ---- Residents ---------------------------------------------------
+    match /members/{uid} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow create: if isAdmin() || (
+                      isOwner(uid) &&
+                      request.resource.data.uid == uid &&
+                      request.resource.data.status == 'pending'
+                    );
+      // Residents may edit their own profile fields, but never self-approve,
+      // self-assign a Member ID, reactivate themselves, or change their role.
+      allow update: if isAdmin() || (
+                      isOwner(uid) &&
+                      request.resource.data.status == resource.data.status &&
+                      request.resource.data.memberID == resource.data.memberID &&
+                      request.resource.data.role == resource.data.role
+                    );
+      allow delete: if false; // hard delete is never allowed — soft-delete (status: 'inactive') only
+    }
+
+    // ---- Admin directory (Super Admin manages roles) -------------------
+    match /admins/{uid} {
+      allow read: if isAdmin();
+      allow write: if isSuperAdmin();
+    }
+
+    // ---- Payments -------------------------------------------------------
+    match /payments/{paymentId} {
+      allow read: if isAdmin() || (isSignedIn() && resource.data.memberUid == request.auth.uid);
+      allow create: if isSignedIn()
+                    && request.resource.data.memberUid == request.auth.uid
+                    && request.resource.data.status in ['pending_approval', 'pending_verification'];
+      // Only admins can verify/reject and assign the receipt number.
+      allow update: if isAdmin();
+      allow delete: if false;
+    }
+
+    // ---- Sequence counters (Member ID / Receipt No.) --------------------
+    match /counters/{counterId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn(); // atomicity is enforced by the transaction, not this rule
+    }
+
+    // ---- Notice board — public read, admin write ------------------------
+    match /notices/{noticeId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ---- Committee directory — intentionally public ----------------------
+    match /committee/{memberId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ---- Society + payment settings (bank/QR/logo) — public read ---------
+    match /settings/{settingId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ---- Public receipt verification (QR code lands here) -----------------
+    // Only ever holds non-sensitive fields — see app-common.js / verify.html.
+    match /receiptsPublic/{receiptNumber} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ---- Audit log — append-only, admin/auditor read, NEVER editable ------
+    match /auditLogs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin();
+      allow update, delete: if false;
+    }
+  }
+}

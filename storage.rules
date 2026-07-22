@@ -1,0 +1,75 @@
+rules_version = '2';
+
+// ============================================================================
+// MHMRWS Portal — Storage Security Rules
+// Deploy with: firebase deploy --only storage
+// (or paste into Firebase Console → Storage → Rules tab)
+//
+// Requires your project's "Firestore-in-Storage-rules" access (GA since 2023)
+// so we can check the /admins collection without duplicating role data.
+// If firestore.exists() is unavailable on your project, see the fallback
+// note at the bottom of this file.
+// ============================================================================
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function isAdmin() {
+      return isSignedIn() &&
+        firestore.exists(/databases/(default)/documents/admins/$(request.auth.uid));
+    }
+
+    // Resident registration photo — owner + admins only (not public).
+    match /photos/{uid}/{fileName} {
+      allow read: if isAdmin() || request.auth.uid == uid;
+      allow write: if request.auth.uid == uid
+                   && request.resource.size < 5 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+    }
+
+    // Aadhaar / PAN uploads — owner + admins only, never public.
+    // Files here may additionally be AES-256-GCM encrypted client-side
+    // before upload (see app-common.js encryptFile()) for defense in depth.
+    match /documents/{uid}/{fileName} {
+      allow read: if isAdmin() || request.auth.uid == uid;
+      allow write: if request.auth.uid == uid && request.resource.size < 8 * 1024 * 1024;
+    }
+
+    // UPI/bank-transfer payment screenshots — owner + admins only.
+    match /paymentProofs/{uid}/{fileName} {
+      allow read: if isAdmin() || request.auth.uid == uid;
+      allow write: if request.auth.uid == uid && request.resource.size < 8 * 1024 * 1024;
+    }
+
+    // Notice board attachments (circulars, PDFs) — public read, admin write.
+    match /noticeAttachments/{fileName} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Committee directory photos — intentionally public.
+    match /committeePhotos/{fileName} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Society logo, payment QR code, downloadable forms — public read.
+    match /settings/{fileName} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+  }
+}
+
+// ----------------------------------------------------------------------------
+// FALLBACK if firestore.exists() is not available on your project:
+// Replace isAdmin() above with `return isSignedIn();` and rely on the fact
+// that admin accounts are never self-service (only a Super Admin can create
+// one from the Admin Panel — see SETUP-GUIDE.md, Step 6). This is weaker
+// (any signed-in resident could read any resident's documents) so upgrade
+// to the firestore.exists() version above as soon as you can confirm it
+// works on your project.
+// ----------------------------------------------------------------------------
