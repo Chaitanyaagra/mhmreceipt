@@ -14,7 +14,9 @@ app-common.js                 Shared logic — IDs, receipts, Excel, encryption,
 firestore.rules               Database security rules
 storage.rules                 File-upload security rules
 manifest.json + sw.js         PWA support (home screen par install ho sakta hai)
-assets/                       Aapka logo + generated app icons
+icon-192.png, icon-512.png    PWA icons (favicon-32.png bhi)
+mhm-*.webp                    Building ki photos
+logo-data.js                  Society seal, code ke andar embedded
 .github/workflows/deploy.yml  GitHub push par auto-deploy to GitHub Pages
 ```
 
@@ -199,7 +201,7 @@ Aur Firebase Console → Authentication → Settings → **Authorized domains** 
 ## 🎨 Customization
 
 - Colors: `styles.css` ke top mein `:root { --navy-950: ...; --saffron-500: ...; }` — yahin se poori site ka theme change ho jaata hai.
-- Logo: `assets/logo-mark.png` ko replace kar dein (aur `assets/icon-192.png` / `icon-512.png` bhi resize karke replace kar dein for best PWA quality — abhi wale aapki upload ki hui image se hi generate kiye gaye hain).
+- Logo: seal `logo-data.js` mein base64 ke roop mein embedded hai (isliye woh kabhi missing nahi ho sakta). Badalna ho toh naya logo bhej kar dobara generate karwa lein. `icon-192.png` / `icon-512.png` PWA ke liye alag files hain.
 - Society details (address, phone, bank details): yeh sab database mein hain, code mein nahi — Admin Panel → Settings se hi update karein.
 
 ## 🆘 Common Errors

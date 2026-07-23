@@ -8,7 +8,7 @@
    Bump CACHE_NAME on any future structural change to force a clean cache.
    ========================================================================== */
 
-const CACHE_NAME = 'mhmrws-shell-v2';
+const CACHE_NAME = 'mhmrws-shell-v3';
 const SHELL_FILES = [
   './',
   './index.html',
@@ -16,9 +16,10 @@ const SHELL_FILES = [
   './firebase-config.js',
   './app-common.js',
   './manifest.json',
-  './assets/logo-mark.png',
-  './assets/icon-192.png',
-  './assets/favicon-32.png'
+  './logo-data.js',
+  './i18n.js',
+  './icon-192.png',
+  './favicon-32.png'
 ];
 
 self.addEventListener('install', (event) => {

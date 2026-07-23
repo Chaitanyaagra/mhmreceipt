@@ -107,7 +107,6 @@ export const HI = {
   'Swimming Pool': 'स्विमिंग पूल',
   'Gymnasium': 'जिम',
   'Banquet Hall': 'बैंक्वेट हॉल',
-  'Home Theatre': 'होम थिएटर',
   "Kids' Play Area": 'बच्चों का खेल क्षेत्र',
   'Jogging Track': 'जॉगिंग ट्रैक',
   'Yoga / Meditation': 'योग / ध्यान',

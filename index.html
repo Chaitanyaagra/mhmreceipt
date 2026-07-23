@@ -7,8 +7,8 @@
 <meta name="description" content="Register, pay and download QR-verified receipts for Max Heights Majestic Resident Welfare Society.">
 <meta name="theme-color" content="#0A1B33">
 <link rel="manifest" href="manifest.json">
-<link rel="icon" href="assets/favicon-32.png">
-<link rel="apple-touch-icon" href="assets/icon-192.png">
+<link rel="icon" href="favicon-32.png">
+<link rel="apple-touch-icon" href="icon-192.png">
 <link rel="stylesheet" href="styles.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode/1.5.3/qrcode.min.js"></script>
@@ -63,13 +63,13 @@ nav.main-nav a:hover::after{ transform:scaleX(1); }
 /* The building render sits behind everything at low opacity with a navy
    scrim over it. It reads as depth and texture, not as a photo — text
    contrast never depends on where the render happens to be light or dark.
-   If assets/community/hero-bg.webp is ever missing, the navy gradient
+   If mhm-hero.webp is ever missing, the navy gradient
    underneath simply shows through: no broken image, no layout shift. */
 .hero-photo{
   position:absolute; inset:0; z-index:0; pointer-events:none;
   background-image:
     linear-gradient(to bottom, rgba(10,27,51,.90) 0%, rgba(10,27,51,.80) 45%, rgba(10,27,51,.97) 100%),
-    url('assets/community/hero-bg.webp');
+    url('mhm-hero.webp');
   background-size:cover; background-position:center 62%;
   opacity:.85;
 }
@@ -397,7 +397,6 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
     <g id="i-pool"><path d="M3 17.5c1.6 0 1.6 1.4 3.2 1.4s1.6-1.4 3.2-1.4 1.6 1.4 3.2 1.4 1.6-1.4 3.2-1.4 1.6 1.4 3.2 1.4M7 15.5V6a2.2 2.2 0 014.4 0M13.6 15.5V6A2.2 2.2 0 0118 6M7 9.5h4.4M7 12.6h4.4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></g>
     <g id="i-gym"><path d="M3.5 9.5v5M6.5 7v10M17.5 7v10M20.5 9.5v5M6.5 12h11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></g>
     <g id="i-banquet"><path d="M3 20h18M5 20v-6a7 7 0 0114 0v6M12 7V4M9.5 4h5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></g>
-    <g id="i-theatre"><rect x="2.5" y="4.5" width="19" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M8 20h8M12 16.5V20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></g>
     <g id="i-play"><circle cx="12" cy="5.5" r="2.2" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M12 7.7v6M6 20l3.5-6.3h5L18 20M8.5 11h7" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></g>
     <g id="i-jog"><circle cx="14.5" cy="4.6" r="2.1" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M13.4 7.4L10 10.5l2.6 2.4.8 5.3M12.6 12.9L8.6 16l-1.4 4M15.4 9.2l3.4 1.7M4.5 11.5l3.4-1.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></g>
     <g id="i-yoga"><circle cx="12" cy="4.4" r="2" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M12 6.6v5M12 11.6l-4.6 2M12 11.6l4.6 2M4 19.5c2.4-2 5.2-3 8-3s5.6 1 8 3" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></g>
@@ -564,16 +563,16 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
 
     <div class="community-grid">
       <figure class="shot reveal">
-        <img src="assets/community/aerial.webp" alt="Aerial view of Max Heights Majestic towers and the landscaped podium garden" loading="lazy" width="900" height="518">
+        <img src="mhm-aerial.webp" alt="Aerial view of Max Heights Majestic towers and the landscaped podium garden" loading="lazy" width="900" height="518">
         <figcaption><span>The Complex</span>70,000 sq.ft. landscaped podium garden</figcaption>
       </figure>
       <div class="shot-stack">
         <figure class="shot reveal reveal-d1">
-          <img src="assets/community/clubhouse.webp" alt="The six-level Club Ultima clubhouse building" loading="lazy" width="900" height="493">
+          <img src="mhm-clubhouse.webp" alt="The six-level Club Ultima clubhouse building" loading="lazy" width="900" height="493">
           <figcaption><span>Club Ultima</span>25,000 sq.ft. clubhouse, six levels</figcaption>
         </figure>
         <figure class="shot reveal reveal-d2">
-          <img src="assets/community/pool.webp" alt="Rooftop swimming pool at the clubhouse" loading="lazy" width="900" height="482">
+          <img src="mhm-pool.webp" alt="Rooftop swimming pool at the clubhouse" loading="lazy" width="900" height="482">
           <figcaption><span>Rooftop</span>Swimming pool &amp; sun deck</figcaption>
         </figure>
       </div>
@@ -585,7 +584,6 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
         <div class="amenity"><svg viewBox="0 0 24 24"><use href="#i-pool"/></svg>Swimming Pool</div>
         <div class="amenity"><svg viewBox="0 0 24 24"><use href="#i-gym"/></svg>Gymnasium</div>
         <div class="amenity"><svg viewBox="0 0 24 24"><use href="#i-banquet"/></svg>Banquet Hall</div>
-        <div class="amenity"><svg viewBox="0 0 24 24"><use href="#i-theatre"/></svg>Home Theatre</div>
         <div class="amenity"><svg viewBox="0 0 24 24"><use href="#i-play"/></svg>Kids' Play Area</div>
         <div class="amenity"><svg viewBox="0 0 24 24"><use href="#i-jog"/></svg>Jogging Track</div>
         <div class="amenity"><svg viewBox="0 0 24 24"><use href="#i-yoga"/></svg>Yoga / Meditation</div>
@@ -838,6 +836,16 @@ document.querySelectorAll('[data-lang-btn]').forEach(btn => {
   btn.addEventListener('click', () => setLang(btn.dataset.langBtn));
 });
 initLang();
+
+/* If a building photo is missing or fails to load, drop its card entirely
+   rather than leaving an empty frame or a broken-image icon. The grid
+   simply reflows around whatever did load. */
+document.querySelectorAll('.shot img').forEach(img => {
+  img.addEventListener('error', () => {
+    const fig = img.closest('.shot');
+    if (fig) fig.style.display = 'none';
+  });
+});
 
 /* ---- Motion -----------------------------------------------------------
    Everything here is skipped entirely when the person's device asks for

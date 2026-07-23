@@ -30,7 +30,7 @@ const GOOGLE_OAUTH_CLIENT_ID = "REPLACE_WITH_YOUR_OAUTH_CLIENT_ID.apps.googleuse
 const SOCIETY = {
   shortName: "MHMRWS",
   fullName: "Max Heights Majestic Resident Welfare Society",
-  logo: "assets/logo-mark.png"
+  logo: "logo-data.js"   // the seal is embedded as base64 — see logo-data.js
 };
 
 /* --------------------------------------------------------------------------
