@@ -221,6 +221,23 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // ---- Expenses — public read, Treasurer writes -------------------------
+    // Readable by everyone on purpose: this is the society's own money and
+    // the same figures go into the audited accounts. Only the Treasurer and
+    // Super Admin can record or remove an entry, matching who may verify
+    // payments — money in and money out are governed identically.
+    match /expenses/{expenseId} {
+      allow read: if true;
+      allow create, update: if canVerifyPayments()
+                            && isNonEmptyString(request.resource.data.description, 200)
+                            && request.resource.data.amount is number
+                            && request.resource.data.amount > 0
+                            && request.resource.data.amount <= 10000000
+                            && isValidFY(request.resource.data.financialYear)
+                            && request.resource.data.mode in ['cash','cheque','bank','upi'];
+      allow delete: if canVerifyPayments();
+    }
+
     // ---- Documents & forms — public read, office-bearer write -------------
     // Bylaws, AGM minutes, audited accounts. Deliberately world-readable:
     // these are the documents residents would otherwise have to collect from

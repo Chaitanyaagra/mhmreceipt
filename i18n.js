@@ -142,6 +142,29 @@ export const HI = {
   'Overpaid': 'अधिक भुगतान',
   'Rate not set': 'दर तय नहीं',
 
+  /* ---- Accounts ---- */
+  'Accounts': 'लेखा-जोखा',
+  'Where your maintenance goes': 'आपका मेंटेनेंस कहाँ जाता है',
+  'What the society collected this financial year, and what it was spent on. The same figures the committee presents at the AGM.':
+    'इस वित्तीय वर्ष में सोसाइटी ने कितना संग्रह किया और कहाँ खर्च हुआ। वही आँकड़े जो समिति वार्षिक बैठक में प्रस्तुत करती है।',
+  'Collected': 'संग्रहित',
+  'Spent': 'व्यय',
+  'Spending by head': 'मद-वार व्यय',
+  'No accounts have been published for this year yet.': 'इस वर्ष का लेखा-जोखा अभी प्रकाशित नहीं हुआ है।',
+  'No expenses have been recorded for this year yet.': 'इस वर्ष का कोई खर्च अभी दर्ज नहीं हुआ है।',
+  'Accounts could not be loaded.': 'लेखा-जोखा लोड नहीं हो सका।',
+  'Security / Guards': 'सुरक्षा / गार्ड',
+  'Housekeeping': 'साफ़-सफ़ाई',
+  'Electricity': 'बिजली',
+  'Water': 'पानी',
+  'Lift AMC': 'लिफ़्ट रखरखाव',
+  'Generator / Diesel': 'जनरेटर / डीज़ल',
+  'Gardening': 'बाग़वानी',
+  'Repairs & Maintenance': 'मरम्मत एवं रखरखाव',
+  'Office & Admin': 'कार्यालय एवं प्रशासन',
+  'Legal / Audit': 'क़ानूनी / अंकेक्षण',
+  'Festival & Events': 'त्योहार एवं आयोजन',
+
   /* ---- Committee ---- */
   'Governance': 'प्रशासन',
   'Your committee': 'आपकी समिति',

@@ -333,6 +333,25 @@ section{ padding:76px 0; position:relative; }
 }
 .stat-pill b{ font-family:var(--font-mono); font-size:15px; }
 
+/* ---------- Accounts ---------- */
+.fund-row{ display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:22px; }
+.fund-card{ background:var(--white); border:1px solid var(--line); border-radius:var(--radius-lg); padding:22px; }
+.fund-card .lbl{ font-family:var(--font-mono); font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-400); }
+.fund-card .amt{ font-family:var(--font-display); font-size:29px; font-weight:600; color:var(--navy-950); line-height:1.1; margin-top:6px; letter-spacing:-.02em; }
+.fund-card.spend .amt{ color:var(--magenta-500); }
+.fund-card.balance .amt{ color:var(--success); }
+.fund-card.balance.negative .amt{ color:var(--danger); }
+
+.spend-list{ background:var(--white); border:1px solid var(--line); border-radius:var(--radius-lg); padding:24px; }
+.spend-row{ padding:13px 0; border-bottom:1px solid var(--line); }
+.spend-row:last-child{ border-bottom:none; }
+.spend-row .top{ display:flex; justify-content:space-between; gap:12px; align-items:baseline; margin-bottom:7px; }
+.spend-row .nm{ font-size:14px; font-weight:600; }
+.spend-row .amt{ font-family:var(--font-mono); font-size:13.5px; font-weight:600; color:var(--navy-950); }
+.spend-row .pct{ font-family:var(--font-mono); font-size:11px; color:var(--ink-400); margin-left:8px; }
+.spend-bar{ height:7px; border-radius:99px; background:var(--paper); overflow:hidden; }
+.spend-bar span{ display:block; height:100%; border-radius:99px; background:var(--gradient-saffron); }
+
 /* ---------- Downloads ---------- */
 .doc-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(300px,1fr)); gap:12px; }
 .doc-item{
@@ -498,6 +517,10 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
 
   .notice-grid{ grid-template-columns:1fr; }
   .community-grid{ grid-template-columns:1fr; }
+  .fund-row{ grid-template-columns:1fr; gap:10px; }
+  .fund-card{ padding:18px; }
+  .fund-card .amt{ font-size:25px; }
+  .spend-list{ padding:18px; }
   .shot-stack{ grid-template-rows:auto auto; }
   .shot{ min-height:170px; }
   .amenity-grid{ grid-template-columns:1fr 1fr; gap:8px; }
@@ -600,6 +623,7 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
     <nav class="main-nav">
       <a href="#about">About</a>
       <a href="#community">Community</a>
+      <a href="#accounts">Accounts</a>
       <a href="#downloads">Documents</a>
       <a href="#notices">Notices</a>
       <a href="#committee">Committee</a>
@@ -785,6 +809,21 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
         <div class="amenity"><svg viewBox="0 0 24 24"><use href="#i-power"/></svg>100% Power Backup</div>
         <div class="amenity"><svg viewBox="0 0 24 24"><use href="#i-parking"/></svg>Ample Parking</div>
       </div>
+    </div>
+  </div>
+</section>
+
+<section id="accounts" style="background:var(--paper);">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <div class="rule-gold"></div>
+      <div class="eyebrow">Accounts</div>
+      <h2>Where your maintenance goes</h2>
+      <p>What the society collected this financial year, and what it was spent on. The same figures the committee presents at the AGM.</p>
+    </div>
+    <div id="accountsPanel" class="reveal">
+      <div class="skeleton" style="height:120px; margin-bottom:12px;"></div>
+      <div class="skeleton" style="height:180px;"></div>
     </div>
   </div>
 </section>
@@ -1186,7 +1225,8 @@ import {
 import {
   showToast, escapeHtml, fmtDate, formatINR, currentFinancialYear,
   generateReceiptPDF, printReceipt, validatePayment, validateRegistration,
-  generateMembershipCard, duesFor, DUES_LABEL, DUES_BADGE
+  generateMembershipCard, duesFor, DUES_LABEL, DUES_BADGE,
+  expenseSummary, fundPosition
 } from './app-common.js';
 
 /* Branding, the year stamp and the committee fallback are handled by the
@@ -1763,6 +1803,52 @@ window.addEventListener('mhm:langchange', () => {
   if (document.getElementById('noticeList')) renderNotices();
 });
 
+async function loadAccounts() {
+  const el = document.getElementById('accountsPanel');
+  const fy = currentFinancialYear();
+  try {
+    // Both collections are world-readable by design: this is the society's
+    // own money and the same figures appear in the audited accounts.
+    const [expSnap, paySnap] = await Promise.all([
+      getDocs(query(collection(db, 'expenses'), where('financialYear', '==', fy))),
+      getDocs(query(collection(db, 'payments'), where('financialYear', '==', fy)))
+    ]);
+    const expenses = expSnap.docs.map(d => d.data());
+    const payments = paySnap.docs.map(d => d.data());
+    const pos = fundPosition(payments, expenses, fy);
+    const summary = expenseSummary(expenses, fy);
+
+    if (!expenses.length && !pos.collected) {
+      el.innerHTML = '<div class="empty" style="padding:38px 12px;"><p>No accounts have been published for this year yet.</p></div>';
+      window.__translate(el); return;
+    }
+
+    el.innerHTML = `
+      <div class="fund-row">
+        <div class="fund-card"><div class="lbl">Collected &middot; FY ${escapeHtml(fy)}</div><div class="amt">${formatINR(pos.collected)}</div></div>
+        <div class="fund-card spend"><div class="lbl">Spent</div><div class="amt">${formatINR(pos.spent)}</div></div>
+        <div class="fund-card balance ${pos.balance < 0 ? 'negative' : ''}"><div class="lbl">Balance</div><div class="amt">${formatINR(pos.balance)}</div></div>
+      </div>
+      ${summary.categories.length ? `
+      <div class="spend-list">
+        <h3 style="font-size:15.5px; margin-bottom:14px;">Spending by head</h3>
+        ${summary.categories.map(c => `
+          <div class="spend-row">
+            <div class="top">
+              <span class="nm">${escapeHtml(c.name)}</span>
+              <span><span class="amt">${formatINR(c.amount)}</span><span class="pct">${Math.round(c.share * 100)}%</span></span>
+            </div>
+            <div class="spend-bar"><span style="width:${Math.max(2, Math.round(c.share * 100))}%"></span></div>
+          </div>`).join('')}
+      </div>` : '<div class="spend-list"><p class="t-sub" style="font-size:13.5px;">No expenses have been recorded for this year yet.</p></div>'}
+    `;
+    window.__translate(el);
+  } catch (e) {
+    el.innerHTML = '<div class="empty" style="padding:38px 12px;"><p>Accounts could not be loaded.</p></div>';
+    window.__translate(el);
+  }
+}
+
 async function loadDownloads() {
   const el = document.getElementById('downloadsList');
   try {
@@ -1840,6 +1926,7 @@ async function loadStats() {
 }
 
 loadNotices();
+loadAccounts();
 loadDownloads();
 loadCommittee();
 loadSettingsPublic();

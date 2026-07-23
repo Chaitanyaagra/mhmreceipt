@@ -33,6 +33,8 @@ logo-data.js                  Society seal, code ke andar embedded
 - Notice board (English + Hindi), Committee directory
 - **Downloads section** — bylaws, AGM minutes, audited accounts, forms. Admin Panel → Notices &amp; Committee → Documents. Har document ya toh **file upload** ho sakta hai ya **link** (Google Drive etc.). Link wala option isliye hai ki Storage set up na hone par bhi yeh section kaam kare.
 - **Maintenance dues tracking** — Admin Panel → Settings → Maintenance Rate mein har financial year ka rate daalein (chahein toh tower-wise alag bhi). Uske baad system khud har flat ka bakaya nikaalta hai: residents ko apna balance dikhta hai, partial payments jud kar count hote hain, aur Defaulters report asli outstanding rakam dikhati hai — na ki sirf "kisne kuch diya, kisne nahi"
+- **Expense ledger** — Admin Panel → Expenses. Treasurer kharche darj karta hai (category, kise diya, bill ka link), aur residents ko site par **Accounts** section mein dikhta hai: is saal kitna aaya, kitna gaya, aur kis mad mein. Baaki office-bearers dekh sakte hain par darj nahi kar sakte — paisa aane aur jaane, dono par ek hi niyam.
+- **Backup tracking** — Settings mein hamesha dikhta hai ki aakhri backup **kitne din pehle** hua tha. 30 din se zyada ho jaye toh warning ban jaata hai. Ek "Download backup file" button bhi hai jo poora data ek JSON file mein download kar deta hai — iske liye Google Drive setup ki zaroorat nahi.
 - **Membership card** — approved residents apna card PDF download kar sakte hain (85.6 × 54 mm, standard size), building background aur scannable QR ke saath. QR gate par scan karne se `verify.html` khulta hai aur batata hai ki membership **Active hai ya Inactive**
 - **Site-wide English / Hindi switch** — the EN / हिं toggle in the header translates the entire resident portal, not just notices, and remembers the choice on that device. To add or correct a translation, edit `i18n.js`: entries are keyed by the exact English text as it appears on screen, and anything without an entry simply stays in English, so nothing can break. Names, and terms like UPI / NEFT / QR, are intentionally left untranslated.
 - Search/filter, Financial Year selector, charts, Excel export
@@ -194,6 +196,18 @@ Aur Firebase Console → Authentication → Settings → **Authorized domains** 
 4. Admin panel se verify karein → resident dashboard se receipt download karein → us PDF ke QR ko scan karke `verify.html` par confirm karein
 
 ---
+
+## 💾 Backup ke baare mein saaf baat
+
+Is setup mein **sach mein apne aap chalne wala backup nahi ho sakta** — uske liye ek server ya paid Cloud Function chahiye, jo static hosting par nahi hota. Isliye maine banane ki jagah **bhoolna mushkil** bana diya:
+
+- Settings mein hamesha likha rehta hai ki aakhri backup kab hua aur kisne liya
+- 30 din se zyada ho jaye toh woh warning ban jaata hai
+- Har backup Audit Log mein bhi darj hota hai
+
+**Committee ke liye sujhav:** har mahine ki committee meeting ke agenda mein "backup liya?" daal dein. Do minute ka kaam hai, aur society ka poora financial record iske bharose hai.
+
+⚠️ **Ek cheez jo bilkul mat karein:** backup file ko GitHub repo mein mat daalein. Aapki repo public hai — usme residents ke phone number, email aur pate sabko dikh jaayenge.
 
 ## 🔒 Security Notes
 

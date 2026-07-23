@@ -212,6 +212,82 @@ export const DUES_BADGE = {
 };
 
 /* ---------------------------------------------------------------------- */
+/*  Expenses                                                               */
+/*                                                                          */
+/*  The portal could already answer "how much came in". This answers the    */
+/*  question residents actually ask at the AGM — "where did it go".         */
+/*                                                                          */
+/*  Expense records are readable by every resident on purpose: this is the  */
+/*  society's own money, and the same figures appear in the audited accounts */
+/*  anyway. Committee members should know that vendor names they enter here  */
+/*  are visible to members.                                                  */
+/* ---------------------------------------------------------------------- */
+export const EXPENSE_CATEGORIES = [
+  'Security / Guards',
+  'Housekeeping',
+  'Electricity',
+  'Water',
+  'Lift AMC',
+  'Generator / Diesel',
+  'Gardening',
+  'Repairs & Maintenance',
+  'Office & Admin',
+  'Legal / Audit',
+  'Festival & Events',
+  'Other'
+];
+
+export const EXPENSE_MODES = ['cash', 'cheque', 'bank', 'upi'];
+
+/** Totals for one financial year, plus a per-category breakdown. */
+export function expenseSummary(expenses, financialYear) {
+  const rows = (expenses || []).filter(e => e.financialYear === financialYear);
+  const total = rows.reduce((s, e) => s + (Number(e.amount) || 0), 0);
+
+  const byCategory = {};
+  rows.forEach(e => {
+    const k = e.category || 'Other';
+    byCategory[k] = (byCategory[k] || 0) + (Number(e.amount) || 0);
+  });
+
+  const categories = Object.entries(byCategory)
+    .map(([name, amount]) => ({ name, amount, share: total ? amount / total : 0 }))
+    .sort((a, b) => b.amount - a.amount);
+
+  const byMonth = {};
+  rows.forEach(e => {
+    const d = e.date?.toDate ? e.date.toDate() : (e.date ? new Date(e.date) : null);
+    if (!d) return;
+    const k = d.toLocaleString('en-IN', { month: 'short', year: '2-digit' });
+    byMonth[k] = (byMonth[k] || 0) + (Number(e.amount) || 0);
+  });
+
+  return { total, count: rows.length, categories, byMonth };
+}
+
+/** Collected vs spent for a financial year — the headline the AGM cares about. */
+export function fundPosition(payments, expenses, financialYear) {
+  const collected = (payments || [])
+    .filter(p => p.status === 'verified' && p.financialYear === financialYear)
+    .reduce((s, p) => s + (Number(p.amount) || 0), 0);
+  const spent = expenseSummary(expenses, financialYear).total;
+  return { collected, spent, balance: collected - spent };
+}
+
+/** Validates an expense before it is written. Mirrors the security rules. */
+export function validateExpense({ description, amount, category, mode, paidTo }) {
+  const amt = Number(amount);
+  if (!String(description || '').trim()) return 'Kharche ka vivaran zaroori hai.';
+  if (String(description).length > 200) return 'Vivaran bahut lamba hai.';
+  if (!Number.isFinite(amt) || amt <= 0) return 'Sahi amount daalein.';
+  if (amt > 10000000) return 'Amount ₹1,00,00,000 se zyada nahi ho sakta.';
+  if (!EXPENSE_CATEGORIES.includes(category)) return 'Category valid nahi hai.';
+  if (!EXPENSE_MODES.includes(mode)) return 'Payment mode valid nahi hai.';
+  if (String(paidTo || '').length > 120) return 'Kise diya — yeh naam bahut lamba hai.';
+  return null;
+}
+
+/* ---------------------------------------------------------------------- */
 /*  Formatting                                                             */
 /* ---------------------------------------------------------------------- */
 export function formatINR(amount) {

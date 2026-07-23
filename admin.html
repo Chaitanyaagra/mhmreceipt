@@ -106,6 +106,7 @@
   <g id="a-overview"><path d="M4 20V11M9.3 20V5M14.7 20v-6M20 20V8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" fill="none"/></g>
   <g id="a-members"><circle cx="9" cy="8.4" r="3.3" stroke="currentColor" stroke-width="1.7" fill="none"/><path d="M2.6 19.4c.8-3.2 3.4-5 6.4-5s5.6 1.8 6.4 5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" fill="none"/><path d="M16.2 5.6a3.1 3.1 0 010 5.8M18.4 19.4c-.3-1.5-.9-2.8-1.8-3.8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" fill="none"/></g>
   <g id="a-payments"><rect x="2.5" y="5.5" width="19" height="13" rx="2.4" stroke="currentColor" stroke-width="1.7" fill="none"/><path d="M2.5 10h19M6 14.6h4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></g>
+  <g id="a-expenses"><path d="M12 2.6v18.8M8.2 6.2h6a2.8 2.8 0 010 5.6H9.8a2.8 2.8 0 000 5.6h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" fill="none"/></g>
   <g id="a-content"><path d="M3.5 9.5h3.2L14 5.2v13.6L6.7 14.5H3.5z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" fill="none"/><path d="M17.4 9.2a4.2 4.2 0 010 5.6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" fill="none"/></g>
   <g id="a-importExport"><path d="M20 11.2A8 8 0 006.3 6.1M4 12.8a8 8 0 0013.7 5.1" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" fill="none"/><path d="M20 4.6v6.6h-6.6M4 19.4v-6.6h6.6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" fill="none"/></g>
   <g id="a-settings"><circle cx="12" cy="12" r="3.1" stroke="currentColor" stroke-width="1.7" fill="none"/><path d="M12 2.8v2.6M12 18.6v2.6M4.5 12H2M22 12h-2.5M6.4 6.4L4.6 4.6M19.4 19.4l-1.8-1.8M17.6 6.4l1.8-1.8M4.6 19.4l1.8-1.8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></g>
@@ -151,6 +152,7 @@
       <button data-view="overview" class="active"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-overview"/></svg></span> Overview</button>
       <button data-view="members"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-members"/></svg></span> Members</button>
       <button data-view="payments"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-payments"/></svg></span> Payments</button>
+      <button data-view="expenses"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-expenses"/></svg></span> Expenses</button>
       <button data-view="content"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-content"/></svg></span> Notices &amp; Committee</button>
       <button data-view="importExport"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-importExport"/></svg></span> Import / Export</button>
       <button data-view="settings"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-settings"/></svg></span> Settings &amp; Backup</button>
@@ -258,6 +260,46 @@
       </div>
     </div>
 
+    <!-- ---------------- EXPENSES ---------------- -->
+    <div class="view-panel" id="view-expenses">
+      <div class="topbar">
+        <h2 class="view-title">Expenses</h2>
+        <div class="action-row">
+          <button class="btn btn-outline btn-sm" id="exportExpensesBtn">Export Excel</button>
+          <button class="btn btn-primary btn-sm" id="addExpenseBtn">+ Add Expense</button>
+        </div>
+      </div>
+
+      <div class="stat-cards">
+        <div class="card card-pad stat-card"><div class="num" id="expCollected">—</div><div class="lbl">Collected (Selected FY)</div></div>
+        <div class="card card-pad stat-card"><div class="num" id="expSpent">—</div><div class="lbl">Spent</div></div>
+        <div class="card card-pad stat-card"><div class="num" id="expBalance">—</div><div class="lbl">Balance in Hand</div></div>
+        <div class="card card-pad stat-card"><div class="num" id="expCount">—</div><div class="lbl">Entries</div></div>
+      </div>
+
+      <div class="chart-grid">
+        <div class="card card-pad chart-card">
+          <h3 style="font-size:14.5px; margin-bottom:12px;">Monthly Spend</h3>
+          <canvas id="expMonthlyChart"></canvas>
+        </div>
+        <div class="card card-pad chart-card">
+          <h3 style="font-size:14.5px; margin-bottom:12px;">Where It Went</h3>
+          <canvas id="expCategoryChart"></canvas>
+        </div>
+      </div>
+
+      <div class="table-wrap responsive">
+        <table>
+          <thead><tr><th>Date</th><th>Description</th><th>Category</th><th>Paid To</th><th>Amount</th><th>Actions</th></tr></thead>
+          <tbody id="expensesBody"><tr><td colspan="6" class="t-muted">Loading…</td></tr></tbody>
+        </table>
+      </div>
+      <p class="t-sub" style="font-size:12.3px; margin-top:12px;">
+        Yeh kharche residents ko bhi dikhte hain — society ka paisa hai, aur yahi figures audited accounts mein bhi jaate hain.
+        Vendor ke naam bhi dikhenge, isliye vahi likhein jo AGM mein bata sakein.
+      </p>
+    </div>
+
     <!-- ---------------- CONTENT (Notices + Committee) ---------------- -->
     <div class="view-panel" id="view-content">
       <div class="topbar"><h2 class="view-title">Notices &amp; Committee</h2></div>
@@ -356,7 +398,17 @@
           <div class="field"><label for="vaultPassphrase">Vault Passphrase (session only — never stored)</label><input type="password" id="vaultPassphrase" autocomplete="off"></div>
           <button class="btn btn-outline btn-block" id="encryptPendingBtn"><svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#a-lock"/></svg>Encrypt All Pending Aadhaar/PAN Uploads</button>
         </div>
-        <div class="card card-pad">
+        <div class="card card-pad" id="backupCard">
+          <h3 style="font-size:15px; margin-bottom:6px;">Backup</h3>
+          <div id="backupAge" style="margin-bottom:14px;"></div>
+          <div class="action-row" style="margin-bottom:12px;">
+            <button class="btn btn-outline btn-sm" id="downloadBackupBtn">Download backup file</button>
+          </div>
+          <p class="t-sub" style="font-size:12.4px; margin-bottom:16px;">
+            Yeh ek JSON file aapke computer par download kar deta hai — Drive setup ki zaroorat nahi.
+            Har mahine ek baar leke kisi safe jagah rakh dein.
+          </p>
+          <hr style="border:none; border-top:1px solid var(--line); margin:0 0 16px;">
           <h3 style="font-size:15px; margin-bottom:6px;">Google Drive Backup</h3>
           <p class="t-sub" style="font-size:12.8px; margin-bottom:14px;">Exports Members, Payments, Notices &amp; Committee as JSON to <span class="mono">MHMRWS/Database</span> in your Google Drive. Requires one-time OAuth setup — see SETUP-GUIDE.md Step 5.</p>
           <button class="btn btn-primary btn-block" id="backupNowBtn"><svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#a-cloud"/></svg>Backup Now</button>
@@ -459,6 +511,44 @@
   </div>
 </div>
 
+<div class="modal-backdrop" id="expenseModalBackdrop">
+  <div class="modal">
+    <div class="modal-head"><h3 style="font-size:16.5px;">Add Expense</h3><button class="icon-btn" id="closeExpenseModal">&#10005;</button></div>
+    <div class="modal-body">
+      <form id="expenseForm">
+        <div class="field"><label for="expDesc">Kis cheez ka kharcha</label>
+          <input id="expDesc" name="description" required maxlength="200" placeholder="e.g. Guard salary — July 2026"></div>
+        <div class="form-2col">
+          <div class="field"><label for="expAmount">Amount (₹)</label>
+            <input id="expAmount" name="amount" type="number" min="1" step="1" required inputmode="numeric"></div>
+          <div class="field"><label for="expDate">Date</label>
+            <input id="expDate" name="date" type="date" required></div>
+        </div>
+        <div class="form-2col">
+          <div class="field"><label for="expCategory">Category</label><select id="expCategory" name="category" required></select></div>
+          <div class="field"><label for="expMode">Payment Mode</label>
+            <select id="expMode" name="mode" required>
+              <option value="bank">Bank Transfer</option><option value="cheque">Cheque</option>
+              <option value="cash">Cash</option><option value="upi">UPI</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-2col">
+          <div class="field"><label for="expPaidTo">Kise diya</label>
+            <input id="expPaidTo" name="paidTo" maxlength="120" placeholder="e.g. ABC Security Services"></div>
+          <div class="field"><label for="expRef">Cheque / UTR No.</label>
+            <input id="expRef" name="reference" maxlength="40"></div>
+        </div>
+        <div class="field"><label for="expBill">Bill ka link <span class="t-muted" style="font-weight:400;">(optional)</span></label>
+          <input id="expBill" name="billLink" type="url" placeholder="https://drive.google.com/...">
+          <div class="hint">Bill ka Drive link daal dein toh audit ke waqt dhoondhna nahi padega.</div>
+        </div>
+        <button class="btn btn-primary btn-block" type="submit">Save Expense</button>
+      </form>
+    </div>
+  </div>
+</div>
+
 <div class="modal-backdrop" id="docModalBackdrop">
   <div class="modal">
     <div class="modal-head"><h3 style="font-size:16.5px;">Add Document</h3><button class="icon-btn" id="closeDocModal">&#10005;</button></div>
@@ -532,7 +622,8 @@ import {
   generateMemberId, generateReceiptNumber, logAudit, generateReceiptPDF, exportToExcel, parseExcelFile,
   encryptFile, decryptToBlob, backupToDrive, waLink, serializeForExport,
   TOWER_IDS, TOWER_PLAN, flatsForTower, isValidFlat,
-  duesFor, DUES_LABEL, DUES_BADGE
+  duesFor, DUES_LABEL, DUES_BADGE,
+  EXPENSE_CATEGORIES, EXPENSE_MODES, expenseSummary, fundPosition, validateExpense
 } from './app-common.js';
 
 /* ---------------------------------------------------------------------- */
@@ -549,16 +640,19 @@ const ROLE_LABELS = {
   secretary: 'Secretary', jointsecretary: 'Joint Secretary', treasurer: 'Treasurer'
 };
 const ROLE_NAV = {
-  superadmin: ['overview','members','payments','content','importExport','settings','adminUsers','auditLog'],
-  president: ['overview','members','content','auditLog'],
-  vicepresident: ['overview','members','content','auditLog'],
-  secretary: ['overview','members','content','auditLog'],
-  jointsecretary: ['overview','members','content','auditLog'],
-  treasurer: ['overview','payments','importExport','auditLog']
+  superadmin: ['overview','members','payments','expenses','content','importExport','settings','adminUsers','auditLog'],
+  // Office-bearers can see where the money went even though only the
+  // Treasurer may record it — that visibility is the point of the ledger.
+  president: ['overview','members','expenses','content','auditLog'],
+  vicepresident: ['overview','members','expenses','content','auditLog'],
+  secretary: ['overview','members','expenses','content','auditLog'],
+  jointsecretary: ['overview','members','expenses','content','auditLog'],
+  treasurer: ['overview','payments','expenses','importExport','auditLog']
 };
 const ACTION_PERMS = {
   approveMembers: ['superadmin','president','vicepresident','secretary','jointsecretary'],
   verifyPayments: ['superadmin','treasurer'],
+  recordExpenses: ['superadmin','treasurer'],
   manageContent: ['superadmin','president','vicepresident','secretary','jointsecretary'],
   manageAdmins: ['superadmin']
 };
@@ -700,17 +794,19 @@ document.querySelectorAll('#sideNav button').forEach(btn => btn.addEventListener
 async function bootData() {
   const fySel = document.getElementById('fySelect');
   fySel.innerHTML = financialYearOptions().map(fy => `<option value="${fy}" ${fy === selectedFY ? 'selected' : ''}>FY ${fy}</option>`).join('');
-  fySel.addEventListener('change', () => { selectedFY = fySel.value; renderOverview(); renderDefaulters(); });
+  fySel.addEventListener('change', () => { selectedFY = fySel.value; renderOverview(); renderDefaulters(); renderExpenses(); });
 
-  await Promise.all([reloadMembers(), reloadPayments()]);
+  await Promise.all([reloadMembers(), reloadPayments(), reloadExpenses()]);
   renderOverview();
   renderMembersTable();
   renderPendingPayments();
   renderAllPayments();
   renderDefaulters();
+  renderExpenses();
   loadContentPanels();
   loadSettingsForms();
   loadMaintenance();
+  renderBackupAge();
   loadAdmins();
   loadAuditLog();
   populateTowerFilter();
@@ -761,6 +857,119 @@ function drawChart(canvasId, type, labels, datasets) {
   charts[canvasId]?.destroy();
   charts[canvasId] = new Chart(ctx, { type, data: { labels, datasets }, options: { responsive: true, plugins: { legend: { display: type === 'doughnut' } } } });
 }
+
+/* ---------------------------------------------------------------------- */
+/*  Expenses                                                               */
+/* ---------------------------------------------------------------------- */
+let allExpenses = [];
+
+async function reloadExpenses() {
+  try {
+    allExpenses = (await getDocs(query(collection(db, 'expenses'), orderBy('date', 'desc'))))
+      .docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch (e) { allExpenses = []; }
+}
+
+function renderExpenses() {
+  const fy = selectedFY;
+  const summary = expenseSummary(allExpenses, fy);
+  const pos = fundPosition(allPayments, allExpenses, fy);
+
+  document.getElementById('expCollected').textContent = formatINR(pos.collected);
+  document.getElementById('expSpent').textContent = formatINR(pos.spent);
+  const balEl = document.getElementById('expBalance');
+  balEl.textContent = formatINR(pos.balance);
+  // An overspent year should look wrong at a glance, not blend in.
+  balEl.style.color = pos.balance < 0 ? 'var(--danger)' : 'var(--navy-950)';
+  document.getElementById('expCount').textContent = summary.count;
+
+  drawChart('expMonthlyChart', 'bar', Object.keys(summary.byMonth),
+    [{ label: 'Spend (₹)', data: Object.values(summary.byMonth), backgroundColor: '#C01860' }]);
+  drawChart('expCategoryChart', 'doughnut', summary.categories.map(c => c.name),
+    [{ data: summary.categories.map(c => c.amount),
+       backgroundColor: ['#0F2547','#F27B0E','#C9A227','#1B7A4D','#C01860','#2B5AA6','#B5760A','#7C879C','#8F7115','#1F4585','#A31350','#465066'] }]);
+
+  const rows = allExpenses.filter(e => e.financialYear === fy);
+  const canEdit = can('recordExpenses');
+  document.getElementById('expensesBody').innerHTML = rows.map(e => `
+    <tr>
+      <td data-label="Date">${fmtDate(e.date)}</td>
+      <td data-label="Description">${escapeHtml(e.description)}</td>
+      <td data-label="Category">${escapeHtml(e.category || '—')}</td>
+      <td data-label="Paid To">${escapeHtml(e.paidTo || '—')}${e.billLink ? ` <a href="${escapeHtml(e.billLink)}" target="_blank" rel="noopener" style="text-decoration:underline;">bill</a>` : ''}</td>
+      <td data-label="Amount"><b>${formatINR(e.amount)}</b></td>
+      <td data-label="Actions">${canEdit ? `<button class="btn btn-danger btn-sm" data-del-exp="${e.id}">Delete</button>` : '<span class="t-muted" style="font-size:12px;">view only</span>'}</td>
+    </tr>`).join('') || `<tr><td colspan="6" class="t-muted">FY ${escapeHtml(fy)} mein abhi koi kharcha dर्ज nahi hai.</td></tr>`;
+
+  document.querySelectorAll('[data-del-exp]').forEach(b => b.addEventListener('click', async () => {
+    const e = allExpenses.find(x => x.id === b.dataset.delExp);
+    if (!confirm(`"${e?.description}" (${formatINR(e?.amount)}) hata dein?`)) return;
+    await deleteDoc(doc(db, 'expenses', b.dataset.delExp));
+    await logAudit(auth.currentUser, 'delete_expense', { id: b.dataset.delExp, description: e?.description, amount: e?.amount });
+    await reloadExpenses(); renderExpenses(); renderOverview();
+  }));
+
+  // Only the Treasurer records spending; everyone else sees a read-only ledger.
+  const addBtn = document.getElementById('addExpenseBtn');
+  if (addBtn) addBtn.style.display = canEdit ? 'inline-flex' : 'none';
+}
+
+document.getElementById('addExpenseBtn')?.addEventListener('click', () => {
+  const f = document.getElementById('expenseForm');
+  f.category.innerHTML = EXPENSE_CATEGORIES.map(c => `<option>${escapeHtml(c)}</option>`).join('');
+  f.date.value = new Date().toISOString().slice(0, 10);
+  document.getElementById('expenseModalBackdrop').classList.add('open');
+});
+document.getElementById('closeExpenseModal')?.addEventListener('click', () =>
+  document.getElementById('expenseModalBackdrop').classList.remove('open'));
+
+document.getElementById('expenseForm')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const f = e.target;
+  const btn = f.querySelector('button[type="submit"]');
+  const payload = {
+    description: f.description.value.trim(),
+    amount: Number(f.amount.value),
+    category: f.category.value,
+    mode: f.mode.value,
+    paidTo: f.paidTo.value.trim()
+  };
+  const err = validateExpense(payload);
+  if (err) return showToast(err, 'error');
+
+  const when = new Date(f.date.value);
+  if (Number.isNaN(when.getTime())) return showToast('Sahi date chunein.', 'error');
+  // The financial year is derived from the expense date, not from whatever
+  // year happens to be selected on screen — otherwise a backdated entry
+  // would land in the wrong year's accounts.
+  const y = when.getFullYear();
+  const fy = when.getMonth() >= 3 ? `${y}-${String(y + 1).slice(-2)}` : `${y - 1}-${String(y).slice(-2)}`;
+
+  btn.disabled = true;
+  try {
+    await addDoc(collection(db, 'expenses'), {
+      ...payload,
+      reference: f.reference.value.trim(),
+      billLink: f.billLink.value.trim(),
+      date: when, financialYear: fy,
+      addedBy: currentAdmin.email, addedAt: serverTimestamp()
+    });
+    await logAudit(auth.currentUser, 'add_expense', { ...payload, financialYear: fy });
+    showToast(`Kharcha FY ${fy} mein add ho gaya.`, 'success');
+    document.getElementById('expenseModalBackdrop').classList.remove('open');
+    f.reset();
+    await reloadExpenses(); renderExpenses(); renderOverview();
+  } catch (err2) {
+    showToast('Kharcha save nahi ho paaya.', 'error');
+  } finally { btn.disabled = false; }
+});
+
+document.getElementById('exportExpensesBtn')?.addEventListener('click', () => {
+  exportToExcel(serializeForExport(allExpenses.filter(e => e.financialYear === selectedFY)).map(e => ({
+    Date: e.date, Description: e.description, Category: e.category,
+    PaidTo: e.paidTo, Mode: e.mode, Reference: e.reference, Amount: e.amount, AddedBy: e.addedBy
+  })), `expenses-${selectedFY}.xlsx`, 'Expenses');
+});
 
 /* ---------------------------------------------------------------------- */
 /*  Members                                                                */
@@ -1461,17 +1670,102 @@ document.getElementById('encryptPendingBtn').addEventListener('click', async () 
   await reloadMembers();
 });
 
+/* ---- Backup tracking ----------------------------------------------------
+   A "Backup Now" button nobody remembers to press is not a backup strategy.
+   Every backup is recorded, and the panel says plainly how long it has been —
+   turning silence into a visible warning instead of an assumption.
+
+   True unattended backup would need a server or a scheduled Cloud Function,
+   which this static-hosted setup does not have. Rather than pretend, this
+   makes forgetting hard: the age is always on screen, and past 30 days it
+   turns into a warning the committee cannot miss. */
+async function collectBackupBundle() {
+  const [notices, committee, documents, expenses] = await Promise.all([
+    getDocs(collection(db, 'notices')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
+    getDocs(collection(db, 'committee')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
+    getDocs(collection(db, 'documents')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
+    getDocs(collection(db, 'expenses')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => [])
+  ]);
+  return {
+    members: serializeForExport(allMembers),
+    payments: serializeForExport(allPayments),
+    expenses: serializeForExport(expenses),
+    notices: serializeForExport(notices),
+    committee: serializeForExport(committee),
+    documents: serializeForExport(documents)
+  };
+}
+
+async function recordBackup(kind, detail) {
+  try {
+    await setDoc(doc(db, 'settings', 'backup'),
+      { lastAt: serverTimestamp(), lastBy: currentAdmin.email, lastKind: kind, detail: detail || '' },
+      { merge: true });
+  } catch (e) { console.warn('Could not record the backup:', e); }
+  renderBackupAge();
+}
+
+async function renderBackupAge() {
+  const el = document.getElementById('backupAge');
+  if (!el) return;
+  let last = null, by = '', kind = '';
+  try {
+    const snap = await getDoc(doc(db, 'settings', 'backup'));
+    if (snap.exists()) {
+      const d = snap.data();
+      last = d.lastAt?.toDate ? d.lastAt.toDate() : null;
+      by = d.lastBy || ''; kind = d.lastKind || '';
+    }
+  } catch (e) {}
+
+  if (!last) {
+    el.innerHTML = `<div class="notice-banner" style="margin:0;">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#a-cloud"/></svg>
+      <div><b>Abhi tak koi backup nahi liya gaya.</b> Society ka poora financial record sirf Firebase par hai.</div>
+    </div>`;
+    return;
+  }
+
+  const days = Math.floor((Date.now() - last.getTime()) / 86400000);
+  const stale = days >= 30;
+  el.innerHTML = `<div class="notice-banner" style="margin:0; ${stale ? '' : 'background:var(--success-bg); border-color:var(--success-line);'}">
+    <svg viewBox="0 0 24 24" aria-hidden="true" ${stale ? '' : 'style="color:var(--success)"'}><use href="#a-cloud"/></svg>
+    <div>
+      <b>${stale ? `Aakhri backup ${days} din pehle hua tha.` : `Aakhri backup ${days === 0 ? 'aaj' : days + ' din pehle'} hua.`}</b>
+      ${escapeHtml(kind === 'drive' ? 'Google Drive par' : 'File download')}${by ? ' &middot; ' + escapeHtml(by) : ''}
+      ${stale ? '<br>Mahine mein ek baar backup lena chahiye.' : ''}
+    </div>
+  </div>`;
+}
+
+document.getElementById('downloadBackupBtn')?.addEventListener('click', async () => {
+  const btn = document.getElementById('downloadBackupBtn');
+  btn.disabled = true;
+  try {
+    const bundle = await collectBackupBundle();
+    const stamp = new Date().toISOString().slice(0, 10);
+    const blob = new Blob([JSON.stringify({ takenAt: new Date().toISOString(), society: 'MHMRWS', ...bundle }, null, 2)],
+                          { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url; link.download = `MHMRWS-backup-${stamp}.json`; link.click();
+    URL.revokeObjectURL(url);
+    const counts = Object.entries(bundle).map(([k, v]) => `${k}:${v.length}`).join(', ');
+    await logAudit(auth.currentUser, 'backup_download', { counts });
+    await recordBackup('download', counts);
+    showToast('Backup file download ho gayi. Ise safe jagah rakhein.', 'success');
+  } catch (e) {
+    showToast('Backup nahi ban paayi.', 'error');
+  } finally { btn.disabled = false; }
+});
+
 document.getElementById('backupNowBtn').addEventListener('click', async () => {
   const btn = document.getElementById('backupNowBtn');
   btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
   try {
-    const notices = (await getDocs(collection(db, 'notices'))).docs.map(d => ({ id: d.id, ...d.data() }));
-    const committee = (await getDocs(collection(db, 'committee'))).docs.map(d => ({ id: d.id, ...d.data() }));
-    const result = await backupToDrive(GOOGLE_OAUTH_CLIENT_ID, {
-      members: serializeForExport(allMembers), payments: serializeForExport(allPayments),
-      notices: serializeForExport(notices), committee: serializeForExport(committee)
-    });
+    const result = await backupToDrive(GOOGLE_OAUTH_CLIENT_ID, await collectBackupBundle());
     await logAudit(auth.currentUser, 'drive_backup', { fileCount: result.files.length });
+    await recordBackup('drive', `${result.files.length} files`);
     document.getElementById('backupStatus').innerHTML = `Backed up ${result.files.length} files to <b>${result.folderPath}</b> — ${new Date(result.timestamp).toLocaleString('en-IN')}`;
     showToast('Google Drive backup safal raha!', 'success');
   } catch (e) {
