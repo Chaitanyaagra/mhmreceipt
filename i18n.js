@@ -165,6 +165,14 @@ export const HI = {
   'e.g. B-1204': 'जैसे B-1204',
   '10-digit mobile': '10 अंकों का मोबाइल',
 
+  'Select your flat': 'अपना फ्लैट चुनें',
+  'Select tower first': 'पहले टावर चुनें',
+  'Select': 'चुनें',
+  'Ground Floor': 'भूतल',
+  'Registered Welfare Society': 'पंजीकृत कल्याण समिति',
+  'Approved': 'स्वीकृत',
+  'Bina 0 ya +91 ke. 6, 7, 8 ya 9 se shuru hona chahiye.': '0 या +91 के बिना। 6, 7, 8 या 9 से शुरू होना चाहिए।',
+
   /* ---- Resident dashboard ---- */
   'Your Portal': 'आपका पोर्टल',
   'Welcome back': 'पुनः स्वागत है',

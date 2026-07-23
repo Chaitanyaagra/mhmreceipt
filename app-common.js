@@ -6,6 +6,7 @@
    ========================================================================== */
 
 import { db } from './firebase-config.js';
+import { TOWER_PLAN, isValidFlat } from './tower-plan.js';
 import {
   doc, getDoc, setDoc, addDoc, collection, runTransaction, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
@@ -31,6 +32,11 @@ export function showToast(message, type = 'info') {
     setTimeout(() => el.remove(), 300);
   }, 4200);
 }
+
+/* Tower & flat plan lives in its own dependency-free module so the
+   registration form can use it without pulling in the Firebase SDK.
+   Re-exported here so existing imports keep working. */
+export { TOWER_PLAN, TOWER_IDS, floorLabel, flatsForTower, isValidFlat, totalFlats } from './tower-plan.js';
 
 /* ---------------------------------------------------------------------- */
 /*  Validation                                                             */
@@ -76,28 +82,63 @@ export function validatePayment({ amount, mode, utr, isOffline }) {
 }
 
 /**
- * Validates a resident registration.
+ * Validates a resident registration. Every field is required — a half-filled
+ * member record is worse than none, since the committee then has to chase
+ * people for details after the fact.
  * @returns {string|null} an error message, or null when the form is valid.
  */
 export function validateRegistration(f) {
-  const name = f.name.value.trim();
-  const tower = f.tower.value.trim();
-  const flat = f.flatNumber.value.trim();
-  const mobile = f.mobile.value.trim();
-  const email = f.email.value.trim();
+  const val = (k) => String(f[k]?.value ?? '').trim();
+  const name = val('name');
+  const father = val('fatherHusbandName');
+  const tower = val('tower');
+  const flat = val('flatNumber');
+  const mobile = val('mobile');
+  const email = val('email');
+  const occupation = val('occupation');
+  const address = val('address');
+  const nomineeName = val('nomineeName');
+  const nomineeRelation = val('nomineeRelation');
+  const residentType = val('residentType');
 
   if (!name) return 'Naam zaroori hai.';
   if (name.length > LIMITS.nameMax) return `Naam ${LIMITS.nameMax} characters se lamba nahi ho sakta.`;
   // \p{M} matters here: Devanagari matras (ा ि ो) are Unicode *Marks*, not
   // Letters, so without it every Hindi name would be rejected.
   if (!/^[\p{L}\p{M}\s.'-]+$/u.test(name)) return 'Naam mein sirf akshar, space, aur . \' - ho sakte hain.';
-  if (!tower) return 'Tower zaroori hai.';
-  if (tower.length > LIMITS.towerMax) return 'Tower ka naam bahut lamba hai.';
-  if (!flat) return 'Flat number zaroori hai.';
-  if (flat.length > LIMITS.flatMax) return 'Flat number bahut lamba hai.';
-  if (!/^[0-9]{10}$/.test(mobile)) return 'Mobile number theek 10 ankon ka hona chahiye.';
+
+  if (!father) return 'Pita / Pati ka naam zaroori hai.';
+  if (father.length > LIMITS.nameMax) return 'Pita / Pati ka naam bahut lamba hai.';
+  if (!/^[\p{L}\p{M}\s.'-]+$/u.test(father)) return 'Pita / Pati ke naam mein sirf akshar aur space ho sakte hain.';
+
+  if (!tower) return 'Tower chunna zaroori hai.';
+  if (!TOWER_PLAN[tower]) return 'Tower valid nahi hai.';
+  if (!flat) return 'Flat number chunna zaroori hai.';
+  if (!isValidFlat(tower, flat)) return `Flat ${flat} Tower ${tower} mein maujood nahi hai.`;
+
+  // Indian mobile numbers begin 6, 7, 8 or 9 — this rejects landlines and
+  // the common habit of typing a 0 or +91 prefix into the field.
+  if (!/^[0-9]{10}$/.test(mobile)) return 'Mobile number theek 10 ankon ka hona chahiye (bina 0 ya +91 ke).';
+  if (!/^[6-9]/.test(mobile)) return 'Mobile number 6, 7, 8 ya 9 se shuru hona chahiye.';
+
+  if (!email) return 'Email zaroori hai.';
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return 'Email address sahi format mein nahi hai.';
-  if (f.address.value.trim().length > LIMITS.addressMax) return 'Address bahut lamba hai.';
+
+  if (!occupation) return 'Occupation zaroori hai.';
+  if (occupation.length > 100) return 'Occupation bahut lamba hai.';
+  if (!residentType) return 'Owner ya Tenant chunna zaroori hai.';
+  if (!['owner', 'tenant'].includes(residentType)) return 'Owner / Tenant valid nahi hai.';
+
+  if (!address) return 'Address zaroori hai.';
+  if (address.length > LIMITS.addressMax) return 'Address bahut lamba hai.';
+
+  if (!nomineeName) return 'Nominee ka naam zaroori hai.';
+  if (!/^[\p{L}\p{M}\s.'-]+$/u.test(nomineeName)) return 'Nominee ke naam mein sirf akshar aur space ho sakte hain.';
+  if (!nomineeRelation) return 'Nominee se sambandh zaroori hai.';
+
+  if (!f.photo?.files?.length) return 'Apni photo upload karna zaroori hai.';
+  // Aadhaar / PAN is deliberately NOT required — see the note in index.html.
+
   if (f.password.value.length < 6) return 'Password kam se kam 6 characters ka hona chahiye.';
   if (f.password.value !== f.confirmPassword.value) return 'Password match nahi kar raha.';
   if (!f.declaration.checked) return 'Aage badhne ke liye declaration par tick karein.';

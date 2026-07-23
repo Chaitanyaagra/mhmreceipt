@@ -324,15 +324,15 @@
             <div id="adminResidentFields">
               <div class="form-2col">
                 <div class="field"><label>Tower</label>
-                  <select name="tower">
+                  <select name="tower" id="adminTowerSelect">
                     <option value="">Select tower</option>
-                    <option value="A">Tower A</option><option value="B">Tower B</option>
-                    <option value="C">Tower C</option><option value="D">Tower D</option>
-                    <option value="E">Tower E</option><option value="F">Tower F</option>
-                    <option value="G">Tower G</option>
                   </select>
                 </div>
-                <div class="field"><label>Flat Number</label><input name="flatNumber"></div>
+                <div class="field"><label>Flat Number</label>
+                  <select name="flatNumber" id="adminFlatSelect" disabled>
+                    <option value="">Select tower first</option>
+                  </select>
+                </div>
               </div>
               <div class="field"><label>Mobile Number</label><input name="mobile" type="tel"></div>
             </div>
@@ -432,7 +432,8 @@ import {
 import {
   showToast, escapeHtml, fmtDate, fmtDateTime, formatINR, currentFinancialYear, financialYearOptions,
   generateMemberId, generateReceiptNumber, logAudit, generateReceiptPDF, exportToExcel, parseExcelFile,
-  encryptFile, decryptToBlob, backupToDrive, waLink, serializeForExport
+  encryptFile, decryptToBlob, backupToDrive, waLink, serializeForExport,
+  TOWER_IDS, TOWER_PLAN, flatsForTower, isValidFlat
 } from './app-common.js';
 
 /* ---------------------------------------------------------------------- */
@@ -551,6 +552,23 @@ function applyRoleNav() {
   });
   if (!allowed.includes('overview')) switchView(allowed[0] || 'overview');
 }
+
+/* ---- Tower → Flat dropdowns (same floor plan as the resident form) ---- */
+(function initAdminTowerFlat(){
+  const t = document.getElementById('adminTowerSelect');
+  const f = document.getElementById('adminFlatSelect');
+  if (!t || !f) return;
+  t.innerHTML = '<option value="">Select tower</option>' +
+    TOWER_IDS.map(x => `<option value="${x}">Tower ${x}</option>`).join('');
+  t.addEventListener('change', () => {
+    if (!t.value) { f.innerHTML = '<option value="">Select tower first</option>'; f.disabled = true; return; }
+    f.innerHTML = '<option value="">Select flat</option>' + flatsForTower(t.value).map(g =>
+      `<optgroup label="${escapeHtml(g.label)}">` +
+      g.flats.map(n => `<option value="${n}">${n}</option>`).join('') +
+      `</optgroup>`).join('');
+    f.disabled = false;
+  });
+})();
 
 /* ---------------------------------------------------------------------- */
 /*  Nav / view switching                                                  */
@@ -953,7 +971,8 @@ document.getElementById('importFile').addEventListener('change', async (e) => {
   const seenInFile = new Set();
   importRows = rows.map(r => {
     const name = String(r.Name || r.name || '').trim();
-    const tower = String(r.Tower || r.tower || '').trim();
+    // Accept "B", "b", "Tower B", "TOWER-B" — all normalise to "B".
+    const tower = String(r.Tower || r.tower || '').trim().toUpperCase().replace(/^TOWER[\s-]*/, '');
     const flat = String(r.FlatNumber || r.Flat || r.flatNumber || '').trim();
     const mobile = String(r.Mobile || r.mobile || '').trim();
     const email = String(r.Email || r.email || '').trim();
@@ -963,6 +982,8 @@ document.getElementById('importFile').addEventListener('change', async (e) => {
     if (!name) errors.push('Missing name');
     if (name.length > 100) errors.push('Name too long');
     if (!tower || !flat) errors.push('Missing tower/flat');
+    else if (!TOWER_PLAN[tower]) errors.push(`Tower "${tower}" valid nahi (A-G hi hain)`);
+    else if (!isValidFlat(tower, flat)) errors.push(`Flat ${flat}, Tower ${tower} mein nahi hai`);
     if (existingFlats.has(`${tower}|${flat}`)) errors.push('Flat already registered');
     // Catch duplicates within the uploaded file itself, not just against the DB.
     if (seenInFile.has(`${tower}|${flat}`)) errors.push('Duplicate row in file');

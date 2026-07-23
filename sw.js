@@ -18,6 +18,7 @@ const SHELL_FILES = [
   './manifest.json',
   './logo-data.js',
   './i18n.js',
+  './tower-plan.js',
   './icon-192.png',
   './favicon-32.png'
 ];

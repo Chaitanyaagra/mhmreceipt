@@ -36,8 +36,17 @@
 
 /* ---------- Header ---------- */
 .site-header{
-  position:sticky; top:0; z-index:60; background:rgba(10,27,51,.94);
-  backdrop-filter:blur(12px); border-bottom:1px solid rgba(228,199,101,.22);
+  position:sticky; top:0; z-index:60; background:rgba(10,27,51,.92);
+  backdrop-filter:blur(14px) saturate(140%);
+  border-bottom:1px solid rgba(228,199,101,.2);
+  transition:background .3s ease, box-shadow .3s ease;
+}
+.site-header.scrolled{ background:rgba(10,27,51,.98); box-shadow:0 8px 30px -12px rgba(0,0,0,.6); }
+/* Hairline of brand colour under the header — reads as a printed rule. */
+.site-header::after{
+  content:''; position:absolute; left:0; right:0; bottom:-1px; height:1px;
+  background:linear-gradient(90deg, transparent, var(--gold-500) 22%, var(--magenta-500) 55%, var(--saffron-500) 78%, transparent);
+  opacity:.5;
 }
 .site-header .wrap{ display:flex; align-items:center; justify-content:space-between; height:70px; gap:12px; }
 .brand{ display:flex; align-items:center; gap:11px; color:var(--white); min-width:0; }
@@ -78,9 +87,33 @@ nav.main-nav a:hover::after{ transform:scaleX(1); }
   background:var(--gradient-saffron); opacity:.13; filter:blur(28px); top:-240px; right:-180px; z-index:0;
 }
 .hero-grid{ display:grid; grid-template-columns:1.1fr .9fr; gap:52px; align-items:center; }
-.hero h1{ color:var(--white); font-size:46px; letter-spacing:-.015em; margin:16px 0 18px; max-width:14ch; }
-.hero h1 em{ font-style:normal; color:var(--saffron-300); }
-.hero p.lead{ color:rgba(255,255,255,.76); font-size:16.5px; max-width:44ch; margin-bottom:30px; }
+.hero h1{
+  color:var(--white); font-size:52px; font-weight:600; letter-spacing:-.022em;
+  margin:18px 0 20px; max-width:14ch; line-height:1.08;
+}
+.hero h1 em{
+  font-style:normal;
+  background:linear-gradient(100deg, var(--saffron-300) 0%, var(--saffron-500) 55%, var(--magenta-500) 130%);
+  -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
+}
+.hero p.lead{ color:rgba(255,255,255,.78); font-size:17px; line-height:1.62; max-width:44ch; margin-bottom:32px; }
+
+/* A quiet credentials strip — the sort of line that appears on official
+   letterhead. It signals "this is the real society" before anyone reads
+   a word of the copy. */
+.trust-strip{
+  display:flex; align-items:center; gap:0; flex-wrap:wrap;
+  margin-top:26px; padding-top:20px;
+  border-top:1px solid rgba(228,199,101,.28);
+}
+.trust-strip .t-item{
+  display:flex; align-items:center; gap:8px; padding-right:22px; margin-right:22px;
+  border-right:1px solid rgba(255,255,255,.13);
+  font-size:11.5px; color:rgba(255,255,255,.62); letter-spacing:.02em;
+}
+.trust-strip .t-item:last-child{ border-right:none; margin-right:0; padding-right:0; }
+.trust-strip svg{ width:15px; height:15px; color:var(--gold-300); flex-shrink:0; }
+.trust-strip b{ color:rgba(255,255,255,.9); font-family:var(--font-mono); font-size:11px; letter-spacing:.04em; }
 .hero-ctas{ display:flex; gap:12px; flex-wrap:wrap; }
 .hero-visual{ display:grid; place-items:center; }
 .hero-seal-wrap{ position:relative; display:grid; place-items:center; }
@@ -107,20 +140,24 @@ nav.main-nav a:hover::after{ transform:scaleX(1); }
 .stat-strip{ display:flex; gap:0; margin-top:40px; border-top:1px solid rgba(255,255,255,.14); padding-top:22px; }
 .stat-strip .stat{ flex:1; border-right:1px solid rgba(255,255,255,.12); padding-right:16px; }
 .stat-strip .stat:last-child{ border-right:none; }
-.stat-strip .stat b{ font-family:var(--font-mono); font-size:21px; color:var(--saffron-300); display:block; line-height:1.2; }
+.stat-strip .stat b{
+  font-family:var(--font-display); font-weight:600; font-size:30px; color:var(--white);
+  display:block; line-height:1.1; letter-spacing:-.02em;
+}
 .stat-strip .stat span{ font-size:11.5px; color:rgba(255,255,255,.58); letter-spacing:.02em; }
 
 /* ---------- Section scaffolding ---------- */
 section{ padding:76px 0; position:relative; }
 .section-head{ max-width:660px; margin-bottom:40px; }
-.section-head h2{ font-size:31px; letter-spacing:-.01em; margin:11px 0 13px; }
-.section-head p{ color:var(--ink-600); font-size:15.5px; }
+.section-head h2{ font-size:34px; letter-spacing:-.016em; line-height:1.14; margin:12px 0 14px; }
+.section-head p{ color:var(--ink-600); font-size:16px; line-height:1.62; }
 .rule-gold{ width:52px; height:2px; background:var(--gradient-saffron); border-radius:2px; margin-bottom:18px; position:relative; }
 .rule-gold::after{ content:''; position:absolute; left:58px; top:0; width:16px; height:2px; border-radius:2px; background:var(--magenta-500); }
 
 /* ---------- Process strip (How it works) ---------- */
 .process{ display:grid; grid-template-columns:repeat(3,1fr); gap:0; border:1px solid var(--line); border-radius:var(--radius-lg); overflow:hidden; background:var(--white); }
-.process-step{ padding:30px 26px; border-right:1px solid var(--line); position:relative; }
+.process-step{ padding:32px 28px; border-right:1px solid var(--line); position:relative; transition:background .25s ease; }
+.process-step:hover{ background:linear-gradient(180deg,#FDFBF6,var(--white)); }
 .process-step:last-child{ border-right:none; }
 .process-num{
   font-family:var(--font-mono); font-size:11px; letter-spacing:.1em; color:var(--gold-700);
@@ -133,10 +170,20 @@ section{ padding:76px 0; position:relative; }
 /* ---------- Benefit cards with SVG icons ---------- */
 .benefit-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:18px; }
 .benefit-card{
-  background:var(--white); border:1px solid var(--line); border-radius:var(--radius-lg);
-  padding:26px 24px; transition:border-color .18s ease, transform .18s ease, box-shadow .18s ease;
+  position:relative; background:var(--white); border:1px solid var(--line);
+  border-radius:var(--radius-lg); padding:28px 26px;
+  transition:border-color .22s ease, transform .22s ease, box-shadow .22s ease;
 }
-.benefit-card:hover{ border-color:var(--gold-300); transform:translateY(-2px); box-shadow:var(--shadow-card); }
+/* A gold hairline that draws itself along the top edge on hover — the same
+   detail engraved rules use elsewhere, so the motion feels part of the
+   language rather than bolted on. */
+.benefit-card::before{
+  content:''; position:absolute; top:-1px; left:24px; right:24px; height:2px; border-radius:2px;
+  background:var(--gradient-saffron); transform:scaleX(0); transform-origin:left;
+  transition:transform .35s cubic-bezier(.2,.7,.3,1);
+}
+.benefit-card:hover{ border-color:var(--gold-300); transform:translateY(-3px); box-shadow:var(--shadow-pop); }
+.benefit-card:hover::before{ transform:scaleX(1); }
 .benefit-card .glyph{
   width:44px; height:44px; border-radius:11px; display:grid; place-items:center; margin-bottom:16px;
   background:linear-gradient(155deg,#EAF0FB,#F6F8FC); border:1px solid #DDE5F3; color:var(--navy-700);
@@ -226,6 +273,12 @@ section{ padding:76px 0; position:relative; }
 .tabbar button.active{ color:var(--navy-900); border-color:var(--saffron-500); }
 .form-2col{ display:grid; grid-template-columns:1fr 1fr; gap:0 16px; }
 .upload-hint{ font-size:11.5px; color:var(--ink-400); margin-top:4px; }
+/* Every field on this form is required — the marker is a quiet confirmation
+   of that rather than a way to distinguish required from optional. */
+.field label .req{ color:var(--magenta-500); font-style:normal; font-weight:700; margin-left:2px; }
+.field .hint{ font-size:11.5px; color:var(--ink-400); margin-top:4px; }
+select:disabled{ background:var(--paper); color:var(--ink-400); cursor:not-allowed; }
+optgroup, option[disabled]{ color:var(--ink-400); font-style:italic; }
 
 /* ---------- Resident dashboard ---------- */
 .status-card{ padding:26px; }
@@ -314,8 +367,11 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
   .hero-visual{ order:-1; }
   .hero-visual img.seal-img{ width:148px; height:148px; }
   .seal-caption{ margin-top:14px; font-size:9.5px; letter-spacing:.14em; }
-  .hero h1{ font-size:29px; max-width:none; margin:12px 0 14px; }
-  .hero p.lead{ font-size:15px; margin-bottom:24px; }
+  .hero h1{ font-size:31px; max-width:none; margin:14px 0 15px; }
+  .hero p.lead{ font-size:15.5px; margin-bottom:24px; }
+  .trust-strip{ margin-top:22px; padding-top:16px; gap:10px 0; }
+  .trust-strip .t-item{ padding-right:14px; margin-right:14px; font-size:10.8px; }
+  .section-head h2{ font-size:25px; }
   .hero-ctas{ flex-direction:column; }
   .hero-ctas .btn{ width:100%; }
   .stat-strip{ margin-top:30px; padding-top:18px; }
@@ -446,6 +502,11 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
         <div class="stat"><b id="statMembers">—</b><span>Registered Members</span></div>
         <div class="stat"><b id="statTowers">—</b><span>Towers Covered</span></div>
         <div class="stat"><b>100%</b><span>QR-Verifiable</span></div>
+      </div>
+      <div class="trust-strip">
+        <span class="t-item"><svg viewBox="0 0 24 24"><use href="#i-shield"/></svg>RERA <b>RAJ/P/2017/150</b></span>
+        <span class="t-item"><svg viewBox="0 0 24 24"><use href="#i-seal"/></svg><b>JDA</b> Approved</span>
+        <span class="t-item"><svg viewBox="0 0 24 24"><use href="#i-bank"/></svg>Registered Welfare Society</span>
       </div>
     </div>
     <div class="hero-visual">
@@ -634,49 +695,52 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
         <fieldset>
           <legend>Resident Details</legend>
           <div class="form-2col">
-            <div class="field"><label>Full Name</label><input name="name" required></div>
-            <div class="field"><label>Father's / Husband's Name</label><input name="fatherHusbandName" required></div>
-            <div class="field"><label>Tower</label>
+            <div class="field"><label>Full Name <i class="req">*</i></label><input name="name" required maxlength="100"></div>
+            <div class="field"><label>Father's / Husband's Name <i class="req">*</i></label><input name="fatherHusbandName" required maxlength="100"></div>
+            <div class="field"><label>Tower <i class="req">*</i></label>
               <!-- A dropdown, not free text: typed entries produce "Tower B",
                    "tower b", "B-Block" etc., which the tower-wise collection
                    report would count as four different towers. -->
-              <select name="tower" required>
+              <select name="tower" id="towerSelect" required>
                 <option value="">Select your tower</option>
-                <option value="A">Tower A</option>
-                <option value="B">Tower B</option>
-                <option value="C">Tower C</option>
-                <option value="D">Tower D</option>
-                <option value="E">Tower E</option>
-                <option value="F">Tower F</option>
-                <option value="G">Tower G</option>
               </select>
             </div>
-            <div class="field"><label>Flat Number</label><input name="flatNumber" required placeholder="e.g. 1204"></div>
-            <div class="field"><label>Mobile Number</label><input name="mobile" type="tel" pattern="[0-9]{10}" required placeholder="10-digit mobile"></div>
-            <div class="field"><label>Email</label><input name="email" type="email" required></div>
-            <div class="field"><label>Occupation</label><input name="occupation"></div>
-            <div class="field"><label>Owner / Tenant</label>
+            <div class="field"><label>Flat Number <i class="req">*</i></label>
+              <!-- Populated from the tower's real floor plan, so a resident
+                   cannot register a flat that doesn't exist. -->
+              <select name="flatNumber" id="flatSelect" required disabled>
+                <option value="">Select tower first</option>
+              </select>
+            </div>
+            <div class="field"><label>Mobile Number <i class="req">*</i></label>
+              <input name="mobile" type="tel" inputmode="numeric" pattern="[6-9][0-9]{9}" maxlength="10" required placeholder="10-digit mobile">
+              <div class="hint">Bina 0 ya +91 ke. 6, 7, 8 ya 9 se shuru hona chahiye.</div>
+            </div>
+            <div class="field"><label>Email <i class="req">*</i></label><input name="email" type="email" required></div>
+            <div class="field"><label>Occupation <i class="req">*</i></label><input name="occupation" required maxlength="100"></div>
+            <div class="field"><label>Owner / Tenant <i class="req">*</i></label>
               <select name="residentType" required>
+                <option value="">Select</option>
                 <option value="owner">Owner</option>
                 <option value="tenant">Tenant</option>
               </select>
             </div>
           </div>
-          <div class="field"><label>Address</label><textarea name="address" rows="2"></textarea></div>
+          <div class="field"><label>Address <i class="req">*</i></label><textarea name="address" rows="2" required maxlength="500"></textarea></div>
           <div class="form-2col">
-            <div class="field"><label>Nominee Name</label><input name="nomineeName"></div>
-            <div class="field"><label>Nominee Relation</label><input name="nomineeRelation"></div>
+            <div class="field"><label>Nominee Name <i class="req">*</i></label><input name="nomineeName" required maxlength="100"></div>
+            <div class="field"><label>Nominee Relation <i class="req">*</i></label><input name="nomineeRelation" required maxlength="60"></div>
           </div>
         </fieldset>
 
         <fieldset>
           <legend>Uploads</legend>
           <div class="form-2col">
-            <div class="field"><label>Photo</label><input type="file" name="photo" accept="image/*"></div>
+            <div class="field"><label>Photo <i class="req">*</i></label><input type="file" name="photo" accept="image/*" required></div>
             <div class="field">
               <label>Aadhaar / PAN <span class="t-muted" style="font-weight:400;">(optional)</span></label>
               <input type="file" name="idDoc" accept="image/*,.pdf">
-              <div class="upload-hint">Access-restricted to you and the committee. Fully optional.</div>
+              <div class="upload-hint">Jaanbujh kar optional rakha gaya hai — neeche wajah dekhein. Access sirf aapko aur committee ko.</div>
             </div>
           </div>
         </fieldset>
@@ -793,6 +857,7 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
 <script type="module">
 import { LOGO_DATA_URI } from './logo-data.js';
 import { initLang, setLang, translateSubtree, HI } from './i18n.js';
+import { TOWER_IDS, flatsForTower } from './tower-plan.js';
 window.__MHM_LOGO = LOGO_DATA_URI;
 window.__translate = translateSubtree;
 window.__HI = HI;
@@ -837,6 +902,19 @@ document.querySelectorAll('[data-lang-btn]').forEach(btn => {
 });
 initLang();
 
+/* Header gains weight once the page scrolls — a small cue that keeps the
+   sticky bar from feeling like it is floating unanchored over content. */
+const siteHeader = document.querySelector('.site-header');
+let headerTicking = false;
+window.addEventListener('scroll', () => {
+  if (headerTicking) return;
+  headerTicking = true;
+  requestAnimationFrame(() => {
+    siteHeader.classList.toggle('scrolled', window.scrollY > 12);
+    headerTicking = false;
+  });
+}, { passive: true });
+
 /* If a building photo is missing or fails to load, drop its card entirely
    rather than leaving an empty frame or a broken-image icon. The grid
    simply reflows around whatever did load. */
@@ -846,6 +924,49 @@ document.querySelectorAll('.shot img').forEach(img => {
     if (fig) fig.style.display = 'none';
   });
 });
+
+/* ---- Tower → Flat dependent dropdowns -------------------------------
+   Lives in this Firebase-free module on purpose: if the SDK fails to load,
+   an empty tower dropdown would make the form look broken. This way the
+   form always renders correctly and only submission would be affected. */
+const towerSelect = document.getElementById('towerSelect');
+const flatSelect = document.getElementById('flatSelect');
+const escAttr = (s) => { const d = document.createElement('div'); d.textContent = String(s ?? ''); return d.innerHTML; };
+
+if (towerSelect && flatSelect) {
+  towerSelect.innerHTML = '<option value="">Select your tower</option>' +
+    TOWER_IDS.map(t => `<option value="${t}">Tower ${t}</option>`).join('');
+
+  towerSelect.addEventListener('change', () => {
+    const tower = towerSelect.value;
+    if (!tower) {
+      flatSelect.innerHTML = '<option value="">Select tower first</option>';
+      flatSelect.disabled = true;
+      return;
+    }
+    // <optgroup> rather than disabled <option> headers: an option without a
+    // value attribute reports its own text as its value, which made the floor
+    // headings look like selectable flats.
+    flatSelect.innerHTML = '<option value="">Select your flat</option>' +
+      flatsForTower(tower).map(g =>
+        `<optgroup label="${escAttr(g.label)}">` +
+        g.flats.map(f => `<option value="${f}">${f}</option>`).join('') +
+        `</optgroup>`
+      ).join('');
+    flatSelect.disabled = false;
+    window.__translate?.(flatSelect);
+  });
+}
+
+/* Keep the mobile field numeric as it is typed, so a pasted
+   "+91 98765 43210" is cleaned up rather than silently failing on submit. */
+const mobileInput = document.querySelector('#registerForm [name="mobile"]');
+if (mobileInput) {
+  mobileInput.addEventListener('input', () => {
+    const cleaned = mobileInput.value.replace(/\D/g, '').replace(/^(91|0)/, '').slice(0, 10);
+    if (cleaned !== mobileInput.value) mobileInput.value = cleaned;
+  });
+}
 
 /* ---- Motion -----------------------------------------------------------
    Everything here is skipped entirely when the person's device asks for
