@@ -33,12 +33,15 @@
   </div>
 
 <script type="module">
-import { db } from './firebase-config.js';
+/* Standalone branding — no Firebase dependency. */
 import { LOGO_DATA_URI } from './logo-data.js';
+document.getElementById('verifyLogo').src = LOGO_DATA_URI;
+</script>
+
+<script type="module">
+import { db } from './firebase-config.js';
 import { doc, getDoc } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
 import { escapeHtml, fmtDate, formatINR } from './app-common.js';
-
-document.getElementById('verifyLogo').src = LOGO_DATA_URI;
 
 const params = new URLSearchParams(window.location.search);
 const receiptNumber = params.get('receipt');

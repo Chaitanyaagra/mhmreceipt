@@ -79,7 +79,14 @@ nav.main-nav a:hover::after{ transform:scaleX(1); }
   content:''; position:absolute; width:128%; height:128%; border-radius:50%;
   border:1px dashed rgba(228,199,101,.2);
 }
-.hero-visual img.seal-img{ width:240px; height:240px; border-radius:50%; filter:drop-shadow(0 18px 40px rgba(0,0,0,.45)); }
+/* The seal's outer ring is navy, so on dark navy backgrounds it disappears.
+   A white disc behind it keeps the whole seal readable as one object. */
+.logo-disc{ background:#fff; border-radius:50%; padding:3px; box-shadow:0 2px 8px rgba(0,0,0,.22); }
+.hero-visual img.seal-img{
+  width:240px; height:240px; border-radius:50%;
+  background:#fff; padding:9px;
+  box-shadow:0 18px 44px rgba(0,0,0,.5), 0 0 0 1px rgba(228,199,101,.5);
+}
 .seal-caption{
   text-align:center; margin-top:22px; color:rgba(255,255,255,.55);
   font-family:var(--font-mono); font-size:10.5px; letter-spacing:.18em; text-transform:uppercase;
@@ -150,7 +157,7 @@ section{ padding:76px 0; position:relative; }
 .pay-line span:last-child{ font-weight:600; text-align:right; word-break:break-all; }
 
 /* ---------- Committee ---------- */
-.committee-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:18px; }
+.committee-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:16px; }
 .committee-card{ text-align:center; background:var(--white); border:1px solid var(--line); border-radius:var(--radius-lg); padding:26px 16px; }
 .committee-card img{ width:76px; height:76px; border-radius:50%; margin:0 auto 14px; object-fit:cover; border:2px solid var(--gold-300); }
 .committee-card .nm{ font-weight:600; font-size:14.5px; }
@@ -313,7 +320,7 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
 <header class="site-header no-print">
   <div class="wrap">
     <a href="#top" class="brand">
-      <img id="brandLogo" alt="MHMRWS seal" width="42" height="42" style="border-radius:50%;">
+      <img id="brandLogo" class="logo-disc" alt="MHMRWS seal" width="42" height="42">
       <span class="brand-text">
         <span class="eyebrow" style="display:block; font-family:var(--font-mono); letter-spacing:.12em; text-transform:uppercase;">Registered Society</span>
         <span class="full">Max Heights Majestic RWA</span>
@@ -580,7 +587,7 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
     <div class="foot-grid">
       <div>
         <div class="brand" style="margin-bottom:14px;">
-          <img id="footLogo" alt="" width="40" height="40" style="border-radius:50%;">
+          <img id="footLogo" class="logo-disc" alt="" width="40" height="40">
           <span class="brand-text"><span class="full">Max Heights Majestic RWA</span></span>
         </div>
         <p style="max-width:34ch; font-size:13.2px;">Digital membership, payments and records for every resident.</p>
@@ -624,9 +631,52 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
 <div id="printReceiptArea" aria-hidden="true"></div>
 <div id="toast-region"></div>
 
+<!-- =====================================================================
+     CRITICAL BRANDING — deliberately isolated in its own module.
+     It imports ONLY logo-data.js and touches no network resource, so if
+     the Firebase SDK or any CDN fails to load, the seal and the committee
+     list still render. Keeping this in the main module would mean one
+     failed import blanks out the entire page's branding.
+     ===================================================================== -->
+<script type="module">
+import { LOGO_DATA_URI } from './logo-data.js';
+window.__MHM_LOGO = LOGO_DATA_URI;
+
+['brandLogo','heroLogo','footLogo'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.src = LOGO_DATA_URI;
+});
+
+document.getElementById('yearNow').textContent = new Date().getFullYear();
+
+/* The elected MHMRWS committee. Renders instantly so the section is never
+   empty. Entries added from Admin Panel → Notices & Committee (e.g. with
+   real photos) replace this list entirely once they exist. */
+window.__COMMITTEE_FALLBACK = [
+  { name: 'Bhanwar Singh',     role: 'President' },
+  { name: 'Nitin Agrawal',     role: 'Vice President' },
+  { name: 'Chaitanya Agrawal', role: 'Secretary' },
+  { name: 'Pradeep Poonia',    role: 'Joint Secretary' },
+  { name: 'Prakash Kanodia',   role: 'Treasurer' }
+];
+
+window.__renderCommittee = (rows) => {
+  const grid = document.getElementById('committeeGrid');
+  if (!grid) return;
+  const esc = (s) => { const d = document.createElement('div'); d.textContent = String(s ?? ''); return d.innerHTML; };
+  grid.innerHTML = rows.map(m => `
+    <div class="committee-card">
+      <img src="${m.photoURL || LOGO_DATA_URI}" alt="">
+      <div class="nm">${esc(m.name)}</div>
+      <div class="role">${esc(m.role)}</div>
+    </div>
+  `).join('');
+};
+window.__renderCommittee(window.__COMMITTEE_FALLBACK);
+</script>
+
 <script type="module">
 import { auth, db, storage, SOCIETY } from './firebase-config.js';
-import { LOGO_DATA_URI } from './logo-data.js';
 import {
   createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged,
   signOut, sendPasswordResetEmail
@@ -642,12 +692,10 @@ import {
   generateReceiptPDF, printReceipt
 } from './app-common.js';
 
-/* ---- Paint the embedded seal everywhere it appears ---- */
-['brandLogo','heroLogo','footLogo'].forEach(id => {
-  const el = document.getElementById(id);
-  if (el) el.src = LOGO_DATA_URI;
-});
-document.getElementById('yearNow').textContent = new Date().getFullYear();
+/* Branding, the year stamp and the committee fallback are handled by the
+   standalone module above, which has no Firebase dependency. LOGO_DATA_URI
+   is read from window.__MHM_LOGO so this module doesn't re-import it. */
+const LOGO_DATA_URI = window.__MHM_LOGO;
 
 /* ---- Mobile tab bar: highlight the section currently on screen ---- */
 const tabLinks = [...document.querySelectorAll('.tabbar-mobile a')];
@@ -1077,17 +1125,12 @@ document.querySelectorAll('#noticeLangToggle button').forEach(b => b.addEventLis
 }));
 
 async function loadCommittee() {
+  // The fallback list is already on screen (rendered by the standalone
+  // branding module). Only replace it if the committee has real entries.
   try {
     const rows = (await getDocs(collection(db, 'committee'))).docs.map(d => d.data());
-    if (!rows.length) return;
-    document.getElementById('committeeGrid').innerHTML = rows.map(m => `
-      <div class="committee-card">
-        <img src="${m.photoURL || LOGO_DATA_URI}" alt="">
-        <div class="nm">${escapeHtml(m.name)}</div>
-        <div class="role">${escapeHtml(m.role)}</div>
-      </div>
-    `).join('');
-  } catch (e) {}
+    if (rows.length) window.__renderCommittee(rows);
+  } catch (e) { /* keep the fallback list on any read failure */ }
 }
 
 async function loadSettingsPublic() {

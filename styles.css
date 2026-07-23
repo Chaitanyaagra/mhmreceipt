@@ -132,7 +132,7 @@ ul{ margin:0; padding:0; list-style:none; }
   content:''; position:absolute; inset:0; border-radius:50%;
   border:1px solid var(--gold-300);
 }
-.seal img{ width:62%; height:62%; object-fit:contain; border-radius:50%; }
+.seal img{ width:78%; height:78%; object-fit:contain; border-radius:50%; }
 .seal.seal-navy{ background:var(--gradient-navy); }
 .seal.seal-navy::after{ border-color:rgba(228,199,101,.5); }
 .seal.seal-sm{ width:44px; height:44px; }
