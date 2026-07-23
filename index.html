@@ -146,6 +146,69 @@ nav.main-nav a:hover::after{ transform:scaleX(1); }
 }
 .stat-strip .stat span{ font-size:11.5px; color:rgba(255,255,255,.58); letter-spacing:.02em; }
 
+/* ---------- Birds ----------
+   Three small silhouettes drifting across the hero, echoing the birds in
+   the project's own brochure. Deliberately slow, faint and few — this is
+   meant to add a little life to a still image, not to draw the eye away
+   from the copy. Everything animates via transform only, so it stays
+   smooth on a phone and never triggers layout work. The hero already has
+   overflow:hidden, so birds leaving the frame cannot create a scrollbar. */
+/* z-index 2 puts the birds above the hero copy. They were previously at the
+   same level as .wrap, which comes later in the DOM and so painted straight
+   over them — two of the three were invisible. Passing in front is also the
+   truer effect: a bird crosses in front of a building, not behind it. They
+   are faint and only a few pixels tall, so they never impair reading, and
+   pointer-events:none keeps them from intercepting any tap. */
+.birds{ position:absolute; inset:0; z-index:2; pointer-events:none; overflow:hidden; }
+.bird-path{ position:absolute; will-change:transform; animation:bird-fly linear infinite; }
+.bird-bob{ animation:bird-bob ease-in-out infinite; }
+.bird-bob svg{ display:block; color:#fff; animation:bird-wing ease-in-out infinite; transform-origin:50% 60%; }
+
+@keyframes bird-fly{
+  from{ transform:translateX(-10vw); }
+  to  { transform:translateX(115vw); }
+}
+@keyframes bird-bob{
+  0%,100%{ transform:translateY(0); }
+  50%    { transform:translateY(-16px); }
+}
+/* Squashing the silhouette vertically reads as a wingbeat without having to
+   redraw the path on every frame. Kept shallow on purpose: a harder squash
+   made the smaller birds collapse to a 2px line and effectively disappear
+   for half of every beat. */
+@keyframes bird-wing{
+  0%,100%{ transform:scaleY(1); }
+  50%    { transform:scaleY(.62); }
+}
+
+/* Each bird gets its own size, height, speed and rhythm so the group never
+   looks like one shape copied three times. Heights are chosen against the
+   hero's actual layout: content starts around 8% on desktop, so bird-1 rides
+   the clear band above it and the other two sit in the looser areas beside
+   the seal rather than tracking straight through the headline. */
+.bird-1{ top:5%;  animation-duration:34s; animation-delay:-4s; }
+.bird-1 .bird-bob{ animation-duration:3.4s; }
+.bird-1 svg{ width:18px; opacity:.55; animation-duration:.62s; }
+
+.bird-2{ top:24%; animation-duration:46s; animation-delay:-19s; }
+.bird-2 .bird-bob{ animation-duration:4.6s; }
+.bird-2 svg{ width:13px; opacity:.45; animation-duration:.78s; }
+
+.bird-3{ top:12%; animation-duration:40s; animation-delay:-31s; }
+.bird-3 .bird-bob{ animation-duration:4s; }
+.bird-3 svg{ width:15px; opacity:.5;  animation-duration:.7s; }
+
+@media (max-width:900px){
+  /* Two is plenty on a small screen. On mobile the seal occupies roughly
+     8-28% of the hero, so both birds sit above it in the clear band. */
+  .bird-3{ display:none; }
+  .bird-1{ top:3%; }
+  .bird-2{ top:6%; }
+}
+@media (prefers-reduced-motion: reduce){
+  .birds{ display:none; }
+}
+
 /* ---------- Section scaffolding ---------- */
 section{ padding:76px 0; position:relative; }
 .section-head{ max-width:660px; margin-bottom:40px; }
@@ -422,6 +485,21 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
   .lang-toggle-header button{ padding:6px 10px; font-size:12px; }
   #navAuthBtn{ padding:10px 14px; font-size:13px; }
 }
+
+/* On a short screen the hero was tall enough to push "Register as Resident"
+   down behind the fixed bottom tab bar, so the primary action could not be
+   tapped until the person scrolled. Tightening the hero brings it back into
+   reach at first load. */
+@media (max-width: 900px) and (max-height: 760px){
+  .hero{ padding:30px 0 38px; }
+  .hero-grid{ gap:20px; }
+  .hero-visual img.seal-img{ width:112px; height:112px; padding:6px; }
+  .seal-caption{ margin-top:10px; }
+  .hero h1{ font-size:26px; margin:10px 0 11px; }
+  .hero p.lead{ font-size:14.5px; margin-bottom:18px; }
+  .stat-strip{ margin-top:20px; padding-top:14px; }
+  .trust-strip{ margin-top:16px; padding-top:12px; }
+}
 @media (max-width: 348px){
   .site-header .brand-text{ display:none; }  /* seal alone is enough at this width */
 }
@@ -449,6 +527,10 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
     <g id="i-cash"><rect x="2.5" y="6" width="19" height="12" rx="2.2" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="12" r="2.8" fill="none" stroke="currentColor" stroke-width="1.7"/></g>
     <g id="i-cheque"><rect x="2.5" y="5.5" width="19" height="13" rx="2.2" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M6 10h6M6 13.5h4M16 14.5l1.6 1.6 3-3.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></g>
     <g id="i-qr"><rect x="3" y="3" width="7" height="7" rx="1.3" fill="none" stroke="currentColor" stroke-width="1.7"/><rect x="14" y="3" width="7" height="7" rx="1.3" fill="none" stroke="currentColor" stroke-width="1.7"/><rect x="3" y="14" width="7" height="7" rx="1.3" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M14 14h3v3h-3zM19.5 14v.01M14 19.5v.01M19.5 19.5v.01" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></g>
+    <!-- vector-effect keeps the stroke at a constant device-pixel width. The
+         birds are only 13-18px wide, and a scaled 1.9-unit stroke came out
+         under one pixel, which anti-aliasing then washed away almost entirely. -->
+    <g id="i-bird"><path d="M1 9C6.5 9 8.5 2.5 12.5 2.5S18.5 9 20 9c1.5 0 3.5-6.5 7.5-6.5S37 9 39 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none" vector-effect="non-scaling-stroke"/></g>
     <g id="i-shield"><path d="M12 2.8l7.5 3v6c0 4.6-3.1 8.4-7.5 9.4-4.4-1-7.5-4.8-7.5-9.4v-6z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M9 12l2.2 2.2L15.4 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></g>
     <g id="i-pool"><path d="M3 17.5c1.6 0 1.6 1.4 3.2 1.4s1.6-1.4 3.2-1.4 1.6 1.4 3.2 1.4 1.6-1.4 3.2-1.4 1.6 1.4 3.2 1.4M7 15.5V6a2.2 2.2 0 014.4 0M13.6 15.5V6A2.2 2.2 0 0118 6M7 9.5h4.4M7 12.6h4.4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></g>
     <g id="i-gym"><path d="M3.5 9.5v5M6.5 7v10M17.5 7v10M20.5 9.5v5M6.5 12h11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></g>
@@ -489,6 +571,11 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
 
 <section class="hero engrave" id="top" style="padding-top:70px;">
   <div class="hero-photo" aria-hidden="true"></div>
+  <div class="birds" aria-hidden="true">
+    <div class="bird-path bird-1"><div class="bird-bob"><svg viewBox="0 0 40 14" fill="none"><use href="#i-bird"/></svg></div></div>
+    <div class="bird-path bird-2"><div class="bird-bob"><svg viewBox="0 0 40 14" fill="none"><use href="#i-bird"/></svg></div></div>
+    <div class="bird-path bird-3"><div class="bird-bob"><svg viewBox="0 0 40 14" fill="none"><use href="#i-bird"/></svg></div></div>
+  </div>
   <div class="wrap hero-grid">
     <div>
       <div class="eyebrow on-dark">Digital Membership &amp; Payment Portal</div>
