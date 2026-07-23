@@ -52,6 +52,7 @@
 .brand{ display:flex; align-items:center; gap:11px; color:var(--white); min-width:0; }
 .brand-text .full{ font-family:var(--font-display); font-weight:600; font-size:15.5px; line-height:1.14; white-space:nowrap; }
 .brand-text .eyebrow{ color:var(--saffron-300); font-size:9.5px; }
+  .brand-eyebrow{ display:block; font-family:var(--font-mono); letter-spacing:.12em; text-transform:uppercase; }
 nav.main-nav{ display:flex; align-items:center; gap:26px; }
 nav.main-nav a{ color:rgba(255,255,255,.8); font-size:13.8px; font-weight:500; position:relative; padding:4px 0; }
 nav.main-nav a::after{
@@ -347,6 +348,8 @@ optgroup, option[disabled]{ color:var(--ink-400); font-style:italic; }
 .status-card{ padding:26px; }
 .status-head{ display:flex; align-items:center; gap:15px; }
 .status-head img{ width:60px; height:60px; border-radius:50%; object-fit:cover; border:2px solid var(--gold-300); flex-shrink:0; }
+.id-row{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-top:14px; }
+.id-row .member-id-chip{ margin-top:0; }
 .member-id-chip{
   font-family:var(--font-mono); font-size:13.5px; font-weight:600; background:var(--navy-950);
   color:var(--saffron-300); padding:9px 16px; border-radius:var(--radius-pill);
@@ -548,7 +551,7 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
     <a href="#top" class="brand">
       <img id="brandLogo" class="logo-disc" alt="MHMRWS seal" width="42" height="42">
       <span class="brand-text">
-        <span class="eyebrow" style="display:block; font-family:var(--font-mono); letter-spacing:.12em; text-transform:uppercase;">Registered Society</span>
+        <span class="eyebrow brand-eyebrow">Registered Society</span>
         <span class="full">Max Heights Majestic RWA</span>
       </span>
     </a>
@@ -772,8 +775,8 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
       </div>
 
       <form id="loginForm">
-        <div class="field"><label>Email</label><input type="email" name="email" required autocomplete="email"></div>
-        <div class="field"><label>Password</label><input type="password" name="password" required autocomplete="current-password"></div>
+        <div class="field"><label for="fld-email-1">Email</label><input type="email" name="email" required autocomplete="email" id="fld-email-1"></div>
+        <div class="field"><label for="fld-password-2">Password</label><input type="password" name="password" required autocomplete="current-password" id="fld-password-2"></div>
         <button class="btn btn-primary btn-block" type="submit">Log In</button>
         <p style="text-align:center; margin-top:14px; font-size:13px;"><a href="#" id="forgotPasswordLink" class="t-sub" style="text-decoration:underline;">Forgot password?</a></p>
       </form>
@@ -782,9 +785,9 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
         <fieldset>
           <legend>Resident Details</legend>
           <div class="form-2col">
-            <div class="field"><label>Full Name <i class="req">*</i></label><input name="name" required maxlength="100"></div>
-            <div class="field"><label>Father's / Husband's Name <i class="req">*</i></label><input name="fatherHusbandName" required maxlength="100"></div>
-            <div class="field"><label>Tower <i class="req">*</i></label>
+            <div class="field"><label for="fld-name-3">Full Name <i class="req">*</i></label><input name="name" required maxlength="100" id="fld-name-3"></div>
+            <div class="field"><label for="fld-fatherHusbandName-4">Father's / Husband's Name <i class="req">*</i></label><input name="fatherHusbandName" required maxlength="100" id="fld-fatherHusbandName-4"></div>
+            <div class="field"><label for="towerSelect">Tower <i class="req">*</i></label>
               <!-- A dropdown, not free text: typed entries produce "Tower B",
                    "tower b", "B-Block" etc., which the tower-wise collection
                    report would count as four different towers. -->
@@ -792,41 +795,41 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
                 <option value="">Select your tower</option>
               </select>
             </div>
-            <div class="field"><label>Flat Number <i class="req">*</i></label>
+            <div class="field"><label for="flatSelect">Flat Number <i class="req">*</i></label>
               <!-- Populated from the tower's real floor plan, so a resident
                    cannot register a flat that doesn't exist. -->
               <select name="flatNumber" id="flatSelect" required disabled>
                 <option value="">Select tower first</option>
               </select>
             </div>
-            <div class="field"><label>Mobile Number <i class="req">*</i></label>
-              <input name="mobile" type="tel" inputmode="numeric" pattern="[6-9][0-9]{9}" maxlength="10" required placeholder="10-digit mobile">
+            <div class="field"><label for="fld-mobile-5">Mobile Number <i class="req">*</i></label>
+              <input name="mobile" type="tel" inputmode="numeric" pattern="[6-9][0-9]{9}" maxlength="10" required placeholder="10-digit mobile" id="fld-mobile-5">
               <div class="hint">Bina 0 ya +91 ke. 6, 7, 8 ya 9 se shuru hona chahiye.</div>
             </div>
-            <div class="field"><label>Email <i class="req">*</i></label><input name="email" type="email" required></div>
-            <div class="field"><label>Occupation <i class="req">*</i></label><input name="occupation" required maxlength="100"></div>
-            <div class="field"><label>Owner / Tenant <i class="req">*</i></label>
-              <select name="residentType" required>
+            <div class="field"><label for="fld-email-6">Email <i class="req">*</i></label><input name="email" type="email" required id="fld-email-6"></div>
+            <div class="field"><label for="fld-occupation-7">Occupation <i class="req">*</i></label><input name="occupation" required maxlength="100" id="fld-occupation-7"></div>
+            <div class="field"><label for="fld-residentType-8">Owner / Tenant <i class="req">*</i></label>
+              <select name="residentType" required id="fld-residentType-8">
                 <option value="">Select</option>
                 <option value="owner">Owner</option>
                 <option value="tenant">Tenant</option>
               </select>
             </div>
           </div>
-          <div class="field"><label>Address <i class="req">*</i></label><textarea name="address" rows="2" required maxlength="500"></textarea></div>
+          <div class="field"><label for="fld-address-9">Address <i class="req">*</i></label><textarea name="address" rows="2" required maxlength="500" id="fld-address-9"></textarea></div>
           <div class="form-2col">
-            <div class="field"><label>Nominee Name <i class="req">*</i></label><input name="nomineeName" required maxlength="100"></div>
-            <div class="field"><label>Nominee Relation <i class="req">*</i></label><input name="nomineeRelation" required maxlength="60"></div>
+            <div class="field"><label for="fld-nomineeName-10">Nominee Name <i class="req">*</i></label><input name="nomineeName" required maxlength="100" id="fld-nomineeName-10"></div>
+            <div class="field"><label for="fld-nomineeRelation-11">Nominee Relation <i class="req">*</i></label><input name="nomineeRelation" required maxlength="60" id="fld-nomineeRelation-11"></div>
           </div>
         </fieldset>
 
         <fieldset>
           <legend>Uploads</legend>
           <div class="form-2col">
-            <div class="field"><label>Photo <i class="req">*</i></label><input type="file" name="photo" accept="image/*" required></div>
+            <div class="field"><label for="fld-photo-12">Photo <i class="req">*</i></label><input type="file" name="photo" accept="image/*" required id="fld-photo-12"></div>
             <div class="field">
-              <label>Aadhaar / PAN <span class="t-muted" style="font-weight:400;">(optional)</span></label>
-              <input type="file" name="idDoc" accept="image/*,.pdf">
+              <label for="fld-idDoc-13">Aadhaar / PAN <span class="t-muted" style="font-weight:400;">(optional)</span></label>
+              <input type="file" name="idDoc" accept="image/*,.pdf" id="fld-idDoc-13">
               <div class="upload-hint">Jaanbujh kar optional rakha gaya hai — neeche wajah dekhein. Access sirf aapko aur committee ko.</div>
             </div>
           </div>
@@ -835,8 +838,8 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
         <fieldset>
           <legend>Account</legend>
           <div class="form-2col">
-            <div class="field"><label>Set Password</label><input type="password" name="password" required minlength="6"></div>
-            <div class="field"><label>Confirm Password</label><input type="password" name="confirmPassword" required minlength="6"></div>
+            <div class="field"><label for="fld-password-14">Set Password</label><input type="password" name="password" required minlength="6" id="fld-password-14"></div>
+            <div class="field"><label for="fld-confirmPassword-15">Confirm Password</label><input type="password" name="confirmPassword" required minlength="6" id="fld-confirmPassword-15"></div>
           </div>
         </fieldset>
 
@@ -1107,7 +1110,8 @@ import {
 } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-storage.js";
 import {
   showToast, escapeHtml, fmtDate, formatINR, currentFinancialYear,
-  generateReceiptPDF, printReceipt, validatePayment, validateRegistration
+  generateReceiptPDF, printReceipt, validatePayment, validateRegistration,
+  generateMembershipCard
 } from './app-common.js';
 
 /* Branding, the year stamp and the committee fallback are handled by the
@@ -1320,7 +1324,11 @@ async function loadDashboard(uid) {
         </div>
         <div style="margin-left:auto;">${statusBadgeMap[currentMember.status] || ''}</div>
       </div>
-      ${currentMember.memberID ? `<div class="member-id-chip">${escapeHtml(currentMember.memberID)}</div>` : ''}
+      ${currentMember.memberID && currentMember.status === 'approved' ? `
+        <div class="id-row">
+          <div class="member-id-chip">${escapeHtml(currentMember.memberID)}</div>
+          <button class="btn btn-outline btn-sm" id="downloadCardBtn">Download Membership Card</button>
+        </div>` : ''}
       ${statusExtra}
     </div>
     ${currentMember.status === 'approved' ? `
@@ -1347,7 +1355,39 @@ async function loadDashboard(uid) {
 
   if (currentMember.status === 'approved') {
     document.getElementById('openPaymentBtn').addEventListener('click', openPaymentModal);
+    document.getElementById('downloadCardBtn')?.addEventListener('click', downloadCard);
     await loadPayments(uid);
+  }
+}
+
+/* ---- Membership card ---- */
+async function downloadCard() {
+  const btn = document.getElementById('downloadCardBtn');
+  setLoading(btn, true);
+  try {
+    const societySnap = await getDoc(doc(db, 'settings', 'society'));
+    const society = societySnap.exists() ? societySnap.data() : { name: SOCIETY.fullName };
+
+    // The resident's own photo, converted to a data URL so jsPDF can embed it.
+    // A missing or unreadable photo just leaves the frame empty — the card is
+    // still valid, so this must never block the download.
+    let photoDataUrl = null;
+    if (currentMember.photoURL) {
+      try { photoDataUrl = await toDataUrl(currentMember.photoURL); } catch (e) {}
+    }
+
+    await generateMembershipCard({
+      member: { ...currentMember, photoDataUrl },
+      society,
+      logoDataUrl: LOGO_DATA_URI,
+      financialYear: currentFinancialYear()
+    });
+  } catch (e) {
+    console.error(e);
+    showToast('Card banane mein dikkat aayi. Dobara try karein.', 'error');
+  } finally {
+    setLoading(btn, false);
+    btn.textContent = 'Download Membership Card';
   }
 }
 
@@ -1460,9 +1500,9 @@ function renderPayDetailForm(mode, paySettings) {
           <div style="font-size:12.4px;" class="t-muted">${escapeHtml(paySettings.bankName || '')} · A/C ${escapeHtml(paySettings.accountNumber || '—')} · IFSC ${escapeHtml(paySettings.ifsc || '—')}</div>
         </div>
       `}
-      <div class="field"><label>Amount (₹)</label><input type="number" id="payAmount" min="1" required inputmode="numeric"></div>
-      ${!isOffline ? `<div class="field"><label>UTR / Transaction ID</label><input id="payUtr" required autocapitalize="characters"></div>
-      <div class="field"><label>Payment Screenshot <span class="t-muted" style="font-weight:400;">(optional)</span></label><input type="file" id="payProof" accept="image/*"></div>` : ''}
+      <div class="field"><label for="payAmount">Amount (₹)</label><input type="number" id="payAmount" min="1" required inputmode="numeric"></div>
+      ${!isOffline ? `<div class="field"><label for="payUtr">UTR / Transaction ID</label><input id="payUtr" required autocapitalize="characters"></div>
+      <div class="field"><label for="payProof">Payment Screenshot <span class="t-muted" style="font-weight:400;">(optional)</span></label><input type="file" id="payProof" accept="image/*"></div>` : ''}
       <button class="btn btn-primary btn-block" id="submitPaymentBtn">${isOffline ? 'Submit — I Will Pay at Office' : 'I Have Paid'}</button>
     </div>
   `;

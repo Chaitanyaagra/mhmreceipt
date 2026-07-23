@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Verify Receipt — MHMRWS</title>
+<title>Verify — MHMRWS</title>
 <meta name="robots" content="noindex">
 <link rel="icon" href="favicon-32.png">
 <link rel="stylesheet" href="styles.css">
@@ -45,6 +45,7 @@ import { escapeHtml, fmtDate, formatINR } from './app-common.js';
 
 const params = new URLSearchParams(window.location.search);
 const receiptNumber = params.get('receipt');
+const memberID = params.get('member');
 
 const sealBox = document.getElementById('sealBox');
 const stateTitle = document.getElementById('stateTitle');
@@ -76,18 +77,43 @@ function renderVerified(data) {
   `;
 }
 
+function renderMember(data) {
+  // A card whose member has since been deactivated must read as invalid at
+  // the gate, even though the record still exists.
+  const active = data.status === 'approved';
+  sealBox.innerHTML = active
+    ? '<span style="font-size:30px;color:var(--success);">&#10003;</span>'
+    : '<span style="font-size:28px;color:var(--danger);">&#10005;</span>';
+  stateTitle.textContent = active ? 'Active Member' : 'Membership Not Active';
+  stateTitle.style.color = active ? 'var(--success)' : 'var(--danger)';
+  stateSub.textContent = active
+    ? 'Yeh card MHMRWS ke official record se match karta hai.'
+    : 'Yeh membership ab active nahi hai. Office se sampark karein.';
+  details.style.display = 'block';
+  details.innerHTML = `
+    <div class="vrow"><span>Member ID</span><span class="mono">${escapeHtml(data.memberID)}</span></div>
+    <div class="vrow"><span>Name</span><span>${escapeHtml(data.name || '—')}</span></div>
+    <div class="vrow"><span>Tower / Flat</span><span>${escapeHtml(data.tower || '—')} / ${escapeHtml(data.flatNumber || '—')}</span></div>
+    <div class="vrow"><span>Type</span><span>${escapeHtml((data.residentType || '—').replace(/^\w/, c => c.toUpperCase()))}</span></div>
+    <div class="vrow"><span>Status</span><span class="${active ? 't-success' : 't-danger'}">${active ? 'Active' : 'Inactive'}</span></div>
+  `;
+}
+
 (async function run() {
-  if (!receiptNumber) {
-    renderNotFound('Koi receipt number is link mein nahi mila.');
+  if (!receiptNumber && !memberID) {
+    renderNotFound('Is link mein koi receipt ya member number nahi mila.');
     return;
   }
   try {
-    const snap = await getDoc(doc(db, 'receiptsPublic', receiptNumber));
-    if (snap.exists()) {
-      renderVerified(snap.data());
-    } else {
-      renderNotFound();
+    if (memberID) {
+      const snap = await getDoc(doc(db, 'membersPublic', memberID));
+      if (snap.exists()) renderMember(snap.data());
+      else renderNotFound('Yeh Member ID hamare record mein nahi mila.');
+      return;
     }
+    const snap = await getDoc(doc(db, 'receiptsPublic', receiptNumber));
+    if (snap.exists()) renderVerified(snap.data());
+    else renderNotFound();
   } catch (e) {
     console.error(e);
     renderNotFound('Verification service abhi available nahi hai. Baad mein try karein.');

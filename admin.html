@@ -27,7 +27,8 @@
   .side-nav button{ display:flex; align-items:center; gap:10px; width:100%; text-align:left; background:none; border:none; color:rgba(255,255,255,.72); padding:11px 12px; border-radius:10px; font-size:13.3px; font-weight:500; cursor:pointer; margin-bottom:2px; }
   .side-nav button:hover{ background:rgba(255,255,255,.06); color:var(--white); }
   .side-nav button.active{ background:rgba(255,255,255,.13); color:var(--white); }
-  .side-nav .icon{ width:18px; text-align:center; font-size:14px; }
+  .side-nav .icon{ width:18px; height:18px; display:grid; place-items:center; flex-shrink:0; }
+  .side-nav .icon svg{ width:17px; height:17px; }
   .sidebar-foot{ margin-top:auto; padding-top:16px; border-top:1px solid rgba(255,255,255,.12); }
   .admin-chip{ font-size:12px; color:rgba(255,255,255,.6); margin-bottom:10px; padding:0 8px; }
   .admin-chip b{ color:var(--white); display:block; font-size:13px; }
@@ -56,6 +57,7 @@
   .settings-grid{ display:grid; grid-template-columns:1fr 1fr; gap:18px; align-items:start; }
   .list-edit-item{ display:flex; justify-content:space-between; align-items:flex-start; gap:12px; padding:14px; border:1px solid var(--line); border-radius:10px; margin-bottom:10px; }
   .action-row{ display:flex; gap:8px; flex-wrap:wrap; }
+  .btn-ico{ width:16px; height:16px; flex-shrink:0; }
 
   @media (max-width: 980px){
     .app-shell.active{ grid-template-columns:1fr; }
@@ -92,6 +94,24 @@
 </style>
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <g id="a-overview"><path d="M4 20V11M9.3 20V5M14.7 20v-6M20 20V8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" fill="none"/></g>
+  <g id="a-members"><circle cx="9" cy="8.4" r="3.3" stroke="currentColor" stroke-width="1.7" fill="none"/><path d="M2.6 19.4c.8-3.2 3.4-5 6.4-5s5.6 1.8 6.4 5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" fill="none"/><path d="M16.2 5.6a3.1 3.1 0 010 5.8M18.4 19.4c-.3-1.5-.9-2.8-1.8-3.8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" fill="none"/></g>
+  <g id="a-payments"><rect x="2.5" y="5.5" width="19" height="13" rx="2.4" stroke="currentColor" stroke-width="1.7" fill="none"/><path d="M2.5 10h19M6 14.6h4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></g>
+  <g id="a-content"><path d="M3.5 9.5h3.2L14 5.2v13.6L6.7 14.5H3.5z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" fill="none"/><path d="M17.4 9.2a4.2 4.2 0 010 5.6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" fill="none"/></g>
+  <g id="a-importExport"><path d="M20 11.2A8 8 0 006.3 6.1M4 12.8a8 8 0 0013.7 5.1" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" fill="none"/><path d="M20 4.6v6.6h-6.6M4 19.4v-6.6h6.6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" fill="none"/></g>
+  <g id="a-settings"><circle cx="12" cy="12" r="3.1" stroke="currentColor" stroke-width="1.7" fill="none"/><path d="M12 2.8v2.6M12 18.6v2.6M4.5 12H2M22 12h-2.5M6.4 6.4L4.6 4.6M19.4 19.4l-1.8-1.8M17.6 6.4l1.8-1.8M4.6 19.4l1.8-1.8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></g>
+  <g id="a-adminUsers"><circle cx="8.6" cy="10.4" r="4.1" stroke="currentColor" stroke-width="1.7" fill="none"/><path d="M12.4 8.6H21M18.2 8.6v3.4M15.4 8.6v2.4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" fill="none"/></g>
+  <g id="a-auditLog"><path d="M5.5 3.5h9l4 4v13h-13z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" fill="none"/><path d="M14.2 3.5V8H18.6M8.6 12.4h7M8.6 16h7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></g>
+  <g id="a-mail"><rect x="2.5" y="5" width="19" height="14" rx="2.4" stroke="currentColor" stroke-width="1.7" fill="none"/><path d="M3 6.5l9 6.4 9-6.4" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" fill="none"/></g>
+  <g id="a-archive"><path d="M3 7.5h18v12.5H3z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" fill="none"/><path d="M2.2 3.8h19.6v3.7H2.2zM9.6 12h4.8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" fill="none"/></g>
+  <g id="a-lock"><rect x="4.5" y="10.4" width="15" height="10" rx="2.2" stroke="currentColor" stroke-width="1.7" fill="none"/><path d="M8 10.4V7.6a4 4 0 018 0v2.8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" fill="none"/></g>
+  <g id="a-unlock"><rect x="4.5" y="10.4" width="15" height="10" rx="2.2" stroke="currentColor" stroke-width="1.7" fill="none"/><path d="M8 10.4V7.6a4 4 0 017.4-2.1" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" fill="none"/></g>
+  <g id="a-cloud"><path d="M7 18.5a4.2 4.2 0 01-.5-8.4 5.6 5.6 0 0110.8-1.2A3.9 3.9 0 0117.6 18.5z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" fill="none"/><path d="M12 10.6v6M9.4 13.2L12 10.6l2.6 2.6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" fill="none"/></g>
+  <g id="a-doc"><path d="M5.5 3.5h9l4 4v13h-13z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" fill="none"/><path d="M14.2 3.5V8H18.6" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" fill="none"/></g>
+  <g id="a-clip"><path d="M18.6 11.2l-7 7a4.2 4.2 0 01-6-6l7.6-7.6a2.8 2.8 0 014 4l-7.6 7.6a1.4 1.4 0 01-2-2l7-7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" fill="none"/></g>
+</defs></svg>
+
 
 <!-- ============================= LOGIN SCREEN ============================= -->
 <div class="login-screen" id="loginScreen">
@@ -100,8 +120,8 @@
     <h1 style="text-align:center; font-size:20px; margin-bottom:4px;">Admin Panel</h1>
     <p class="t-sub" style="text-align:center; font-size:13px; margin-bottom:24px;">Max Heights Majestic RWA</p>
     <form id="adminLoginForm">
-      <div class="field"><label>Email</label><input type="email" name="email" required autocomplete="username"></div>
-      <div class="field"><label>Password</label><input type="password" name="password" required autocomplete="current-password"></div>
+      <div class="field"><label for="fld-email-1">Email</label><input type="email" name="email" required autocomplete="username" id="fld-email-1"></div>
+      <div class="field"><label for="fld-password-2">Password</label><input type="password" name="password" required autocomplete="current-password" id="fld-password-2"></div>
       <button class="btn btn-primary btn-block" type="submit">Log In</button>
     </form>
     <p id="loginError" class="t-danger" style="text-align:center; font-size:13px; margin-top:14px; display:none;"></p>
@@ -120,14 +140,14 @@
       </div>
     </div>
     <nav class="side-nav" id="sideNav">
-      <button data-view="overview" class="active"><span class="icon">📊</span> Overview</button>
-      <button data-view="members"><span class="icon">👥</span> Members</button>
-      <button data-view="payments"><span class="icon">💳</span> Payments</button>
-      <button data-view="content"><span class="icon">📢</span> Notices &amp; Committee</button>
-      <button data-view="importExport"><span class="icon">🔄</span> Import / Export</button>
-      <button data-view="settings"><span class="icon">⚙️</span> Settings &amp; Backup</button>
-      <button data-view="adminUsers"><span class="icon">🔑</span> Admin Users</button>
-      <button data-view="auditLog"><span class="icon">📜</span> Audit Log</button>
+      <button data-view="overview" class="active"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-overview"/></svg></span> Overview</button>
+      <button data-view="members"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-members"/></svg></span> Members</button>
+      <button data-view="payments"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-payments"/></svg></span> Payments</button>
+      <button data-view="content"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-content"/></svg></span> Notices &amp; Committee</button>
+      <button data-view="importExport"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-importExport"/></svg></span> Import / Export</button>
+      <button data-view="settings"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-settings"/></svg></span> Settings &amp; Backup</button>
+      <button data-view="adminUsers"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-adminUsers"/></svg></span> Admin Users</button>
+      <button data-view="auditLog"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-auditLog"/></svg></span> Audit Log</button>
     </nav>
     <div class="sidebar-foot">
       <div class="admin-chip"><b id="adminName">—</b><span id="adminRole">—</span></div>
@@ -208,7 +228,7 @@
         </div>
       </div>
       <div id="paymentsDefaultersPanel" style="display:none;">
-        <div class="toolbar"><button class="btn btn-outline btn-sm" id="emailDefaultersBtn">✉️ Email All (BCC)</button>
+        <div class="toolbar"><button class="btn btn-outline btn-sm" id="emailDefaultersBtn"><svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#a-mail"/></svg>Email All (BCC)</button>
         <span class="t-muted" style="font-size:12.5px;">for FY selected in Overview</span></div>
         <div class="table-wrap responsive">
           <table><thead><tr><th>Resident</th><th>Flat / Tower</th><th>Mobile</th><th>Remind</th></tr></thead>
@@ -245,8 +265,8 @@
         <div class="card card-pad">
           <h3 style="font-size:15px; margin-bottom:6px;">Bulk Document Export (ZIP)</h3>
           <p class="t-sub" style="font-size:13px; margin-bottom:14px;">Packages photos, ID documents and receipts for residents registered / payments verified in the chosen month.</p>
-          <div class="field"><label>Month</label><input type="month" id="zipMonth"></div>
-          <button class="btn btn-navy" id="zipExportBtn">📦 Build ZIP</button>
+          <div class="field"><label for="zipMonth">Month</label><input type="month" id="zipMonth"></div>
+          <button class="btn btn-navy" id="zipExportBtn"><svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#a-archive"/></svg>Build ZIP</button>
           <div id="zipStatus" class="t-sub" style="font-size:12.5px; margin-top:10px;"></div>
         </div>
       </div>
@@ -259,35 +279,35 @@
         <div class="card card-pad">
           <h3 style="font-size:15px; margin-bottom:14px;">Society Info</h3>
           <form id="societySettingsForm">
-            <div class="field"><label>Full Name</label><input name="name"></div>
-            <div class="field"><label>Registration Number</label><input name="regNumber"></div>
-            <div class="field"><label>Address (used for map + receipts)</label><textarea name="address" rows="2"></textarea></div>
-            <div class="field"><label>Contact Phone</label><input name="contactPhone"></div>
-            <div class="field"><label>Contact Email</label><input name="contactEmail" type="email"></div>
+            <div class="field"><label for="fld-name-3">Full Name</label><input name="name" id="fld-name-3"></div>
+            <div class="field"><label for="fld-regNumber-4">Registration Number</label><input name="regNumber" id="fld-regNumber-4"></div>
+            <div class="field"><label for="fld-address-5">Address (used for map + receipts)</label><textarea name="address" rows="2" id="fld-address-5"></textarea></div>
+            <div class="field"><label for="fld-contactPhone-6">Contact Phone</label><input name="contactPhone" id="fld-contactPhone-6"></div>
+            <div class="field"><label for="fld-contactEmail-7">Contact Email</label><input name="contactEmail" type="email" id="fld-contactEmail-7"></div>
             <button class="btn btn-primary" type="submit">Save Society Info</button>
           </form>
         </div>
         <div class="card card-pad">
           <h3 style="font-size:15px; margin-bottom:14px;">Payment Settings (shown to residents)</h3>
           <form id="paymentSettingsForm">
-            <div class="field"><label>UPI ID</label><input name="upiId" placeholder="mhmrws@upi"></div>
-            <div class="field"><label>Bank Name</label><input name="bankName"></div>
-            <div class="field"><label>Account Number</label><input name="accountNumber"></div>
-            <div class="field"><label>IFSC</label><input name="ifsc"></div>
-            <div class="field"><label>QR Code Image</label><input type="file" name="qrImage" accept="image/*"></div>
+            <div class="field"><label for="fld-upiId-8">UPI ID</label><input name="upiId" placeholder="mhmrws@upi" id="fld-upiId-8"></div>
+            <div class="field"><label for="fld-bankName-9">Bank Name</label><input name="bankName" id="fld-bankName-9"></div>
+            <div class="field"><label for="fld-accountNumber-10">Account Number</label><input name="accountNumber" id="fld-accountNumber-10"></div>
+            <div class="field"><label for="fld-ifsc-11">IFSC</label><input name="ifsc" id="fld-ifsc-11"></div>
+            <div class="field"><label for="fld-qrImage-12">QR Code Image</label><input type="file" name="qrImage" accept="image/*" id="fld-qrImage-12"></div>
             <button class="btn btn-primary" type="submit">Save Payment Settings</button>
           </form>
         </div>
         <div class="card card-pad">
           <h3 style="font-size:15px; margin-bottom:6px;">Document Security</h3>
           <p class="t-sub" style="font-size:12.8px; margin-bottom:14px;">Access to Aadhaar/PAN uploads is always restricted to Admins by Storage rules. This adds an optional AES-256 encryption layer on top — see SETUP-GUIDE.md for the key-management trade-off before relying on this.</p>
-          <div class="field"><label>Vault Passphrase (session only — never stored)</label><input type="password" id="vaultPassphrase" autocomplete="off"></div>
-          <button class="btn btn-outline btn-block" id="encryptPendingBtn">🔒 Encrypt All Pending Aadhaar/PAN Uploads</button>
+          <div class="field"><label for="vaultPassphrase">Vault Passphrase (session only — never stored)</label><input type="password" id="vaultPassphrase" autocomplete="off"></div>
+          <button class="btn btn-outline btn-block" id="encryptPendingBtn"><svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#a-lock"/></svg>Encrypt All Pending Aadhaar/PAN Uploads</button>
         </div>
         <div class="card card-pad">
           <h3 style="font-size:15px; margin-bottom:6px;">Google Drive Backup</h3>
           <p class="t-sub" style="font-size:12.8px; margin-bottom:14px;">Exports Members, Payments, Notices &amp; Committee as JSON to <span class="mono">MHMRWS/Database</span> in your Google Drive. Requires one-time OAuth setup — see SETUP-GUIDE.md Step 5.</p>
-          <button class="btn btn-primary btn-block" id="backupNowBtn">☁️ Backup Now</button>
+          <button class="btn btn-primary btn-block" id="backupNowBtn"><svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#a-cloud"/></svg>Backup Now</button>
           <div id="backupStatus" class="t-sub" style="font-size:12.5px; margin-top:12px;"></div>
         </div>
       </div>
@@ -304,11 +324,11 @@
         <div class="card card-pad">
           <h3 style="font-size:15px; margin-bottom:14px;">Add New Admin</h3>
           <form id="addAdminForm">
-            <div class="field"><label>Name</label><input name="name" required></div>
-            <div class="field"><label>Email</label><input name="email" type="email" required></div>
-            <div class="field"><label>Temporary Password</label><input name="password" type="password" required minlength="6"></div>
-            <div class="field"><label>Committee Post</label>
-              <select name="role" required>
+            <div class="field"><label for="fld-name-13">Name</label><input name="name" required id="fld-name-13"></div>
+            <div class="field"><label for="fld-email-14">Email</label><input name="email" type="email" required id="fld-email-14"></div>
+            <div class="field"><label for="fld-password-15">Temporary Password</label><input name="password" type="password" required minlength="6" id="fld-password-15"></div>
+            <div class="field"><label for="fld-role-16">Committee Post</label>
+              <select name="role" required id="fld-role-16">
                 <option value="president">President</option>
                 <option value="vicepresident">Vice President</option>
                 <option value="secretary">Secretary</option>
@@ -323,18 +343,18 @@
             </label>
             <div id="adminResidentFields">
               <div class="form-2col">
-                <div class="field"><label>Tower</label>
+                <div class="field"><label for="adminTowerSelect">Tower</label>
                   <select name="tower" id="adminTowerSelect">
                     <option value="">Select tower</option>
                   </select>
                 </div>
-                <div class="field"><label>Flat Number</label>
+                <div class="field"><label for="adminFlatSelect">Flat Number</label>
                   <select name="flatNumber" id="adminFlatSelect" disabled>
                     <option value="">Select tower first</option>
                   </select>
                 </div>
               </div>
-              <div class="field"><label>Mobile Number</label><input name="mobile" type="tel"></div>
+              <div class="field"><label for="fld-mobile-17">Mobile Number</label><input name="mobile" type="tel" id="fld-mobile-17"></div>
             </div>
             <button class="btn btn-primary btn-block" type="submit">Create Admin Account</button>
           </form>
@@ -376,11 +396,11 @@
     <div class="modal-body">
       <form id="noticeForm">
         <input type="hidden" name="id">
-        <div class="field"><label>Title (English)</label><input name="titleEn" required></div>
-        <div class="field"><label>Title (Hindi)</label><input name="titleHi"></div>
-        <div class="field"><label>Body (English)</label><textarea name="bodyEn" rows="3" required></textarea></div>
-        <div class="field"><label>Body (Hindi)</label><textarea name="bodyHi" rows="3"></textarea></div>
-        <div class="field"><label>Attachment <span class="t-muted" style="font-weight:400;">(optional)</span></label><input type="file" name="attachment"></div>
+        <div class="field"><label for="fld-titleEn-18">Title (English)</label><input name="titleEn" required id="fld-titleEn-18"></div>
+        <div class="field"><label for="fld-titleHi-19">Title (Hindi)</label><input name="titleHi" id="fld-titleHi-19"></div>
+        <div class="field"><label for="fld-bodyEn-20">Body (English)</label><textarea name="bodyEn" rows="3" required id="fld-bodyEn-20"></textarea></div>
+        <div class="field"><label for="fld-bodyHi-21">Body (Hindi)</label><textarea name="bodyHi" rows="3" id="fld-bodyHi-21"></textarea></div>
+        <div class="field"><label for="fld-attachment-22">Attachment <span class="t-muted" style="font-weight:400;">(optional)</span></label><input type="file" name="attachment" id="fld-attachment-22"></div>
         <button class="btn btn-primary btn-block" type="submit">Save Notice</button>
       </form>
     </div>
@@ -393,9 +413,9 @@
     <div class="modal-body">
       <form id="committeeForm">
         <input type="hidden" name="id">
-        <div class="field"><label>Name</label><input name="name" required></div>
-        <div class="field"><label>Role</label><input name="role" required placeholder="e.g. President"></div>
-        <div class="field"><label>Photo</label><input type="file" name="photo" accept="image/*"></div>
+        <div class="field"><label for="fld-name-23">Name</label><input name="name" required id="fld-name-23"></div>
+        <div class="field"><label for="fld-role-24">Role</label><input name="role" required placeholder="e.g. President" id="fld-role-24"></div>
+        <div class="field"><label for="fld-photo-25">Photo</label><input type="file" name="photo" accept="image/*" id="fld-photo-25"></div>
         <button class="btn btn-primary btn-block" type="submit">Save</button>
       </form>
     </div>
@@ -718,7 +738,7 @@ function openMemberModal(id) {
       <div class="vrow"><span class="t-muted">Member ID</span><span class="mono">${escapeHtml(m.memberID || '—')}</span></div>
     </div>
     <div style="margin:16px 0; display:flex; gap:10px; flex-wrap:wrap;">
-      ${m.idDocURL ? `<button class="btn btn-outline btn-sm" id="viewDocBtn">${m.idDocEncrypted ? '🔓 Decrypt & View ID Doc' : '📄 View ID Doc'}</button>` : '<span class="t-muted" style="font-size:12.5px;">No ID document uploaded.</span>'}
+      ${m.idDocURL ? `<button class="btn btn-outline btn-sm" id="viewDocBtn">${m.idDocEncrypted ? '<svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#a-unlock"/></svg>Decrypt &amp; View ID Doc' : '<svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#a-doc"/></svg>View ID Doc'}</button>` : '<span class="t-muted" style="font-size:12.5px;">No ID document uploaded.</span>'}
     </div>
     <div class="action-row">
       ${m.status === 'pending' && can('approveMembers') ? `<button class="btn btn-primary btn-sm" id="approveBtn">✓ Approve</button><button class="btn btn-danger btn-sm" id="rejectBtn">✕ Reject</button>` : ''}
@@ -747,8 +767,15 @@ async function openMemberDoc(m) {
 }
 
 async function approveMember(id) {
+  const m = allMembers.find(x => x.id === id) || {};
   const memberID = await generateMemberId();
   await updateDoc(doc(db, 'members', id), { status: 'approved', memberID, approvedBy: currentAdmin.email, approvedAt: serverTimestamp(), updatedAt: serverTimestamp() });
+  // Public record behind the membership card's QR code. Deliberately holds
+  // only what a guard at the gate needs — no contact details, no documents.
+  await setDoc(doc(db, 'membersPublic', memberID), {
+    memberID, name: m.name || '', tower: m.tower || '', flatNumber: m.flatNumber || '',
+    residentType: m.residentType || '', status: 'approved', updatedAt: serverTimestamp()
+  });
   await logAudit(auth.currentUser, 'approve_member', { id, memberID });
   showToast(`Approved! Member ID: ${memberID}`, 'success');
   document.getElementById('memberModalBackdrop').classList.remove('open');
@@ -757,7 +784,11 @@ async function approveMember(id) {
 async function rejectMember(id) {
   const reason = prompt('Reject karne ki wajah:');
   if (reason === null) return;
+  const m = allMembers.find(x => x.id === id) || {};
   await updateDoc(doc(db, 'members', id), { status: 'rejected', rejectionReason: reason, updatedAt: serverTimestamp() });
+  if (m.memberID) {
+    await setDoc(doc(db, 'membersPublic', m.memberID), { status: 'rejected', updatedAt: serverTimestamp() }, { merge: true });
+  }
   await logAudit(auth.currentUser, 'reject_member', { id, reason });
   showToast('Registration reject kar diya gaya.', 'success');
   document.getElementById('memberModalBackdrop').classList.remove('open');
@@ -766,7 +797,13 @@ async function rejectMember(id) {
 async function deactivateMember(id) {
   const reason = prompt('Deactivate karne ki wajah (history surakshit rahegi):');
   if (reason === null) return;
+  const m = allMembers.find(x => x.id === id) || {};
   await updateDoc(doc(db, 'members', id), { status: 'inactive', deactivatedReason: reason, deactivatedAt: serverTimestamp(), updatedAt: serverTimestamp() });
+  // Flip the public record too, so the card stops verifying at the gate the
+  // moment the member is deactivated.
+  if (m.memberID) {
+    await setDoc(doc(db, 'membersPublic', m.memberID), { status: 'inactive', updatedAt: serverTimestamp() }, { merge: true });
+  }
   await logAudit(auth.currentUser, 'deactivate_member', { id, reason });
   showToast('Member deactivate ho gaya.', 'success');
   document.getElementById('memberModalBackdrop').classList.remove('open');
@@ -796,7 +833,7 @@ function renderPendingPayments() {
       <td data-label="Submitted">${fmtDate(p.submittedAt)}</td>
       <td data-label="Actions"><button class="btn btn-outline btn-sm" data-pay-detail="${p.id}">Review &amp; Verify</button></td>
     </tr>
-  `).join('') || '<tr><td colspan="7" class="t-muted">No pending payments 🎉</td></tr>';
+  `).join('') || '<tr><td colspan="7" class="t-muted">No pending payments</td></tr>';
   document.querySelectorAll('[data-pay-detail]').forEach(b => b.addEventListener('click', () => openPaymentDetail(b.dataset.payDetail)));
 }
 
@@ -834,7 +871,7 @@ function openPaymentDetail(id) {
       <div class="vrow"><span class="t-muted">Financial Year</span><span>${escapeHtml(p.financialYear)}</span></div>
       <div class="vrow"><span class="t-muted">Submitted</span><span>${fmtDateTime(p.submittedAt)}</span></div>
     </div>
-    ${p.paymentProofURL ? `<a href="${p.paymentProofURL}" target="_blank" class="btn btn-outline btn-sm" style="margin:14px 0; display:inline-flex;">📎 View Payment Proof</a>` : ''}
+    ${p.paymentProofURL ? `<a href="${p.paymentProofURL}" target="_blank" class="btn btn-outline btn-sm" style="margin:14px 0; display:inline-flex;"><svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#a-clip"/></svg>View Payment Proof</a>` : ''}
     <div class="action-row" style="margin-top:8px;">
       ${(p.status === 'pending_approval' || p.status === 'pending_verification') && can('verifyPayments') ? `
         <button class="btn btn-primary btn-sm" id="verifyBtn">✓ Verify &amp; Issue Receipt</button>
@@ -879,7 +916,7 @@ function renderDefaulters() {
       <td data-label="Resident">${escapeHtml(m.name)}</td><td data-label="Flat / Tower">${escapeHtml(m.flatNumber)} / ${escapeHtml(m.tower)}</td><td data-label="Mobile">${escapeHtml(m.mobile)}</td>
       <td data-label="Remind"><a class="btn btn-outline btn-sm" target="_blank" href="${waLink(m.mobile, `Dear ${m.name}, this is a reminder from MHMRWS that your maintenance payment for FY ${selectedFY} is pending. Please pay at your earliest convenience via the resident portal.`)}">WhatsApp</a></td>
     </tr>
-  `).join('') || '<tr><td colspan="4" class="t-muted">No defaulters for this FY 🎉</td></tr>';
+  `).join('') || '<tr><td colspan="4" class="t-muted">No defaulters for this FY</td></tr>';
 }
 document.getElementById('emailDefaultersBtn').addEventListener('click', () => {
   const approved = allMembers.filter(m => m.status === 'approved');
@@ -1155,11 +1192,11 @@ document.getElementById('backupNowBtn').addEventListener('click', async () => {
       notices: serializeForExport(notices), committee: serializeForExport(committee)
     });
     await logAudit(auth.currentUser, 'drive_backup', { fileCount: result.files.length });
-    document.getElementById('backupStatus').innerHTML = `✅ Backed up ${result.files.length} files to <b>${result.folderPath}</b> — ${new Date(result.timestamp).toLocaleString('en-IN')}`;
+    document.getElementById('backupStatus').innerHTML = `Backed up ${result.files.length} files to <b>${result.folderPath}</b> — ${new Date(result.timestamp).toLocaleString('en-IN')}`;
     showToast('Google Drive backup safal raha!', 'success');
   } catch (e) {
     showToast(e.message || 'Backup fail ho gaya.', 'error');
-  } finally { btn.disabled = false; btn.textContent = '☁️ Backup Now'; }
+  } finally { btn.disabled = false; btn.innerHTML = `<svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#a-cloud"/></svg>Backup Now`; }
 });
 
 /* ---------------------------------------------------------------------- */

@@ -193,6 +193,13 @@ export const HI = {
   'Rejected': 'अस्वीकृत',
   'Deactivated': 'निष्क्रिय',
 
+  'Download Membership Card': 'सदस्यता कार्ड डाउनलोड करें',
+  'Active Member': 'सक्रिय सदस्य',
+  'Membership Not Active': 'सदस्यता सक्रिय नहीं है',
+  'Active': 'सक्रिय',
+  'Inactive': 'निष्क्रिय',
+  'Name': 'नाम',
+
   /* ---- Payment modal ---- */
   'Cash': 'नकद',
   'Cheque': 'चेक',

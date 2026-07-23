@@ -218,6 +218,18 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // ---- Public membership verification (where the card QR lands) ---------
+    // World-readable by design: a guard at the gate scans the card without an
+    // account. Holds only what that check needs — name, tower, flat, type and
+    // status. Never contact details, documents or payment history.
+    match /membersPublic/{memberID} {
+      allow read: if true;
+      allow create, update: if canApproveMembers()
+                            && isNonEmptyString(request.resource.data.memberID, 40)
+                            && request.resource.data.status in ['approved','inactive','rejected'];
+      allow delete: if false;
+    }
+
     // ---- Audit log — append-only, never editable --------------------------
     match /auditLogs/{logId} {
       allow read: if isAdmin();

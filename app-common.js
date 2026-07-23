@@ -170,7 +170,10 @@ export function numberToWordsINR(amount) {
   if (lakh) parts.push(three(lakh) + ' Lakh');
   if (thousand) parts.push(three(thousand) + ' Thousand');
   if (hundred) parts.push(three(hundred));
-  return parts.join(' ') + ' Rupees Only';
+  // "One Rupee Only", not "One Rupees Only" — this line is printed on every
+  // receipt, so the grammar is worth getting right.
+  const unit = (Math.round(Number(amount) || 0) === 1) ? 'Rupee' : 'Rupees';
+  return parts.join(' ') + ` ${unit} Only`;
 }
 
 export function fmtDate(ts) {
@@ -444,6 +447,154 @@ export async function printReceipt({ payment, member, society, logoDataUrl }) {
   const cleanup = () => { document.body.classList.remove('printing-receipt'); area.innerHTML = ''; window.removeEventListener('afterprint', cleanup); };
   window.addEventListener('afterprint', cleanup);
   window.print();
+}
+
+/* ---------------------------------------------------------------------- */
+/*  Membership card                                                        */
+/*                                                                          */
+/*  A standard 85.6 x 54 mm card a resident can print or keep on their      */
+/*  phone, with the society's own building as a darkened backdrop and a QR  */
+/*  that resolves to the public verification page — so a guard at the gate  */
+/*  can confirm the membership is genuine and still active.                 */
+/*                                                                          */
+/*  Only ever generated for an approved member; see the caller in           */
+/*  index.html, which hides the button otherwise.                           */
+/* ---------------------------------------------------------------------- */
+const CARD_W = 85.6, CARD_H = 54;   // mm — ISO/IEC 7810 ID-1, the usual card size
+
+export function memberVerifyUrl(memberID) {
+  const base = window.location.origin + window.location.pathname.replace(/[^/]+$/, '');
+  return `${base}verify.html?member=${encodeURIComponent(memberID)}`;
+}
+
+function loadImage(src) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);   // a missing backdrop must not break the card
+    img.src = src;
+  });
+}
+
+function imageToDataUrl(img, mime = 'image/jpeg', quality = 0.85) {
+  const c = document.createElement('canvas');
+  c.width = img.naturalWidth; c.height = img.naturalHeight;
+  c.getContext('2d').drawImage(img, 0, 0);
+  return c.toDataURL(mime, quality);
+}
+
+export async function generateMembershipCard({ member, society, logoDataUrl, financialYear }) {
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({ unit: 'mm', format: [CARD_W, CARD_H], orientation: 'landscape' });
+
+  // --- backdrop: the building, heavily dimmed so text stays legible -------
+  pdf.setFillColor(15, 37, 71);
+  pdf.rect(0, 0, CARD_W, CARD_H, 'F');
+
+  const bg = await loadImage('mhm-card-bg.jpg');
+  if (bg) {
+    try {
+      // cover-fit: the source strip is wider than the card, so crop the sides
+      const srcRatio = bg.naturalWidth / bg.naturalHeight;
+      let dw = CARD_W, dh = CARD_W / srcRatio;
+      if (dh < CARD_H) { dh = CARD_H; dw = CARD_H * srcRatio; }
+      const dx = (CARD_W - dw) / 2, dy = (CARD_H - dh) / 2;
+      pdf.saveGraphicsState();
+      pdf.setGState(new pdf.GState({ opacity: 0.30 }));
+      pdf.addImage(imageToDataUrl(bg), 'JPEG', dx, dy, dw, dh);
+      pdf.restoreGraphicsState();
+    } catch (e) { /* keep the plain navy card if the image can't be composited */ }
+  }
+
+  // navy scrim over the left two-thirds, where all the text sits
+  pdf.saveGraphicsState();
+  pdf.setGState(new pdf.GState({ opacity: 0.55 }));
+  pdf.setFillColor(10, 27, 51);
+  pdf.rect(0, 0, CARD_W, CARD_H, 'F');
+  pdf.restoreGraphicsState();
+
+  // saffron top edge + gold hairline under the header
+  pdf.setFillColor(255, 153, 51);
+  pdf.rect(0, 0, CARD_W, 1.1, 'F');
+
+  const M = 5;   // margin
+
+  // --- header ------------------------------------------------------------
+  if (logoDataUrl) {
+    try {
+      pdf.setFillColor(255, 255, 255);
+      pdf.circle(M + 3.4, 7.4, 3.6, 'F');
+      pdf.addImage(logoDataUrl, 'PNG', M + 0.5, 4.5, 5.8, 5.8);
+    } catch (e) {}
+  }
+  pdf.setTextColor(255, 255, 255);
+  pdf.setFont('helvetica', 'bold'); pdf.setFontSize(7.4);
+  pdf.text(society.name || 'Max Heights Majestic', M + 8.6, 6.9);
+  pdf.setFont('courier', 'normal'); pdf.setFontSize(4.4);
+  pdf.setTextColor(255, 201, 120);
+  pdf.text('RESIDENT WELFARE SOCIETY', M + 8.6, 9.6);
+
+  pdf.setFont('courier', 'normal'); pdf.setFontSize(4);
+  pdf.setTextColor(190, 200, 215);
+  pdf.text('VALID FOR', CARD_W - M, 6.6, { align: 'right' });
+  pdf.setFontSize(6.4); pdf.setTextColor(255, 201, 120);
+  pdf.text(`FY ${financialYear}`, CARD_W - M, 9.6, { align: 'right' });
+
+  pdf.setDrawColor(228, 199, 101); pdf.setLineWidth(0.2);
+  pdf.line(M, 12, CARD_W - M, 12);
+
+  // --- photo -------------------------------------------------------------
+  const photoX = M, photoY = 15, photoW = 13, photoH = 16.5;
+  pdf.setFillColor(255, 255, 255);
+  pdf.setDrawColor(228, 199, 101); pdf.setLineWidth(0.25);
+  pdf.roundedRect(photoX, photoY, photoW, photoH, 1, 1, 'FD');
+  if (member.photoDataUrl) {
+    try { pdf.addImage(member.photoDataUrl, 'JPEG', photoX + 0.4, photoY + 0.4, photoW - 0.8, photoH - 0.8); }
+    catch (e) {}
+  }
+
+  // --- details -----------------------------------------------------------
+  const dx = photoX + photoW + 4;
+  const label = (t, y) => { pdf.setFont('courier','normal'); pdf.setFontSize(3.9); pdf.setTextColor(185,196,212); pdf.text(t, dx, y); };
+  const value = (t, y, size = 8) => { pdf.setFont('helvetica','bold'); pdf.setFontSize(size); pdf.setTextColor(255,255,255); pdf.text(t, dx, y); };
+
+  label('MEMBER NAME', 18);
+  value(String(member.name || '').slice(0, 26), 22.4, 9);
+
+  label('TOWER / FLAT', 27.6);
+  value(`${member.tower || '—'}  ·  ${member.flatNumber || '—'}`, 31.6, 7.6);
+
+  pdf.setFont('courier','normal'); pdf.setFontSize(3.9); pdf.setTextColor(185,196,212);
+  pdf.text('STATUS', dx + 26, 27.6);
+  pdf.setFont('helvetica','bold'); pdf.setFontSize(7.6); pdf.setTextColor(255,255,255);
+  pdf.text((member.residentType || '—').replace(/^\w/, c => c.toUpperCase()), dx + 26, 31.6);
+
+  // --- QR ----------------------------------------------------------------
+  try {
+    const qr = await generateQR(memberVerifyUrl(member.memberID), 320);
+    const qs = 15.5, qx = CARD_W - M - qs, qy = 15.5;
+    pdf.setFillColor(255, 255, 255);
+    pdf.roundedRect(qx - 0.8, qy - 0.8, qs + 1.6, qs + 1.6, 0.8, 0.8, 'F');
+    pdf.addImage(qr, 'PNG', qx, qy, qs, qs);
+    pdf.setFont('courier','normal'); pdf.setFontSize(3.4); pdf.setTextColor(190,200,215);
+    pdf.text('SCAN TO VERIFY', qx + qs / 2, qy + qs + 2.6, { align: 'center' });
+  } catch (e) { /* card is still valid without the QR */ }
+
+  // --- footer ------------------------------------------------------------
+  pdf.setDrawColor(255, 255, 255); pdf.setLineWidth(0.12);
+  pdf.line(M, CARD_H - 9.6, CARD_W - M, CARD_H - 9.6);
+
+  pdf.setFont('courier','normal'); pdf.setFontSize(3.9); pdf.setTextColor(185,196,212);
+  pdf.text('MEMBER ID', M, CARD_H - 6.4);
+  pdf.setFont('courier','bold'); pdf.setFontSize(8); pdf.setTextColor(255, 201, 120);
+  pdf.text(String(member.memberID || '—'), M, CARD_H - 2.6);
+
+  pdf.setFont('courier','normal'); pdf.setFontSize(3.3); pdf.setTextColor(165,178,196);
+  if (society.regNumber) pdf.text(`RERA ${society.regNumber}`, CARD_W - M, CARD_H - 5.4, { align: 'right' });
+  pdf.text('Grand Sikar Road, Jaipur', CARD_W - M, CARD_H - 2.6, { align: 'right' });
+
+  pdf.save(`MHMRWS-Card-${member.memberID || 'member'}.pdf`);
 }
 
 /* ---------------------------------------------------------------------- */
