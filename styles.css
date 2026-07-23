@@ -259,7 +259,27 @@ tbody tr:hover{ background:#FAFBFD; }
 ::-webkit-scrollbar-track{ background:transparent; }
 
 /* --- Print (used by receipt view) ------------------------------------------------ */
+#printReceiptArea{ display:none; }
+.print-receipt{
+  font-family:var(--font-body); color:#000; max-width:720px; margin:0 auto; padding:24px;
+}
+.print-receipt .pr-head{ display:flex; align-items:center; gap:16px; border-bottom:2px solid #0A1B33; padding-bottom:16px; margin-bottom:20px; }
+.print-receipt .pr-head img{ width:56px; height:56px; }
+.print-receipt .pr-head h1{ font-size:18px; margin:0; }
+.print-receipt .pr-head p{ font-size:11px; color:#444; margin:2px 0 0; }
+.print-receipt .pr-title{ margin-left:auto; text-align:right; font-size:11px; }
+.print-receipt .pr-grid{ display:grid; grid-template-columns:1fr 1fr; gap:14px 24px; margin-bottom:20px; font-size:13px; }
+.print-receipt .pr-grid b{ display:block; font-size:9.5px; text-transform:uppercase; letter-spacing:.05em; color:#666; font-weight:600; margin-bottom:2px; }
+.print-receipt .pr-amount{ border:1px solid #ccc; border-radius:8px; padding:14px 16px; display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; }
+.print-receipt .pr-amount .num{ font-size:22px; font-weight:700; }
+.print-receipt .pr-qr{ text-align:center; }
+.print-receipt .pr-qr img{ width:90px; height:90px; }
+.print-receipt .pr-foot{ font-size:10px; color:#666; border-top:1px solid #ccc; padding-top:12px; margin-top:10px; }
+
 @media print{
   .no-print{ display:none !important; }
   body{ background:var(--white); }
+  body.printing-receipt > *:not(#printReceiptArea){ display:none !important; }
+  body.printing-receipt #printReceiptArea{ display:block !important; }
+  @page{ margin:14mm; }
 }

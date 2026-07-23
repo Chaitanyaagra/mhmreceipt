@@ -281,6 +281,59 @@ export function serializeForExport(rows) {
 }
 
 /* ---------------------------------------------------------------------- */
+/*  Printable receipt (browser print — complements the jsPDF download).    */
+/*  Uses whatever paper size the person's print dialog/printer offers, so  */
+/*  this is what actually covers A4 / Half-A4 / 3" thermal in practice.    */
+/* ---------------------------------------------------------------------- */
+export async function printReceipt({ payment, member, society, logoDataUrl }) {
+  let qrImg = '';
+  try { qrImg = await generateQR(verifyUrlFor(payment.receiptNumber), 200); } catch (e) {/* print still works without the QR */}
+
+  const area = document.getElementById('printReceiptArea');
+  if (!area) { showToast('Print area is missing from this page.', 'error'); return; }
+
+  area.innerHTML = `
+    <div class="print-receipt">
+      <div class="pr-head">
+        ${logoDataUrl ? `<img src="${logoDataUrl}" alt="">` : ''}
+        <div>
+          <h1>${escapeHtml(society.fullName || 'Resident Welfare Society')}</h1>
+          <p>Reg. No: ${escapeHtml(society.regNumber || '—')}</p>
+        </div>
+        <div class="pr-title"><b>PAYMENT RECEIPT</b><br>${escapeHtml(payment.receiptNumber || '')}</div>
+      </div>
+      <div class="pr-grid">
+        <div><b>Receipt No.</b>${escapeHtml(payment.receiptNumber || '—')}</div>
+        <div><b>Date</b>${fmtDate(payment.verifiedAt || payment.submittedAt)}</div>
+        <div><b>Resident Name</b>${escapeHtml(member?.name || '—')}</div>
+        <div><b>Member ID</b>${escapeHtml(member?.memberID || '—')}</div>
+        <div><b>Flat / Tower</b>${escapeHtml(member?.flatNumber || '—')} / ${escapeHtml(member?.tower || '—')}</div>
+        <div><b>Financial Year</b>${escapeHtml(payment.financialYear || '—')}</div>
+        <div><b>Payment Mode</b>${escapeHtml((payment.mode || '').toUpperCase())}</div>
+        <div><b>Transaction / UTR No.</b>${escapeHtml(payment.utrOrChequeNo || '—')}</div>
+      </div>
+      <div class="pr-amount">
+        <div>
+          <b style="display:block;font-size:9.5px;text-transform:uppercase;color:#666;">Amount Paid</b>
+          <span class="num">${formatINR(payment.amount)}</span><br>
+          <span style="font-size:11px;font-style:italic;color:#444;">${escapeHtml(numberToWordsINR(payment.amount))}</span>
+        </div>
+        ${qrImg ? `<div class="pr-qr"><img src="${qrImg}" alt="Verify QR"><div style="font-size:8.5px;color:#666;">Scan to verify</div></div>` : ''}
+      </div>
+      <div class="pr-foot">
+        This is a system-generated receipt from the MHMRWS Digital Portal.<br>
+        Verify anytime at: ${escapeHtml(verifyUrlFor(payment.receiptNumber))}
+      </div>
+    </div>
+  `;
+
+  document.body.classList.add('printing-receipt');
+  const cleanup = () => { document.body.classList.remove('printing-receipt'); area.innerHTML = ''; window.removeEventListener('afterprint', cleanup); };
+  window.addEventListener('afterprint', cleanup);
+  window.print();
+}
+
+/* ---------------------------------------------------------------------- */
 /*  Excel export / import (uses SheetJS — window.XLSX)                    */
 /* ---------------------------------------------------------------------- */
 export function exportToExcel(rows, filename = 'export.xlsx', sheetName = 'Sheet1') {

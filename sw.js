@@ -1,11 +1,14 @@
 /* ==========================================================================
    MHMRWS Portal — minimal service worker
-   Caches the static app shell so the portal still opens (read-only) with a
-   flaky connection. Never touches Firebase/Google API calls — those always
-   go straight to the network, since cached data would be stale/wrong.
+   Network-first for the app shell: always tries to fetch the latest file
+   first, and only falls back to the cached copy if the network request
+   fails (offline / flaky connection). This matters because this app is
+   actively being updated — a cache-first strategy would keep showing
+   residents an old version even after you deploy fixes.
+   Bump CACHE_NAME on any future structural change to force a clean cache.
    ========================================================================== */
 
-const CACHE_NAME = 'mhmrws-shell-v1';
+const CACHE_NAME = 'mhmrws-shell-v2';
 const SHELL_FILES = [
   './',
   './index.html',
@@ -14,7 +17,8 @@ const SHELL_FILES = [
   './app-common.js',
   './manifest.json',
   './assets/logo-mark.png',
-  './assets/icon-192.png'
+  './assets/icon-192.png',
+  './assets/favicon-32.png'
 ];
 
 self.addEventListener('install', (event) => {
@@ -41,17 +45,14 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET' || url.origin !== self.location.origin) return;
 
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      const network = fetch(event.request)
-        .then((response) => {
-          if (response && response.ok) {
-            const copy = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
-          }
-          return response;
-        })
-        .catch(() => cached); // offline fallback
-      return cached || network;
-    })
+    fetch(event.request)
+      .then((response) => {
+        if (response && response.ok) {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+        }
+        return response;
+      })
+      .catch(() => caches.match(event.request)) // offline fallback only
   );
 });

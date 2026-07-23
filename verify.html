@@ -22,6 +22,7 @@
 <body>
 
   <div class="vcard" id="card">
+    <img id="verifyLogo" alt="MHMRWS seal" width="72" height="72" style="border-radius:50%; margin:0 auto 18px; display:block;">
     <div class="seal seal-lg" id="sealBox">
       <div class="spinner" style="color:var(--navy-800);"></div>
     </div>
@@ -33,8 +34,11 @@
 
 <script type="module">
 import { db } from './firebase-config.js';
+import { LOGO_DATA_URI } from './logo-data.js';
 import { doc, getDoc } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
 import { escapeHtml, fmtDate, formatINR } from './app-common.js';
+
+document.getElementById('verifyLogo').src = LOGO_DATA_URI;
 
 const params = new URLSearchParams(window.location.search);
 const receiptNumber = params.get('receipt');

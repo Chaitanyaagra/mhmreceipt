@@ -96,7 +96,7 @@
 <!-- ============================= LOGIN SCREEN ============================= -->
 <div class="login-screen" id="loginScreen">
   <div class="card card-pad login-card">
-    <div class="seal seal-lg"><img src="assets/logo-mark.png" alt=""></div>
+    <div class="seal seal-lg"><img id="loginLogo" alt="MHMRWS seal"></div>
     <h1 style="text-align:center; font-size:20px; margin-bottom:4px;">Admin Panel</h1>
     <p class="t-sub" style="text-align:center; font-size:13px; margin-bottom:24px;">Max Heights Majestic RWA</p>
     <form id="adminLoginForm">
@@ -111,9 +111,9 @@
 
 <!-- ============================= APP SHELL ============================= -->
 <div class="app-shell" id="appShell">
-  <aside class="sidebar">
+  <aside class="sidebar no-print">
     <div class="sidebar-brand">
-      <div class="seal seal-navy seal-sm"><img src="assets/logo-mark.png" alt=""></div>
+      <div class="seal seal-navy seal-sm"><img id="sidebarLogo" alt=""></div>
       <div>
         <div class="eyebrow">MHMRWS</div>
         <div class="full">Admin Panel</div>
@@ -398,6 +398,7 @@
 
 <script type="module">
 import { auth, db, storage, firebaseConfig, GOOGLE_OAUTH_CLIENT_ID, SOCIETY } from './firebase-config.js';
+import { LOGO_DATA_URI } from './logo-data.js';
 import {
   initializeApp
 } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
@@ -415,6 +416,12 @@ import {
   generateMemberId, generateReceiptNumber, logAudit, generateReceiptPDF, exportToExcel, parseExcelFile,
   encryptFile, decryptToBlob, backupToDrive, waLink, serializeForExport
 } from './app-common.js';
+
+/* ---- Paint the embedded seal (never depends on a file upload) ---- */
+['loginLogo','sidebarLogo'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.src = LOGO_DATA_URI;
+});
 
 /* ---------------------------------------------------------------------- */
 /*  State                                                                  */
@@ -625,7 +632,7 @@ function openMemberModal(id) {
   const body = document.getElementById('memberModalBody');
   body.innerHTML = `
     <div class="row" style="gap:14px; margin-bottom:16px;">
-      <div class="seal seal-md"><img src="${m.photoURL || 'assets/logo-mark.png'}" alt=""></div>
+      <div class="seal seal-md"><img src="${m.photoURL || LOGO_DATA_URI}" alt=""></div>
       <div><b style="font-size:15.5px;">${escapeHtml(m.name)}</b><div class="t-sub" style="font-size:12.5px;">${escapeHtml(m.fatherHusbandName || '')}</div></div>
       <div style="margin-left:auto;">${statusBadgeHtml[m.status] || ''}</div>
     </div>
