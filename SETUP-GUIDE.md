@@ -31,6 +31,9 @@ logo-data.js                  Society seal, code ke andar embedded
 - Payment verification → automatic sequential Receipt Number (`MHMRWS-YYYY-NNNNNN`), race-condition-safe
 - QR-verified PDF receipts (`verify.html` se koi bhi check kar sakta hai)
 - Notice board (English + Hindi), Committee directory
+- **Downloads section** — bylaws, AGM minutes, audited accounts, forms. Admin Panel → Notices &amp; Committee → Documents. Har document ya toh **file upload** ho sakta hai ya **link** (Google Drive etc.). Link wala option isliye hai ki Storage set up na hone par bhi yeh section kaam kare.
+- **Maintenance dues tracking** — Admin Panel → Settings → Maintenance Rate mein har financial year ka rate daalein (chahein toh tower-wise alag bhi). Uske baad system khud har flat ka bakaya nikaalta hai: residents ko apna balance dikhta hai, partial payments jud kar count hote hain, aur Defaulters report asli outstanding rakam dikhati hai — na ki sirf "kisne kuch diya, kisne nahi"
+- **Membership card** — approved residents apna card PDF download kar sakte hain (85.6 × 54 mm, standard size), building background aur scannable QR ke saath. QR gate par scan karne se `verify.html` khulta hai aur batata hai ki membership **Active hai ya Inactive**
 - **Site-wide English / Hindi switch** — the EN / हिं toggle in the header translates the entire resident portal, not just notices, and remembers the choice on that device. To add or correct a translation, edit `i18n.js`: entries are keyed by the exact English text as it appears on screen, and anything without an entry simply stays in English, so nothing can break. Names, and terms like UPI / NEFT / QR, are intentionally left untranslated.
 - Search/filter, Financial Year selector, charts, Excel export
 - Bulk Excel import (dry-run validation) aur bulk ZIP document export
@@ -40,6 +43,23 @@ logo-data.js                  Society seal, code ke andar embedded
 - One-click Google Drive backup
 - Optional AES-256 encryption layer for Aadhaar/PAN uploads
 - PWA install support + GitHub Pages auto-deploy
+
+## 📦 Firebase Storage ke bina kya hota hai
+
+Storage ke liye **Blaze (pay-as-you-go) plan** chahiye. Agar aapne abhi tak enable nahi kiya, toh:
+
+| Chalega | Nahi chalega |
+|---|---|
+| Registration, login, approval | Resident ki photo upload |
+| Payment submit aur verify | Aadhaar / PAN upload |
+| Receipt PDF + QR verification | Payment screenshot upload |
+| Membership card | Notice ke attachments |
+| Dues tracking, defaulters report | Committee members ki photo |
+| Downloads — **link se** | Downloads — file upload se |
+
+**Zaroori:** registration ab Storage ke bina bhi **fail nahi hoti**. Photo upload nahi hui toh resident ko साफ़ message milta hai ("office se photo add karwa lein") aur baaki registration jama ho jaati hai. Pehle poori registration fail ho jaati thi aur user ka account ban chukne ke baad bhi member record nahi banta tha.
+
+Admin Panel khulte hi Storage khud check hota hai — set up na ho toh upar ek warning banner dikh jaata hai.
 
 ## ⚠️ Kya simplify kiya gaya hai (aur kyun)
 

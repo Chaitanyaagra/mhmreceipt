@@ -146,6 +146,72 @@ export function validateRegistration(f) {
 }
 
 /* ---------------------------------------------------------------------- */
+/*  Maintenance dues                                                       */
+/*                                                                          */
+/*  Without this the portal only knew what had been *received*, never what  */
+/*  was *owed* — so a resident who paid ₹100 against a ₹2,400 charge showed */
+/*  up as fully paid and vanished from the defaulters list. These helpers    */
+/*  turn the committee's configured rate into a real per-flat balance, and   */
+/*  partial payments simply add up against it.                              */
+/*                                                                          */
+/*  Rates live in settings/maintenance and look like:                       */
+/*    { rates: { "2026-27": { default: 2400, byTower: { A: 2000 } } } }     */
+/*  byTower is optional — towers not listed fall back to default.           */
+/* ---------------------------------------------------------------------- */
+
+/** The amount charged to one flat for a financial year. */
+export function expectedDue(member, financialYear, maintenanceSettings) {
+  const forYear = maintenanceSettings?.rates?.[financialYear];
+  if (!forYear) return 0;                       // no rate set = nothing owed yet
+  const byTower = forYear.byTower?.[member?.tower];
+  const amount = (byTower ?? forYear.default);
+  return Number.isFinite(Number(amount)) ? Number(amount) : 0;
+}
+
+/** Total verified payments by one member for a financial year. */
+export function paidSoFar(payments, memberUid, financialYear) {
+  return (payments || [])
+    .filter(p => p.memberUid === memberUid
+              && p.status === 'verified'
+              && p.financialYear === financialYear)
+    .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+}
+
+/**
+ * The full dues picture for one member in one financial year.
+ * @returns {{expected:number, paid:number, outstanding:number, status:string}}
+ *          status is 'no_rate' | 'paid' | 'partial' | 'unpaid' | 'overpaid'
+ */
+export function duesFor(member, payments, financialYear, maintenanceSettings) {
+  const expected = expectedDue(member, financialYear, maintenanceSettings);
+  const paid = paidSoFar(payments, member?.uid, financialYear);
+  const outstanding = Math.max(0, expected - paid);
+  let status;
+  if (expected === 0) status = 'no_rate';
+  else if (paid === 0) status = 'unpaid';
+  else if (paid < expected) status = 'partial';
+  else if (paid > expected) status = 'overpaid';
+  else status = 'paid';
+  return { expected, paid, outstanding, status };
+}
+
+export const DUES_LABEL = {
+  no_rate:  'Rate not set',
+  unpaid:   'Unpaid',
+  partial:  'Partially Paid',
+  paid:     'Paid',
+  overpaid: 'Overpaid'
+};
+
+export const DUES_BADGE = {
+  no_rate:  'badge-neutral',
+  unpaid:   'badge-danger',
+  partial:  'badge-warning',
+  paid:     'badge-success',
+  overpaid: 'badge-info'
+};
+
+/* ---------------------------------------------------------------------- */
 /*  Formatting                                                             */
 /* ---------------------------------------------------------------------- */
 export function formatINR(amount) {
@@ -309,7 +375,20 @@ export async function generateReceiptPDF({ payment, member, society, logoDataUrl
   pdf.setFillColor(10, 27, 51);
   pdf.rect(0, 0, W, 100, 'F');
   if (logoDataUrl) {
-    try { pdf.addImage(logoDataUrl, 'PNG', marginX, 24, 52, 52); } catch (e) {/* skip logo if it fails to decode */}
+    // Same flattening as the membership card: jsPDF fills the seal's
+    // transparent corners with black, so it must be composited onto an
+    // opaque white disc first.
+    try {
+      const sealImg = await sealOnWhiteDisc(logoDataUrl);
+      if (sealImg) {
+        const cx = marginX + 26, cy = 50, r = 27;
+        pdf.setFillColor(255, 255, 255);
+        pdf.circle(cx, cy, r, 'F');
+        pdf.addImage(sealImg, 'JPEG', cx - r * 0.94, cy - r * 0.94, r * 1.88, r * 1.88);
+        pdf.setDrawColor(228, 199, 101); pdf.setLineWidth(1);
+        pdf.circle(cx, cy, r, 'S');
+      }
+    } catch (e) {/* receipt is still valid without the seal */}
   }
   pdf.setTextColor(255, 255, 255);
   pdf.setFont('times', 'bold'); pdf.setFontSize(18);
@@ -484,6 +563,34 @@ function imageToDataUrl(img, mime = 'image/jpeg', quality = 0.85) {
   return c.toDataURL(mime, quality);
 }
 
+/**
+ * Flattens the society seal onto an opaque white disc.
+ *
+ * The seal is a WebP with transparent corners. jsPDF does not carry that
+ * transparency through — it fills the alpha area with black, which turned the
+ * seal into a dark square sitting on top of the white circle drawn behind it.
+ * Compositing here means jsPDF only ever receives an opaque JPEG, so the seal
+ * reads correctly on both the card and the receipt.
+ *
+ * @returns {Promise<string|null>} an opaque JPEG data URL, or null if the
+ *          seal could not be loaded (callers then simply omit it).
+ */
+export async function sealOnWhiteDisc(logoDataUrl, size = 256) {
+  if (!logoDataUrl) return null;
+  const img = await loadImage(logoDataUrl);
+  if (!img) return null;
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const g = c.getContext('2d');
+  // opaque white square first — no alpha survives into the PDF
+  g.fillStyle = '#ffffff';
+  g.fillRect(0, 0, size, size);
+  // then a slightly inset seal, leaving a clean white rim around the navy ring
+  const pad = size * 0.045;
+  g.drawImage(img, pad, pad, size - pad * 2, size - pad * 2);
+  return c.toDataURL('image/jpeg', 0.92);
+}
+
 export async function generateMembershipCard({ member, society, logoDataUrl, financialYear }) {
   const { jsPDF } = window.jspdf;
   const pdf = new jsPDF({ unit: 'mm', format: [CARD_W, CARD_H], orientation: 'landscape' });
@@ -521,19 +628,25 @@ export async function generateMembershipCard({ member, society, logoDataUrl, fin
   const M = 5;   // margin
 
   // --- header ------------------------------------------------------------
-  if (logoDataUrl) {
+  // The seal is flattened onto an opaque white disc first — see
+  // sealOnWhiteDisc() for why jsPDF cannot be handed the transparent original.
+  const sealImg = await sealOnWhiteDisc(logoDataUrl);
+  if (sealImg) {
     try {
+      const cx = M + 3.6, cy = 7.4, r = 3.9;
       pdf.setFillColor(255, 255, 255);
-      pdf.circle(M + 3.4, 7.4, 3.6, 'F');
-      pdf.addImage(logoDataUrl, 'PNG', M + 0.5, 4.5, 5.8, 5.8);
+      pdf.circle(cx, cy, r, 'F');                       // white backing disc
+      pdf.addImage(sealImg, 'JPEG', cx - r * 0.94, cy - r * 0.94, r * 1.88, r * 1.88);
+      pdf.setDrawColor(228, 199, 101); pdf.setLineWidth(0.28);
+      pdf.circle(cx, cy, r, 'S');                       // gold rim
     } catch (e) {}
   }
   pdf.setTextColor(255, 255, 255);
   pdf.setFont('helvetica', 'bold'); pdf.setFontSize(7.4);
-  pdf.text(society.name || 'Max Heights Majestic', M + 8.6, 6.9);
+  pdf.text(society.name || 'Max Heights Majestic', M + 9.2, 6.9);
   pdf.setFont('courier', 'normal'); pdf.setFontSize(4.4);
   pdf.setTextColor(255, 201, 120);
-  pdf.text('RESIDENT WELFARE SOCIETY', M + 8.6, 9.6);
+  pdf.text('RESIDENT WELFARE SOCIETY', M + 9.2, 9.6);
 
   pdf.setFont('courier', 'normal'); pdf.setFontSize(4);
   pdf.setTextColor(190, 200, 215);

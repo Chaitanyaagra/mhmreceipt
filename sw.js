@@ -8,7 +8,7 @@
    Bump CACHE_NAME on any future structural change to force a clean cache.
    ========================================================================== */
 
-const CACHE_NAME = 'mhmrws-shell-v3';
+const CACHE_NAME = 'mhmrws-shell-v4';
 const SHELL_FILES = [
   './',
   './index.html',
@@ -45,6 +45,39 @@ self.addEventListener('fetch', (event) => {
   // Only handle same-origin GET requests for the app shell.
   // Firebase, Google APIs, and CDN scripts always go straight to the network.
   if (event.request.method !== 'GET' || url.origin !== self.location.origin) return;
+
+  // --------------------------------------------------------------------
+  // Two strategies, chosen per file type.
+  //
+  // IMAGES -> cache-first. They are ~59% of the page weight and their
+  // contents never change (a new photo means a new filename), so serving
+  // them straight from cache is both instant and always correct.
+  //
+  // EVERYTHING ELSE (html, css, js) -> network-first with cache fallback.
+  // A cache-first strategy here would be faster on repeat visits, but it
+  // also means a freshly deployed fix does not reach residents until their
+  // second visit. For a portal that is still being changed regularly, an
+  // update that silently fails to appear is far more costly than a few
+  // hundred milliseconds, so correctness wins. Offline still works: the
+  // cached copy is served whenever the network request fails.
+  // --------------------------------------------------------------------
+  const isImage = /\.(webp|jpg|jpeg|png|gif|svg|ico)$/i.test(url.pathname);
+
+  if (isImage) {
+    event.respondWith(
+      caches.match(event.request).then((cached) => {
+        if (cached) return cached;
+        return fetch(event.request).then((response) => {
+          if (response && response.ok) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+          }
+          return response;
+        });
+      })
+    );
+    return;
+  }
 
   event.respondWith(
     fetch(event.request)

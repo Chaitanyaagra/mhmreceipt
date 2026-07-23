@@ -296,7 +296,18 @@ section{ padding:76px 0; position:relative; }
 }
 .shot img{
   width:100%; height:100%; object-fit:cover; display:block;
-  transition:transform .7s cubic-bezier(.2,.7,.3,1);
+  transition:transform .7s cubic-bezier(.2,.7,.3,1), opacity .45s ease;
+  opacity:0;                       /* revealed once the file has decoded */
+}
+.shot img.loaded{ opacity:1; }
+/* A ~900-byte blurred version of the same photo, inlined so it paints on the
+   first frame. It gives the card its real colours immediately instead of a
+   grey box, and because .shot already has a fixed aspect ratio nothing
+   shifts when the full image arrives. */
+.shot::before{
+  content:''; position:absolute; inset:0;
+  background-image:var(--lqip); background-size:cover; background-position:center;
+  filter:blur(12px); transform:scale(1.06);
 }
 .shot:hover img{ transform:scale(1.045); }
 .shot figcaption{
@@ -321,6 +332,25 @@ section{ padding:76px 0; position:relative; }
   background:var(--gradient-magenta); font-size:12.5px; font-weight:600; margin-bottom:16px;
 }
 .stat-pill b{ font-family:var(--font-mono); font-size:15px; }
+
+/* ---------- Downloads ---------- */
+.doc-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(300px,1fr)); gap:12px; }
+.doc-item{
+  display:flex; align-items:center; gap:14px; padding:16px 18px;
+  background:var(--white); border:1px solid var(--line); border-radius:var(--radius-md);
+  transition:border-color .18s ease, transform .18s ease, box-shadow .18s ease;
+}
+.doc-item:hover{ border-color:var(--gold-300); transform:translateY(-2px); box-shadow:var(--shadow-card); }
+.doc-icon{
+  width:40px; height:40px; border-radius:10px; flex-shrink:0; display:grid; place-items:center;
+  background:linear-gradient(155deg,#EAF0FB,#F6F8FC); border:1px solid #DDE5F3; color:var(--navy-700);
+}
+.doc-icon svg{ width:19px; height:19px; }
+.doc-meta{ min-width:0; flex:1; }
+.doc-meta .nm{ font-weight:600; font-size:14.2px; line-height:1.3; }
+.doc-meta .sub{ font-family:var(--font-mono); font-size:10.5px; letter-spacing:.07em; text-transform:uppercase; color:var(--ink-400); margin-top:3px; }
+.doc-item .go{ flex-shrink:0; color:var(--navy-700); }
+.doc-item .go svg{ width:18px; height:18px; }
 
 /* ---------- Committee ---------- */
 .committee-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:16px; }
@@ -358,6 +388,16 @@ optgroup, option[disabled]{ color:var(--ink-400); font-style:italic; }
 .dash-grid{ display:grid; grid-template-columns:1.35fr 1fr; gap:20px; align-items:start; margin-top:20px; }
 .pay-history-item{ display:flex; justify-content:space-between; align-items:center; padding:15px 0; border-bottom:1px solid var(--line); gap:12px; flex-wrap:wrap; }
 .pay-history-item:last-child{ border-bottom:none; }
+.dues-box{ border:1px solid var(--line); border-radius:var(--radius-md); overflow:hidden; }
+.dues-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 16px; background:var(--paper); flex-wrap:wrap; }
+.dues-head .amt{ font-family:var(--font-display); font-size:26px; font-weight:600; color:var(--navy-950); line-height:1.1; }
+.dues-head .lbl{ font-family:var(--font-mono); font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-400); }
+.dues-split{ display:flex; }
+.dues-split > div{ flex:1; padding:11px 16px; border-right:1px solid var(--line); font-size:13px; }
+.dues-split > div:last-child{ border-right:none; }
+.dues-split b{ display:block; font-size:14.5px; color:var(--navy-950); margin-top:2px; }
+.dues-bar{ height:5px; background:var(--line); }
+.dues-bar span{ display:block; height:100%; background:var(--gradient-saffron); }
 .detail-line{ display:flex; justify-content:space-between; gap:12px; padding:9px 0; border-bottom:1px solid var(--line); font-size:13.4px; }
 .detail-line:last-child{ border-bottom:none; }
 .detail-line span:first-child{ color:var(--ink-400); }
@@ -533,6 +573,8 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
     <!-- vector-effect keeps the stroke at a constant device-pixel width. The
          birds are only 13-18px wide, and a scaled 1.9-unit stroke came out
          under one pixel, which anti-aliasing then washed away almost entirely. -->
+    <g id="i-file"><path d="M6 3.5h8l4 4v13H6z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M13.8 3.5V8h4.2M9 12.5h6M9 16h6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></g>
+    <g id="i-download"><path d="M12 3.5v11M8 11l4 4 4-4M4.5 19.5h15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></g>
     <g id="i-bird"><path d="M1 9C6.5 9 8.5 2.5 12.5 2.5S18.5 9 20 9c1.5 0 3.5-6.5 7.5-6.5S37 9 39 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none" vector-effect="non-scaling-stroke"/></g>
     <g id="i-shield"><path d="M12 2.8l7.5 3v6c0 4.6-3.1 8.4-7.5 9.4-4.4-1-7.5-4.8-7.5-9.4v-6z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M9 12l2.2 2.2L15.4 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></g>
     <g id="i-pool"><path d="M3 17.5c1.6 0 1.6 1.4 3.2 1.4s1.6-1.4 3.2-1.4 1.6 1.4 3.2 1.4 1.6-1.4 3.2-1.4 1.6 1.4 3.2 1.4M7 15.5V6a2.2 2.2 0 014.4 0M13.6 15.5V6A2.2 2.2 0 0118 6M7 9.5h4.4M7 12.6h4.4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></g>
@@ -558,6 +600,7 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
     <nav class="main-nav">
       <a href="#about">About</a>
       <a href="#community">Community</a>
+      <a href="#downloads">Documents</a>
       <a href="#notices">Notices</a>
       <a href="#committee">Committee</a>
       <a href="#contact">Contact</a>
@@ -713,16 +756,16 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
     </div>
 
     <div class="community-grid">
-      <figure class="shot reveal">
+      <figure class="shot reveal" style="--lqip:url(data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABMNDhEODBMRDxEVFBMXHTAfHRoaHToqLCMwRT1JR0Q9Q0FMVm1dTFFoUkFDX4JgaHF1e3x7SlyGkIV3j214e3b/2wBDARQVFR0ZHTgfHzh2T0NPdnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnb/wAARCAAOABgDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwBIWwNpPas27uZEmBjPA61pfYXVjiQVLa6Qj/fIJqEgv0LenXKpDG8hwMUU06U5ZQJQF9KKdh3P/9k=)">
         <img src="mhm-aerial.webp" alt="Aerial view of Max Heights Majestic towers and the landscaped podium garden" loading="lazy" width="900" height="518">
         <figcaption><span>The Complex</span>70,000 sq.ft. landscaped podium garden</figcaption>
       </figure>
       <div class="shot-stack">
-        <figure class="shot reveal reveal-d1">
+        <figure class="shot reveal reveal-d1" style="--lqip:url(data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABMNDhEODBMRDxEVFBMXHTAfHRoaHToqLCMwRT1JR0Q9Q0FMVm1dTFFoUkFDX4JgaHF1e3x7SlyGkIV3j214e3b/2wBDARQVFR0ZHTgfHzh2T0NPdnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnb/wAARCAANABgDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwCpa26RyYcZHvWnDIkcoeNegxilNmgHU80RwDkbjUOUpbiilHY2bCNBH5ijDN1orMtxLCCVmb6UUcyWg2z/2Q==)">
           <img src="mhm-clubhouse.webp" alt="The six-level Club Ultima clubhouse building" loading="lazy" width="900" height="493">
           <figcaption><span>Club Ultima</span>25,000 sq.ft. clubhouse, six levels</figcaption>
         </figure>
-        <figure class="shot reveal reveal-d2">
+        <figure class="shot reveal reveal-d2" style="--lqip:url(data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABMNDhEODBMRDxEVFBMXHTAfHRoaHToqLCMwRT1JR0Q9Q0FMVm1dTFFoUkFDX4JgaHF1e3x7SlyGkIV3j214e3b/2wBDARQVFR0ZHTgfHzh2T0NPdnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnb/wAARCAANABgDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwBi3N2cb5TU8M05PEjVGiMi4D5+oqztbygd3P0rS6S1Rm4tvRkd3eTRxEeadxoplxZrKcsxzRS917haSP/Z)">
           <img src="mhm-pool.webp" alt="Rooftop swimming pool at the clubhouse" loading="lazy" width="900" height="482">
           <figcaption><span>Rooftop</span>Swimming pool &amp; sun deck</figcaption>
         </figure>
@@ -742,6 +785,21 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
         <div class="amenity"><svg viewBox="0 0 24 24"><use href="#i-power"/></svg>100% Power Backup</div>
         <div class="amenity"><svg viewBox="0 0 24 24"><use href="#i-parking"/></svg>Ample Parking</div>
       </div>
+    </div>
+  </div>
+</section>
+
+<section id="downloads">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <div class="rule-gold"></div>
+      <div class="eyebrow">Documents</div>
+      <h2>Society documents &amp; forms</h2>
+      <p>Bylaws, AGM minutes, audited accounts and the forms you'd otherwise have to collect from the office.</p>
+    </div>
+    <div id="downloadsList" class="reveal">
+      <div class="skeleton" style="height:64px; margin-bottom:10px;"></div>
+      <div class="skeleton" style="height:64px;"></div>
     </div>
   </div>
 </section>
@@ -1009,6 +1067,13 @@ window.addEventListener('scroll', () => {
    rather than leaving an empty frame or a broken-image icon. The grid
    simply reflows around whatever did load. */
 document.querySelectorAll('.shot img').forEach(img => {
+  // Fade the real photo in over its blurred placeholder once it has decoded.
+  // Images already complete (from cache) are marked immediately, otherwise
+  // a cached image would stay invisible because 'load' never fires.
+  const reveal = () => img.classList.add('loaded');
+  if (img.complete && img.naturalWidth > 0) reveal();
+  else img.addEventListener('load', reveal);
+
   img.addEventListener('error', () => {
     const fig = img.closest('.shot');
     if (fig) fig.style.display = 'none';
@@ -1055,6 +1120,16 @@ if (mobileInput) {
   mobileInput.addEventListener('input', () => {
     const cleaned = mobileInput.value.replace(/\D/g, '').replace(/^(91|0)/, '').slice(0, 10);
     if (cleaned !== mobileInput.value) mobileInput.value = cleaned;
+  });
+}
+
+/* Service worker registration lives here, not in the Firebase module: if the
+   SDK fails to load, offline support would otherwise silently never install —
+   exactly when a resident on a weak connection needs it most. */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js')
+      .catch((e) => console.warn('Service worker registration failed:', e));
   });
 }
 
@@ -1111,7 +1186,7 @@ import {
 import {
   showToast, escapeHtml, fmtDate, formatINR, currentFinancialYear,
   generateReceiptPDF, printReceipt, validatePayment, validateRegistration,
-  generateMembershipCard
+  generateMembershipCard, duesFor, DUES_LABEL, DUES_BADGE
 } from './app-common.js';
 
 /* Branding, the year stamp and the committee fallback are handled by the
@@ -1184,10 +1259,30 @@ function friendlyAuthError(err) {
   };
   return map[err.code] || err.message || 'Kuch galat ho gaya, dobara try karein.';
 }
+/**
+ * Uploads a file and returns its URL, or null if the upload could not be made.
+ *
+ * This deliberately never throws. Firebase Storage requires the Blaze plan,
+ * so a society that hasn't set it up yet would otherwise see every
+ * registration fail *after* the auth account was already created — leaving
+ * a person who can log in but has no member record. A missing photo is a
+ * far smaller problem than a broken signup, so uploads degrade quietly and
+ * the caller decides what to tell the person.
+ */
+let storageUnavailable = false;
 async function uploadFile(path, file) {
-  const r = storageRef(storage, path);
-  await uploadBytes(r, file);
-  return getDownloadURL(r);
+  try {
+    const r = storageRef(storage, path);
+    await uploadBytes(r, file);
+    return await getDownloadURL(r);
+  } catch (err) {
+    console.warn('Upload failed (continuing without the file):', path, err?.code || err);
+    if (['storage/unauthorized', 'storage/unknown', 'storage/project-not-found',
+         'storage/retry-limit-exceeded', 'storage/quota-exceeded'].includes(err?.code)) {
+      storageUnavailable = true;
+    }
+    return null;
+  }
 }
 function toDataUrl(url) {
   return fetch(url).then(r => r.blob()).then(blob => new Promise((resolve, reject) => {
@@ -1237,7 +1332,12 @@ registerForm.addEventListener('submit', async (e) => {
       updatedAt: serverTimestamp()
     });
 
-    showToast('Registration jama ho gaya! Admin approval ke baad Member ID milegi.', 'success');
+    if (f.photo.files[0] && !photoURL) {
+      // The registration itself succeeded; only the file could not be stored.
+      showToast('Registration jama ho gaya, lekin photo upload nahi ho payi. Office se photo add karwa lein.', 'error');
+    } else {
+      showToast('Registration jama ho gaya! Admin approval ke baad Member ID milegi.', 'success');
+    }
     f.reset();
     showTab('login');
   } catch (err) {
@@ -1334,7 +1434,8 @@ async function loadDashboard(uid) {
     ${currentMember.status === 'approved' ? `
     <div class="dash-grid">
       <div class="card card-pad">
-        <div class="spread" style="margin-bottom:16px; gap:10px; flex-wrap:wrap;">
+        <div id="duesPanel"><div class="skeleton" style="height:74px; margin-bottom:18px;"></div></div>
+        <div class="spread" style="margin:18px 0 16px; gap:10px; flex-wrap:wrap;">
           <h3 style="font-size:16px;">Payment History</h3>
           <button class="btn btn-primary btn-sm" id="openPaymentBtn">Make a Payment</button>
         </div>
@@ -1392,12 +1493,64 @@ async function downloadCard() {
 }
 
 /* ---- Payments ---- */
+let currentDues = null;   // recomputed whenever payments are loaded
+
+async function loadMaintenanceSettings() {
+  try {
+    const snap = await getDoc(doc(db, 'settings', 'maintenance'));
+    return snap.exists() ? snap.data() : {};
+  } catch (e) { return {}; }
+}
+
+function renderDues(dues, financialYear) {
+  const el = document.getElementById('duesPanel');
+  if (!el) return;
+
+  if (dues.status === 'no_rate') {
+    el.innerHTML = `<div class="dues-box"><div class="dues-head">
+      <div><div class="lbl">Maintenance &middot; FY ${escapeHtml(financialYear)}</div>
+      <div style="font-size:13.5px; color:var(--ink-600); margin-top:4px;">
+        Committee ne abhi is saal ka rate set nahi kiya hai.</div></div>
+    </div></div>`;
+    window.__translate?.(el);
+    return;
+  }
+
+  const pct = dues.expected ? Math.min(100, Math.round((dues.paid / dues.expected) * 100)) : 0;
+  const headline = dues.outstanding > 0 ? dues.outstanding : dues.paid;
+  const headlineLabel = dues.outstanding > 0 ? 'Outstanding' : 'Paid in full';
+
+  el.innerHTML = `
+    <div class="dues-box">
+      <div class="dues-head">
+        <div>
+          <div class="lbl">${escapeHtml(headlineLabel)} &middot; FY ${escapeHtml(financialYear)}</div>
+          <div class="amt">${formatINR(headline)}</div>
+        </div>
+        <span class="badge ${DUES_BADGE[dues.status]}">${escapeHtml(DUES_LABEL[dues.status])}</span>
+      </div>
+      <div class="dues-bar"><span style="width:${pct}%"></span></div>
+      <div class="dues-split">
+        <div><span class="lbl">Total Due</span><b>${formatINR(dues.expected)}</b></div>
+        <div><span class="lbl">Paid</span><b>${formatINR(dues.paid)}</b></div>
+        <div><span class="lbl">Balance</span><b class="${dues.outstanding > 0 ? 't-danger' : 't-success'}">${formatINR(dues.outstanding)}</b></div>
+      </div>
+    </div>`;
+  window.__translate?.(el);
+}
+
 async function loadPayments(uid) {
   const list = document.getElementById('paymentList');
   const q = query(collection(db, 'payments'), where('memberUid', '==', uid), orderBy('submittedAt', 'desc'), limit(10));
   let rows;
   try { rows = (await getDocs(q)).docs.map(d => ({ id: d.id, ...d.data() })); }
   catch (e) { rows = []; }
+
+  // Dues are computed from the same rows the history renders, so the panel
+  // and the list can never disagree with each other.
+  const maintenance = await loadMaintenanceSettings();
+  currentDues = duesFor(currentMember, rows, currentFinancialYear(), maintenance);
+  renderDues(currentDues, currentFinancialYear());
 
   if (!rows.length) { list.innerHTML = '<div class="empty" style="padding:28px 12px;"><p>No payment records yet.</p></div>'; window.__translate(list); return; }
 
@@ -1500,7 +1653,13 @@ function renderPayDetailForm(mode, paySettings) {
           <div style="font-size:12.4px;" class="t-muted">${escapeHtml(paySettings.bankName || '')} · A/C ${escapeHtml(paySettings.accountNumber || '—')} · IFSC ${escapeHtml(paySettings.ifsc || '—')}</div>
         </div>
       `}
-      <div class="field"><label for="payAmount">Amount (₹)</label><input type="number" id="payAmount" min="1" required inputmode="numeric"></div>
+      <div class="field"><label for="payAmount">Amount (₹)</label>
+        <input type="number" id="payAmount" min="1" required inputmode="numeric"
+               value="${currentDues && currentDues.outstanding > 0 ? currentDues.outstanding : ''}">
+        ${currentDues && currentDues.outstanding > 0
+          ? `<div class="hint">Aapka balance ${formatINR(currentDues.outstanding)} hai. Isse kam bhi de sakte hain — baaki rakam bakaya dikhti rahegi.</div>`
+          : ''}
+      </div>
       ${!isOffline ? `<div class="field"><label for="payUtr">UTR / Transaction ID</label><input id="payUtr" required autocapitalize="characters"></div>
       <div class="field"><label for="payProof">Payment Screenshot <span class="t-muted" style="font-weight:400;">(optional)</span></label><input type="file" id="payProof" accept="image/*"></div>` : ''}
       <button class="btn btn-primary btn-block" id="submitPaymentBtn">${isOffline ? 'Submit — I Will Pay at Office' : 'I Have Paid'}</button>
@@ -1524,7 +1683,12 @@ async function submitPayment(mode) {
   try {
     if (!isOffline) {
       const proofFile = document.getElementById('payProof').files[0];
-      if (proofFile) proofURL = await uploadFile(`paymentProofs/${currentUser.uid}/${Date.now()}`, proofFile);
+      if (proofFile) {
+        proofURL = await uploadFile(`paymentProofs/${currentUser.uid}/${Date.now()}`, proofFile);
+        // The UTR is what the Treasurer actually verifies against, so a
+        // missing screenshot must never stop the payment being recorded.
+        if (!proofURL) showToast('Screenshot upload nahi hui, par payment record ho gayi. UTR se verify ho jayega.', 'error');
+      }
     }
     await addDoc(collection(db, 'payments'), {
       memberUid: currentUser.uid,
@@ -1599,6 +1763,31 @@ window.addEventListener('mhm:langchange', () => {
   if (document.getElementById('noticeList')) renderNotices();
 });
 
+async function loadDownloads() {
+  const el = document.getElementById('downloadsList');
+  try {
+    const rows = (await getDocs(query(collection(db, 'documents'), orderBy('addedAt', 'desc'))))
+      .docs.map(d => d.data());
+    if (!rows.length) {
+      el.innerHTML = '<div class="empty" style="padding:34px 12px;"><p>No documents have been published yet.</p></div>';
+      window.__translate(el); return;
+    }
+    el.innerHTML = '<div class="doc-grid">' + rows.map(d => `
+      <a class="doc-item" href="${escapeHtml(d.url)}" target="_blank" rel="noopener">
+        <span class="doc-icon"><svg viewBox="0 0 24 24"><use href="#i-file"/></svg></span>
+        <span class="doc-meta">
+          <span class="nm">${escapeHtml(d.title)}</span>
+          <span class="sub">${escapeHtml(d.category || 'Document')}${d.addedAt ? ' &middot; ' + fmtDate(d.addedAt) : ''}</span>
+        </span>
+        <span class="go"><svg viewBox="0 0 24 24"><use href="#i-download"/></svg></span>
+      </a>`).join('') + '</div>';
+    window.__translate(el);
+  } catch (e) {
+    el.innerHTML = '<div class="empty" style="padding:34px 12px;"><p>Documents could not be loaded.</p></div>';
+    window.__translate(el);
+  }
+}
+
 async function loadCommittee() {
   // The fallback list is already on screen (rendered by the standalone
   // branding module). Only replace it if the committee has real entries.
@@ -1651,15 +1840,11 @@ async function loadStats() {
 }
 
 loadNotices();
+loadDownloads();
 loadCommittee();
 loadSettingsPublic();
 loadStats();
 
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js').catch((e) => console.warn('Service worker registration failed:', e));
-  });
-}
 </script>
 </body>
 </html>

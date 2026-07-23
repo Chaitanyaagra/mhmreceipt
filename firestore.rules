@@ -197,9 +197,12 @@ service cloud.firestore {
       allow delete: if canApproveMembers();
     }
 
-    // ---- Society + payment settings (bank/QR) — public read ---------------
-    // Bank and UPI details are what residents pay into, so only the Super
-    // Admin and Treasurer may change them.
+    // ---- Society, payment and maintenance settings — public read ----------
+    // Covers settings/society, settings/payment and settings/maintenance.
+    // These decide what residents pay into and how much they owe, so writes
+    // are limited to the Super Admin and Treasurer. Public read is required:
+    // the resident portal shows bank details and each flat's dues before
+    // anyone signs in.
     match /settings/{settingId} {
       allow read: if true;
       allow write: if canVerifyPayments();
@@ -216,6 +219,18 @@ service cloud.firestore {
                     && isNonEmptyString(request.resource.data.receiptNumber, 40);
       // A verified receipt is a financial record: immutable once issued.
       allow update, delete: if false;
+    }
+
+    // ---- Documents & forms — public read, office-bearer write -------------
+    // Bylaws, AGM minutes, audited accounts. Deliberately world-readable:
+    // these are the documents residents would otherwise have to collect from
+    // the office, and several are things a prospective buyer may also ask for.
+    match /documents/{docId} {
+      allow read: if true;
+      allow create, update: if canApproveMembers()
+                            && isNonEmptyString(request.resource.data.title, 120)
+                            && isNonEmptyString(request.resource.data.url, 2000);
+      allow delete: if canApproveMembers();
     }
 
     // ---- Public membership verification (where the card QR lands) ---------

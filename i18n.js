@@ -118,6 +118,30 @@ export const HI = {
   'Approved': 'स्वीकृत',
   'Select your tower': 'अपना टावर चुनें',
 
+  /* ---- Downloads & dues ---- */
+  'Documents': 'दस्तावेज़',
+  'Society documents & forms': 'सोसाइटी के दस्तावेज़ एवं फ़ॉर्म',
+  "Bylaws, AGM minutes, audited accounts and the forms you'd otherwise have to collect from the office.":
+    'उपनियम, वार्षिक बैठक की कार्यवाही, अंकेक्षित लेखे और वे फ़ॉर्म जिनके लिए वरना कार्यालय जाना पड़ता।',
+  'No documents have been published yet.': 'अभी तक कोई दस्तावेज़ प्रकाशित नहीं हुआ है।',
+  'Documents could not be loaded.': 'दस्तावेज़ लोड नहीं हो सके।',
+  'Bylaws': 'उपनियम',
+  'AGM Minutes': 'वार्षिक बैठक कार्यवाही',
+  'Audited Accounts': 'अंकेक्षित लेखे',
+  'Forms': 'फ़ॉर्म',
+  'Circular': 'परिपत्र',
+  'Other': 'अन्य',
+  'Document': 'दस्तावेज़',
+  'Outstanding': 'बकाया',
+  'Paid in full': 'पूरा भुगतान',
+  'Total Due': 'कुल देय',
+  'Paid': 'भुगतान किया',
+  'Balance': 'शेष',
+  'Unpaid': 'अभुगतान',
+  'Partially Paid': 'आंशिक भुगतान',
+  'Overpaid': 'अधिक भुगतान',
+  'Rate not set': 'दर तय नहीं',
+
   /* ---- Committee ---- */
   'Governance': 'प्रशासन',
   'Your committee': 'आपकी समिति',

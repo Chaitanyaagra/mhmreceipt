@@ -56,6 +56,20 @@ service firebase.storage {
       allow write: if isAdmin();
     }
 
+    // Society documents residents can download — bylaws, AGM minutes,
+    // audited accounts, blank forms. Public read by design; only admins
+    // publish them.
+    //
+    // Deliberately NOT under /documents/, which holds private Aadhaar and PAN
+    // uploads: a path like documents/public/x.pdf would also match the
+    // /documents/{uid}/ rule above with uid="public". That happens to be
+    // harmless today, but two rules governing one file is the kind of thing
+    // that turns into a leak the next time someone edits them.
+    match /publicDocs/{fileName} {
+      allow read: if true;
+      allow write: if isAdmin() && request.resource.size < 20 * 1024 * 1024;
+    }
+
     // Society logo, payment QR code, downloadable forms — public read.
     match /settings/{fileName} {
       allow read: if true;

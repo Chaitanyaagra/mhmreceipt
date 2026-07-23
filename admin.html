@@ -44,6 +44,14 @@
   .chart-grid{ display:grid; grid-template-columns:1.3fr 1fr; gap:18px; margin-bottom:22px; }
   .chart-card canvas{ max-height:250px; }
 
+  .notice-banner{
+    display:flex; gap:13px; align-items:flex-start;
+    background:var(--warning-bg); border:1px solid var(--warning-line);
+    border-radius:var(--radius-md); padding:15px 17px; margin-bottom:22px;
+    font-size:13.3px; line-height:1.55; color:var(--ink-700);
+  }
+  .notice-banner svg{ width:20px; height:20px; color:var(--warning); flex-shrink:0; margin-top:1px; }
+
   .toolbar{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:16px; }
   .toolbar input, .toolbar select{ width:auto; min-width:120px; }
   .toolbar .grow{ flex:1; min-width:200px; }
@@ -157,6 +165,18 @@
 
   <main class="main-area">
 
+    <!-- Shown only if Firebase Storage isn't reachable. Without it, photo and
+         document uploads silently do nothing, so the committee needs to know
+         before they invite residents in. -->
+    <div id="storageWarning" class="notice-banner" style="display:none;">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#a-cloud"/></svg>
+      <div>
+        <b>Firebase Storage abhi set up nahi hai.</b>
+        Registration, payment aur receipts sab chalenge — par <b>photo, Aadhaar/PAN aur payment screenshot upload nahi honge</b>.
+        Enable karne ke liye Firebase Console mein Blaze plan par jaana hoga (SETUP-GUIDE.md dekhein).
+      </div>
+    </div>
+
     <!-- ---------------- OVERVIEW ---------------- -->
     <div class="view-panel active" id="view-overview">
       <div class="topbar">
@@ -228,10 +248,11 @@
         </div>
       </div>
       <div id="paymentsDefaultersPanel" style="display:none;">
+        <div class="toolbar"><span id="defaultersTotal" class="mono" style="font-size:12.5px; color:var(--ink-600);"></span></div>
         <div class="toolbar"><button class="btn btn-outline btn-sm" id="emailDefaultersBtn"><svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#a-mail"/></svg>Email All (BCC)</button>
         <span class="t-muted" style="font-size:12.5px;">for FY selected in Overview</span></div>
         <div class="table-wrap responsive">
-          <table><thead><tr><th>Resident</th><th>Flat / Tower</th><th>Mobile</th><th>Remind</th></tr></thead>
+          <table><thead><tr><th>Resident</th><th>Flat / Tower</th><th>Outstanding</th><th>Status</th><th>Remind</th></tr></thead>
           <tbody id="defaultersBody"><tr><td colspan="4" class="t-muted">Loading…</td></tr></tbody></table>
         </div>
       </div>
@@ -244,6 +265,11 @@
         <div class="card card-pad">
           <div class="spread" style="margin-bottom:14px;"><h3 style="font-size:15px;">Notice Board</h3><button class="btn btn-primary btn-sm" id="addNoticeBtn">+ Add Notice</button></div>
           <div id="noticesEditList"></div>
+        </div>
+        <div class="card card-pad">
+          <div class="spread" style="margin-bottom:6px;"><h3 style="font-size:15px;">Documents &amp; Forms</h3><button class="btn btn-primary btn-sm" id="addDocBtn">+ Add Document</button></div>
+          <p class="t-sub" style="font-size:12.5px; margin-bottom:14px;">Bylaws, AGM minutes, audited accounts, NOC forms — residents ise Downloads section mein dekhenge.</p>
+          <div id="docsEditList"></div>
         </div>
         <div class="card card-pad">
           <div class="spread" style="margin-bottom:14px;"><h3 style="font-size:15px;">Committee</h3><button class="btn btn-primary btn-sm" id="addCommitteeBtn">+ Add Member</button></div>
@@ -298,6 +324,32 @@
             <button class="btn btn-primary" type="submit">Save Payment Settings</button>
           </form>
         </div>
+        <div class="card card-pad">
+          <h3 style="font-size:15px; margin-bottom:6px;">Maintenance Rate</h3>
+          <p class="t-sub" style="font-size:12.8px; margin-bottom:14px;">
+            Yeh rate tay karta hai ki har flat par kitna bakaya hai. Iske bina system ko
+            pata nahi chalta ki kisne poora diya aur kisne aadha — aur Defaulters report
+            khaali reh jaati hai.
+          </p>
+          <form id="maintenanceForm">
+            <div class="field"><label>Financial Year</label>
+              <select name="fy" id="maintFY"></select>
+            </div>
+            <div class="field"><label>Amount per flat (₹)</label>
+              <input name="defaultRate" type="number" min="0" step="1" placeholder="e.g. 2400">
+              <div class="hint">Saare towers par lagega, jab tak neeche override na ho.</div>
+            </div>
+            <details style="margin-bottom:14px;">
+              <summary style="cursor:pointer; font-size:13px; font-weight:600; color:var(--navy-800);">
+                Tower-wise alag rate (optional)
+              </summary>
+              <div class="form-2col" style="margin-top:12px;" id="towerRateFields"></div>
+            </details>
+            <button class="btn btn-primary btn-block" type="submit">Save Maintenance Rate</button>
+          </form>
+          <div id="maintSummary" class="t-sub" style="font-size:12.5px; margin-top:12px;"></div>
+        </div>
+
         <div class="card card-pad">
           <h3 style="font-size:15px; margin-bottom:6px;">Document Security</h3>
           <p class="t-sub" style="font-size:12.8px; margin-bottom:14px;">Access to Aadhaar/PAN uploads is always restricted to Admins by Storage rules. This adds an optional AES-256 encryption layer on top — see SETUP-GUIDE.md for the key-management trade-off before relying on this.</p>
@@ -407,6 +459,32 @@
   </div>
 </div>
 
+<div class="modal-backdrop" id="docModalBackdrop">
+  <div class="modal">
+    <div class="modal-head"><h3 style="font-size:16.5px;">Add Document</h3><button class="icon-btn" id="closeDocModal">&#10005;</button></div>
+    <div class="modal-body">
+      <form id="docForm">
+        <div class="field"><label for="docTitle">Title</label><input id="docTitle" name="title" required maxlength="120" placeholder="e.g. Society Bylaws 2026"></div>
+        <div class="field"><label for="docCategory">Category</label>
+          <select id="docCategory" name="category">
+            <option>Bylaws</option><option>AGM Minutes</option><option>Audited Accounts</option>
+            <option>Forms</option><option>Circular</option><option>Other</option>
+          </select>
+        </div>
+        <div class="field"><label for="docFile">Upload file</label>
+          <input type="file" id="docFile" name="file" accept=".pdf,.doc,.docx,.xls,.xlsx,image/*">
+          <div class="hint">Firebase Storage set up nahi hai? Neeche link daal dein — dono mein se koi ek zaroori hai.</div>
+        </div>
+        <div class="field"><label for="docLink">…or paste a link</label>
+          <input id="docLink" name="link" type="url" placeholder="https://drive.google.com/...">
+          <div class="hint">Google Drive ya kisi bhi public link se kaam chal jayega.</div>
+        </div>
+        <button class="btn btn-primary btn-block" type="submit">Save Document</button>
+      </form>
+    </div>
+  </div>
+</div>
+
 <div class="modal-backdrop" id="committeeModalBackdrop">
   <div class="modal">
     <div class="modal-head"><h3 style="font-size:16.5px;" id="committeeModalTitle">Add Committee Member</h3><button class="icon-btn" id="closeCommitteeModal">✕</button></div>
@@ -453,7 +531,8 @@ import {
   showToast, escapeHtml, fmtDate, fmtDateTime, formatINR, currentFinancialYear, financialYearOptions,
   generateMemberId, generateReceiptNumber, logAudit, generateReceiptPDF, exportToExcel, parseExcelFile,
   encryptFile, decryptToBlob, backupToDrive, waLink, serializeForExport,
-  TOWER_IDS, TOWER_PLAN, flatsForTower, isValidFlat
+  TOWER_IDS, TOWER_PLAN, flatsForTower, isValidFlat,
+  duesFor, DUES_LABEL, DUES_BADGE
 } from './app-common.js';
 
 /* ---------------------------------------------------------------------- */
@@ -562,6 +641,7 @@ onAuthStateChanged(auth, async (user) => {
   document.getElementById('adminRole').textContent = ROLE_LABELS[currentAdmin.role] || currentAdmin.role || '';
   applyRoleNav();
   resetIdleTimer();   // start the inactivity clock for this session
+  checkStorageAvailable();
   await bootData();
 });
 
@@ -590,6 +670,20 @@ function applyRoleNav() {
   });
 })();
 
+/* Probe Storage with a tiny throwaway upload. Cheaper and far more reliable
+   than guessing from config: it tells us whether uploads will actually work
+   for residents, which is what the committee needs to know. */
+async function checkStorageAvailable() {
+  try {
+    const probe = storageRef(storage, `settings/_probe_${Date.now()}.txt`);
+    await uploadBytes(probe, new Blob(['ok'], { type: 'text/plain' }));
+    document.getElementById('storageWarning').style.display = 'none';
+  } catch (e) {
+    console.warn('Storage probe failed:', e?.code || e);
+    document.getElementById('storageWarning').style.display = 'flex';
+  }
+}
+
 /* ---------------------------------------------------------------------- */
 /*  Nav / view switching                                                  */
 /* ---------------------------------------------------------------------- */
@@ -616,6 +710,7 @@ async function bootData() {
   renderDefaulters();
   loadContentPanels();
   loadSettingsForms();
+  loadMaintenance();
   loadAdmins();
   loadAuditLog();
   populateTowerFilter();
@@ -907,21 +1002,54 @@ async function rejectPayment(id) {
   await reloadPayments(); renderPendingPayments(); renderAllPayments();
 }
 
+/* Anyone with a balance still owing — not just those who paid nothing.
+   The previous version treated any single verified payment as "paid", so a
+   resident who paid Rs 100 against a Rs 2,400 charge disappeared from this
+   list entirely. Now it works off the actual outstanding balance and shows
+   how much each flat still owes. */
+function outstandingMembers() {
+  return allMembers
+    .filter(m => m.status === 'approved')
+    .map(m => ({ m, d: duesFor(m, allPayments, selectedFY, maintenanceSettings) }))
+    .filter(x => x.d.outstanding > 0)
+    .sort((a, b) => b.d.outstanding - a.d.outstanding);   // biggest debts first
+}
+
 function renderDefaulters() {
-  const approved = allMembers.filter(m => m.status === 'approved');
-  const paidUids = new Set(allPayments.filter(p => p.status === 'verified' && p.financialYear === selectedFY).map(p => p.memberUid));
-  const defaulters = approved.filter(m => !paidUids.has(m.uid));
-  document.getElementById('defaultersBody').innerHTML = defaulters.map(m => `
+  const rows = outstandingMembers();
+  const body = document.getElementById('defaultersBody');
+  const totalEl = document.getElementById('defaultersTotal');
+
+  const noRate = !maintenanceSettings?.rates?.[selectedFY];
+  if (noRate) {
+    body.innerHTML = `<tr><td colspan="5" class="t-muted">
+      FY ${escapeHtml(selectedFY)} ka maintenance rate set nahi hai, isliye bakaya calculate nahi ho sakta.
+      Settings &rarr; Maintenance Rate mein jaakar rate daalein.</td></tr>`;
+    if (totalEl) totalEl.textContent = '';
+    return;
+  }
+
+  const total = rows.reduce((s, x) => s + x.d.outstanding, 0);
+  if (totalEl) {
+    totalEl.textContent = rows.length
+      ? `${rows.length} flats  ·  ${formatINR(total)} outstanding`
+      : 'Sab flats ka bhugtan poora hai';
+  }
+
+  body.innerHTML = rows.map(({ m, d }) => `
     <tr>
-      <td data-label="Resident">${escapeHtml(m.name)}</td><td data-label="Flat / Tower">${escapeHtml(m.flatNumber)} / ${escapeHtml(m.tower)}</td><td data-label="Mobile">${escapeHtml(m.mobile)}</td>
-      <td data-label="Remind"><a class="btn btn-outline btn-sm" target="_blank" href="${waLink(m.mobile, `Dear ${m.name}, this is a reminder from MHMRWS that your maintenance payment for FY ${selectedFY} is pending. Please pay at your earliest convenience via the resident portal.`)}">WhatsApp</a></td>
+      <td data-label="Resident">${escapeHtml(m.name)}</td>
+      <td data-label="Flat / Tower">${escapeHtml(m.flatNumber)} / ${escapeHtml(m.tower)}</td>
+      <td data-label="Outstanding"><b class="t-danger">${formatINR(d.outstanding)}</b>
+        <span class="t-muted" style="font-size:11.5px;"> of ${formatINR(d.expected)}</span></td>
+      <td data-label="Status"><span class="badge ${DUES_BADGE[d.status]}">${escapeHtml(DUES_LABEL[d.status])}</span></td>
+      <td data-label="Remind"><a class="btn btn-outline btn-sm" target="_blank" rel="noopener"
+        href="${waLink(m.mobile, `Dear ${m.name}, MHMRWS reminder: ${formatINR(d.outstanding)} of your FY ${selectedFY} maintenance (${formatINR(d.expected)}) is still outstanding. You can pay via the resident portal.`)}">WhatsApp</a></td>
     </tr>
-  `).join('') || '<tr><td colspan="4" class="t-muted">No defaulters for this FY</td></tr>';
+  `).join('') || '<tr><td colspan="5" class="t-muted">No outstanding dues for this FY</td></tr>';
 }
 document.getElementById('emailDefaultersBtn').addEventListener('click', () => {
-  const approved = allMembers.filter(m => m.status === 'approved');
-  const paidUids = new Set(allPayments.filter(p => p.status === 'verified' && p.financialYear === selectedFY).map(p => p.memberUid));
-  const emails = approved.filter(m => !paidUids.has(m.uid)).map(m => m.email).filter(Boolean).join(',');
+  const emails = outstandingMembers().map(x => x.m.email).filter(Boolean).join(',');
   if (!emails) return showToast('Koi defaulter email nahi mila.', 'error');
   const subject = encodeURIComponent('MHMRWS: Maintenance Payment Reminder');
   const bodyText = encodeURIComponent(`Dear Resident,\n\nThis is a reminder that your maintenance payment for FY ${selectedFY} is pending. Kindly complete it via the resident portal at the earliest.\n\nRegards,\nMHMRWS Committee`);
@@ -945,6 +1073,8 @@ async function loadContentPanels() {
     loadContentPanels();
   }));
 
+  loadDocuments();
+
   const committee = (await getDocs(collection(db, 'committee'))).docs.map(d => ({ id: d.id, ...d.data() }));
   document.getElementById('committeeEditList').innerHTML = committee.map(c => `
     <div class="list-edit-item">
@@ -958,6 +1088,83 @@ async function loadContentPanels() {
     loadContentPanels();
   }));
 }
+/* ---- Documents & forms -------------------------------------------------
+   A document can be either an uploaded file or an external link. The link
+   route exists so the committee can publish documents even before Firebase
+   Storage is enabled — otherwise this whole section would be unusable on
+   the free plan. */
+async function loadDocuments() {
+  const el = document.getElementById('docsEditList');
+  if (!el) return;
+  try {
+    const rows = (await getDocs(query(collection(db, 'documents'), orderBy('addedAt', 'desc'))))
+      .docs.map(d => ({ id: d.id, ...d.data() }));
+    el.innerHTML = rows.map(d => `
+      <div class="list-edit-item">
+        <div style="min-width:0;">
+          <b style="font-size:13.5px;">${escapeHtml(d.title)}</b>
+          <div class="t-muted" style="font-size:12px;">${escapeHtml(d.category || 'Document')} &middot; ${d.source === 'link' ? 'link' : 'uploaded'} &middot; ${fmtDate(d.addedAt)}</div>
+        </div>
+        <button class="btn btn-danger btn-sm" data-del-doc="${d.id}">Delete</button>
+      </div>`).join('') || '<p class="t-muted" style="font-size:13px;">Abhi koi document nahi hai.</p>';
+    el.querySelectorAll('[data-del-doc]').forEach(b => b.addEventListener('click', async () => {
+      if (!confirm('Yeh document hata dein?')) return;
+      await deleteDoc(doc(db, 'documents', b.dataset.delDoc));
+      await logAudit(auth.currentUser, 'delete_document', { id: b.dataset.delDoc });
+      loadDocuments();
+    }));
+  } catch (e) {
+    el.innerHTML = '<p class="t-muted" style="font-size:13px;">Documents load nahi ho paaye.</p>';
+  }
+}
+
+document.getElementById('addDocBtn')?.addEventListener('click', () =>
+  document.getElementById('docModalBackdrop').classList.add('open'));
+document.getElementById('closeDocModal')?.addEventListener('click', () =>
+  document.getElementById('docModalBackdrop').classList.remove('open'));
+
+document.getElementById('docForm')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const f = e.target;
+  const btn = f.querySelector('button[type="submit"]');
+  const file = f.file.files[0];
+  const link = f.link.value.trim();
+
+  if (!file && !link) return showToast('File upload karein ya link daalein — koi ek zaroori hai.', 'error');
+  if (link && !/^https?:\/\//i.test(link)) return showToast('Link http:// ya https:// se shuru hona chahiye.', 'error');
+
+  btn.disabled = true;
+  try {
+    let url = link, source = 'link';
+    if (file) {
+      try {
+        const r = storageRef(storage, `publicDocs/${Date.now()}_${file.name}`);
+        await uploadBytes(r, file);
+        url = await getDownloadURL(r);
+        source = 'upload';
+      } catch (err) {
+        // Storage unavailable: fall back to the link if one was given,
+        // rather than losing what the committee just typed.
+        if (!link) {
+          showToast('Upload nahi ho paaya (Storage set up nahi hai). Link daal kar dobara try karein.', 'error');
+          btn.disabled = false; return;
+        }
+        showToast('Upload nahi ho paaya — link se save kar diya.', 'error');
+      }
+    }
+    await addDoc(collection(db, 'documents'), {
+      title: f.title.value.trim(), category: f.category.value,
+      url, source, addedAt: serverTimestamp(), addedBy: currentAdmin.email
+    });
+    await logAudit(auth.currentUser, 'add_document', { title: f.title.value, source });
+    showToast('Document add ho gaya.', 'success');
+    document.getElementById('docModalBackdrop').classList.remove('open');
+    f.reset(); loadDocuments();
+  } catch (err) {
+    showToast('Document save nahi ho paaya.', 'error');
+  } finally { btn.disabled = false; }
+});
+
 document.getElementById('addNoticeBtn').addEventListener('click', () => document.getElementById('noticeModalBackdrop').classList.add('open'));
 document.getElementById('closeNoticeModal').addEventListener('click', () => document.getElementById('noticeModalBackdrop').classList.remove('open'));
 document.getElementById('noticeForm').addEventListener('submit', async (e) => {
@@ -1135,6 +1342,79 @@ async function loadSettingsForms() {
     f.upiId.value = p.upiId || ''; f.bankName.value = p.bankName || ''; f.accountNumber.value = p.accountNumber || ''; f.ifsc.value = p.ifsc || '';
   }
 }
+/* ---- Maintenance rates -------------------------------------------------
+   Stored as settings/maintenance = { rates: { "2026-27": { default, byTower } } }
+   so each financial year keeps its own rate and history stays intact. */
+let maintenanceSettings = {};
+
+async function loadMaintenance() {
+  try {
+    const snap = await getDoc(doc(db, 'settings', 'maintenance'));
+    maintenanceSettings = snap.exists() ? snap.data() : {};
+  } catch (e) { maintenanceSettings = {}; }
+
+  const fySel = document.getElementById('maintFY');
+  if (fySel) {
+    fySel.innerHTML = financialYearOptions().map(fy =>
+      `<option value="${fy}" ${fy === selectedFY ? 'selected' : ''}>FY ${fy}</option>`).join('');
+    fySel.onchange = fillMaintenanceForm;
+  }
+  const towerFields = document.getElementById('towerRateFields');
+  if (towerFields) {
+    towerFields.innerHTML = TOWER_IDS.map(t =>
+      `<div class="field"><label for="rate-${t}">Tower ${t}</label>
+       <input id="rate-${t}" type="number" min="0" step="1" data-tower="${t}" placeholder="default"></div>`).join('');
+  }
+  fillMaintenanceForm();
+  renderMaintSummary();
+}
+
+function fillMaintenanceForm() {
+  const f = document.getElementById('maintenanceForm');
+  if (!f) return;
+  const fy = document.getElementById('maintFY').value;
+  const r = maintenanceSettings?.rates?.[fy] || {};
+  f.defaultRate.value = r.default ?? '';
+  TOWER_IDS.forEach(t => {
+    const el = document.getElementById(`rate-${t}`);
+    if (el) el.value = r.byTower?.[t] ?? '';
+  });
+}
+
+function renderMaintSummary() {
+  const el = document.getElementById('maintSummary');
+  if (!el) return;
+  const years = Object.keys(maintenanceSettings?.rates || {}).sort().reverse();
+  el.innerHTML = years.length
+    ? 'Set for: ' + years.map(y => `FY ${escapeHtml(y)} (${formatINR(maintenanceSettings.rates[y].default || 0)})`).join(', ')
+    : 'Abhi kisi bhi saal ka rate set nahi hai — isliye Defaulters report khaali dikhegi.';
+}
+
+document.getElementById('maintenanceForm')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const f = e.target;
+  const fy = document.getElementById('maintFY').value;
+  const def = Number(f.defaultRate.value);
+  if (!Number.isFinite(def) || def < 0) return showToast('Sahi amount daalein.', 'error');
+
+  const byTower = {};
+  TOWER_IDS.forEach(t => {
+    const v = document.getElementById(`rate-${t}`)?.value;
+    if (v !== '' && v != null && Number.isFinite(Number(v))) byTower[t] = Number(v);
+  });
+
+  const rates = { ...(maintenanceSettings.rates || {}) };
+  rates[fy] = Object.keys(byTower).length ? { default: def, byTower } : { default: def };
+
+  await setDoc(doc(db, 'settings', 'maintenance'), { rates, updatedAt: serverTimestamp() }, { merge: true });
+  await logAudit(auth.currentUser, 'update_maintenance_rate', { fy, default: def, byTower });
+  maintenanceSettings = { ...maintenanceSettings, rates };
+  renderMaintSummary();
+  renderDefaulters();
+  renderOverview();
+  showToast(`FY ${fy} ka rate save ho gaya.`, 'success');
+});
+
 document.getElementById('societySettingsForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const f = e.target;
