@@ -33,6 +33,78 @@ export function showToast(message, type = 'info') {
 }
 
 /* ---------------------------------------------------------------------- */
+/*  Validation                                                             */
+/*                                                                          */
+/*  These mirror the limits in firestore.rules exactly. The rules are what  */
+/*  actually protect the ledger — a determined user can bypass anything on  */
+/*  this side. These exist so people get a clear, immediate message instead */
+/*  of a cryptic permission error. If you change a limit here, change it in */
+/*  firestore.rules too, or writes will start failing with no explanation.  */
+/* ---------------------------------------------------------------------- */
+export const LIMITS = {
+  amountMin: 1,
+  amountMax: 1000000,      // matches isValidAmount() in firestore.rules
+  nameMax: 100,
+  towerMax: 50,
+  flatMax: 30,
+  addressMax: 500,
+  utrMin: 6,
+  utrMax: 22
+};
+
+export const PAYMENT_MODES = ['cash', 'cheque', 'upi', 'netbanking'];
+
+/**
+ * Validates a payment before submission.
+ * @returns {string|null} an error message, or null when the payment is valid.
+ */
+export function validatePayment({ amount, mode, utr, isOffline }) {
+  const amt = Number(amount);
+  if (!Number.isFinite(amt)) return 'Amount ek valid number hona chahiye.';
+  if (amt < LIMITS.amountMin) return 'Amount kam se kam ₹1 hona chahiye.';
+  if (amt > LIMITS.amountMax) return `Amount ₹${LIMITS.amountMax.toLocaleString('en-IN')} se zyada nahi ho sakta. Itni badi rakam ke liye office se sampark karein.`;
+  if (Math.round(amt * 100) !== amt * 100) return 'Amount mein do se zyada decimal nahi ho sakte.';
+  if (!PAYMENT_MODES.includes(mode)) return 'Payment mode valid nahi hai.';
+  if (!isOffline) {
+    const t = String(utr || '').trim();
+    if (!t) return 'UTR / Transaction ID zaroori hai.';
+    if (!/^[a-zA-Z0-9]+$/.test(t)) return 'UTR / Transaction ID mein sirf letters aur numbers ho sakte hain.';
+    if (t.length < LIMITS.utrMin || t.length > LIMITS.utrMax)
+      return `UTR / Transaction ID ${LIMITS.utrMin}-${LIMITS.utrMax} characters ka hona chahiye.`;
+  }
+  return null;
+}
+
+/**
+ * Validates a resident registration.
+ * @returns {string|null} an error message, or null when the form is valid.
+ */
+export function validateRegistration(f) {
+  const name = f.name.value.trim();
+  const tower = f.tower.value.trim();
+  const flat = f.flatNumber.value.trim();
+  const mobile = f.mobile.value.trim();
+  const email = f.email.value.trim();
+
+  if (!name) return 'Naam zaroori hai.';
+  if (name.length > LIMITS.nameMax) return `Naam ${LIMITS.nameMax} characters se lamba nahi ho sakta.`;
+  // \p{M} matters here: Devanagari matras (ा ि ो) are Unicode *Marks*, not
+  // Letters, so without it every Hindi name would be rejected.
+  if (!/^[\p{L}\p{M}\s.'-]+$/u.test(name)) return 'Naam mein sirf akshar, space, aur . \' - ho sakte hain.';
+  if (!tower) return 'Tower zaroori hai.';
+  if (tower.length > LIMITS.towerMax) return 'Tower ka naam bahut lamba hai.';
+  if (!flat) return 'Flat number zaroori hai.';
+  if (flat.length > LIMITS.flatMax) return 'Flat number bahut lamba hai.';
+  if (!/^[0-9]{10}$/.test(mobile)) return 'Mobile number theek 10 ankon ka hona chahiye.';
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return 'Email address sahi format mein nahi hai.';
+  if (f.address.value.trim().length > LIMITS.addressMax) return 'Address bahut lamba hai.';
+  if (f.password.value.length < 6) return 'Password kam se kam 6 characters ka hona chahiye.';
+  if (f.password.value !== f.confirmPassword.value) return 'Password match nahi kar raha.';
+  if (!f.declaration.checked) return 'Aage badhne ke liye declaration par tick karein.';
+  return null;
+}
+
+/* ---------------------------------------------------------------------- */
 /*  Formatting                                                             */
 /* ---------------------------------------------------------------------- */
 export function formatINR(amount) {

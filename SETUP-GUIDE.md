@@ -29,6 +29,7 @@ assets/                       Aapka logo + generated app icons
 - Payment verification → automatic sequential Receipt Number (`MHMRWS-YYYY-NNNNNN`), race-condition-safe
 - QR-verified PDF receipts (`verify.html` se koi bhi check kar sakta hai)
 - Notice board (English + Hindi), Committee directory
+- **Site-wide English / Hindi switch** — the EN / हिं toggle in the header translates the entire resident portal, not just notices, and remembers the choice on that device. To add or correct a translation, edit `i18n.js`: entries are keyed by the exact English text as it appears on screen, and anything without an entry simply stays in English, so nothing can break. Names, and terms like UPI / NEFT / QR, are intentionally left untranslated.
 - Search/filter, Financial Year selector, charts, Excel export
 - Bulk Excel import (dry-run validation) aur bulk ZIP document export
 - Role-based Admin Panel (Super Admin / President / Vice President / Secretary / Joint Secretary / Treasurer)
@@ -173,6 +174,23 @@ Aur Firebase Console → Authentication → Settings → **Authorized domains** 
 ---
 
 ## 🔒 Security Notes
+
+**Where security is actually enforced.** Hiding a button in `admin.html` is not security — anyone with a browser console can still fire the write. So every privileged action is re-checked server-side in `firestore.rules`:
+
+| Action | Who the rules allow |
+|---|---|
+| Verify a payment / issue a receipt | Treasurer, Super Admin only |
+| Change bank & UPI details | Treasurer, Super Admin only |
+| Approve / reject / deactivate a member | President, VP, Secretary, Joint Secretary, Super Admin |
+| Post or delete notices, edit committee | President, VP, Secretary, Joint Secretary, Super Admin |
+| Create or remove admin accounts | Super Admin only |
+| Write to the receipt-number counter | Any admin (never residents) |
+| Edit an issued receipt | **Nobody** — receipts are immutable once verified |
+
+**Validation runs in both places, on purpose.** `app-common.js` validates forms so people get a clear message immediately; `firestore.rules` validates the same limits again because that is what actually protects the ledger. The two are kept deliberately in sync — **if you change a limit in one, change it in the other**, or writes will start failing with an unhelpful "Missing or insufficient permissions" error. Currently enforced: payment amount must be a number between ₹1 and ₹10,00,000; payment mode must be one of cash/cheque/upi/netbanking; a resident can never submit a payment that is already marked verified or that carries a receipt number; mobile numbers must be exactly 10 digits.
+
+**Idle sessions end automatically.** The admin panel signs out after 15 minutes of no interaction, with a warning at 14 minutes. This matters because a committee laptop left open in the RWA office would otherwise give anyone walking past full access to the financial records.
+
 
 - **Aadhaar/PAN documents** hamesha Storage Rules se protected hain (sirf resident khud + Admins access kar sakte hain) — yeh chahe aap encryption use karein ya nahi, hamesha ON hai.
 - **Optional encryption layer** (Settings → Document Security): ek extra AES-256 layer hai. Iska passphrase kabhi bhi database/code mein store nahi hota — sirf aapke committee ko yaad rakhna hai. Passphrase bhool gaye toh woh specific documents access nahi ho sakte, isliye ise password manager ya locked register mein likh kar rakhein.

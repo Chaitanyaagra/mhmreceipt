@@ -177,7 +177,7 @@
           <option value="inactive">Inactive</option>
         </select>
       </div>
-      <div class="table-wrap">
+      <div class="table-wrap responsive">
         <table>
           <thead><tr><th>Resident</th><th>Flat / Tower</th><th>Mobile</th><th>Status</th><th>Member ID</th><th>Actions</th></tr></thead>
           <tbody id="membersTableBody"><tr><td colspan="6" class="t-muted">Loading…</td></tr></tbody>
@@ -196,13 +196,13 @@
         <button data-ptab="defaulters">Defaulters</button>
       </div>
       <div id="paymentsPendingPanel">
-        <div class="table-wrap">
+        <div class="table-wrap responsive">
           <table><thead><tr><th>Resident</th><th>Flat</th><th>Amount</th><th>Mode</th><th>UTR</th><th>Submitted</th><th>Actions</th></tr></thead>
           <tbody id="pendingPaymentsBody"><tr><td colspan="7" class="t-muted">Loading…</td></tr></tbody></table>
         </div>
       </div>
       <div id="paymentsAllPanel" style="display:none;">
-        <div class="table-wrap">
+        <div class="table-wrap responsive">
           <table><thead><tr><th>Resident</th><th>Flat</th><th>Amount</th><th>Mode</th><th>Status</th><th>Receipt No.</th><th>Date</th></tr></thead>
           <tbody id="allPaymentsBody"><tr><td colspan="7" class="t-muted">Loading…</td></tr></tbody></table>
         </div>
@@ -210,7 +210,7 @@
       <div id="paymentsDefaultersPanel" style="display:none;">
         <div class="toolbar"><button class="btn btn-outline btn-sm" id="emailDefaultersBtn">✉️ Email All (BCC)</button>
         <span class="t-muted" style="font-size:12.5px;">for FY selected in Overview</span></div>
-        <div class="table-wrap">
+        <div class="table-wrap responsive">
           <table><thead><tr><th>Resident</th><th>Flat / Tower</th><th>Mobile</th><th>Remind</th></tr></thead>
           <tbody id="defaultersBody"><tr><td colspan="4" class="t-muted">Loading…</td></tr></tbody></table>
         </div>
@@ -323,7 +323,15 @@
             </label>
             <div id="adminResidentFields">
               <div class="form-2col">
-                <div class="field"><label>Tower</label><input name="tower"></div>
+                <div class="field"><label>Tower</label>
+                  <select name="tower">
+                    <option value="">Select tower</option>
+                    <option value="A">Tower A</option><option value="B">Tower B</option>
+                    <option value="C">Tower C</option><option value="D">Tower D</option>
+                    <option value="E">Tower E</option><option value="F">Tower F</option>
+                    <option value="G">Tower G</option>
+                  </select>
+                </div>
                 <div class="field"><label>Flat Number</label><input name="flatNumber"></div>
               </div>
               <div class="field"><label>Mobile Number</label><input name="mobile" type="tel"></div>
@@ -476,6 +484,46 @@ document.getElementById('adminLoginForm').addEventListener('submit', async (e) =
 
 document.getElementById('logoutBtn').addEventListener('click', async () => { await signOut(auth); location.reload(); });
 
+/* ---------------------------------------------------------------------- */
+/*  Idle session timeout                                                   */
+/*  A committee laptop left open in the RWA office is a real risk — anyone */
+/*  walking past would have the financial records and the ability to issue */
+/*  receipts. The session ends after 15 minutes of no interaction, with a  */
+/*  one-minute warning so nobody loses work mid-form.                      */
+/* ---------------------------------------------------------------------- */
+const IDLE_LIMIT_MS = 15 * 60 * 1000;
+const IDLE_WARN_MS  = 14 * 60 * 1000;
+let idleTimer = null, idleWarnTimer = null, idleWarnToastShown = false;
+
+async function endIdleSession() {
+  try { await logAudit(auth.currentUser, 'session_timeout', {}); } catch (e) {}
+  await signOut(auth);
+  sessionStorage.setItem('mhmrws-timed-out', '1');
+  location.reload();
+}
+
+function resetIdleTimer() {
+  clearTimeout(idleTimer); clearTimeout(idleWarnTimer);
+  idleWarnToastShown = false;
+  if (!currentAdmin) return;          // only runs while an admin is signed in
+  idleWarnTimer = setTimeout(() => {
+    idleWarnToastShown = true;
+    showToast('1 minute mein session apne aap band ho jayega. Continue karne ke liye kahin bhi click karein.', 'error');
+  }, IDLE_WARN_MS);
+  idleTimer = setTimeout(endIdleSession, IDLE_LIMIT_MS);
+}
+
+['click','keydown','mousemove','scroll','touchstart'].forEach(evt =>
+  document.addEventListener(evt, resetIdleTimer, { passive: true })
+);
+
+if (sessionStorage.getItem('mhmrws-timed-out')) {
+  sessionStorage.removeItem('mhmrws-timed-out');
+  const errEl = document.getElementById('loginError');
+  errEl.textContent = 'Inactivity ke kaaran session band ho gaya tha. Dobara login karein.';
+  errEl.style.display = 'block';
+}
+
 onAuthStateChanged(auth, async (user) => {
   if (!user) { document.getElementById('loginScreen').style.display = 'grid'; document.getElementById('appShell').classList.remove('active'); return; }
   const adminSnap = await getDoc(doc(db, 'admins', user.uid));
@@ -492,6 +540,7 @@ onAuthStateChanged(auth, async (user) => {
   document.getElementById('adminName').textContent = currentAdmin.name || currentAdmin.email;
   document.getElementById('adminRole').textContent = ROLE_LABELS[currentAdmin.role] || currentAdmin.role || '';
   applyRoleNav();
+  resetIdleTimer();   // start the inactivity clock for this session
   await bootData();
 });
 
@@ -611,12 +660,12 @@ function renderMembersTable() {
   const rows = filteredMembers();
   document.getElementById('membersTableBody').innerHTML = rows.map(m => `
     <tr>
-      <td>${escapeHtml(m.name)}</td>
-      <td>${escapeHtml(m.flatNumber)} / ${escapeHtml(m.tower)}</td>
-      <td>${escapeHtml(m.mobile)}</td>
-      <td>${statusBadgeHtml[m.status] || ''}</td>
-      <td class="mono">${escapeHtml(m.memberID || '—')}</td>
-      <td><button class="btn btn-ghost btn-sm" data-view-member="${m.id}">View</button></td>
+      <td data-label="Resident">${escapeHtml(m.name)}</td>
+      <td data-label="Flat / Tower">${escapeHtml(m.flatNumber)} / ${escapeHtml(m.tower)}</td>
+      <td data-label="Mobile">${escapeHtml(m.mobile)}</td>
+      <td data-label="Status">${statusBadgeHtml[m.status] || ''}</td>
+      <td data-label="Member ID" class="mono">${escapeHtml(m.memberID || '—')}</td>
+      <td data-label="Actions"><button class="btn btn-outline btn-sm" data-view-member="${m.id}">View Details</button></td>
     </tr>
   `).join('') || '<tr><td colspan="6" class="t-muted">No members match these filters.</td></tr>';
   document.querySelectorAll('[data-view-member]').forEach(b => b.addEventListener('click', () => openMemberModal(b.dataset.viewMember)));
@@ -721,13 +770,13 @@ function renderPendingPayments() {
   const rows = allPayments.filter(p => p.status === 'pending_approval' || p.status === 'pending_verification');
   document.getElementById('pendingPaymentsBody').innerHTML = rows.map(p => `
     <tr>
-      <td>${escapeHtml(p.residentName)}</td>
-      <td>${escapeHtml(p.flatNumber)}</td>
-      <td>${formatINR(p.amount)}</td>
-      <td>${escapeHtml((p.mode || '').toUpperCase())}</td>
-      <td class="mono">${escapeHtml(p.utrOrChequeNo || '—')}</td>
-      <td>${fmtDate(p.submittedAt)}</td>
-      <td><button class="btn btn-ghost btn-sm" data-pay-detail="${p.id}">View</button></td>
+      <td data-label="Resident">${escapeHtml(p.residentName)}</td>
+      <td data-label="Flat">${escapeHtml(p.flatNumber)}</td>
+      <td data-label="Amount"><b>${formatINR(p.amount)}</b></td>
+      <td data-label="Mode">${escapeHtml((p.mode || '').toUpperCase())}</td>
+      <td data-label="UTR" class="mono">${escapeHtml(p.utrOrChequeNo || '—')}</td>
+      <td data-label="Submitted">${fmtDate(p.submittedAt)}</td>
+      <td data-label="Actions"><button class="btn btn-outline btn-sm" data-pay-detail="${p.id}">Review &amp; Verify</button></td>
     </tr>
   `).join('') || '<tr><td colspan="7" class="t-muted">No pending payments 🎉</td></tr>';
   document.querySelectorAll('[data-pay-detail]').forEach(b => b.addEventListener('click', () => openPaymentDetail(b.dataset.payDetail)));
@@ -738,10 +787,10 @@ function renderAllPayments() {
   const badge = { pending_approval: 'badge-warning', pending_verification: 'badge-warning', verified: 'badge-success', rejected: 'badge-danger' };
   document.getElementById('allPaymentsBody').innerHTML = rows.map(p => `
     <tr>
-      <td>${escapeHtml(p.residentName)}</td><td>${escapeHtml(p.flatNumber)}</td><td>${formatINR(p.amount)}</td>
-      <td>${escapeHtml((p.mode || '').toUpperCase())}</td>
-      <td><span class="badge ${badge[p.status] || 'badge-neutral'}">${escapeHtml((p.status || '').replace('_', ' '))}</span></td>
-      <td class="mono">${escapeHtml(p.receiptNumber || '—')}</td><td>${fmtDate(p.submittedAt)}</td>
+      <td data-label="Resident">${escapeHtml(p.residentName)}</td><td data-label="Flat">${escapeHtml(p.flatNumber)}</td><td data-label="Amount"><b>${formatINR(p.amount)}</b></td>
+      <td data-label="Mode">${escapeHtml((p.mode || '').toUpperCase())}</td>
+      <td data-label="Status"><span class="badge ${badge[p.status] || 'badge-neutral'}">${escapeHtml((p.status || '').replace('_', ' '))}</span></td>
+      <td data-label="Receipt No." class="mono">${escapeHtml(p.receiptNumber || '—')}</td><td data-label="Date">${fmtDate(p.submittedAt)}</td>
     </tr>
   `).join('') || '<tr><td colspan="7" class="t-muted">No payments yet.</td></tr>';
 }
@@ -809,8 +858,8 @@ function renderDefaulters() {
   const defaulters = approved.filter(m => !paidUids.has(m.uid));
   document.getElementById('defaultersBody').innerHTML = defaulters.map(m => `
     <tr>
-      <td>${escapeHtml(m.name)}</td><td>${escapeHtml(m.flatNumber)} / ${escapeHtml(m.tower)}</td><td>${escapeHtml(m.mobile)}</td>
-      <td><a class="btn btn-outline btn-sm" target="_blank" href="${waLink(m.mobile, `Dear ${m.name}, this is a reminder from MHMRWS that your maintenance payment for FY ${selectedFY} is pending. Please pay at your earliest convenience via the resident portal.`)}">WhatsApp</a></td>
+      <td data-label="Resident">${escapeHtml(m.name)}</td><td data-label="Flat / Tower">${escapeHtml(m.flatNumber)} / ${escapeHtml(m.tower)}</td><td data-label="Mobile">${escapeHtml(m.mobile)}</td>
+      <td data-label="Remind"><a class="btn btn-outline btn-sm" target="_blank" href="${waLink(m.mobile, `Dear ${m.name}, this is a reminder from MHMRWS that your maintenance payment for FY ${selectedFY} is pending. Please pay at your earliest convenience via the resident portal.`)}">WhatsApp</a></td>
     </tr>
   `).join('') || '<tr><td colspan="4" class="t-muted">No defaulters for this FY 🎉</td></tr>';
 }
@@ -901,16 +950,30 @@ document.getElementById('importFile').addEventListener('change', async (e) => {
   if (!file) return;
   const rows = await parseExcelFile(file);
   const existingFlats = new Set(allMembers.map(m => `${m.tower}|${m.flatNumber}`));
+  const seenInFile = new Set();
   importRows = rows.map(r => {
-    const name = r.Name || r.name || '';
-    const tower = r.Tower || r.tower || '';
-    const flat = r.FlatNumber || r.Flat || r.flatNumber || '';
-    const mobile = r.Mobile || r.mobile || '';
+    const name = String(r.Name || r.name || '').trim();
+    const tower = String(r.Tower || r.tower || '').trim();
+    const flat = String(r.FlatNumber || r.Flat || r.flatNumber || '').trim();
+    const mobile = String(r.Mobile || r.mobile || '').trim();
+    const email = String(r.Email || r.email || '').trim();
+    const residentType = String(r.ResidentType || r.residentType || 'owner').trim().toLowerCase();
     const errors = [];
+
     if (!name) errors.push('Missing name');
+    if (name.length > 100) errors.push('Name too long');
     if (!tower || !flat) errors.push('Missing tower/flat');
-    if (existingFlats.has(`${tower}|${flat}`)) errors.push('Duplicate flat');
-    return { name, tower, flat, mobile, email: r.Email || r.email || '', residentType: (r.ResidentType || r.residentType || 'owner').toLowerCase(), fatherHusbandName: r.FatherHusbandName || '', errors };
+    if (existingFlats.has(`${tower}|${flat}`)) errors.push('Flat already registered');
+    // Catch duplicates within the uploaded file itself, not just against the DB.
+    if (seenInFile.has(`${tower}|${flat}`)) errors.push('Duplicate row in file');
+    seenInFile.add(`${tower}|${flat}`);
+    // Security rules only accept these two values, so reject anything else
+    // here where the user can actually see and fix it.
+    if (!['owner', 'tenant'].includes(residentType)) errors.push(`Type must be Owner or Tenant (got "${residentType}")`);
+    if (mobile && !/^[0-9]{10}$/.test(mobile)) errors.push('Mobile must be 10 digits');
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.push('Invalid email');
+
+    return { name, tower, flat, mobile, email, residentType, fatherHusbandName: String(r.FatherHusbandName || '').trim(), errors };
   });
   const validCount = importRows.filter(r => !r.errors.length).length;
   document.getElementById('importPreview').innerHTML = `
@@ -987,13 +1050,25 @@ document.getElementById('zipExportBtn').addEventListener('click', async () => {
 /* ---------------------------------------------------------------------- */
 /*  Settings                                                               */
 /* ---------------------------------------------------------------------- */
+/* Sensible starting values so a fresh install isn't blank — the committee
+   can overwrite any of these. Taken from the project's own RERA listing. */
+const SOCIETY_DEFAULTS = {
+  name: 'Max Heights Majestic Resident Welfare Society',
+  regNumber: 'RAJ/P/2017/150',
+  address: 'GH-3, Suncity Township, Grand Sikar Road, Jaipur - 302013, Rajasthan'
+};
+
 async function loadSettingsForms() {
   const societySnap = await getDoc(doc(db, 'settings', 'society'));
-  if (societySnap.exists()) {
-    const s = societySnap.data();
-    const f = document.getElementById('societySettingsForm');
-    f.name.value = s.name || ''; f.regNumber.value = s.regNumber || ''; f.address.value = s.address || '';
-    f.contactPhone.value = s.contactPhone || ''; f.contactEmail.value = s.contactEmail || '';
+  const f = document.getElementById('societySettingsForm');
+  const s = societySnap.exists() ? societySnap.data() : {};
+  f.name.value = s.name || SOCIETY_DEFAULTS.name;
+  f.regNumber.value = s.regNumber || SOCIETY_DEFAULTS.regNumber;
+  f.address.value = s.address || SOCIETY_DEFAULTS.address;
+  f.contactPhone.value = s.contactPhone || '';
+  f.contactEmail.value = s.contactEmail || '';
+  if (!societySnap.exists()) {
+    showToast('Society info pre-filled — jaanch kar "Save Society Info" dabayein.', 'info');
   }
   const paySnap = await getDoc(doc(db, 'settings', 'payment'));
   if (paySnap.exists()) {

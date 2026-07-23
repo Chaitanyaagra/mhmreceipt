@@ -2,19 +2,24 @@ rules_version = '2';
 
 // ============================================================================
 // MHMRWS Portal — Firestore Security Rules
-// Deploy with: firebase deploy --only firestore:rules
+// Deploy: firebase deploy --only firestore:rules
 // (or paste into Firebase Console → Firestore Database → Rules tab)
 //
-// Model: residents can only ever see/edit their OWN member + payment records.
-// Only accounts with a matching document in /admins can approve registrations,
-// verify payments, or assign sequential Member IDs / Receipt Numbers.
-// Nothing is ever hard-deleted from members/payments — see the app's
-// "Deactivate Member" flow, which only flips a status field.
+// SECURITY MODEL
+//   * Residents can only ever read/write their OWN member + payment records.
+//   * Committee roles are enforced HERE, not just in the UI — hiding a button
+//     in admin.html is not security; someone with a console can still fire the
+//     write. Every privileged action re-checks the caller's role server-side.
+//   * Financial data is validated server-side too. The client validates for a
+//     good user experience; these rules are what actually protect the ledger.
+//   * Nothing in members/payments is ever hard-deleted — the app soft-deletes
+//     by flipping a status field, preserving the legal audit trail.
 // ============================================================================
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    /* ---------- identity helpers ---------- */
     function isSignedIn() {
       return request.auth != null;
     }
@@ -30,79 +35,200 @@ service cloud.firestore {
     function isSuperAdmin() {
       return isAdmin() && adminRole() == 'superadmin';
     }
-
-    // ---- Residents ---------------------------------------------------
-    match /members/{uid} {
-      allow read: if isOwner(uid) || isAdmin();
-      allow create: if isAdmin() || (
-                      isOwner(uid) &&
-                      request.resource.data.uid == uid &&
-                      request.resource.data.status == 'pending'
-                    );
-      // Residents may edit their own profile fields, but never self-approve,
-      // self-assign a Member ID, reactivate themselves, or change their role.
-      allow update: if isAdmin() || (
-                      isOwner(uid) &&
-                      request.resource.data.status == resource.data.status &&
-                      request.resource.data.memberID == resource.data.memberID &&
-                      request.resource.data.role == resource.data.role
-                    );
-      allow delete: if false; // hard delete is never allowed — soft-delete (status: 'inactive') only
+    // Only the Treasurer (and Super Admin) may touch money.
+    function canVerifyPayments() {
+      return isAdmin() && adminRole() in ['superadmin', 'treasurer'];
+    }
+    // Office-bearers who may approve/reject residents.
+    function canApproveMembers() {
+      return isAdmin() && adminRole() in ['superadmin', 'president', 'vicepresident', 'secretary', 'jointsecretary'];
     }
 
-    // ---- Admin directory (Super Admin manages roles) -------------------
+    /* ---------- validation helpers ---------- */
+    function isNonEmptyString(v, maxLen) {
+      return v is string && v.size() > 0 && v.size() <= maxLen;
+    }
+    function isOptionalString(v, maxLen) {
+      return v == null || (v is string && v.size() <= maxLen);
+    }
+    // A 10-digit Indian mobile number, optionally left blank on admin-created rows.
+    function isValidMobile(v) {
+      return v is string && v.matches('^[0-9]{10}$');
+    }
+    // Guards against negative amounts, zero, absurd typos and non-numeric junk.
+    function isValidAmount(v) {
+      return v is number && v > 0 && v <= 1000000;
+    }
+    function isValidPaymentMode(v) {
+      return v in ['cash', 'cheque', 'upi', 'netbanking'];
+    }
+    function isValidMemberStatus(v) {
+      return v in ['pending', 'approved', 'rejected', 'inactive'];
+    }
+    function isValidPaymentStatus(v) {
+      return v in ['pending_approval', 'pending_verification', 'verified', 'rejected'];
+    }
+    // "2025-26" style financial year.
+    function isValidFY(v) {
+      return v is string && v.matches('^[0-9]{4}-[0-9]{2}$');
+    }
+    function unchanged(field) {
+      return request.resource.data[field] == resource.data[field];
+    }
+
+    // ---- Residents ------------------------------------------------------
+    match /members/{uid} {
+      function validMemberShape() {
+        return isNonEmptyString(request.resource.data.name, 100)
+            && isNonEmptyString(request.resource.data.tower, 50)
+            && isNonEmptyString(request.resource.data.flatNumber, 30)
+            && isOptionalString(request.resource.data.fatherHusbandName, 100)
+            && isOptionalString(request.resource.data.address, 500)
+            && isOptionalString(request.resource.data.occupation, 100)
+            && isOptionalString(request.resource.data.nomineeName, 100)
+            && isValidMemberStatus(request.resource.data.status)
+            && request.resource.data.residentType in ['owner', 'tenant'];
+      }
+
+      allow read: if isOwner(uid) || isAdmin();
+
+      // A resident self-registering must land as 'pending' with no Member ID.
+      // Only an admin can create a pre-approved row (bulk import / data entry).
+      allow create: if (isAdmin() && validMemberShape())
+                    || (
+                      isOwner(uid)
+                      && validMemberShape()
+                      && request.resource.data.uid == uid
+                      && request.resource.data.status == 'pending'
+                      && request.resource.data.memberID == null
+                      && request.resource.data.role == 'resident'
+                      && isValidMobile(request.resource.data.mobile)
+                    );
+
+      // Admin edits: only office-bearers may change approval status or assign
+      // a Member ID. Any other admin may correct ordinary profile fields.
+      // Residents may edit their own profile but never self-approve, grant
+      // themselves a Member ID, reactivate themselves, or change their role.
+      allow update: if (
+                      isAdmin() && validMemberShape() && (
+                        canApproveMembers()
+                        || (unchanged('status') && unchanged('memberID') && unchanged('role'))
+                      )
+                    ) || (
+                      isOwner(uid)
+                      && validMemberShape()
+                      && unchanged('status')
+                      && unchanged('memberID')
+                      && unchanged('role')
+                      && unchanged('uid')
+                    );
+
+      allow delete: if false; // soft-delete only (status: 'inactive')
+    }
+
+    // ---- Admin directory (Super Admin manages roles) --------------------
     match /admins/{uid} {
       allow read: if isAdmin();
-      allow write: if isSuperAdmin();
+      // Role must be one of the recognised committee posts — this is what
+      // stops anyone from inventing a role string to widen their own access.
+      allow create, update: if isSuperAdmin()
+                            && request.resource.data.role in
+                               ['superadmin','president','vicepresident','secretary','jointsecretary','treasurer'];
+      allow delete: if isSuperAdmin();
     }
 
     // ---- Payments -------------------------------------------------------
     match /payments/{paymentId} {
       allow read: if isAdmin() || (isSignedIn() && resource.data.memberUid == request.auth.uid);
+
+      // A resident submitting a payment cannot pre-assign themselves a receipt
+      // number, cannot mark it verified, and cannot post an invalid amount.
       allow create: if isSignedIn()
                     && request.resource.data.memberUid == request.auth.uid
-                    && request.resource.data.status in ['pending_approval', 'pending_verification'];
-      // Only admins can verify/reject and assign the receipt number.
-      allow update: if isAdmin();
+                    && isValidAmount(request.resource.data.amount)
+                    && isValidPaymentMode(request.resource.data.mode)
+                    && isValidFY(request.resource.data.financialYear)
+                    && request.resource.data.status in ['pending_approval', 'pending_verification']
+                    && request.resource.data.receiptNumber == null
+                    && isNonEmptyString(request.resource.data.residentName, 100)
+                    && isNonEmptyString(request.resource.data.flatNumber, 30)
+                    && isOptionalString(request.resource.data.utrOrChequeNo, 40);
+
+      // Verifying a payment issues a receipt number and moves money in the
+      // books, so it is restricted to the Treasurer / Super Admin. The amount
+      // and payer can never be edited after submission.
+      allow update: if canVerifyPayments()
+                    && isValidPaymentStatus(request.resource.data.status)
+                    && unchanged('amount')
+                    && unchanged('memberUid')
+                    && unchanged('mode')
+                    && unchanged('financialYear');
+
       allow delete: if false;
     }
 
-    // ---- Sequence counters (Member ID / Receipt No.) --------------------
+    // ---- Sequence counters (Member ID / Receipt No.) ---------------------
+    // These are written ONLY by admin flows (approve member, verify payment,
+    // bulk import). Leaving this open to any signed-in user would let a
+    // resident rewind the receipt sequence and force duplicate receipt
+    // numbers — so it is locked to admins.
     match /counters/{counterId} {
-      allow read: if isSignedIn();
-      allow write: if isSignedIn(); // atomicity is enforced by the transaction, not this rule
+      allow read: if isAdmin();
+      allow write: if isAdmin()
+                   && request.resource.data.value is int
+                   && request.resource.data.value > 0;
     }
 
-    // ---- Notice board — public read, admin write ------------------------
+    // ---- Notice board — public read, office-bearer write ------------------
     match /notices/{noticeId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow create, update: if canApproveMembers()
+                            && isNonEmptyString(request.resource.data.titleEn, 200)
+                            && isNonEmptyString(request.resource.data.bodyEn, 5000);
+      allow delete: if canApproveMembers();
     }
 
-    // ---- Committee directory — intentionally public ----------------------
+    // ---- Committee directory — public read --------------------------------
     match /committee/{memberId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow create, update: if canApproveMembers()
+                            && isNonEmptyString(request.resource.data.name, 100)
+                            && isNonEmptyString(request.resource.data.role, 60);
+      allow delete: if canApproveMembers();
     }
 
-    // ---- Society + payment settings (bank/QR/logo) — public read ---------
+    // ---- Society + payment settings (bank/QR) — public read ---------------
+    // Bank and UPI details are what residents pay into, so only the Super
+    // Admin and Treasurer may change them.
     match /settings/{settingId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if canVerifyPayments();
     }
 
-    // ---- Public receipt verification (QR code lands here) -----------------
-    // Only ever holds non-sensitive fields — see app-common.js / verify.html.
+    // ---- Public receipt verification (where the receipt QR lands) ---------
+    // Deliberately world-readable so anyone can check a receipt without an
+    // account. Holds only non-sensitive fields — never contact details,
+    // documents or IDs. Written as part of payment verification.
     match /receiptsPublic/{receiptNumber} {
       allow read: if true;
-      allow write: if isAdmin();
-    }
-
-    // ---- Audit log — append-only, admin/auditor read, NEVER editable ------
-    match /auditLogs/{logId} {
-      allow read: if isAdmin();
-      allow create: if isAdmin();
+      allow create: if canVerifyPayments()
+                    && isValidAmount(request.resource.data.amount)
+                    && isNonEmptyString(request.resource.data.receiptNumber, 40);
+      // A verified receipt is a financial record: immutable once issued.
       allow update, delete: if false;
     }
+
+    // ---- Audit log — append-only, never editable --------------------------
+    match /auditLogs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    // NOTE: no catch-all rule is needed here. Firestore denies by default —
+    // any path not matched above is already inaccessible. (A trailing
+    // "match /{document=**} { allow read, write: if false; }" would be a
+    // no-op anyway, since rules are OR'd: it cannot revoke an allow granted
+    // by a rule above it.)
   }
 }

@@ -60,6 +60,19 @@ nav.main-nav a:hover::after{ transform:scaleX(1); }
 
 /* ---------- Hero ---------- */
 .hero{ background:var(--gradient-navy); color:var(--white); padding:70px 0 84px; }
+/* The building render sits behind everything at low opacity with a navy
+   scrim over it. It reads as depth and texture, not as a photo — text
+   contrast never depends on where the render happens to be light or dark.
+   If assets/community/hero-bg.webp is ever missing, the navy gradient
+   underneath simply shows through: no broken image, no layout shift. */
+.hero-photo{
+  position:absolute; inset:0; z-index:0; pointer-events:none;
+  background-image:
+    linear-gradient(to bottom, rgba(10,27,51,.90) 0%, rgba(10,27,51,.80) 45%, rgba(10,27,51,.97) 100%),
+    url('assets/community/hero-bg.webp');
+  background-size:cover; background-position:center 62%;
+  opacity:.85;
+}
 .hero::after{
   content:''; position:absolute; width:560px; height:560px; border-radius:50%;
   background:var(--gradient-saffron); opacity:.13; filter:blur(28px); top:-240px; right:-180px; z-index:0;
@@ -102,7 +115,8 @@ section{ padding:76px 0; position:relative; }
 .section-head{ max-width:660px; margin-bottom:40px; }
 .section-head h2{ font-size:31px; letter-spacing:-.01em; margin:11px 0 13px; }
 .section-head p{ color:var(--ink-600); font-size:15.5px; }
-.rule-gold{ width:52px; height:2px; background:var(--gradient-saffron); border-radius:2px; margin-bottom:18px; }
+.rule-gold{ width:52px; height:2px; background:var(--gradient-saffron); border-radius:2px; margin-bottom:18px; position:relative; }
+.rule-gold::after{ content:''; position:absolute; left:58px; top:0; width:16px; height:2px; border-radius:2px; background:var(--magenta-500); }
 
 /* ---------- Process strip (How it works) ---------- */
 .process{ display:grid; grid-template-columns:repeat(3,1fr); gap:0; border:1px solid var(--line); border-radius:var(--radius-lg); overflow:hidden; background:var(--white); }
@@ -146,6 +160,10 @@ section{ padding:76px 0; position:relative; }
 .lang-toggle{ display:inline-flex; background:var(--paper); border-radius:var(--radius-pill); padding:3px; border:1px solid var(--line); }
 .lang-toggle button{ border:none; background:transparent; padding:6px 14px; border-radius:var(--radius-pill); font-size:12.5px; font-weight:600; color:var(--ink-400); cursor:pointer; }
 .lang-toggle button.active{ background:var(--navy-900); color:var(--white); }
+/* Header variant sits on dark navy, so it inverts */
+.lang-toggle-header{ background:rgba(255,255,255,.08); border-color:rgba(255,255,255,.18); }
+.lang-toggle-header button{ color:rgba(255,255,255,.72); padding:6px 12px; }
+.lang-toggle-header button.active{ background:var(--gradient-saffron); color:var(--navy-950); }
 
 /* ---------- Payment info panel ---------- */
 .pay-panel{ background:var(--navy-950); color:var(--white); border-radius:var(--radius-lg); padding:26px; }
@@ -156,12 +174,50 @@ section{ padding:76px 0; position:relative; }
 .pay-line span:first-child{ color:rgba(255,255,255,.55); }
 .pay-line span:last-child{ font-weight:600; text-align:right; word-break:break-all; }
 
+/* ---------- Our Community (building + amenities) ---------- */
+.community{ background:var(--navy-950); color:var(--white); }
+.community .section-head h2{ color:var(--white); }
+.community .section-head p{ color:rgba(255,255,255,.7); }
+.community-grid{ display:grid; grid-template-columns:1.25fr .75fr; gap:20px; align-items:stretch; }
+.shot{
+  position:relative; border-radius:var(--radius-lg); overflow:hidden;
+  border:1px solid rgba(228,199,101,.22); background:var(--navy-900); min-height:200px;
+}
+.shot img{
+  width:100%; height:100%; object-fit:cover; display:block;
+  transition:transform .7s cubic-bezier(.2,.7,.3,1);
+}
+.shot:hover img{ transform:scale(1.045); }
+.shot figcaption{
+  position:absolute; left:0; right:0; bottom:0; padding:26px 20px 16px;
+  background:linear-gradient(to top, rgba(10,27,51,.94), transparent);
+  font-size:12.5px; font-weight:600; letter-spacing:.02em;
+}
+.shot figcaption span{
+  display:block; font-family:var(--font-mono); font-size:9.5px; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--saffron-300); margin-bottom:3px; font-weight:500;
+}
+.shot-stack{ display:grid; grid-template-rows:1fr 1fr; gap:20px; }
+.amenity-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(150px,1fr)); gap:10px; margin-top:20px; }
+.amenity{
+  display:flex; align-items:center; gap:10px; padding:13px 14px;
+  background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.1);
+  border-radius:var(--radius-md); font-size:13px; font-weight:500;
+}
+.amenity svg{ width:18px; height:18px; color:var(--saffron-300); flex-shrink:0; }
+.stat-pill{
+  display:inline-flex; align-items:baseline; gap:7px; padding:9px 16px; border-radius:var(--radius-pill);
+  background:var(--gradient-magenta); font-size:12.5px; font-weight:600; margin-bottom:16px;
+}
+.stat-pill b{ font-family:var(--font-mono); font-size:15px; }
+
 /* ---------- Committee ---------- */
 .committee-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:16px; }
 .committee-card{ text-align:center; background:var(--white); border:1px solid var(--line); border-radius:var(--radius-lg); padding:26px 16px; }
 .committee-card img{ width:76px; height:76px; border-radius:50%; margin:0 auto 14px; object-fit:cover; border:2px solid var(--gold-300); }
 .committee-card .nm{ font-weight:600; font-size:14.5px; }
-.committee-card .role{ font-family:var(--font-mono); font-size:10px; letter-spacing:.09em; text-transform:uppercase; color:var(--gold-700); margin-top:3px; }
+.committee-card .role{ font-family:var(--font-mono); font-size:10px; letter-spacing:.09em; text-transform:uppercase; color:var(--magenta-500); margin-top:3px; }
+.committee-card img{ border-color:var(--magenta-100); }
 
 /* ---------- Portal (login/register) ---------- */
 #portal .card{ max-width:580px; margin:0 auto; }
@@ -202,6 +258,15 @@ footer.site-footer .foot-grid{ display:grid; grid-template-columns:2fr 1fr 1fr; 
 footer.site-footer h4{ color:var(--white); font-size:11.5px; margin-bottom:15px; font-family:var(--font-mono); letter-spacing:.1em; text-transform:uppercase; }
 footer.site-footer a{ color:rgba(255,255,255,.62); font-size:13.4px; display:block; margin-bottom:10px; }
 footer.site-footer a:hover{ color:var(--saffron-300); }
+.foot-credentials{
+  display:flex; flex-wrap:wrap; gap:10px 22px; align-items:center;
+  padding:16px 0; border-top:1px solid rgba(255,255,255,.12); margin-bottom:4px;
+}
+.foot-credentials .cred{ font-size:11.8px; color:rgba(255,255,255,.55); display:inline-flex; align-items:center; gap:7px; }
+.foot-credentials .cred b{
+  font-family:var(--font-mono); font-size:9.5px; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--navy-950); background:var(--saffron-300); padding:3px 7px; border-radius:4px;
+}
 .foot-bottom{ border-top:1px solid rgba(255,255,255,.12); padding-top:20px; font-size:12.3px; display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px; }
 
 /* ---------- Payment modal internals ---------- */
@@ -270,6 +335,11 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
   .benefit-card{ padding:20px; }
 
   .notice-grid{ grid-template-columns:1fr; }
+  .community-grid{ grid-template-columns:1fr; }
+  .shot-stack{ grid-template-rows:auto auto; }
+  .shot{ min-height:170px; }
+  .amenity-grid{ grid-template-columns:1fr 1fr; gap:8px; }
+  .amenity{ padding:11px; font-size:12.3px; }
   .committee-grid{ grid-template-columns:1fr 1fr; gap:12px; }
   .contact-grid{ grid-template-columns:1fr; }
   .dash-grid{ grid-template-columns:1fr; }
@@ -288,6 +358,16 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
   .pay-history-item{ flex-direction:column; align-items:stretch; }
   .pay-history-item > div:last-child{ text-align:left !important; }
   footer.site-footer .foot-grid{ grid-template-columns:1fr; }
+  /* The header now carries a language toggle too, so trim the brand block
+     rather than letting the society name squeeze into an unreadable column. */
+  .site-header .brand-text .eyebrow{ display:none; }
+  .site-header .brand-text .full{ font-size:12.5px; white-space:normal; line-height:1.2; }
+  .header-actions{ gap:7px; }
+  .lang-toggle-header button{ padding:6px 10px; font-size:12px; }
+  #navAuthBtn{ padding:10px 14px; font-size:13px; }
+}
+@media (max-width: 348px){
+  .site-header .brand-text{ display:none; }  /* seal alone is enough at this width */
 }
 </style>
 </head>
@@ -314,6 +394,15 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
     <g id="i-cheque"><rect x="2.5" y="5.5" width="19" height="13" rx="2.2" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M6 10h6M6 13.5h4M16 14.5l1.6 1.6 3-3.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></g>
     <g id="i-qr"><rect x="3" y="3" width="7" height="7" rx="1.3" fill="none" stroke="currentColor" stroke-width="1.7"/><rect x="14" y="3" width="7" height="7" rx="1.3" fill="none" stroke="currentColor" stroke-width="1.7"/><rect x="3" y="14" width="7" height="7" rx="1.3" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M14 14h3v3h-3zM19.5 14v.01M14 19.5v.01M19.5 19.5v.01" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></g>
     <g id="i-shield"><path d="M12 2.8l7.5 3v6c0 4.6-3.1 8.4-7.5 9.4-4.4-1-7.5-4.8-7.5-9.4v-6z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M9 12l2.2 2.2L15.4 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <g id="i-pool"><path d="M3 17.5c1.6 0 1.6 1.4 3.2 1.4s1.6-1.4 3.2-1.4 1.6 1.4 3.2 1.4 1.6-1.4 3.2-1.4 1.6 1.4 3.2 1.4M7 15.5V6a2.2 2.2 0 014.4 0M13.6 15.5V6A2.2 2.2 0 0118 6M7 9.5h4.4M7 12.6h4.4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <g id="i-gym"><path d="M3.5 9.5v5M6.5 7v10M17.5 7v10M20.5 9.5v5M6.5 12h11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></g>
+    <g id="i-banquet"><path d="M3 20h18M5 20v-6a7 7 0 0114 0v6M12 7V4M9.5 4h5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <g id="i-theatre"><rect x="2.5" y="4.5" width="19" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M8 20h8M12 16.5V20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></g>
+    <g id="i-play"><circle cx="12" cy="5.5" r="2.2" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M12 7.7v6M6 20l3.5-6.3h5L18 20M8.5 11h7" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <g id="i-jog"><circle cx="14.5" cy="4.6" r="2.1" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M13.4 7.4L10 10.5l2.6 2.4.8 5.3M12.6 12.9L8.6 16l-1.4 4M15.4 9.2l3.4 1.7M4.5 11.5l3.4-1.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <g id="i-yoga"><circle cx="12" cy="4.4" r="2" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M12 6.6v5M12 11.6l-4.6 2M12 11.6l4.6 2M4 19.5c2.4-2 5.2-3 8-3s5.6 1 8 3" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <g id="i-power"><path d="M13 2.5L5 13.5h6l-1 8 8-11h-6z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></g>
+    <g id="i-parking"><rect x="3.5" y="3.5" width="17" height="17" rx="3" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M9.5 17V7.5h3.2a2.9 2.9 0 010 5.8H9.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></g>
   </defs>
 </svg>
 
@@ -328,17 +417,23 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
     </a>
     <nav class="main-nav">
       <a href="#about">About</a>
+      <a href="#community">Community</a>
       <a href="#notices">Notices</a>
       <a href="#committee">Committee</a>
       <a href="#contact">Contact</a>
     </nav>
     <div class="header-actions">
+      <div class="lang-toggle lang-toggle-header" data-no-translate>
+        <button data-lang-btn="en" class="active">EN</button>
+        <button data-lang-btn="hi">हिं</button>
+      </div>
       <button class="btn btn-primary btn-sm" id="navAuthBtn">Resident Login</button>
     </div>
   </div>
 </header>
 
 <section class="hero engrave" id="top" style="padding-top:70px;">
+  <div class="hero-photo" aria-hidden="true"></div>
   <div class="wrap hero-grid">
     <div>
       <div class="eyebrow on-dark">Digital Membership &amp; Payment Portal</div>
@@ -365,13 +460,13 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
 
 <section id="about">
   <div class="wrap">
-    <div class="section-head">
+    <div class="section-head reveal">
       <div class="rule-gold"></div>
       <div class="eyebrow">About the Society</div>
       <h2>A registered welfare society, run in the open.</h2>
       <p>Max Heights Majestic Resident Welfare Society manages the upkeep, security and shared finances of our community. This portal is how that work stays visible to every member — who's registered, what's been collected, and what every rupee was for.</p>
     </div>
-    <div class="process">
+    <div class="process reveal">
       <div class="process-step">
         <div class="process-num"><i>1</i> REGISTER</div>
         <h3>Submit your details once</h3>
@@ -393,12 +488,12 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
 
 <section id="benefits" style="background:var(--paper);">
   <div class="wrap">
-    <div class="section-head">
+    <div class="section-head reveal">
       <div class="rule-gold"></div>
       <div class="eyebrow">Why This Portal</div>
       <h2>Built around one idea: nothing should be "he said, she said."</h2>
     </div>
-    <div class="benefit-grid">
+    <div class="benefit-grid reveal">
       <div class="benefit-card">
         <div class="glyph"><svg viewBox="0 0 24 24"><use href="#i-id"/></svg></div>
         <h3>One Member ID, for life</h3>
@@ -443,10 +538,6 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
             <div class="eyebrow">Notice Board</div>
             <h2 style="font-size:25px; margin-top:9px;">Latest from the committee</h2>
           </div>
-          <div class="lang-toggle" id="noticeLangToggle">
-            <button data-lang="en" class="active">EN</button>
-            <button data-lang="hi">हिं</button>
-          </div>
         </div>
         <div id="noticeList" class="card card-pad">
           <div class="skeleton" style="height:56px; margin-bottom:12px;"></div>
@@ -462,9 +553,53 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
   </div>
 </section>
 
+<section class="community engrave" id="community">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <div class="rule-gold"></div>
+      <div class="eyebrow on-dark">Where We Live</div>
+      <h2>Max Heights Majestic, Grand Sikar Road</h2>
+      <p>Seven towers in the 400-acre Suncity Township, sharing a landscaped podium garden and a six-level clubhouse. These are the common facilities your maintenance contributions keep running.</p>
+    </div>
+
+    <div class="community-grid">
+      <figure class="shot reveal">
+        <img src="assets/community/aerial.webp" alt="Aerial view of Max Heights Majestic towers and the landscaped podium garden" loading="lazy" width="900" height="518">
+        <figcaption><span>The Complex</span>70,000 sq.ft. landscaped podium garden</figcaption>
+      </figure>
+      <div class="shot-stack">
+        <figure class="shot reveal reveal-d1">
+          <img src="assets/community/clubhouse.webp" alt="The six-level Club Ultima clubhouse building" loading="lazy" width="900" height="493">
+          <figcaption><span>Club Ultima</span>25,000 sq.ft. clubhouse, six levels</figcaption>
+        </figure>
+        <figure class="shot reveal reveal-d2">
+          <img src="assets/community/pool.webp" alt="Rooftop swimming pool at the clubhouse" loading="lazy" width="900" height="482">
+          <figcaption><span>Rooftop</span>Swimming pool &amp; sun deck</figcaption>
+        </figure>
+      </div>
+    </div>
+
+    <div class="reveal" style="margin-top:34px;">
+      <div class="stat-pill"><b>7</b> Towers · <b>A</b> to <b>G</b></div>
+      <div class="amenity-grid">
+        <div class="amenity"><svg viewBox="0 0 24 24"><use href="#i-pool"/></svg>Swimming Pool</div>
+        <div class="amenity"><svg viewBox="0 0 24 24"><use href="#i-gym"/></svg>Gymnasium</div>
+        <div class="amenity"><svg viewBox="0 0 24 24"><use href="#i-banquet"/></svg>Banquet Hall</div>
+        <div class="amenity"><svg viewBox="0 0 24 24"><use href="#i-theatre"/></svg>Home Theatre</div>
+        <div class="amenity"><svg viewBox="0 0 24 24"><use href="#i-play"/></svg>Kids' Play Area</div>
+        <div class="amenity"><svg viewBox="0 0 24 24"><use href="#i-jog"/></svg>Jogging Track</div>
+        <div class="amenity"><svg viewBox="0 0 24 24"><use href="#i-yoga"/></svg>Yoga / Meditation</div>
+        <div class="amenity"><svg viewBox="0 0 24 24"><use href="#i-shield"/></svg>3-Tier Security</div>
+        <div class="amenity"><svg viewBox="0 0 24 24"><use href="#i-power"/></svg>100% Power Backup</div>
+        <div class="amenity"><svg viewBox="0 0 24 24"><use href="#i-parking"/></svg>Ample Parking</div>
+      </div>
+    </div>
+  </div>
+</section>
+
 <section id="committee" style="background:var(--paper);">
   <div class="wrap">
-    <div class="section-head">
+    <div class="section-head reveal">
       <div class="rule-gold"></div>
       <div class="eyebrow">Governance</div>
       <h2>Your committee</h2>
@@ -503,8 +638,22 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
           <div class="form-2col">
             <div class="field"><label>Full Name</label><input name="name" required></div>
             <div class="field"><label>Father's / Husband's Name</label><input name="fatherHusbandName" required></div>
-            <div class="field"><label>Tower</label><input name="tower" required placeholder="e.g. Tower B"></div>
-            <div class="field"><label>Flat Number</label><input name="flatNumber" required placeholder="e.g. B-1204"></div>
+            <div class="field"><label>Tower</label>
+              <!-- A dropdown, not free text: typed entries produce "Tower B",
+                   "tower b", "B-Block" etc., which the tower-wise collection
+                   report would count as four different towers. -->
+              <select name="tower" required>
+                <option value="">Select your tower</option>
+                <option value="A">Tower A</option>
+                <option value="B">Tower B</option>
+                <option value="C">Tower C</option>
+                <option value="D">Tower D</option>
+                <option value="E">Tower E</option>
+                <option value="F">Tower F</option>
+                <option value="G">Tower G</option>
+              </select>
+            </div>
+            <div class="field"><label>Flat Number</label><input name="flatNumber" required placeholder="e.g. 1204"></div>
             <div class="field"><label>Mobile Number</label><input name="mobile" type="tel" pattern="[0-9]{10}" required placeholder="10-digit mobile"></div>
             <div class="field"><label>Email</label><input name="email" type="email" required></div>
             <div class="field"><label>Occupation</label><input name="occupation"></div>
@@ -566,12 +715,12 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
 
 <section id="contact">
   <div class="wrap">
-    <div class="section-head">
+    <div class="section-head reveal">
       <div class="rule-gold"></div>
       <div class="eyebrow">Get in Touch</div>
       <h2>Visit or contact the office</h2>
     </div>
-    <div class="contact-grid">
+    <div class="contact-grid reveal">
       <div class="card card-pad" id="contactDetails">
         <div class="skeleton" style="height:130px;"></div>
       </div>
@@ -603,6 +752,11 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
         <a href="admin.html">Admin Panel →</a>
         <a href="verify.html">Verify a Receipt →</a>
       </div>
+    </div>
+    <div class="foot-credentials">
+      <span class="cred"><b>RERA</b> RAJ/P/2017/150</span>
+      <span class="cred"><b>JDA</b> Approved</span>
+      <span class="cred">GH-3, Suncity Township, Grand Sikar Road, Jaipur&nbsp;302013</span>
     </div>
     <div class="foot-bottom">
       <span>© <span id="yearNow"></span> Max Heights Majestic RWA. All rights reserved.</span>
@@ -640,7 +794,10 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
      ===================================================================== -->
 <script type="module">
 import { LOGO_DATA_URI } from './logo-data.js';
+import { initLang, setLang, translateSubtree, HI } from './i18n.js';
 window.__MHM_LOGO = LOGO_DATA_URI;
+window.__translate = translateSubtree;
+window.__HI = HI;
 
 ['brandLogo','heroLogo','footLogo'].forEach(id => {
   const el = document.getElementById(id);
@@ -667,12 +824,57 @@ window.__renderCommittee = (rows) => {
   grid.innerHTML = rows.map(m => `
     <div class="committee-card">
       <img src="${m.photoURL || LOGO_DATA_URI}" alt="">
-      <div class="nm">${esc(m.name)}</div>
+      <div class="nm" data-no-translate>${esc(m.name)}</div>
       <div class="role">${esc(m.role)}</div>
     </div>
   `).join('');
+  translateSubtree(grid);
 };
 window.__renderCommittee(window.__COMMITTEE_FALLBACK);
+
+/* Language toggle — wired here (not in the Firebase module) so switching
+   works even if the SDK never loads. */
+document.querySelectorAll('[data-lang-btn]').forEach(btn => {
+  btn.addEventListener('click', () => setLang(btn.dataset.langBtn));
+});
+initLang();
+
+/* ---- Motion -----------------------------------------------------------
+   Everything here is skipped entirely when the person's device asks for
+   reduced motion; the CSS also force-shows .reveal in that case, so no
+   content can ever be left stranded invisible. */
+const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+if (!prefersReducedMotion && 'IntersectionObserver' in window) {
+  const revealObserver = new IntersectionObserver((entries, obs) => {
+    entries.forEach(entry => {
+      if (!entry.isIntersecting) return;
+      entry.target.classList.add('is-visible');
+      obs.unobserve(entry.target);           // reveal once, then stop watching
+    });
+  }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+  document.querySelectorAll('.reveal').forEach(el => revealObserver.observe(el));
+} else {
+  document.querySelectorAll('.reveal').forEach(el => el.classList.add('is-visible'));
+}
+
+/* Counts a stat up from zero the first time it scrolls into view. Only runs
+   on plain integers, so the "100%" and "—" placeholders are left alone. */
+window.__animateCount = (el) => {
+  if (prefersReducedMotion || el.dataset.counted) return;
+  const target = parseInt(String(el.textContent).replace(/[^0-9]/g, ''), 10);
+  if (!Number.isFinite(target) || target <= 0) return;
+  el.dataset.counted = '1';
+  const durationMs = 900;
+  const start = performance.now();
+  const step = (now) => {
+    const p = Math.min((now - start) / durationMs, 1);
+    const eased = 1 - Math.pow(1 - p, 3);       // ease-out cubic
+    el.textContent = Math.round(target * eased);
+    if (p < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+};
 </script>
 
 <script type="module">
@@ -689,7 +891,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-storage.js";
 import {
   showToast, escapeHtml, fmtDate, formatINR, currentFinancialYear,
-  generateReceiptPDF, printReceipt
+  generateReceiptPDF, printReceipt, validatePayment, validateRegistration
 } from './app-common.js';
 
 /* Branding, the year stamp and the committee fallback are handled by the
@@ -781,7 +983,8 @@ registerForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   const f = e.target;
   const btn = f.querySelector('button[type="submit"]');
-  if (f.password.value !== f.confirmPassword.value) return showToast('Password match nahi kar raha.', 'error');
+  const regError = validateRegistration(f);
+  if (regError) return showToast(regError, 'error');
   setLoading(btn, true);
   try {
     const email = f.email.value.trim();
@@ -924,6 +1127,8 @@ async function loadDashboard(uid) {
     </div>` : ''}
   `;
 
+  window.__translate(content);
+
   if (currentMember.status === 'approved') {
     document.getElementById('openPaymentBtn').addEventListener('click', openPaymentModal);
     await loadPayments(uid);
@@ -938,7 +1143,7 @@ async function loadPayments(uid) {
   try { rows = (await getDocs(q)).docs.map(d => ({ id: d.id, ...d.data() })); }
   catch (e) { rows = []; }
 
-  if (!rows.length) { list.innerHTML = '<div class="empty" style="padding:28px 12px;"><p>Abhi tak koi payment record nahi hai.</p></div>'; return; }
+  if (!rows.length) { list.innerHTML = '<div class="empty" style="padding:28px 12px;"><p>No payment records yet.</p></div>'; window.__translate(list); return; }
 
   const statusBadge = {
     pending_approval: '<span class="badge badge-warning">Pending Approval</span>',
@@ -963,6 +1168,8 @@ async function loadPayments(uid) {
       </div>
     </div>
   `).join('');
+
+  window.__translate(list);
 
   async function loadReceiptContext() {
     const societySnap = await getDoc(doc(db, 'settings', 'society'));
@@ -1011,6 +1218,7 @@ async function openPaymentModal() {
     <div class="pay-option" data-mode="netbanking"><svg viewBox="0 0 24 24"><use href="#i-bank"/></svg><div><b>Net Banking / Transfer</b><div class="t-muted" style="font-size:12.5px;">NEFT / IMPS to society account</div></div></div>
     <div id="payDetailForm"></div>
   `;
+  window.__translate(body);
   document.getElementById('paymentModalBackdrop').classList.add('open');
 
   body.querySelectorAll('.pay-option').forEach(opt => {
@@ -1042,20 +1250,20 @@ function renderPayDetailForm(mode, paySettings) {
       <button class="btn btn-primary btn-block" id="submitPaymentBtn">${isOffline ? 'Submit — I Will Pay at Office' : 'I Have Paid'}</button>
     </div>
   `;
+  window.__translate(holder);
   document.getElementById('submitPaymentBtn').addEventListener('click', () => submitPayment(mode));
 }
 
 async function submitPayment(mode) {
   const btn = document.getElementById('submitPaymentBtn');
   const amount = Number(document.getElementById('payAmount').value);
-  if (!amount || amount <= 0) return showToast('Sahi amount daalein.', 'error');
   const isOffline = mode === 'cash' || mode === 'cheque';
-  let utr = '', proofURL = '';
-  if (!isOffline) {
-    utr = document.getElementById('payUtr').value.trim();
-    if (!utr) return showToast('UTR / Transaction ID zaroori hai.', 'error');
-    if (!/^[a-zA-Z0-9]{6,22}$/.test(utr)) return showToast('UTR / Transaction ID sahi format mein nahi hai (sirf letters/numbers, 6-22 characters).', 'error');
-  }
+  let utr = isOffline ? '' : document.getElementById('payUtr').value.trim();
+  let proofURL = '';
+
+  const payError = validatePayment({ amount, mode, utr, isOffline });
+  if (payError) return showToast(payError, 'error');
+
   setLoading(btn, true);
   try {
     if (!isOffline) {
@@ -1088,41 +1296,52 @@ async function submitPayment(mode) {
 document.getElementById('closePaymentModal').addEventListener('click', () => document.getElementById('paymentModalBackdrop').classList.remove('open'));
 
 /* ---- Public content ---- */
-let noticeLang = 'en';
 async function loadNotices() {
   const listEl = document.getElementById('noticeList');
   try {
     const q = query(collection(db, 'notices'), orderBy('postedAt', 'desc'), limit(5));
-    const rows = (await getDocs(q)).docs.map(d => d.data());
-    if (!rows.length) { listEl.innerHTML = '<div class="empty" style="padding:30px 12px;"><p>Koi notice abhi post nahi hui hai.</p></div>'; return; }
-    window.__notices = rows;
+    window.__notices = (await getDocs(q)).docs.map(d => d.data());
     renderNotices();
-  } catch (e) { listEl.innerHTML = '<div class="empty" style="padding:30px 12px;"><p>Notices load nahi ho paayin.</p></div>'; }
+  } catch (e) {
+    window.__notices = null;
+    listEl.innerHTML = '<div class="empty" style="padding:30px 12px;"><p>Notices could not be loaded.</p></div>';
+    window.__translate(listEl);
+  }
 }
 function renderNotices() {
   const listEl = document.getElementById('noticeList');
-  const rows = window.__notices || [];
+  const rows = window.__notices;
+
+  // Guard: without this, switching language on a society with no notices
+  // yet would blank the box instead of keeping the empty-state message.
+  if (!rows || !rows.length) {
+    listEl.innerHTML = '<div class="empty" style="padding:30px 12px;"><p>No notices have been posted yet.</p></div>';
+    window.__translate(listEl);
+    return;
+  }
+
+  const lang = document.documentElement.lang === 'hi' ? 'hi' : 'en';
   listEl.innerHTML = rows.map(n => {
     const d = n.postedAt?.toDate ? n.postedAt.toDate() : null;
     const day = d ? String(d.getDate()).padStart(2, '0') : '—';
-    const mon = d ? d.toLocaleString('en-IN', { month: 'short' }) : '';
+    const mon = d ? d.toLocaleString(lang === 'hi' ? 'hi-IN' : 'en-IN', { month: 'short' }) : '';
     return `
       <div class="notice-item">
-        <div class="notice-date"><div class="d">${day}</div><div class="m">${escapeHtml(mon)}</div></div>
+        <div class="notice-date" data-no-translate><div class="d">${day}</div><div class="m">${escapeHtml(mon)}</div></div>
         <div class="notice-body">
-          <h4>${escapeHtml(noticeLang === 'hi' ? (n.titleHi || n.titleEn) : n.titleEn)}</h4>
-          <p>${escapeHtml(noticeLang === 'hi' ? (n.bodyHi || n.bodyEn) : n.bodyEn)}</p>
+          <h4 data-no-translate>${escapeHtml(lang === 'hi' ? (n.titleHi || n.titleEn) : n.titleEn)}</h4>
+          <p data-no-translate>${escapeHtml(lang === 'hi' ? (n.bodyHi || n.bodyEn) : n.bodyEn)}</p>
           ${n.attachmentURL ? `<a href="${n.attachmentURL}" target="_blank" rel="noopener" style="font-size:12.5px; text-decoration:underline; display:inline-block; margin-top:7px;" class="t-sub">Download attachment</a>` : ''}
         </div>
       </div>`;
   }).join('');
+  window.__translate(listEl);
 }
-document.querySelectorAll('#noticeLangToggle button').forEach(b => b.addEventListener('click', () => {
-  noticeLang = b.dataset.lang;
-  document.querySelectorAll('#noticeLangToggle button').forEach(x => x.classList.remove('active'));
-  b.classList.add('active');
-  renderNotices();
-}));
+
+// Re-render notices (and re-translate the page) whenever the language changes.
+window.addEventListener('mhm:langchange', () => {
+  if (document.getElementById('noticeList')) renderNotices();
+});
 
 async function loadCommittee() {
   // The fallback list is already on screen (rendered by the standalone
@@ -1144,6 +1363,7 @@ async function loadSettingsPublic() {
       <div class="contact-line"><svg viewBox="0 0 24 24"><use href="#i-mail"/></svg><span>${escapeHtml(s.contactEmail || '—')}</span></div>
       <div class="contact-line"><svg viewBox="0 0 24 24"><use href="#i-shield"/></svg><span>Reg. No: ${escapeHtml(s.regNumber || '—')}</span></div>
     `;
+    window.__translate(document.getElementById('contactDetails'));
     if (s.address) document.getElementById('mapFrame').src = `https://www.google.com/maps?q=${encodeURIComponent(s.address)}&output=embed`;
   } catch (e) {}
 
@@ -1156,14 +1376,21 @@ async function loadSettingsPublic() {
       <div class="pay-line"><span>A/C No.</span><span>${escapeHtml(p.accountNumber || '—')}</span></div>
       <div class="pay-line"><span>IFSC</span><span>${escapeHtml(p.ifsc || '—')}</span></div>
     ` : '<p style="font-size:13px; color:rgba(255,255,255,.6);">Not configured yet — the committee can set these from the Admin Panel.</p>';
+    window.__translate(document.getElementById('miniPaySettings'));
   } catch (e) {}
 }
 
 async function loadStats() {
   try {
     const rows = (await getDocs(query(collection(db, 'members'), where('status', '==', 'approved')))).docs.map(d => d.data());
-    document.getElementById('statMembers').textContent = rows.length;
-    document.getElementById('statTowers').textContent = new Set(rows.map(r => r.tower)).size;
+    const memberEl = document.getElementById('statMembers');
+    const towerEl = document.getElementById('statTowers');
+    memberEl.textContent = rows.length;
+    towerEl.textContent = new Set(rows.map(r => r.tower)).size;
+    // Count up only once the real numbers are in, so nobody sees a figure
+    // animate to a value that then changes.
+    window.__animateCount?.(memberEl);
+    window.__animateCount?.(towerEl);
   } catch (e) {}
 }
 
