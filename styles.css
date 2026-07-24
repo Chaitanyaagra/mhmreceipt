@@ -233,10 +233,20 @@ thead th{
   text-align:left; font-family:var(--font-mono); font-size:11px; letter-spacing:.08em; text-transform:uppercase;
   color:var(--ink-400); padding:12px 14px; border-bottom:1px solid var(--line); background:var(--paper); white-space:nowrap;
 }
-tbody td{ padding:12px 14px; border-bottom:1px solid var(--line); color:var(--ink-700); vertical-align:middle; }
+/* Proportional digits make a column of rupee figures unreadable: 1 is narrow,
+   4 and 7 are wide, so 1,400 and 2,400 do not line up and a defaulters list
+   reads as mush. Tabular figures give every digit the same advance width, so
+   the decimal points stack the way they would on a printed ledger. IBM Plex
+   Sans ships the feature; this is the whole fix. */
+tbody td{ padding:12px 14px; border-bottom:1px solid var(--line); color:var(--ink-700); vertical-align:middle;
+          font-variant-numeric:tabular-nums; }
 tbody tr:last-child td{ border-bottom:none; }
 tbody tr:hover{ background:#FAFBFD; }
-.mono{ font-family:var(--font-mono); font-size:12.5px; letter-spacing:.01em; }
+.mono{ font-family:var(--font-mono); font-size:12.5px; letter-spacing:.01em; font-variant-numeric:tabular-nums; }
+/* Any figure meant to be compared against another figure above or below it. */
+.tnum, .stat-strip .stat b, .badge, .print-receipt .pr-amount .num, .print-receipt .pr-grid{
+  font-variant-numeric:tabular-nums;
+}
 
 /* --- Responsive tables ------------------------------------------------------
    Add class "responsive" to a .table-wrap and give every <td> a data-label.
@@ -286,12 +296,45 @@ tbody tr:hover{ background:#FAFBFD; }
   position:fixed; inset:0; background:rgba(10,20,40,.55); backdrop-filter:blur(2px);
   display:none; align-items:center; justify-content:center; padding:20px; z-index:80;
 }
-.modal-backdrop.open{ display:flex; }
+.modal-backdrop.open{ display:flex; animation:modal-veil .18s ease both; }
 .modal{ background:var(--white); border-radius:var(--radius-lg); max-width:560px; width:100%; max-height:88vh; overflow-y:auto; box-shadow:var(--shadow-pop); }
+
+/* The backdrop is toggled by adding/removing .open, which flips `display` —
+   and display is not animatable, so the modal used to appear in a single
+   frame. Animating on the .open class instead costs no JavaScript change and
+   gives the payment-verification dialog, the most-used control in the admin
+   panel, somewhere to come from.
+
+   Entry only. There is no exit animation because .open is removed
+   synchronously and the element is gone before a transition could run; doing
+   that properly needs the <dialog> element (see the note below). An instant
+   dismissal reads as responsive anyway — it is the arrival that needs to be
+   explained to the eye, not the departure. */
+.modal-backdrop.open .modal{ animation:modal-rise .24s cubic-bezier(.2,.7,.3,1) both; }
+@keyframes modal-veil{ from{ opacity:0; } }
+@keyframes modal-rise{ from{ opacity:0; transform:translateY(14px) scale(.985); } }
+
+/* On a phone a sheet rising from the bottom edge matches where the thumb
+   already is, and matches what every native app on the device does. */
+@media (max-width: 640px){
+  .modal-backdrop{ align-items:flex-end; padding:0; }
+  .modal{ max-width:none; border-radius:var(--radius-lg) var(--radius-lg) 0 0; max-height:92vh;
+          padding-bottom:env(safe-area-inset-bottom); }
+  .modal-backdrop.open .modal{ animation:modal-sheet .26s cubic-bezier(.2,.7,.3,1) both; }
+  @keyframes modal-sheet{ from{ transform:translateY(100%); } }
+}
+
+/* NOTE for later: replacing .modal-backdrop with a real <dialog> and
+   showModal() would give focus trapping, Esc-to-close, an inert background and
+   animatable exits, all for free. It is a markup change across six dialogs in
+   admin.html, so it is not done here — but it is the right end state. */
 .modal-head{ display:flex; align-items:center; justify-content:space-between; padding:20px 24px; border-bottom:1px solid var(--line); }
 .modal-body{ padding:24px; }
 
 /* --- Toast ------------------------------------------------------------------ */
+/* Pages that have a fixed bottom bar raise this so toasts clear it. */
+:root{ --toast-bottom-gap:16px; }
+
 #toast-region{ position:fixed; top:18px; right:18px; z-index:100; display:flex; flex-direction:column; gap:10px; max-width:340px; }
 .toast{
   background:var(--navy-950); color:var(--white); padding:13px 16px; border-radius:var(--radius-md);
@@ -300,7 +343,24 @@ tbody tr:hover{ background:#FAFBFD; }
 }
 .toast.success{ background:var(--success); }
 .toast.error{ background:var(--danger); }
+.toast.leaving{ animation:toast-out .3s ease forwards; }
 @keyframes toast-in{ from{ opacity:0; transform:translateY(-8px);} to{ opacity:1; transform:translateY(0);} }
+@keyframes toast-out{ to{ opacity:0; transform:translateY(-6px); } }
+
+/* Top-right is the wrong corner on a phone. It sits under the sticky header,
+   and it is the furthest point on the screen from the thumb — so a toast that
+   says "verify your email first" appears exactly where nobody is looking.
+   Anchored to the bottom instead, clear of the tab bar, full width. */
+@media (max-width: 900px){
+  #toast-region{
+    top:auto; bottom:calc(var(--toast-bottom-gap) + env(safe-area-inset-bottom));
+    left:14px; right:14px; max-width:none;
+  }
+  .toast{ font-size:14px; padding:14px 16px; animation:toast-in-up .25s ease; }
+  .toast.leaving{ animation:toast-out-down .3s ease forwards; }
+  @keyframes toast-in-up{ from{ opacity:0; transform:translateY(10px);} to{ opacity:1; transform:translateY(0);} }
+  @keyframes toast-out-down{ to{ opacity:0; transform:translateY(8px); } }
+}
 
 /* --- Loader ------------------------------------------------------------------ */
 .spinner{ width:20px; height:20px; border-radius:50%; border:2.5px solid rgba(255,255,255,.35); border-top-color:currentColor; animation:spin .7s linear infinite; }

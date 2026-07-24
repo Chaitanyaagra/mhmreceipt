@@ -2,6 +2,41 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<!-- ==========================================================================
+     CONTENT SECURITY POLICY
+     GitHub Pages cannot set HTTP headers, so this goes in a meta tag — which
+     must stay above every script and stylesheet it governs.
+
+     What this buys: an injected <script src="https://evil.example/x.js"> will
+     not load, and stolen data cannot be POSTed anywhere except the endpoints
+     listed in connect-src. That is the realistic attack against a page that
+     handles Aadhaar uploads and payment records.
+
+     What it does NOT buy: script-src still has 'unsafe-inline', because every
+     page here is built from inline module scripts and inline style attributes. Removing that needs the inline scripts moved into their
+     own .js files first — worth doing, but it is a refactor, not a patch.
+
+     frame-ancestors is not supported in a meta tag, so this cannot stop the
+     site being framed. If you ever move off GitHub Pages, set
+     `X-Frame-Options: DENY` (or frame-ancestors 'none') as a real header.
+
+     AFTER DEPLOYING: open the site, press F12, and check the Console for
+     "Refused to ..." messages. Any legitimate endpoint this policy blocks will
+     announce itself there and just needs adding to the right directive.
+     ========================================================================== -->
+<meta http-equiv="Content-Security-Policy" content="
+  default-src 'self';
+  script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://www.gstatic.com https://accounts.google.com https://apis.google.com https://www.google.com;
+  style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+  img-src 'self' data: blob: https://firebasestorage.googleapis.com https://*.googleusercontent.com;
+  font-src 'self' data: https://fonts.gstatic.com;
+  connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://accounts.google.com;
+  frame-src https://www.google.com https://accounts.google.com;
+  worker-src 'self';
+  object-src 'none';
+  base-uri 'self';
+  form-action 'self';
+">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Max Heights Majestic RWA — Digital Membership Portal</title>
 <meta name="description" content="Register, pay and download QR-verified receipts for Max Heights Majestic Resident Welfare Society.">
@@ -9,9 +44,25 @@
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="favicon-32.png">
 <link rel="apple-touch-icon" href="icon-192.png">
+<meta name="color-scheme" content="light">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="styles.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode/1.5.3/qrcode.min.js"></script>
+<!-- Third-party libraries.
+     These are loaded from a CDN with no integrity hash, which means a
+     compromised or hijacked CDN gets script execution on a page that handles
+     ID documents and payment records. Fix this — it takes two minutes:
+
+       1. Open https://cdnjs.com and search for the library.
+       2. Click the copy button next to "SRI" for the exact version below.
+       3. Paste the sha384-... value into an integrity="" attribute here.
+
+     Stronger still: download these five files into a vendor/ folder in this
+     repo and load them from './vendor/...'. Same-origin scripts need no hash,
+     cannot be tampered with by a third party, and let the service worker cache
+     them for genuine offline use. -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode/1.5.3/qrcode.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <style>
 /* =====================================================================
    index.html — Resident Portal
@@ -408,15 +459,51 @@ optgroup, option[disabled]{ color:var(--ink-400); font-style:italic; }
 .pay-history-item{ display:flex; justify-content:space-between; align-items:center; padding:15px 0; border-bottom:1px solid var(--line); gap:12px; flex-wrap:wrap; }
 .pay-history-item:last-child{ border-bottom:none; }
 .dues-box{ border:1px solid var(--line); border-radius:var(--radius-md); overflow:hidden; }
-.dues-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 16px; background:var(--paper); flex-wrap:wrap; }
-.dues-head .amt{ font-family:var(--font-display); font-size:26px; font-weight:600; color:var(--navy-950); line-height:1.1; }
+.dues-head{ display:flex; align-items:center; gap:18px; padding:18px 16px; background:var(--paper); flex-wrap:wrap; }
+.dues-head .amt{ font-family:var(--font-display); font-size:28px; font-weight:600; color:var(--navy-950); line-height:1.1; font-variant-numeric:tabular-nums; margin:3px 0 8px; }
 .dues-head .lbl{ font-family:var(--font-mono); font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-400); }
 .dues-split{ display:flex; }
 .dues-split > div{ flex:1; padding:11px 16px; border-right:1px solid var(--line); font-size:13px; }
+.dues-split b{ font-variant-numeric:tabular-nums; }
 .dues-split > div:last-child{ border-right:none; }
 .dues-split b{ display:block; font-size:14.5px; color:var(--navy-950); margin-top:2px; }
-.dues-bar{ height:5px; background:var(--line); }
-.dues-bar span{ display:block; height:100%; background:var(--gradient-saffron); }
+/* ---------- Dues ring ----------
+   This is the number a resident opens the app to find, and it used to be a
+   sentence plus a 5px bar. A ring answers "am I clear or not" before any
+   reading happens — and it is the seal motif that runs through the rest of
+   the site doing actual work rather than decoration.
+
+   The arc is drawn with stroke-dashoffset over the circle's circumference.
+   Both values are handed in as custom properties from renderDues(), so the
+   fill animates on insert with no JavaScript timing games. The global
+   reduced-motion rule collapses the duration to ~0 and `both` holds the end
+   state, so it simply appears filled — never stuck empty. */
+.dues-ring{ position:relative; width:104px; height:104px; flex-shrink:0; }
+.dues-ring svg{ width:100%; height:100%; transform:rotate(-90deg); }   /* start at 12 o'clock */
+.dues-ring circle{ fill:none; stroke-width:9; stroke-linecap:round; }
+.dues-ring .trk{ stroke:var(--line); }
+.dues-ring .val{
+  stroke:var(--saffron-500);
+  stroke-dasharray:var(--c);
+  stroke-dashoffset:var(--c);
+  animation:ring-fill .9s cubic-bezier(.2,.7,.3,1) both;
+}
+@keyframes ring-fill{ to{ stroke-dashoffset:var(--off); } }
+.dues-ring .val.is-paid,
+.dues-ring .val.is-overpaid{ stroke:var(--success); }
+.dues-ring .val.is-unpaid{ stroke:var(--danger); }
+.dues-ring .pct{
+  position:absolute; inset:0; display:grid; place-items:center; text-align:center;
+  font-family:var(--font-display); font-weight:600; font-size:22px; color:var(--navy-950);
+  line-height:1; letter-spacing:-.02em; font-variant-numeric:tabular-nums;
+}
+.dues-ring .pct small{ display:block; font-family:var(--font-mono); font-weight:500;
+  font-size:8.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-400); margin-top:3px; }
+.dues-figures{ min-width:0; }
+@media (max-width:420px){
+  .dues-ring{ width:86px; height:86px; }
+  .dues-ring .pct{ font-size:19px; }
+}
 .detail-line{ display:flex; justify-content:space-between; gap:12px; padding:9px 0; border-bottom:1px solid var(--line); font-size:13.4px; }
 .detail-line:last-child{ border-bottom:none; }
 .detail-line span:first-child{ color:var(--ink-400); }
@@ -459,6 +546,8 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
 .qr-box img{ width:172px; height:172px; margin:0 auto 12px; border-radius:8px; background:var(--white); padding:8px; }
 
 /* ---------- Mobile bottom tab bar (the main mobile UX upgrade) ---------- */
+/* Tab bar is ~66px tall plus the safe area; lift toasts clear of it. */
+@media (max-width: 900px){ :root{ --toast-bottom-gap:80px; } }
 .tabbar-mobile{
   display:none; position:fixed; bottom:0; left:0; right:0; z-index:70;
   background:rgba(10,27,51,.97); backdrop-filter:blur(14px);
@@ -1214,7 +1303,7 @@ window.__animateCount = (el) => {
 import { auth, db, storage, SOCIETY } from './firebase-config.js';
 import {
   createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged,
-  signOut, sendPasswordResetEmail
+  signOut, sendPasswordResetEmail, sendEmailVerification, deleteUser, reload as reloadUser
 } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
 import {
   doc, getDoc, setDoc, addDoc, collection, query, where, orderBy, getDocs, serverTimestamp, limit
@@ -1341,9 +1430,10 @@ registerForm.addEventListener('submit', async (e) => {
   const regError = validateRegistration(f);
   if (regError) return showToast(regError, 'error');
   setLoading(btn, true);
+  let cred = null;
   try {
     const email = f.email.value.trim();
-    const cred = await createUserWithEmailAndPassword(auth, email, f.password.value);
+    cred = await createUserWithEmailAndPassword(auth, email, f.password.value);
     const uid = cred.user.uid;
 
     let photoURL = '', idDocURL = '';
@@ -1372,15 +1462,30 @@ registerForm.addEventListener('submit', async (e) => {
       updatedAt: serverTimestamp()
     });
 
+    // Proof the person owns the address they registered with. Without this,
+    // anyone could sign up in a neighbour's name using their email — and the
+    // committee would have no way to tell the difference at approval time.
+    // Best-effort: a mail that fails to send must not undo a valid
+    // registration, the resident can resend it from the dashboard.
+    try { await sendEmailVerification(cred.user); } catch (e) { console.warn('Verification mail failed:', e); }
+
     if (f.photo.files[0] && !photoURL) {
       // The registration itself succeeded; only the file could not be stored.
       showToast('Registration jama ho gaya, lekin photo upload nahi ho payi. Office se photo add karwa lein.', 'error');
     } else {
-      showToast('Registration jama ho gaya! Admin approval ke baad Member ID milegi.', 'success');
+      showToast('Registration jama ho gaya! Apne email par verification link check karein.', 'success');
     }
     f.reset();
     showTab('login');
   } catch (err) {
+    // If the member record never got written, the Auth account left behind is
+    // worse than no account at all: the resident cannot register again
+    // ("email already in use") and cannot log in to anything either. Roll it
+    // back so they can simply try once more.
+    if (cred?.user) {
+      try { await deleteUser(cred.user); }
+      catch (e) { console.warn('Could not roll back the half-created account:', e); }
+    }
     showToast(friendlyAuthError(err), 'error');
   } finally {
     setLoading(btn, false);
@@ -1449,12 +1554,31 @@ async function loadDashboard(uid) {
     inactive: '<span class="badge badge-neutral"><span class="badge-dot"></span>Deactivated</span>'
   };
 
+  /* The security rules require a verified email before a payment can be
+     filed. Without this banner that arrives as an unexplained permission
+     error at the worst possible moment — after the resident has already
+     transferred the money. Say it up front instead, and give them the button. */
+  const emailUnverified = !!currentUser && !currentUser.emailVerified;
+  const verifyBanner = emailUnverified ? `
+    <div class="card card-pad" style="border-left:4px solid var(--warning); margin-bottom:16px;">
+      <div style="font-weight:600; margin-bottom:5px;">Email verify karna baaki hai</div>
+      <p class="t-sub" style="font-size:13.5px; margin-bottom:12px;">
+        Payment submit karne se pehle apna email verify karein. Humne
+        <b>${escapeHtml(currentMember.email || '')}</b> par link bheja tha — inbox aur spam dono dekh lein.
+      </p>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button class="btn btn-outline btn-sm" id="resendVerifyBtn">Link dobara bhejein</button>
+        <button class="btn btn-ghost btn-sm" id="recheckVerifyBtn">Ho gaya — dobara check karein</button>
+      </div>
+    </div>` : '';
+
   let statusExtra = '';
   if (currentMember.status === 'pending') statusExtra = '<p class="t-sub" style="margin-top:12px; font-size:13.5px;">Aapka registration committee ke review mein hai. Approve hone par yahan Member ID dikhega.</p>';
   if (currentMember.status === 'rejected') statusExtra = `<p class="t-danger" style="margin-top:12px; font-size:13.5px;">Reason: ${escapeHtml(currentMember.rejectionReason || 'Office se contact karein.')}</p>`;
   if (currentMember.status === 'inactive') statusExtra = '<p class="t-sub" style="margin-top:12px; font-size:13.5px;">Aapki membership deactivate ki gayi hai. Query ke liye office se contact karein.</p>';
 
   content.innerHTML = `
+    ${verifyBanner}
     <div class="card status-card">
       <div class="status-head">
         <img src="${currentMember.photoURL || LOGO_DATA_URI}" alt="">
@@ -1474,10 +1598,10 @@ async function loadDashboard(uid) {
     ${currentMember.status === 'approved' ? `
     <div class="dash-grid">
       <div class="card card-pad">
-        <div id="duesPanel"><div class="skeleton" style="height:74px; margin-bottom:18px;"></div></div>
+        <div id="duesPanel"><div class="skeleton" style="height:186px; margin-bottom:18px;"></div></div>
         <div class="spread" style="margin:18px 0 16px; gap:10px; flex-wrap:wrap;">
           <h3 style="font-size:16px;">Payment History</h3>
-          <button class="btn btn-primary btn-sm" id="openPaymentBtn">Make a Payment</button>
+          <button class="btn btn-primary btn-sm" id="openPaymentBtn"${emailUnverified ? ' disabled title="Pehle apna email verify karein"' : ''}>Make a Payment</button>
         </div>
         <div id="paymentList"><div class="skeleton" style="height:70px;"></div></div>
       </div>
@@ -1493,6 +1617,31 @@ async function loadDashboard(uid) {
   `;
 
   window.__translate(content);
+
+  document.getElementById('resendVerifyBtn')?.addEventListener('click', async (e) => {
+    const b = e.currentTarget;
+    b.disabled = true;
+    try {
+      await sendEmailVerification(currentUser);
+      showToast('Verification link bhej diya. Inbox aur spam folder dekh lein.', 'success');
+    } catch (err) {
+      // Firebase rate-limits these; saying so beats a silent no-op.
+      showToast('Abhi link nahi bhej paaye. Thodi der baad try karein.', 'error');
+      b.disabled = false;
+    }
+  });
+
+  document.getElementById('recheckVerifyBtn')?.addEventListener('click', async () => {
+    // emailVerified is baked into the cached token, so it does not change on
+    // its own — the user object has to be reloaded from the server.
+    await reloadUser(currentUser);
+    if (currentUser.emailVerified) {
+      showToast('Email verify ho gaya. Ab aap payment kar sakte hain.', 'success');
+      await loadDashboard(uid);
+    } else {
+      showToast('Abhi tak verify nahi hua. Email mein diye link par click karein.', 'error');
+    }
+  });
 
   if (currentMember.status === 'approved') {
     document.getElementById('openPaymentBtn').addEventListener('click', openPaymentModal);
@@ -1560,16 +1709,32 @@ function renderDues(dues, financialYear) {
   const headline = dues.outstanding > 0 ? dues.outstanding : dues.paid;
   const headlineLabel = dues.outstanding > 0 ? 'Outstanding' : 'Paid in full';
 
+  /* Ring geometry. r=42 in a 100x100 viewBox leaves room for a 9px stroke
+     without clipping at the edges. The arc is the circumference minus the
+     share already paid, fed to stroke-dashoffset. */
+  const R = 42;
+  const CIRC = 2 * Math.PI * R;                       // 263.894...
+  const offset = CIRC * (1 - Math.min(pct, 100) / 100);
+
   el.innerHTML = `
     <div class="dues-box">
       <div class="dues-head">
-        <div>
+        <div class="dues-ring" role="progressbar"
+             aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"
+             aria-label="Maintenance paid for FY ${escapeHtml(financialYear)}">
+          <svg viewBox="0 0 100 100" aria-hidden="true">
+            <circle class="trk" cx="50" cy="50" r="${R}"></circle>
+            ${pct > 0 ? `<circle class="val is-${escapeHtml(dues.status)}" cx="50" cy="50" r="${R}"
+                    style="--c:${CIRC.toFixed(2)}; --off:${offset.toFixed(2)};"></circle>` : ''}
+          </svg>
+          <div class="pct" aria-hidden="true">${pct}%<small>Paid</small></div>
+        </div>
+        <div class="dues-figures">
           <div class="lbl">${escapeHtml(headlineLabel)} &middot; FY ${escapeHtml(financialYear)}</div>
           <div class="amt">${formatINR(headline)}</div>
+          <span class="badge ${DUES_BADGE[dues.status]}">${escapeHtml(DUES_LABEL[dues.status])}</span>
         </div>
-        <span class="badge ${DUES_BADGE[dues.status]}">${escapeHtml(DUES_LABEL[dues.status])}</span>
       </div>
-      <div class="dues-bar"><span style="width:${pct}%"></span></div>
       <div class="dues-split">
         <div><span class="lbl">Total Due</span><b>${formatINR(dues.expected)}</b></div>
         <div><span class="lbl">Paid</span><b>${formatINR(dues.paid)}</b></div>
@@ -1652,6 +1817,12 @@ async function loadPayments(uid) {
 }
 
 async function openPaymentModal() {
+  // Belt and braces: the button is disabled when the email is unverified, but
+  // this is the function the rules will reject, so it should say why itself.
+  if (currentUser && !currentUser.emailVerified) {
+    showToast('Payment se pehle apna email verify karein — dashboard par "Link dobara bhejein" dabayein.', 'error');
+    return;
+  }
   const q = query(collection(db, 'payments'), where('memberUid', '==', currentUser.uid), where('status', 'in', ['pending_approval', 'pending_verification']));
   const existing = await getDocs(q);
   if (!existing.empty) { showToast('Aapka ek payment pehle se pending hai — nayi entry ki zaroorat nahi.', 'error'); return; }

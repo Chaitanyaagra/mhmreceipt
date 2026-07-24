@@ -14,6 +14,12 @@ rules_version = '2';
 //     good user experience; these rules are what actually protect the ledger.
 //   * Nothing in members/payments is ever hard-deleted — the app soft-deletes
 //     by flipping a status field, preserving the legal audit trail.
+//   * Once a payment is VERIFIED it is frozen. Corrections are made with a
+//     reversing entry, never by editing history — that is what an auditor
+//     expects to see.
+//   * The public (unauthenticated) collections are keyed by an unguessable
+//     random token, NOT by the sequential receipt/member number, so nobody can
+//     walk 000001..999999 and scrape the resident directory or the ledger.
 // ============================================================================
 
 service cloud.firestore {
@@ -26,6 +32,9 @@ service cloud.firestore {
     function isOwner(uid) {
       return isSignedIn() && request.auth.uid == uid;
     }
+    // Firestore caches get()/exists() per document per request, so the pair of
+    // lookups below costs at most two document reads for a whole evaluation,
+    // however many helpers call them.
     function isAdmin() {
       return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
@@ -43,15 +52,33 @@ service cloud.firestore {
     function canApproveMembers() {
       return isAdmin() && adminRole() in ['superadmin', 'president', 'vicepresident', 'secretary', 'jointsecretary'];
     }
+    // Proof the caller clicked the link in their own inbox. Enforced on the
+    // money path, not on registration, because the account has to exist before
+    // Firebase can send the verification mail.
+    function emailVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
 
     /* ---------- validation helpers ---------- */
+    //
+    // ABSENCE vs NULL — read this before editing anything below.
+    //
+    // Reading a field that is not present on the document raises an evaluation
+    // error, and an erroring rule DENIES. So `data.foo == null` is not a safe
+    // "foo is empty" test: it works when the client writes an explicit null and
+    // breaks with an opaque permission error when the client simply omits the
+    // field. Every optional field is therefore checked through absentOrNull().
+    //
+    function absentOrNull(data, field) {
+      return !(field in data) || data[field] == null;
+    }
     function isNonEmptyString(v, maxLen) {
       return v is string && v.size() > 0 && v.size() <= maxLen;
     }
-    function isOptionalString(v, maxLen) {
-      return v == null || (v is string && v.size() <= maxLen);
+    function isOptionalString(data, field, maxLen) {
+      return absentOrNull(data, field) || (data[field] is string && data[field].size() <= maxLen);
     }
-    // A 10-digit Indian mobile number, optionally left blank on admin-created rows.
+    // A 10-digit Indian mobile number.
     function isValidMobile(v) {
       return v is string && v.matches('^[0-9]{10}$');
     }
@@ -72,8 +99,16 @@ service cloud.firestore {
     function isValidFY(v) {
       return v is string && v.matches('^[0-9]{4}-[0-9]{2}$');
     }
+    // 32 hex characters from crypto.getRandomValues() — see newPublicToken()
+    // in app-common.js. 128 bits of entropy is not walkable.
+    function isPublicToken(v) {
+      return v is string && v.matches('^[0-9a-f]{32}$');
+    }
+    // Absence-safe: an update that adds a field which was not there before is
+    // a change, and an update that drops one is too.
     function unchanged(field) {
-      return request.resource.data[field] == resource.data[field];
+      return (field in request.resource.data) == (field in resource.data)
+          && (!(field in resource.data) || request.resource.data[field] == resource.data[field]);
     }
 
     // ---- Residents ------------------------------------------------------
@@ -82,10 +117,10 @@ service cloud.firestore {
         return isNonEmptyString(request.resource.data.name, 100)
             && isNonEmptyString(request.resource.data.tower, 50)
             && isNonEmptyString(request.resource.data.flatNumber, 30)
-            && isOptionalString(request.resource.data.fatherHusbandName, 100)
-            && isOptionalString(request.resource.data.address, 500)
-            && isOptionalString(request.resource.data.occupation, 100)
-            && isOptionalString(request.resource.data.nomineeName, 100)
+            && isOptionalString(request.resource.data, 'fatherHusbandName', 100)
+            && isOptionalString(request.resource.data, 'address', 500)
+            && isOptionalString(request.resource.data, 'occupation', 100)
+            && isOptionalString(request.resource.data, 'nomineeName', 100)
             && isValidMemberStatus(request.resource.data.status)
             && request.resource.data.residentType in ['owner', 'tenant'];
       }
@@ -100,30 +135,55 @@ service cloud.firestore {
                       && validMemberShape()
                       && request.resource.data.uid == uid
                       && request.resource.data.status == 'pending'
-                      && request.resource.data.memberID == null
+                      && absentOrNull(request.resource.data, 'memberID')
+                      && absentOrNull(request.resource.data, 'publicToken')
                       && request.resource.data.role == 'resident'
                       && isValidMobile(request.resource.data.mobile)
                     );
 
       // Admin edits: only office-bearers may change approval status or assign
       // a Member ID. Any other admin may correct ordinary profile fields.
+      //
       // Residents may edit their own profile but never self-approve, grant
-      // themselves a Member ID, reactivate themselves, or change their role.
+      // themselves a Member ID or verification token, reactivate themselves,
+      // change their role — or move themselves to a different flat. That last
+      // one matters: maintenance rates are per-tower, so an unpinned flat
+      // number is a way to change your own dues and what your card says.
       allow update: if (
                       isAdmin() && validMemberShape() && (
                         canApproveMembers()
-                        || (unchanged('status') && unchanged('memberID') && unchanged('role'))
+                        || (unchanged('status') && unchanged('memberID') && unchanged('role') && unchanged('publicToken'))
                       )
                     ) || (
                       isOwner(uid)
                       && validMemberShape()
                       && unchanged('status')
                       && unchanged('memberID')
+                      && unchanged('publicToken')
                       && unchanged('role')
                       && unchanged('uid')
+                      && unchanged('tower')
+                      && unchanged('flatNumber')
                     );
 
       allow delete: if false; // soft-delete only (status: 'inactive')
+    }
+
+    // ---- One flat, one member -------------------------------------------
+    // Firestore cannot express "unique across a collection" in a rule, so
+    // uniqueness is bought with a document ID: flatClaims/A_101 either exists
+    // or it does not. approveMember() creates it inside the same transaction
+    // that approves the resident, so two people claiming the same flat cannot
+    // both win — the loser's transaction fails.
+    match /flatClaims/{claimId} {
+      allow read: if isAdmin();
+      allow create, update: if canApproveMembers()
+                            && isNonEmptyString(request.resource.data.memberDocId, 200)
+                            && isNonEmptyString(request.resource.data.tower, 50)
+                            && isNonEmptyString(request.resource.data.flatNumber, 30);
+      // Released when a member is rejected or deactivated, so the flat can be
+      // claimed by whoever moves in next.
+      allow delete: if canApproveMembers();
     }
 
     // ---- Admin directory (Super Admin manages roles) --------------------
@@ -143,40 +203,66 @@ service cloud.firestore {
 
       // A resident submitting a payment cannot pre-assign themselves a receipt
       // number, cannot mark it verified, and cannot post an invalid amount.
+      // A verified email is required here rather than at registration: this is
+      // the point where a record enters the society's books, and it is the
+      // cheapest possible defence against someone filing payments in a
+      // neighbour's name.
       allow create: if isSignedIn()
+                    && emailVerified()
                     && request.resource.data.memberUid == request.auth.uid
                     && isValidAmount(request.resource.data.amount)
                     && isValidPaymentMode(request.resource.data.mode)
                     && isValidFY(request.resource.data.financialYear)
                     && request.resource.data.status in ['pending_approval', 'pending_verification']
-                    && request.resource.data.receiptNumber == null
+                    && absentOrNull(request.resource.data, 'receiptNumber')
+                    && absentOrNull(request.resource.data, 'publicToken')
                     && isNonEmptyString(request.resource.data.residentName, 100)
                     && isNonEmptyString(request.resource.data.flatNumber, 30)
-                    && isOptionalString(request.resource.data.utrOrChequeNo, 40);
+                    && isOptionalString(request.resource.data, 'utrOrChequeNo', 40);
 
       // Verifying a payment issues a receipt number and moves money in the
-      // books, so it is restricted to the Treasurer / Super Admin. The amount
-      // and payer can never be edited after submission.
+      // books, so it is restricted to the Treasurer / Super Admin.
+      //
+      // A VERIFIED PAYMENT IS FROZEN. Not just the amount and the payer — the
+      // whole record. Un-verifying a receipt that has already been printed,
+      // QR-coded and handed to a resident would leave the society unable to
+      // explain its own paperwork. Mistakes are corrected with a reversing
+      // entry, which is what the accounts want anyway.
       allow update: if canVerifyPayments()
+                    && resource.data.status != 'verified'
                     && isValidPaymentStatus(request.resource.data.status)
                     && unchanged('amount')
                     && unchanged('memberUid')
                     && unchanged('mode')
-                    && unchanged('financialYear');
+                    && unchanged('financialYear')
+                    && unchanged('submittedAt')
+                    // A receipt number, once issued, is never rewritten.
+                    && (absentOrNull(resource.data, 'receiptNumber') || unchanged('receiptNumber'))
+                    && (absentOrNull(resource.data, 'publicToken') || unchanged('publicToken'))
+                    // Marking something verified must actually produce a receipt.
+                    && (request.resource.data.status != 'verified' || (
+                          isNonEmptyString(request.resource.data.receiptNumber, 40)
+                          && isPublicToken(request.resource.data.publicToken)
+                       ));
 
       allow delete: if false;
     }
 
     // ---- Sequence counters (Member ID / Receipt No.) ---------------------
-    // These are written ONLY by admin flows (approve member, verify payment,
-    // bulk import). Leaving this open to any signed-in user would let a
-    // resident rewind the receipt sequence and force duplicate receipt
-    // numbers — so it is locked to admins.
+    // Admin-only, and STRICTLY INCREASING. The previous version allowed any
+    // admin to write any positive integer, which meant the receipt sequence
+    // could be wound backwards — accidentally or otherwise — and reissue a
+    // number that is already printed on somebody's receipt. Duplicate receipt
+    // numbers in a financial record are exactly what an auditor picks up on.
     match /counters/{counterId} {
       allow read: if isAdmin();
-      allow write: if isAdmin()
-                   && request.resource.data.value is int
-                   && request.resource.data.value > 0;
+      allow create: if isAdmin()
+                    && request.resource.data.value is int
+                    && request.resource.data.value > 0;
+      allow update: if isAdmin()
+                    && request.resource.data.value is int
+                    && request.resource.data.value > resource.data.value;
+      allow delete: if false;
     }
 
     // ---- Notice board — public read, office-bearer write ------------------
@@ -209,10 +295,18 @@ service cloud.firestore {
     }
 
     // ---- Public receipt verification (where the receipt QR lands) ---------
-    // Deliberately world-readable so anyone can check a receipt without an
-    // account. Holds only non-sensitive fields — never contact details,
-    // documents or IDs. Written as part of payment verification.
-    match /receiptsPublic/{receiptNumber} {
+    //
+    // KEYED BY RANDOM TOKEN, NOT BY RECEIPT NUMBER. This collection is
+    // world-readable so a resident can check a receipt without an account —
+    // but when the document ID was the sequential receipt number, anyone could
+    // request MHMRWS-2026-000001, 000002, 000003 ... and walk out with every
+    // payer name, flat and amount the society had ever banked, which totals to
+    // the society's income. The 128-bit token in the QR code fixes that: a
+    // scan still resolves instantly, a crawler gets nothing.
+    //
+    // Documents written before this change are still keyed by receipt number,
+    // so receipts already in residents' hands keep verifying. See MIGRATION.md.
+    match /receiptsPublic/{token} {
       allow read: if true;
       allow create: if canVerifyPayments()
                     && isValidAmount(request.resource.data.amount)
@@ -251,10 +345,15 @@ service cloud.firestore {
     }
 
     // ---- Public membership verification (where the card QR lands) ---------
-    // World-readable by design: a guard at the gate scans the card without an
-    // account. Holds only what that check needs — name, tower, flat, type and
-    // status. Never contact details, documents or payment history.
-    match /membersPublic/{memberID} {
+    //
+    // Same reasoning as receiptsPublic: keyed by random token so a guard at
+    // the gate can scan a card without an account, while nobody can enumerate
+    // MHM-2026-000001 upwards and walk off with the society's whole resident
+    // directory — every name, tower, flat and owner/tenant status.
+    //
+    // Holds only what the gate check needs. Never contact details, documents
+    // or payment history.
+    match /membersPublic/{token} {
       allow read: if true;
       allow create, update: if canApproveMembers()
                             && isNonEmptyString(request.resource.data.memberID, 40)
@@ -262,7 +361,14 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // ---- Audit log — append-only, never editable --------------------------
+    // ---- Activity log — append-only, never editable ------------------------
+    //
+    // Deliberately NOT called an audit log any more. It is written by the
+    // browser, so a determined admin can simply not write an entry, and the
+    // only field these rules can vouch for is userId. It is a useful record of
+    // what the committee did; it is not evidence. If the society ever needs
+    // something that would stand up in a dispute, the writes have to move into
+    // a Cloud Function that reads context.auth and the real request IP.
     match /auditLogs/{logId} {
       allow read: if isAdmin();
       allow create: if isAdmin() && request.resource.data.userId == request.auth.uid;

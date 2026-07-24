@@ -14,22 +14,44 @@ import {
 /* ---------------------------------------------------------------------- */
 /*  Toasts                                                                 */
 /* ---------------------------------------------------------------------- */
-export function showToast(message, type = 'info') {
+/* The live region has to already be in the document when a message is
+   inserted into it. Creating the container and the toast in the same tick —
+   which is what happened before — means assistive technology frequently never
+   announces the first one, and the first one is usually the important one
+   ("verify your email before paying"). So the region is created at load. */
+function ensureToastRegion() {
   let region = document.getElementById('toast-region');
-  if (!region) {
-    region = document.createElement('div');
-    region.id = 'toast-region';
-    document.body.appendChild(region);
+  if (region) return region;
+  region = document.createElement('div');
+  region.id = 'toast-region';
+  region.setAttribute('role', 'status');
+  region.setAttribute('aria-live', 'polite');
+  region.setAttribute('aria-atomic', 'false');
+  document.body.appendChild(region);
+  return region;
+}
+
+if (typeof document !== 'undefined') {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', ensureToastRegion, { once: true });
+  } else {
+    ensureToastRegion();
   }
+}
+
+export function showToast(message, type = 'info') {
+  const region = ensureToastRegion();
   const el = document.createElement('div');
   el.className = `toast ${type}`;
-  el.setAttribute('role', 'status');
+  // No role here: the region above already announces its own changes, and
+  // role="status" on both makes some screen readers read the message twice.
   el.textContent = message;
   region.appendChild(el);
   setTimeout(() => {
-    el.style.transition = 'opacity .3s ease';
-    el.style.opacity = '0';
-    setTimeout(() => el.remove(), 300);
+    // Class-based so the exit direction can differ between desktop (top-right,
+    // leaves upward) and mobile (bottom, leaves downward) — see styles.css.
+    el.classList.add('leaving');
+    setTimeout(() => el.remove(), 320);
   }, 4200);
 }
 
@@ -330,10 +352,12 @@ export function fmtDateTime(ts) {
   return d.toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
+/* Called once per cell while rendering tables of several hundred rows, so it
+   must not allocate a DOM node each time — the old createElement version was
+   measurably the slowest thing in renderMembersTable(). */
+const HTML_ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 export function escapeHtml(str) {
-  const div = document.createElement('div');
-  div.textContent = String(str ?? '');
-  return div.innerHTML;
+  return String(str ?? '').replace(/[&<>"']/g, (c) => HTML_ESCAPES[c]);
 }
 
 export function debounce(fn, delay = 300) {
@@ -389,34 +413,63 @@ export async function generateReceiptNumber(financialYear) {
 }
 
 /* ---------------------------------------------------------------------- */
-/*  Audit log — immutable ledger of admin actions (userId + IP + action)   */
+/*  Public verification tokens                                             */
+/*                                                                          */
+/*  The QR code on a receipt or a membership card used to carry the         */
+/*  sequential number itself — MHMRWS-2026-000004 — and the public          */
+/*  verification collections were keyed by it. Anyone could therefore ask   */
+/*  for 000001, 000002, 000003 ... and walk out with the society's entire   */
+/*  resident directory and every payment it had ever banked, without an     */
+/*  account and without tripping anything.                                  */
+/*                                                                          */
+/*  The QR now carries this instead: 128 random bits, which is not a space  */
+/*  anyone walks. The human-readable receipt/member number is unchanged and */
+/*  still printed on the document — it just is not the lookup key any more. */
 /* ---------------------------------------------------------------------- */
-let cachedIP = null;
-export async function getClientIP() {
-  if (cachedIP) return cachedIP;
-  try {
-    const res = await fetch('https://api.ipify.org?format=json');
-    const data = await res.json();
-    cachedIP = data.ip;
-    return cachedIP;
-  } catch (e) {
-    return 'unavailable';
-  }
+export function newPublicToken() {
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
 }
 
+/* Records issued before the token change are still keyed by their sequential
+   number, so receipts and cards already in residents' hands keep verifying.
+   Everything issued from now on uses the token. */
+export function publicKeyForReceipt(payment) {
+  return payment?.publicToken || payment?.receiptNumber || '';
+}
+export function publicKeyForMember(member) {
+  return member?.publicToken || member?.memberID || '';
+}
+
+/* ---------------------------------------------------------------------- */
+/*  Activity log — append-only record of committee actions                 */
+/*                                                                          */
+/*  NOT an audit log, and deliberately no longer named like one. These      */
+/*  entries are written by the browser of the admin performing the action,  */
+/*  which means an admin who does not want an entry written simply does not */
+/*  write one. Treat it as "what the committee did", useful for answering   */
+/*  questions at an AGM — not as evidence in a dispute.                     */
+/*                                                                          */
+/*  The IP field is gone. It came from an ipify call made by the same       */
+/*  browser being logged, so it recorded whatever that browser chose to     */
+/*  report — an attacker-controlled value dressed up as forensic detail,    */
+/*  which is worse than no value at all. It also sent every admin's IP to a */
+/*  third party on every logged action. If the society ever needs a real    */
+/*  audit trail, these writes must move into a Cloud Function, where        */
+/*  context.auth and the true request IP are observed server-side.          */
+/* ---------------------------------------------------------------------- */
 export async function logAudit(user, action, details = {}) {
   try {
-    const ip = await getClientIP();
     await addDoc(collection(db, 'auditLogs'), {
       userId: user?.uid || 'system',
       userEmail: user?.email || 'system',
       action,
       details,
-      ip,
+      source: 'client',   // honest about where this came from
       timestamp: serverTimestamp()
     });
   } catch (e) {
-    console.warn('Audit log write failed:', e);
+    console.warn('Activity log write failed:', e);
   }
 }
 
@@ -432,9 +485,14 @@ export function generateQR(text, size = 220) {
   });
 }
 
-export function verifyUrlFor(receiptNumber) {
+/* Accepts a payment object. A bare string is still accepted so that any
+   caller not yet updated keeps working against the legacy lookup. */
+export function verifyUrlFor(payment) {
+  const p = (typeof payment === 'string') ? { receiptNumber: payment } : (payment || {});
   const base = window.location.origin + window.location.pathname.replace(/[^/]+$/, '');
-  return `${base}verify.html?receipt=${encodeURIComponent(receiptNumber)}`;
+  return p.publicToken
+    ? `${base}verify.html?r=${encodeURIComponent(p.publicToken)}`
+    : `${base}verify.html?receipt=${encodeURIComponent(p.receiptNumber || '')}`;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -519,7 +577,7 @@ export async function generateReceiptPDF({ payment, member, society, logoDataUrl
 
   // QR code
   try {
-    const qrUrl = verifyUrlFor(payment.receiptNumber);
+    const qrUrl = verifyUrlFor(payment);
     const qrData = await generateQR(qrUrl, 260);
     pdf.addImage(qrData, 'PNG', W - marginX - 74, y - 4, 74, 74);
     pdf.setFont('helvetica', 'normal'); pdf.setFontSize(7); pdf.setTextColor(124, 135, 156);
@@ -532,7 +590,7 @@ export async function generateReceiptPDF({ payment, member, society, logoDataUrl
   y += 22;
   pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8.5); pdf.setTextColor(124, 135, 156);
   pdf.text('This is a system-generated receipt from the MHMRWS Digital Portal.', marginX, y);
-  pdf.text(`Verify anytime at: ${verifyUrlFor(payment.receiptNumber)}`, marginX, y + 13);
+  pdf.text(`Verify anytime at: ${verifyUrlFor(payment)}`, marginX, y + 13);
 
   if (save) {
     pdf.save(`Receipt-${payment.receiptNumber}.pdf`);
@@ -558,7 +616,7 @@ export function serializeForExport(rows) {
 /* ---------------------------------------------------------------------- */
 export async function printReceipt({ payment, member, society, logoDataUrl }) {
   let qrImg = '';
-  try { qrImg = await generateQR(verifyUrlFor(payment.receiptNumber), 200); } catch (e) {/* print still works without the QR */}
+  try { qrImg = await generateQR(verifyUrlFor(payment), 200); } catch (e) {/* print still works without the QR */}
 
   const area = document.getElementById('printReceiptArea');
   if (!area) { showToast('Print area is missing from this page.', 'error'); return; }
@@ -593,7 +651,7 @@ export async function printReceipt({ payment, member, society, logoDataUrl }) {
       </div>
       <div class="pr-foot">
         This is a system-generated receipt from the MHMRWS Digital Portal.<br>
-        Verify anytime at: ${escapeHtml(verifyUrlFor(payment.receiptNumber))}
+        Verify anytime at: ${escapeHtml(verifyUrlFor(payment))}
       </div>
     </div>
   `;
@@ -617,9 +675,12 @@ export async function printReceipt({ payment, member, society, logoDataUrl }) {
 /* ---------------------------------------------------------------------- */
 const CARD_W = 85.6, CARD_H = 54;   // mm — ISO/IEC 7810 ID-1, the usual card size
 
-export function memberVerifyUrl(memberID) {
+export function memberVerifyUrl(member) {
+  const m = (typeof member === 'string') ? { memberID: member } : (member || {});
   const base = window.location.origin + window.location.pathname.replace(/[^/]+$/, '');
-  return `${base}verify.html?member=${encodeURIComponent(memberID)}`;
+  return m.publicToken
+    ? `${base}verify.html?m=${encodeURIComponent(m.publicToken)}`
+    : `${base}verify.html?member=${encodeURIComponent(m.memberID || '')}`;
 }
 
 function loadImage(src) {
@@ -761,7 +822,7 @@ export async function generateMembershipCard({ member, society, logoDataUrl, fin
 
   // --- QR ----------------------------------------------------------------
   try {
-    const qr = await generateQR(memberVerifyUrl(member.memberID), 320);
+    const qr = await generateQR(memberVerifyUrl(member), 320);
     const qs = 15.5, qx = CARD_W - M - qs, qy = 15.5;
     pdf.setFillColor(255, 255, 255);
     pdf.roundedRect(qx - 0.8, qy - 0.8, qs + 1.6, qs + 1.6, 0.8, 0.8, 'F');
@@ -939,22 +1000,8 @@ export function waLink(mobile, message) {
   return `https://wa.me/${withCountry}?text=${encodeURIComponent(message)}`;
 }
 
-/* ---------------------------------------------------------------------- */
-/*  Bulk ZIP export (uses JSZip — window.JSZip)                           */
-/* ---------------------------------------------------------------------- */
-export async function zipFilesFromUrls(fileList, zipFilename) {
-  const zip = new window.JSZip();
-  for (const f of fileList) {
-    try {
-      const res = await fetch(f.url);
-      const blob = await res.blob();
-      zip.file(f.name, blob);
-    } catch (e) { console.warn('Skipped file in zip (fetch failed):', f.name, e); }
-  }
-  const blob = await zip.generateAsync({ type: 'blob' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = zipFilename;
-  a.click();
-  URL.revokeObjectURL(a.href);
-}
+/* NOTE: zipFilesFromUrls() used to live here. It fetched every file into
+   memory before zipping, which would fall over on a phone for a bulk export of
+   a few hundred ID scans — and nothing called it, since admin.html has its own
+   month-scoped version with progress reporting. Removed rather than left as a
+   trap for the next person who goes looking for a bulk-export helper. */

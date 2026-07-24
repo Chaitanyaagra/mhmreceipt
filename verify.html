@@ -2,10 +2,48 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<!-- ==========================================================================
+     CONTENT SECURITY POLICY
+     GitHub Pages cannot set HTTP headers, so this goes in a meta tag — which
+     must stay above every script and stylesheet it governs.
+
+     What this buys: an injected <script src="https://evil.example/x.js"> will
+     not load, and stolen data cannot be POSTed anywhere except the endpoints
+     listed in connect-src. That is the realistic attack against a page that
+     handles Aadhaar uploads and payment records.
+
+     What it does NOT buy: script-src still has 'unsafe-inline', because every
+     page here is built from inline module scripts and inline style attributes. Removing that needs the inline scripts moved into their
+     own .js files first — worth doing, but it is a refactor, not a patch.
+
+     frame-ancestors is not supported in a meta tag, so this cannot stop the
+     site being framed. If you ever move off GitHub Pages, set
+     `X-Frame-Options: DENY` (or frame-ancestors 'none') as a real header.
+
+     AFTER DEPLOYING: open the site, press F12, and check the Console for
+     "Refused to ..." messages. Any legitimate endpoint this policy blocks will
+     announce itself there and just needs adding to the right directive.
+     ========================================================================== -->
+<meta http-equiv="Content-Security-Policy" content="
+  default-src 'self';
+  script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://www.gstatic.com https://accounts.google.com https://apis.google.com https://www.google.com;
+  style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+  img-src 'self' data: blob: https://firebasestorage.googleapis.com https://*.googleusercontent.com;
+  font-src 'self' data: https://fonts.gstatic.com;
+  connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://accounts.google.com;
+  frame-src https://www.google.com https://accounts.google.com;
+  worker-src 'self';
+  object-src 'none';
+  base-uri 'self';
+  form-action 'self';
+">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Verify — MHMRWS</title>
 <meta name="robots" content="noindex">
 <link rel="icon" href="favicon-32.png">
+<meta name="color-scheme" content="light">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="styles.css">
 <style>
   body{ background:var(--gradient-navy); min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
@@ -43,9 +81,14 @@ import { db } from './firebase-config.js';
 import { doc, getDoc } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
 import { escapeHtml, fmtDate, formatINR } from './app-common.js';
 
+/* The QR codes now carry an unguessable token (?r= / ?m=) instead of the
+   sequential receipt or member number, so the public records cannot be walked
+   from 000001 upwards. The old ?receipt= / ?member= parameters are still
+   honoured: receipts and cards printed before the change are already in
+   residents' hands and must keep verifying. */
 const params = new URLSearchParams(window.location.search);
-const receiptNumber = params.get('receipt');
-const memberID = params.get('member');
+const receiptKey = params.get('r') || params.get('receipt');
+const memberKey  = params.get('m') || params.get('member');
 
 const sealBox = document.getElementById('sealBox');
 const stateTitle = document.getElementById('stateTitle');
@@ -100,18 +143,18 @@ function renderMember(data) {
 }
 
 (async function run() {
-  if (!receiptNumber && !memberID) {
+  if (!receiptKey && !memberKey) {
     renderNotFound('Is link mein koi receipt ya member number nahi mila.');
     return;
   }
   try {
-    if (memberID) {
-      const snap = await getDoc(doc(db, 'membersPublic', memberID));
+    if (memberKey) {
+      const snap = await getDoc(doc(db, 'membersPublic', memberKey));
       if (snap.exists()) renderMember(snap.data());
-      else renderNotFound('Yeh Member ID hamare record mein nahi mila.');
+      else renderNotFound('Yeh membership hamare record mein nahi mili.');
       return;
     }
-    const snap = await getDoc(doc(db, 'receiptsPublic', receiptNumber));
+    const snap = await getDoc(doc(db, 'receiptsPublic', receiptKey));
     if (snap.exists()) renderVerified(snap.data());
     else renderNotFound();
   } catch (e) {

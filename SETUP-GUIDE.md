@@ -114,6 +114,22 @@ const firebaseConfig = {
 
 ---
 
+## ⚠️ Pehle yeh padhein — Security Hardening Release
+
+Agar aapka portal pehle se live hai, to seedha yahan se shuru **na** karein.
+`MIGRATION.md` pehle padhein: usme deploy ka sahi order, email-verification ka
+naya rule, aur purane receipts/cards ke liye migration script sab likha hai.
+
+Naya install kar rahe hain? To yeh guide theek hai — bas do cheezein extra:
+
+* **Step 2 ke baad:** `firebase-config.js` mein App Check ka comment block
+  padhein aur reCAPTCHA site key daal dein. Free hai, aur bina iske koi bhi
+  script aapke Firebase project se seedha baat kar sakta hai.
+* **Step 7 (Test) mein:** register karke dekhein ki verification email aata
+  hai ya nahi. Ab bina email verify kiye payment submit nahi hoga.
+
+---
+
 ## Step 3 — Security Rules Deploy Karein
 
 **Option A — Firebase Console se (sabse aasaan):**

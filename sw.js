@@ -8,7 +8,7 @@
    Bump CACHE_NAME on any future structural change to force a clean cache.
    ========================================================================== */
 
-const CACHE_NAME = 'mhmrws-shell-v4';
+const CACHE_NAME = 'mhmrws-shell-v5';
 const SHELL_FILES = [
   './',
   './index.html',
@@ -24,9 +24,17 @@ const SHELL_FILES = [
 ];
 
 self.addEventListener('install', (event) => {
+  // cache.addAll() is all-or-nothing: one 404 anywhere in SHELL_FILES and the
+  // whole install rejects, leaving the app with no offline fallback at all and
+  // nothing in the console to say why. Cache each file on its own instead, so
+  // a single missing asset costs exactly that one asset.
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(SHELL_FILES))
+      .then((cache) => Promise.all(
+        SHELL_FILES.map((url) =>
+          cache.add(url).catch((err) => console.warn('[sw] could not cache', url, err))
+        )
+      ))
       .then(() => self.skipWaiting())
   );
 });

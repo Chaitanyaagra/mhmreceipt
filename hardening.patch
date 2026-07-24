@@ -1,0 +1,2080 @@
+diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal/.github/workflows/deploy.yml MHMRWS-Portal/.github/workflows/deploy.yml
+--- a/MHMRWS-Portal/.github/workflows/deploy.yml	2026-07-22 09:58:18.000000000 +0000
++++ MHMRWS-Portal/.github/workflows/deploy.yml	2026-07-24 11:57:01.462017139 +0000
+@@ -29,10 +29,20 @@
+       - name: Configure GitHub Pages
+         uses: actions/configure-pages@v5
+ 
++      # Build the publishable site in a clean folder rather than shipping the
++      # whole repo. The security rules in particular have no business being on
++      # the public site: they are a readable map of exactly what each committee
++      # role may do and where the soft spots are. The setup guides are internal
++      # documents and belong in the repo, not on the site.
++      - name: Stage publishable files
++        run: |
++          mkdir -p _site
++          rsync -av             --exclude '_site'             --exclude '.git*'             --exclude '*.md'             --exclude '*.rules'             --exclude 'firebase.json'             --exclude '.firebaserc'             ./ _site/
++
+       - name: Upload site as Pages artifact
+         uses: actions/upload-pages-artifact@v3
+         with:
+-          path: '.'
++          path: '_site'
+ 
+       - name: Deploy to GitHub Pages
+         id: deployment
+diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal/MIGRATION.md MHMRWS-Portal/MIGRATION.md
+--- a/MHMRWS-Portal/MIGRATION.md	1970-01-01 00:00:00.000000000 +0000
++++ MHMRWS-Portal/MIGRATION.md	2026-07-24 12:00:35.951415822 +0000
+@@ -0,0 +1,132 @@
++# MIGRATION — security hardening release
++
++Read this before deploying. Most of it is "deploy in this order"; there is one
++optional script at the end.
++
++---
++
++## 1. Deploy order matters
++
++**Deploy the site first, then the rules.** Not the other way round.
++
++The new rules require a `publicToken` on any payment being marked verified, and
++a verified email address before a resident can file a payment. Only the new
++code writes those. If the rules go up first, a treasurer with the old page
++still cached gets a permission error in the middle of issuing a receipt.
++
++```
++1. git push            → GitHub Pages redeploys index/admin/verify + JS
++2. Hard-refresh the admin panel once (Ctrl-Shift-R) so the new
++   service worker takes over — it is network-first, so this is quick.
++3. Firebase Console → Firestore → Rules → paste firestore.rules → Publish
++4. Firebase Console → Storage   → Rules → paste storage.rules   → Publish
++```
++
++Paste the rules into the Console editor rather than deploying blind: it
++compiles as you type and will point at the exact line if anything is wrong.
++
++The rules ship as separate files and are **no longer published to the live
++site** (see `.github/workflows/deploy.yml`), so you have to copy them from the
++repo, not from the URL.
++
++---
++
++## 2. What will change for residents, immediately
++
++**Residents who have not verified their email cannot file a payment.** That is
++the point of the change, but it will generate questions, so it is worth a
++WhatsApp message to the group before you deploy.
++
++The dashboard now shows a banner with a "Link dobara bhejein" (resend) button
++for anyone in that position, so it is self-service — nobody has to come to the
++office. New registrations get the verification mail automatically.
++
++If a resident says the mail never arrived: Firebase Console → Authentication →
++Templates → Email address verification. Check the sender domain and that the
++template is enabled. The mail very often lands in spam on first send.
++
++---
++
++## 3. One flat, one member
++
++Approval now writes a `flatClaims/{tower}_{flat}` document, and refuses if that
++flat is already claimed. Rejecting or deactivating a member releases it.
++
++**This is not applied retroactively.** Members approved before this release
++have no claim document, so the first person approved for any given flat after
++the upgrade will succeed even if a duplicate already exists. If you want the
++existing duplicates found, sort the members table by flat and look — with 454
++flats that is a ten-minute job and more reliable than a script guessing which
++of two records is the real one.
++
++---
++
++## 4. Public verification tokens — the enumeration fix
++
++Receipt and card QR codes used to carry the sequential number, and the public
++collections were keyed by it. Anyone could request `MHM-2026-000001`,
++`000002`, `000003` … and collect the whole resident directory, or walk the
++receipt numbers and total up the society's income.
++
++New receipts and cards carry a 128-bit random token instead. `verify.html`
++still accepts the old `?receipt=` and `?member=` links, **so every receipt and
++card already in a resident's hands keeps working.**
++
++That backwards compatibility is also the catch: the old documents are still
++keyed by the sequential number, so **records issued before this release remain
++enumerable** until you migrate them.
++
++### Deciding whether to migrate
++
++| | Keep legacy docs | Purge them |
++|---|---|---|
++| Old printed receipts / cards | keep verifying | stop verifying |
++| Old records enumerable | yes | no |
++
++The sensible sequence for most societies:
++
++1. Run the migration **without** `--purge-legacy` now. Every member and
++   payment gets a token, so all *newly downloaded* cards and receipts are safe.
++2. Ask residents to re-download their membership card (one line in the
++   WhatsApp group — the button is on their dashboard).
++3. A month later, run it again **with** `--purge-legacy`.
++
++### Running it
++
++The script needs a service account key, which bypasses security rules — so
++treat that file like a password, and delete it when you are done.
++
++```bash
++# Firebase Console → Project settings → Service accounts
++#   → "Generate new private key" → save as serviceAccountKey.json
++
++cd tools
++npm install firebase-admin
++node migrate-public-tokens.mjs --dry-run          # shows what it would do
++node migrate-public-tokens.mjs                    # backfill tokens
++node migrate-public-tokens.mjs --purge-legacy     # later: remove old keys
++
++rm ../serviceAccountKey.json
++```
++
++**Take a backup first** — Admin Panel → Import/Export → Download Backup.
++
++---
++
++## 5. Turn on App Check
++
++Not done for you, because it needs a key only you can create. It is the single
++biggest remaining improvement and it is free. Instructions are in the comment
++block in `firebase-config.js`. Until you do it, anyone can talk to your
++Firebase project directly from a script — the rules will refuse them, but you
++pay for every refused request.
++
++---
++
++## 6. After deploying, check the console once
++
++The new Content-Security-Policy is deliberately tight. Open the site, press
++F12, and look at the Console tab for any `Refused to ...` messages. Anything
++legitimate that the policy blocks will say so there, and the fix is to add that
++domain to the matching directive in the `<meta http-equiv>` block at the top of
++the page. Check all three pages: `index.html`, `admin.html`, `verify.html`.
+diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal/SETUP-GUIDE.md MHMRWS-Portal/SETUP-GUIDE.md
+--- a/MHMRWS-Portal/SETUP-GUIDE.md	2026-07-23 11:28:38.000000000 +0000
++++ MHMRWS-Portal/SETUP-GUIDE.md	2026-07-24 12:01:19.898223580 +0000
+@@ -114,6 +114,22 @@
+ 
+ ---
+ 
++## ⚠️ Pehle yeh padhein — Security Hardening Release
++
++Agar aapka portal pehle se live hai, to seedha yahan se shuru **na** karein.
++`MIGRATION.md` pehle padhein: usme deploy ka sahi order, email-verification ka
++naya rule, aur purane receipts/cards ke liye migration script sab likha hai.
++
++Naya install kar rahe hain? To yeh guide theek hai — bas do cheezein extra:
++
++* **Step 2 ke baad:** `firebase-config.js` mein App Check ka comment block
++  padhein aur reCAPTCHA site key daal dein. Free hai, aur bina iske koi bhi
++  script aapke Firebase project se seedha baat kar sakta hai.
++* **Step 7 (Test) mein:** register karke dekhein ki verification email aata
++  hai ya nahi. Ab bina email verify kiye payment submit nahi hoga.
++
++---
++
+ ## Step 3 — Security Rules Deploy Karein
+ 
+ **Option A — Firebase Console se (sabse aasaan):**
+diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal/admin.html MHMRWS-Portal/admin.html
+--- a/MHMRWS-Portal/admin.html	2026-07-23 11:26:32.000000000 +0000
++++ MHMRWS-Portal/admin.html	2026-07-24 12:11:29.611992279 +0000
+@@ -2,16 +2,67 @@
+ <html lang="en">
+ <head>
+ <meta charset="UTF-8">
++<!-- ==========================================================================
++     CONTENT SECURITY POLICY
++     GitHub Pages cannot set HTTP headers, so this goes in a meta tag — which
++     must stay above every script and stylesheet it governs.
++
++     What this buys: an injected <script src="https://evil.example/x.js"> will
++     not load, and stolen data cannot be POSTed anywhere except the endpoints
++     listed in connect-src. That is the realistic attack against a page that
++     handles Aadhaar uploads and payment records.
++
++     What it does NOT buy: script-src still has 'unsafe-inline', because every
++     page here is built from inline module scripts and inline style attributes. Removing that needs the inline scripts moved into their
++     own .js files first — worth doing, but it is a refactor, not a patch.
++
++     frame-ancestors is not supported in a meta tag, so this cannot stop the
++     site being framed. If you ever move off GitHub Pages, set
++     `X-Frame-Options: DENY` (or frame-ancestors 'none') as a real header.
++
++     AFTER DEPLOYING: open the site, press F12, and check the Console for
++     "Refused to ..." messages. Any legitimate endpoint this policy blocks will
++     announce itself there and just needs adding to the right directive.
++     ========================================================================== -->
++<meta http-equiv="Content-Security-Policy" content="
++  default-src 'self';
++  script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://www.gstatic.com https://accounts.google.com https://apis.google.com https://www.google.com;
++  style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
++  img-src 'self' data: blob: https://firebasestorage.googleapis.com https://*.googleusercontent.com;
++  font-src 'self' data: https://fonts.gstatic.com;
++  connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://accounts.google.com;
++  frame-src https://www.google.com https://accounts.google.com;
++  worker-src 'self';
++  object-src 'none';
++  base-uri 'self';
++  form-action 'self';
++">
+ <meta name="viewport" content="width=device-width, initial-scale=1.0">
+ <title>Admin Panel — MHMRWS Digital Portal</title>
+ <meta name="robots" content="noindex">
+ <link rel="icon" href="favicon-32.png">
++<meta name="color-scheme" content="light">
++<link rel="preconnect" href="https://fonts.googleapis.com">
++<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+ <link rel="stylesheet" href="styles.css">
+-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js"></script>
+-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode/1.5.3/qrcode.min.js"></script>
+-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
++<!-- Third-party libraries.
++     These are loaded from a CDN with no integrity hash, which means a
++     compromised or hijacked CDN gets script execution on a page that handles
++     ID documents and payment records. Fix this — it takes two minutes:
++
++       1. Open https://cdnjs.com and search for the library.
++       2. Click the copy button next to "SRI" for the exact version below.
++       3. Paste the sha384-... value into an integrity="" attribute here.
++
++     Stronger still: download these five files into a vendor/ folder in this
++     repo and load them from './vendor/...'. Same-origin scripts need no hash,
++     cannot be tampered with by a third party, and let the service worker cache
++     them for genuine offline use. -->
++<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
++<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode/1.5.3/qrcode.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
++<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
++<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
++<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+ <style>
+   body{ background:var(--paper); }
+   .login-screen{ min-height:100vh; display:grid; place-items:center; background:var(--gradient-navy); padding:20px; }
+@@ -35,7 +86,24 @@
+ 
+   .main-area{ padding:28px 32px 60px; max-width:1360px; width:100%; }
+   .topbar{ display:flex; justify-content:space-between; align-items:center; margin-bottom:26px; flex-wrap:wrap; gap:14px; }
+-  .view-title{ font-size:23px; }
++  .view-title{ font-size:23px; position:relative; padding-top:14px; }
++  /* The engraved gold rule from the resident portal, so the admin panel reads
++     as the same product. Pure CSS — no markup change across the 9 views. */
++  .view-title::before{
++    content:''; position:absolute; top:0; left:0; width:44px; height:2px; border-radius:2px;
++    background:var(--gradient-saffron);
++  }
++  .view-title::after{
++    content:''; position:absolute; top:0; left:50px; width:14px; height:2px; border-radius:2px;
++    background:var(--magenta-500);
++  }
++  /* Sidebar brand gets the same hairline the site header has. */
++  .sidebar-brand{ position:relative; }
++  .sidebar-brand::after{
++    content:''; position:absolute; left:8px; right:8px; bottom:12px; height:1px;
++    background:linear-gradient(90deg, var(--gold-500), var(--magenta-500) 55%, transparent);
++    opacity:.55;
++  }
+   .fy-select{ width:auto; }
+ 
+   .stat-cards{ display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:22px; }
+@@ -157,7 +225,7 @@
+       <button data-view="importExport"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-importExport"/></svg></span> Import / Export</button>
+       <button data-view="settings"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-settings"/></svg></span> Settings &amp; Backup</button>
+       <button data-view="adminUsers"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-adminUsers"/></svg></span> Admin Users</button>
+-      <button data-view="auditLog"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-auditLog"/></svg></span> Audit Log</button>
++      <button data-view="auditLog"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-auditLog"/></svg></span> Activity Log</button>
+     </nav>
+     <div class="sidebar-foot">
+       <div class="admin-chip"><b id="adminName">—</b><span id="adminRole">—</span></div>
+@@ -467,12 +535,16 @@
+       </div>
+     </div>
+ 
+-    <!-- ---------------- AUDIT LOG ---------------- -->
++    <!-- ---------------- ACTIVITY LOG ---------------- -->
+     <div class="view-panel" id="view-auditLog">
+-      <div class="topbar"><h2 class="view-title">Audit Log</h2></div>
++      <div class="topbar"><h2 class="view-title">Activity Log</h2></div>
++      <p class="t-sub" style="font-size:12.5px; margin:-6px 0 14px;">
++        Committee ke actions ka record. Yeh browser se likha jaata hai, isliye ise
++        reference ke liye istemal karein — kisi vivaad mein proof ke taur par nahi.
++      </p>
+       <div class="table-wrap">
+-        <table><thead><tr><th>Time</th><th>User</th><th>Action</th><th>Details</th><th>IP</th></tr></thead>
+-        <tbody id="auditLogBody"><tr><td colspan="5" class="t-muted">Loading…</td></tr></tbody></table>
++        <table><thead><tr><th>Time</th><th>User</th><th>Action</th><th>Details</th></tr></thead>
++        <tbody id="auditLogBody"><tr><td colspan="4" class="t-muted">Loading…</td></tr></tbody></table>
+       </div>
+     </div>
+ 
+@@ -612,7 +684,8 @@
+   getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, createUserWithEmailAndPassword
+ } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
+ import {
+-  doc, getDoc, setDoc, updateDoc, deleteDoc, addDoc, collection, getDocs, query, where, orderBy, serverTimestamp, limit
++  doc, getDoc, setDoc, updateDoc, deleteDoc, addDoc, collection, getDocs, query, where, orderBy, serverTimestamp, limit,
++  writeBatch, runTransaction
+ } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+ import {
+   ref as storageRef, uploadBytes, getDownloadURL
+@@ -621,6 +694,7 @@
+   showToast, escapeHtml, fmtDate, fmtDateTime, formatINR, currentFinancialYear, financialYearOptions,
+   generateMemberId, generateReceiptNumber, logAudit, generateReceiptPDF, exportToExcel, parseExcelFile,
+   encryptFile, decryptToBlob, backupToDrive, waLink, serializeForExport,
++  newPublicToken, publicKeyForMember,
+   TOWER_IDS, TOWER_PLAN, flatsForTower, isValidFlat,
+   duesFor, DUES_LABEL, DUES_BADGE,
+   EXPENSE_CATEGORIES, EXPENSE_MODES, expenseSummary, fundPosition, validateExpense
+@@ -1070,16 +1144,64 @@
+   } catch (e) { showToast('Decrypt fail — passphrase galat ho sakta hai.', 'error'); }
+ }
+ 
++/* One flat, one member. Firestore has no unique index, so uniqueness is bought
++   with a document ID: flatClaims/A_101 either exists or it does not. */
++function flatClaimId(tower, flatNumber) {
++  return `${String(tower || '').trim()}_${String(flatNumber || '').trim()}`;
++}
++
++/* Approval used to be three separate round trips — assign an ID, update the
++   member, write the public record — with no guarantee the later ones ran. A
++   half-approved resident ends up holding a card whose QR resolves to "not
++   found", which is exactly the moment the portal has to be trustworthy.
++   All of it now commits together, or none of it does. */
+ async function approveMember(id) {
+   const m = allMembers.find(x => x.id === id) || {};
++  const claimRef = doc(db, 'flatClaims', flatClaimId(m.tower, m.flatNumber));
++
++  // Cheap pre-check so the common case gives a readable message instead of a
++  // transaction abort. The transaction below is what actually enforces it.
++  const existing = await getDoc(claimRef);
++  if (existing.exists() && existing.data().memberDocId !== id) {
++    const holder = allMembers.find(x => x.id === existing.data().memberDocId);
++    showToast(`Tower ${m.tower}, Flat ${m.flatNumber} pehle se ${holder?.name || 'kisi aur member'} ke naam par hai. Pehle unhe deactivate karein.`, 'error');
++    return;
++  }
++
+   const memberID = await generateMemberId();
+-  await updateDoc(doc(db, 'members', id), { status: 'approved', memberID, approvedBy: currentAdmin.email, approvedAt: serverTimestamp(), updatedAt: serverTimestamp() });
+-  // Public record behind the membership card's QR code. Deliberately holds
+-  // only what a guard at the gate needs — no contact details, no documents.
+-  await setDoc(doc(db, 'membersPublic', memberID), {
+-    memberID, name: m.name || '', tower: m.tower || '', flatNumber: m.flatNumber || '',
+-    residentType: m.residentType || '', status: 'approved', updatedAt: serverTimestamp()
+-  });
++  const publicToken = newPublicToken();
++
++  try {
++    await runTransaction(db, async (tx) => {
++      const claim = await tx.get(claimRef);
++      if (claim.exists() && claim.data().memberDocId !== id) throw new Error('FLAT_TAKEN');
++      tx.update(doc(db, 'members', id), {
++        status: 'approved', memberID, publicToken,
++        approvedBy: currentAdmin.email, approvedAt: serverTimestamp(), updatedAt: serverTimestamp()
++      });
++      // Public record behind the membership card's QR code. Keyed by the random
++      // token, not the member number, so the directory cannot be enumerated.
++      // Holds only what a guard at the gate needs — no contact details, no
++      // documents, no payment history.
++      tx.set(doc(db, 'membersPublic', publicToken), {
++        memberID, name: m.name || '', tower: m.tower || '', flatNumber: m.flatNumber || '',
++        residentType: m.residentType || '', status: 'approved', updatedAt: serverTimestamp()
++      });
++      tx.set(claimRef, {
++        tower: m.tower || '', flatNumber: m.flatNumber || '',
++        memberDocId: id, memberUid: m.uid || null, memberID, claimedAt: serverTimestamp()
++      });
++    });
++  } catch (err) {
++    if (err.message === 'FLAT_TAKEN') {
++      showToast('Yeh flat abhi-abhi kisi aur ko allot ho gaya. Page refresh karke dobara dekhein.', 'error');
++    } else {
++      console.error(err);
++      showToast('Approve nahi ho paaya — kuch bhi save nahi hua. Dobara try karein.', 'error');
++    }
++    return;
++  }
++
+   await logAudit(auth.currentUser, 'approve_member', { id, memberID });
+   showToast(`Approved! Member ID: ${memberID}`, 'success');
+   document.getElementById('memberModalBackdrop').classList.remove('open');
+@@ -1089,10 +1211,13 @@
+   const reason = prompt('Reject karne ki wajah:');
+   if (reason === null) return;
+   const m = allMembers.find(x => x.id === id) || {};
+-  await updateDoc(doc(db, 'members', id), { status: 'rejected', rejectionReason: reason, updatedAt: serverTimestamp() });
+-  if (m.memberID) {
+-    await setDoc(doc(db, 'membersPublic', m.memberID), { status: 'rejected', updatedAt: serverTimestamp() }, { merge: true });
+-  }
++  const batch = writeBatch(db);
++  batch.update(doc(db, 'members', id), { status: 'rejected', rejectionReason: reason, updatedAt: serverTimestamp() });
++  const rejKey = publicKeyForMember(m);
++  if (rejKey) batch.set(doc(db, 'membersPublic', rejKey), { status: 'rejected', updatedAt: serverTimestamp() }, { merge: true });
++  // Free the flat so whoever actually lives there can be approved for it.
++  if (m.tower && m.flatNumber) batch.delete(doc(db, 'flatClaims', flatClaimId(m.tower, m.flatNumber)));
++  await batch.commit();
+   await logAudit(auth.currentUser, 'reject_member', { id, reason });
+   showToast('Registration reject kar diya gaya.', 'success');
+   document.getElementById('memberModalBackdrop').classList.remove('open');
+@@ -1102,12 +1227,16 @@
+   const reason = prompt('Deactivate karne ki wajah (history surakshit rahegi):');
+   if (reason === null) return;
+   const m = allMembers.find(x => x.id === id) || {};
+-  await updateDoc(doc(db, 'members', id), { status: 'inactive', deactivatedReason: reason, deactivatedAt: serverTimestamp(), updatedAt: serverTimestamp() });
++  const batch = writeBatch(db);
++  batch.update(doc(db, 'members', id), { status: 'inactive', deactivatedReason: reason, deactivatedAt: serverTimestamp(), updatedAt: serverTimestamp() });
+   // Flip the public record too, so the card stops verifying at the gate the
+-  // moment the member is deactivated.
+-  if (m.memberID) {
+-    await setDoc(doc(db, 'membersPublic', m.memberID), { status: 'inactive', updatedAt: serverTimestamp() }, { merge: true });
+-  }
++  // moment the member is deactivated — in the same commit, so it can never be
++  // the case that the member is inactive but the card still scans as valid.
++  const deacKey = publicKeyForMember(m);
++  if (deacKey) batch.set(doc(db, 'membersPublic', deacKey), { status: 'inactive', updatedAt: serverTimestamp() }, { merge: true });
++  // Release the flat for the next resident.
++  if (m.tower && m.flatNumber) batch.delete(doc(db, 'flatClaims', flatClaimId(m.tower, m.flatNumber)));
++  await batch.commit();
+   await logAudit(auth.currentUser, 'deactivate_member', { id, reason });
+   showToast('Member deactivate ho gaya.', 'success');
+   document.getElementById('memberModalBackdrop').classList.remove('open');
+@@ -1188,18 +1317,48 @@
+ }
+ document.getElementById('closePaymentDetailModal').addEventListener('click', () => document.getElementById('paymentDetailModalBackdrop').classList.remove('open'));
+ 
++/* Verification was four independent round trips: bump the counter, update the
++   payment, write the public receipt, log it. Lose the connection between any
++   two and the society is left with a payment marked verified whose printed QR
++   resolves to "receipt not found" — or a burned receipt number and no receipt.
++   The payment record and its public counterpart now commit as one write.
++
++   (The counter still has to be bumped first, because Firestore cannot batch a
++   transaction with a batch. A crash in that gap costs a gap in the receipt
++   sequence, which is inert; the case that actually hurt — a verified payment
++   with no verifiable receipt — is now impossible.) */
+ async function verifyPayment(id) {
+   const p = allPayments.find(x => x.id === id);
+-  const receiptNumber = await generateReceiptNumber(p.financialYear);
+-  await updateDoc(doc(db, 'payments', id), { status: 'verified', receiptNumber, verifiedAt: serverTimestamp(), verifiedBy: currentAdmin.email });
+-  await setDoc(doc(db, 'receiptsPublic', receiptNumber), {
+-    receiptNumber, residentName: p.residentName, flatNumber: p.flatNumber, tower: p.tower,
+-    amount: p.amount, financialYear: p.financialYear, verifiedAt: serverTimestamp(), status: 'Verified'
+-  });
+-  await logAudit(auth.currentUser, 'verify_payment', { paymentId: id, receiptNumber, amount: p.amount });
+-  showToast(`Verified! Receipt: ${receiptNumber}`, 'success');
+-  document.getElementById('paymentDetailModalBackdrop').classList.remove('open');
+-  await reloadPayments(); renderPendingPayments(); renderAllPayments(); renderOverview(); renderDefaulters();
++  if (!p) return;
++  const btn = document.getElementById('verifyBtn');
++  if (btn) { btn.disabled = true; btn.textContent = 'Verifying…'; }
++  try {
++    const receiptNumber = await generateReceiptNumber(p.financialYear);
++    const publicToken = newPublicToken();
++
++    const batch = writeBatch(db);
++    batch.update(doc(db, 'payments', id), {
++      status: 'verified', receiptNumber, publicToken,
++      verifiedAt: serverTimestamp(), verifiedBy: currentAdmin.email
++    });
++    // Keyed by the random token: a resident scanning their own QR resolves it
++    // instantly, and nobody can walk the receipt numbers to total up what the
++    // society has collected and from whom.
++    batch.set(doc(db, 'receiptsPublic', publicToken), {
++      receiptNumber, residentName: p.residentName, flatNumber: p.flatNumber, tower: p.tower,
++      amount: p.amount, financialYear: p.financialYear, verifiedAt: serverTimestamp(), status: 'Verified'
++    });
++    await batch.commit();
++
++    await logAudit(auth.currentUser, 'verify_payment', { paymentId: id, receiptNumber, amount: p.amount });
++    showToast(`Verified! Receipt: ${receiptNumber}`, 'success');
++    document.getElementById('paymentDetailModalBackdrop').classList.remove('open');
++    await reloadPayments(); renderPendingPayments(); renderAllPayments(); renderOverview(); renderDefaulters();
++  } catch (e) {
++    console.error(e);
++    showToast('Verify nahi ho paaya — payment jaisa tha waisa hi hai. Dobara try karein.', 'error');
++    if (btn) { btn.disabled = false; btn.textContent = '\u2713 Verify & Issue Receipt'; }
++  }
+ }
+ async function rejectPayment(id) {
+   const reason = prompt('Reject karne ki wajah:');
+@@ -1497,22 +1656,32 @@
+     }
+   });
+   const verifiedThisMonth = allPayments.filter(p => p.status === 'verified' && inMonth(p.verifiedAt));
+-  statusEl.textContent = `Building ${verifiedThisMonth.length} receipts + ${files.length} documents…`;
++
++  // The society record is the same for every receipt — it used to be fetched
++  // once per receipt inside the loop, which is one billed read per PDF.
++  const societySnap = await getDoc(doc(db, 'settings', 'society'));
++  const society = societySnap.exists() ? societySnap.data() : { fullName: SOCIETY.fullName };
++
++  let done = 0;
++  const total = verifiedThisMonth.length + files.length;
++  const tick = () => { statusEl.textContent = `Building ${++done} / ${total}…`; };
++
+   for (const p of verifiedThisMonth) {
+     try {
+       const mem = allMembers.find(x => x.uid === p.memberUid) || {};
+-      const societySnap = await getDoc(doc(db, 'settings', 'society'));
+-      const society = societySnap.exists() ? societySnap.data() : { fullName: SOCIETY.fullName };
+       const blob = await generateReceiptPDF({ payment: p, member: mem, society, logoDataUrl: null, save: false });
+       files.push({ blob, name: `Receipts/${p.receiptNumber}.pdf` });
+     } catch (e) { /* skip a failed receipt rather than aborting the whole export */ }
++    tick();
+   }
+ 
+   const zip = new window.JSZip();
+   for (const f of files) {
+-    if (f.blob) { zip.file(f.name, f.blob); continue; }
++    if (f.blob) { zip.file(f.name, f.blob); tick(); continue; }
+     try { const b = await fetch(f.url).then(r => r.blob()); zip.file(f.name, b); } catch (e) {}
++    tick();
+   }
++  statusEl.textContent = 'Compressing…';
+   const zipBlob = await zip.generateAsync({ type: 'blob' });
+   const a = document.createElement('a');
+   a.href = URL.createObjectURL(zipBlob); a.download = `MHMRWS-${monthVal}.zip`; a.click();
+@@ -1811,15 +1980,38 @@
+ 
+     let memberID = null;
+     if (f.alsoResident.checked) {
++      const tower = f.tower.value.trim();
++      const flatNumber = f.flatNumber.value.trim();
++      const claimRef = doc(db, 'flatClaims', flatClaimId(tower, flatNumber));
++      const held = await getDoc(claimRef);
++      if (held.exists()) throw new Error(`Tower ${tower}, Flat ${flatNumber} pehle se kisi aur member ke naam par hai.`);
++
+       memberID = await generateMemberId();
+-      await setDoc(doc(db, 'members', newUid), {
+-        uid: newUid, name: f.name.value, fatherHusbandName: '', tower: f.tower.value.trim(),
+-        flatNumber: f.flatNumber.value.trim(), mobile: f.mobile.value.trim(), email: f.email.value.trim(),
++      const publicToken = newPublicToken();
++
++      // This path used to write the member record only — no public record and
++      // no flat claim — so a committee member created here got a membership
++      // card whose QR resolved to "not found". Approving a resident normally
++      // and creating one from here now produce identical state.
++      const batch = writeBatch(db);
++      batch.set(doc(db, 'members', newUid), {
++        uid: newUid, name: f.name.value, fatherHusbandName: '', tower,
++        flatNumber, mobile: f.mobile.value.trim(), email: f.email.value.trim(),
+         occupation: '', residentType: 'owner', address: '', nomineeName: '', nomineeRelation: '',
+-        photoURL: '', idDocURL: '', declarationAccepted: true, memberID, status: 'approved', role: 'resident',
++        photoURL: '', idDocURL: '', declarationAccepted: true, memberID, publicToken,
++        status: 'approved', role: 'resident',
+         source: 'admin_created', createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
+         approvedBy: currentAdmin.email, approvedAt: serverTimestamp()
+       });
++      batch.set(doc(db, 'membersPublic', publicToken), {
++        memberID, name: f.name.value, tower, flatNumber,
++        residentType: 'owner', status: 'approved', updatedAt: serverTimestamp()
++      });
++      batch.set(claimRef, {
++        tower, flatNumber, memberDocId: newUid, memberUid: newUid, memberID, claimedAt: serverTimestamp()
++      });
++      await batch.commit();
++
+       await reloadMembers(); renderMembersTable(); renderOverview(); populateTowerFilter();
+     }
+ 
+@@ -1832,16 +2024,16 @@
+ });
+ 
+ /* ---------------------------------------------------------------------- */
+-/*  Audit Log                                                              */
++/*  Activity Log                                                           */
+ /* ---------------------------------------------------------------------- */
+ async function loadAuditLog() {
+   try {
+     const rows = (await getDocs(query(collection(db, 'auditLogs'), orderBy('timestamp', 'desc'), limit(200)))).docs.map(d => d.data());
+     document.getElementById('auditLogBody').innerHTML = rows.map(r => `
+       <tr><td>${fmtDateTime(r.timestamp)}</td><td>${escapeHtml(r.userEmail)}</td><td>${escapeHtml(r.action)}</td>
+-      <td class="mono" style="font-size:11.5px;">${escapeHtml(JSON.stringify(r.details || {}))}</td><td>${escapeHtml(r.ip || '—')}</td></tr>
+-    `).join('') || '<tr><td colspan="5" class="t-muted">No audit entries yet.</td></tr>';
+-  } catch (e) { document.getElementById('auditLogBody').innerHTML = '<tr><td colspan="5" class="t-muted">Could not load audit log.</td></tr>'; }
++      <td class="mono" style="font-size:11.5px;">${escapeHtml(JSON.stringify(r.details || {}))}</td></tr>
++    `).join('') || '<tr><td colspan="4" class="t-muted">No activity recorded yet.</td></tr>';
++  } catch (e) { document.getElementById('auditLogBody').innerHTML = '<tr><td colspan="4" class="t-muted">Could not load activity log.</td></tr>'; }
+ }
+ </script>
+ <style>.vrow{ display:flex; justify-content:space-between; padding:9px 0; border-bottom:1px solid var(--line); } .vrow:last-child{ border-bottom:none; } .vrow span:first-child{ color:var(--ink-400); }</style>
+diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal/app-common.js MHMRWS-Portal/app-common.js
+--- a/MHMRWS-Portal/app-common.js	2026-07-23 11:23:40.000000000 +0000
++++ MHMRWS-Portal/app-common.js	2026-07-24 12:10:36.787979056 +0000
+@@ -14,22 +14,44 @@
+ /* ---------------------------------------------------------------------- */
+ /*  Toasts                                                                 */
+ /* ---------------------------------------------------------------------- */
+-export function showToast(message, type = 'info') {
++/* The live region has to already be in the document when a message is
++   inserted into it. Creating the container and the toast in the same tick —
++   which is what happened before — means assistive technology frequently never
++   announces the first one, and the first one is usually the important one
++   ("verify your email before paying"). So the region is created at load. */
++function ensureToastRegion() {
+   let region = document.getElementById('toast-region');
+-  if (!region) {
+-    region = document.createElement('div');
+-    region.id = 'toast-region';
+-    document.body.appendChild(region);
++  if (region) return region;
++  region = document.createElement('div');
++  region.id = 'toast-region';
++  region.setAttribute('role', 'status');
++  region.setAttribute('aria-live', 'polite');
++  region.setAttribute('aria-atomic', 'false');
++  document.body.appendChild(region);
++  return region;
++}
++
++if (typeof document !== 'undefined') {
++  if (document.readyState === 'loading') {
++    document.addEventListener('DOMContentLoaded', ensureToastRegion, { once: true });
++  } else {
++    ensureToastRegion();
+   }
++}
++
++export function showToast(message, type = 'info') {
++  const region = ensureToastRegion();
+   const el = document.createElement('div');
+   el.className = `toast ${type}`;
+-  el.setAttribute('role', 'status');
++  // No role here: the region above already announces its own changes, and
++  // role="status" on both makes some screen readers read the message twice.
+   el.textContent = message;
+   region.appendChild(el);
+   setTimeout(() => {
+-    el.style.transition = 'opacity .3s ease';
+-    el.style.opacity = '0';
+-    setTimeout(() => el.remove(), 300);
++    // Class-based so the exit direction can differ between desktop (top-right,
++    // leaves upward) and mobile (bottom, leaves downward) — see styles.css.
++    el.classList.add('leaving');
++    setTimeout(() => el.remove(), 320);
+   }, 4200);
+ }
+ 
+@@ -330,10 +352,12 @@
+   return d.toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+ }
+ 
++/* Called once per cell while rendering tables of several hundred rows, so it
++   must not allocate a DOM node each time — the old createElement version was
++   measurably the slowest thing in renderMembersTable(). */
++const HTML_ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+ export function escapeHtml(str) {
+-  const div = document.createElement('div');
+-  div.textContent = String(str ?? '');
+-  return div.innerHTML;
++  return String(str ?? '').replace(/[&<>"']/g, (c) => HTML_ESCAPES[c]);
+ }
+ 
+ export function debounce(fn, delay = 300) {
+@@ -389,34 +413,63 @@
+ }
+ 
+ /* ---------------------------------------------------------------------- */
+-/*  Audit log — immutable ledger of admin actions (userId + IP + action)   */
++/*  Public verification tokens                                             */
++/*                                                                          */
++/*  The QR code on a receipt or a membership card used to carry the         */
++/*  sequential number itself — MHMRWS-2026-000004 — and the public          */
++/*  verification collections were keyed by it. Anyone could therefore ask   */
++/*  for 000001, 000002, 000003 ... and walk out with the society's entire   */
++/*  resident directory and every payment it had ever banked, without an     */
++/*  account and without tripping anything.                                  */
++/*                                                                          */
++/*  The QR now carries this instead: 128 random bits, which is not a space  */
++/*  anyone walks. The human-readable receipt/member number is unchanged and */
++/*  still printed on the document — it just is not the lookup key any more. */
+ /* ---------------------------------------------------------------------- */
+-let cachedIP = null;
+-export async function getClientIP() {
+-  if (cachedIP) return cachedIP;
+-  try {
+-    const res = await fetch('https://api.ipify.org?format=json');
+-    const data = await res.json();
+-    cachedIP = data.ip;
+-    return cachedIP;
+-  } catch (e) {
+-    return 'unavailable';
+-  }
++export function newPublicToken() {
++  const bytes = crypto.getRandomValues(new Uint8Array(16));
++  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+ }
+ 
++/* Records issued before the token change are still keyed by their sequential
++   number, so receipts and cards already in residents' hands keep verifying.
++   Everything issued from now on uses the token. */
++export function publicKeyForReceipt(payment) {
++  return payment?.publicToken || payment?.receiptNumber || '';
++}
++export function publicKeyForMember(member) {
++  return member?.publicToken || member?.memberID || '';
++}
++
++/* ---------------------------------------------------------------------- */
++/*  Activity log — append-only record of committee actions                 */
++/*                                                                          */
++/*  NOT an audit log, and deliberately no longer named like one. These      */
++/*  entries are written by the browser of the admin performing the action,  */
++/*  which means an admin who does not want an entry written simply does not */
++/*  write one. Treat it as "what the committee did", useful for answering   */
++/*  questions at an AGM — not as evidence in a dispute.                     */
++/*                                                                          */
++/*  The IP field is gone. It came from an ipify call made by the same       */
++/*  browser being logged, so it recorded whatever that browser chose to     */
++/*  report — an attacker-controlled value dressed up as forensic detail,    */
++/*  which is worse than no value at all. It also sent every admin's IP to a */
++/*  third party on every logged action. If the society ever needs a real    */
++/*  audit trail, these writes must move into a Cloud Function, where        */
++/*  context.auth and the true request IP are observed server-side.          */
++/* ---------------------------------------------------------------------- */
+ export async function logAudit(user, action, details = {}) {
+   try {
+-    const ip = await getClientIP();
+     await addDoc(collection(db, 'auditLogs'), {
+       userId: user?.uid || 'system',
+       userEmail: user?.email || 'system',
+       action,
+       details,
+-      ip,
++      source: 'client',   // honest about where this came from
+       timestamp: serverTimestamp()
+     });
+   } catch (e) {
+-    console.warn('Audit log write failed:', e);
++    console.warn('Activity log write failed:', e);
+   }
+ }
+ 
+@@ -432,9 +485,14 @@
+   });
+ }
+ 
+-export function verifyUrlFor(receiptNumber) {
++/* Accepts a payment object. A bare string is still accepted so that any
++   caller not yet updated keeps working against the legacy lookup. */
++export function verifyUrlFor(payment) {
++  const p = (typeof payment === 'string') ? { receiptNumber: payment } : (payment || {});
+   const base = window.location.origin + window.location.pathname.replace(/[^/]+$/, '');
+-  return `${base}verify.html?receipt=${encodeURIComponent(receiptNumber)}`;
++  return p.publicToken
++    ? `${base}verify.html?r=${encodeURIComponent(p.publicToken)}`
++    : `${base}verify.html?receipt=${encodeURIComponent(p.receiptNumber || '')}`;
+ }
+ 
+ /* ---------------------------------------------------------------------- */
+@@ -519,7 +577,7 @@
+ 
+   // QR code
+   try {
+-    const qrUrl = verifyUrlFor(payment.receiptNumber);
++    const qrUrl = verifyUrlFor(payment);
+     const qrData = await generateQR(qrUrl, 260);
+     pdf.addImage(qrData, 'PNG', W - marginX - 74, y - 4, 74, 74);
+     pdf.setFont('helvetica', 'normal'); pdf.setFontSize(7); pdf.setTextColor(124, 135, 156);
+@@ -532,7 +590,7 @@
+   y += 22;
+   pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8.5); pdf.setTextColor(124, 135, 156);
+   pdf.text('This is a system-generated receipt from the MHMRWS Digital Portal.', marginX, y);
+-  pdf.text(`Verify anytime at: ${verifyUrlFor(payment.receiptNumber)}`, marginX, y + 13);
++  pdf.text(`Verify anytime at: ${verifyUrlFor(payment)}`, marginX, y + 13);
+ 
+   if (save) {
+     pdf.save(`Receipt-${payment.receiptNumber}.pdf`);
+@@ -558,7 +616,7 @@
+ /* ---------------------------------------------------------------------- */
+ export async function printReceipt({ payment, member, society, logoDataUrl }) {
+   let qrImg = '';
+-  try { qrImg = await generateQR(verifyUrlFor(payment.receiptNumber), 200); } catch (e) {/* print still works without the QR */}
++  try { qrImg = await generateQR(verifyUrlFor(payment), 200); } catch (e) {/* print still works without the QR */}
+ 
+   const area = document.getElementById('printReceiptArea');
+   if (!area) { showToast('Print area is missing from this page.', 'error'); return; }
+@@ -593,7 +651,7 @@
+       </div>
+       <div class="pr-foot">
+         This is a system-generated receipt from the MHMRWS Digital Portal.<br>
+-        Verify anytime at: ${escapeHtml(verifyUrlFor(payment.receiptNumber))}
++        Verify anytime at: ${escapeHtml(verifyUrlFor(payment))}
+       </div>
+     </div>
+   `;
+@@ -617,9 +675,12 @@
+ /* ---------------------------------------------------------------------- */
+ const CARD_W = 85.6, CARD_H = 54;   // mm — ISO/IEC 7810 ID-1, the usual card size
+ 
+-export function memberVerifyUrl(memberID) {
++export function memberVerifyUrl(member) {
++  const m = (typeof member === 'string') ? { memberID: member } : (member || {});
+   const base = window.location.origin + window.location.pathname.replace(/[^/]+$/, '');
+-  return `${base}verify.html?member=${encodeURIComponent(memberID)}`;
++  return m.publicToken
++    ? `${base}verify.html?m=${encodeURIComponent(m.publicToken)}`
++    : `${base}verify.html?member=${encodeURIComponent(m.memberID || '')}`;
+ }
+ 
+ function loadImage(src) {
+@@ -761,7 +822,7 @@
+ 
+   // --- QR ----------------------------------------------------------------
+   try {
+-    const qr = await generateQR(memberVerifyUrl(member.memberID), 320);
++    const qr = await generateQR(memberVerifyUrl(member), 320);
+     const qs = 15.5, qx = CARD_W - M - qs, qy = 15.5;
+     pdf.setFillColor(255, 255, 255);
+     pdf.roundedRect(qx - 0.8, qy - 0.8, qs + 1.6, qs + 1.6, 0.8, 0.8, 'F');
+@@ -939,22 +1000,8 @@
+   return `https://wa.me/${withCountry}?text=${encodeURIComponent(message)}`;
+ }
+ 
+-/* ---------------------------------------------------------------------- */
+-/*  Bulk ZIP export (uses JSZip — window.JSZip)                           */
+-/* ---------------------------------------------------------------------- */
+-export async function zipFilesFromUrls(fileList, zipFilename) {
+-  const zip = new window.JSZip();
+-  for (const f of fileList) {
+-    try {
+-      const res = await fetch(f.url);
+-      const blob = await res.blob();
+-      zip.file(f.name, blob);
+-    } catch (e) { console.warn('Skipped file in zip (fetch failed):', f.name, e); }
+-  }
+-  const blob = await zip.generateAsync({ type: 'blob' });
+-  const a = document.createElement('a');
+-  a.href = URL.createObjectURL(blob);
+-  a.download = zipFilename;
+-  a.click();
+-  URL.revokeObjectURL(a.href);
+-}
++/* NOTE: zipFilesFromUrls() used to live here. It fetched every file into
++   memory before zipping, which would fall over on a phone for a bulk export of
++   a few hundred ID scans — and nothing called it, since admin.html has its own
++   month-scoped version with progress reporting. Removed rather than left as a
++   trap for the next person who goes looking for a bulk-export helper. */
+diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal/firebase-config.js MHMRWS-Portal/firebase-config.js
+--- a/MHMRWS-Portal/firebase-config.js	2026-07-23 04:00:32.000000000 +0000
++++ MHMRWS-Portal/firebase-config.js	2026-07-24 11:57:01.421162839 +0000
+@@ -9,6 +9,11 @@
+    See SETUP-GUIDE.md, Step 2, for the full walkthrough.
+    ========================================================================== */
+ 
++/* The apiKey below is NOT a secret — Firebase web keys are public by design and
++   the security rules are what protect your data. It is still worth restricting:
++   Google Cloud Console -> APIs & Services -> Credentials -> this key ->
++   "Application restrictions" -> Websites -> add only your Pages domain. That
++   stops somebody else's app from being billed to your project. */
+ const firebaseConfig = {
+   apiKey: "AIzaSyAoPrgFpUlkjSfnF0560RXkusqAY65ysXY",
+   authDomain: "mhm-portal.firebaseapp.com",
+@@ -38,11 +43,50 @@
+    no build step needed). Every page imports { auth, db, storage } from here.
+    -------------------------------------------------------------------------- */
+ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
++import { initializeAppCheck, ReCaptchaV3Provider } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app-check.js";
+ import { getAuth, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
+ import { getFirestore } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+ import { getStorage } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-storage.js";
+ 
+ export const app = initializeApp(firebaseConfig);
++
++/* --------------------------------------------------------------------------
++   APP CHECK — please turn this on.
++
++   Security rules answer "is this user allowed to do that". They cannot answer
++   "is this request even coming from our app". Without App Check, anyone can
++   talk to this Firebase project directly from a script: create accounts by the
++   thousand, hammer the public collections, and run up the bill on a society
++   that budgets in four figures. The rules would hold — but you would be paying
++   for every rejected request.
++
++   To enable (about half an hour, and free):
++     1. Google Cloud Console -> reCAPTCHA -> create a key of type
++        "Website" / reCAPTCHA v3, with this site's domain in the allow-list.
++     2. Firebase Console -> App Check -> register the web app with that key.
++     3. Paste the SITE key (the public one, safe to commit) below.
++     4. Watch Firebase Console -> App Check -> Metrics for a few days. Once
++        nearly all traffic shows as verified, click Enforce on Firestore,
++        Storage and Authentication.
++
++   Leaving the placeholder in place is safe: App Check simply stays off and the
++   portal behaves exactly as before.
++   -------------------------------------------------------------------------- */
++export const RECAPTCHA_V3_SITE_KEY = "REPLACE_WITH_YOUR_RECAPTCHA_V3_SITE_KEY";
++
++export const APP_CHECK_ENABLED = !RECAPTCHA_V3_SITE_KEY.startsWith("REPLACE_WITH");
++if (APP_CHECK_ENABLED) {
++  try {
++    initializeAppCheck(app, {
++      provider: new ReCaptchaV3Provider(RECAPTCHA_V3_SITE_KEY),
++      isTokenAutoRefreshEnabled: true
++    });
++  } catch (e) {
++    console.warn('App Check could not start; continuing without it.', e);
++  }
++} else {
++  console.warn('App Check is not configured — see the note in firebase-config.js.');
++}
+ export const auth = getAuth(app);
+ export const db = getFirestore(app);
+ export const storage = getStorage(app);
+diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal/firestore.rules MHMRWS-Portal/firestore.rules
+--- a/MHMRWS-Portal/firestore.rules	2026-07-23 11:26:50.000000000 +0000
++++ MHMRWS-Portal/firestore.rules	2026-07-24 11:51:52.582942958 +0000
+@@ -14,6 +14,12 @@
+ //     good user experience; these rules are what actually protect the ledger.
+ //   * Nothing in members/payments is ever hard-deleted — the app soft-deletes
+ //     by flipping a status field, preserving the legal audit trail.
++//   * Once a payment is VERIFIED it is frozen. Corrections are made with a
++//     reversing entry, never by editing history — that is what an auditor
++//     expects to see.
++//   * The public (unauthenticated) collections are keyed by an unguessable
++//     random token, NOT by the sequential receipt/member number, so nobody can
++//     walk 000001..999999 and scrape the resident directory or the ledger.
+ // ============================================================================
+ 
+ service cloud.firestore {
+@@ -26,6 +32,9 @@
+     function isOwner(uid) {
+       return isSignedIn() && request.auth.uid == uid;
+     }
++    // Firestore caches get()/exists() per document per request, so the pair of
++    // lookups below costs at most two document reads for a whole evaluation,
++    // however many helpers call them.
+     function isAdmin() {
+       return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+     }
+@@ -43,15 +52,33 @@
+     function canApproveMembers() {
+       return isAdmin() && adminRole() in ['superadmin', 'president', 'vicepresident', 'secretary', 'jointsecretary'];
+     }
++    // Proof the caller clicked the link in their own inbox. Enforced on the
++    // money path, not on registration, because the account has to exist before
++    // Firebase can send the verification mail.
++    function emailVerified() {
++      return isSignedIn() && request.auth.token.email_verified == true;
++    }
+ 
+     /* ---------- validation helpers ---------- */
++    //
++    // ABSENCE vs NULL — read this before editing anything below.
++    //
++    // Reading a field that is not present on the document raises an evaluation
++    // error, and an erroring rule DENIES. So `data.foo == null` is not a safe
++    // "foo is empty" test: it works when the client writes an explicit null and
++    // breaks with an opaque permission error when the client simply omits the
++    // field. Every optional field is therefore checked through absentOrNull().
++    //
++    function absentOrNull(data, field) {
++      return !(field in data) || data[field] == null;
++    }
+     function isNonEmptyString(v, maxLen) {
+       return v is string && v.size() > 0 && v.size() <= maxLen;
+     }
+-    function isOptionalString(v, maxLen) {
+-      return v == null || (v is string && v.size() <= maxLen);
++    function isOptionalString(data, field, maxLen) {
++      return absentOrNull(data, field) || (data[field] is string && data[field].size() <= maxLen);
+     }
+-    // A 10-digit Indian mobile number, optionally left blank on admin-created rows.
++    // A 10-digit Indian mobile number.
+     function isValidMobile(v) {
+       return v is string && v.matches('^[0-9]{10}$');
+     }
+@@ -72,8 +99,16 @@
+     function isValidFY(v) {
+       return v is string && v.matches('^[0-9]{4}-[0-9]{2}$');
+     }
++    // 32 hex characters from crypto.getRandomValues() — see newPublicToken()
++    // in app-common.js. 128 bits of entropy is not walkable.
++    function isPublicToken(v) {
++      return v is string && v.matches('^[0-9a-f]{32}$');
++    }
++    // Absence-safe: an update that adds a field which was not there before is
++    // a change, and an update that drops one is too.
+     function unchanged(field) {
+-      return request.resource.data[field] == resource.data[field];
++      return (field in request.resource.data) == (field in resource.data)
++          && (!(field in resource.data) || request.resource.data[field] == resource.data[field]);
+     }
+ 
+     // ---- Residents ------------------------------------------------------
+@@ -82,10 +117,10 @@
+         return isNonEmptyString(request.resource.data.name, 100)
+             && isNonEmptyString(request.resource.data.tower, 50)
+             && isNonEmptyString(request.resource.data.flatNumber, 30)
+-            && isOptionalString(request.resource.data.fatherHusbandName, 100)
+-            && isOptionalString(request.resource.data.address, 500)
+-            && isOptionalString(request.resource.data.occupation, 100)
+-            && isOptionalString(request.resource.data.nomineeName, 100)
++            && isOptionalString(request.resource.data, 'fatherHusbandName', 100)
++            && isOptionalString(request.resource.data, 'address', 500)
++            && isOptionalString(request.resource.data, 'occupation', 100)
++            && isOptionalString(request.resource.data, 'nomineeName', 100)
+             && isValidMemberStatus(request.resource.data.status)
+             && request.resource.data.residentType in ['owner', 'tenant'];
+       }
+@@ -100,32 +135,57 @@
+                       && validMemberShape()
+                       && request.resource.data.uid == uid
+                       && request.resource.data.status == 'pending'
+-                      && request.resource.data.memberID == null
++                      && absentOrNull(request.resource.data, 'memberID')
++                      && absentOrNull(request.resource.data, 'publicToken')
+                       && request.resource.data.role == 'resident'
+                       && isValidMobile(request.resource.data.mobile)
+                     );
+ 
+       // Admin edits: only office-bearers may change approval status or assign
+       // a Member ID. Any other admin may correct ordinary profile fields.
++      //
+       // Residents may edit their own profile but never self-approve, grant
+-      // themselves a Member ID, reactivate themselves, or change their role.
++      // themselves a Member ID or verification token, reactivate themselves,
++      // change their role — or move themselves to a different flat. That last
++      // one matters: maintenance rates are per-tower, so an unpinned flat
++      // number is a way to change your own dues and what your card says.
+       allow update: if (
+                       isAdmin() && validMemberShape() && (
+                         canApproveMembers()
+-                        || (unchanged('status') && unchanged('memberID') && unchanged('role'))
++                        || (unchanged('status') && unchanged('memberID') && unchanged('role') && unchanged('publicToken'))
+                       )
+                     ) || (
+                       isOwner(uid)
+                       && validMemberShape()
+                       && unchanged('status')
+                       && unchanged('memberID')
++                      && unchanged('publicToken')
+                       && unchanged('role')
+                       && unchanged('uid')
++                      && unchanged('tower')
++                      && unchanged('flatNumber')
+                     );
+ 
+       allow delete: if false; // soft-delete only (status: 'inactive')
+     }
+ 
++    // ---- One flat, one member -------------------------------------------
++    // Firestore cannot express "unique across a collection" in a rule, so
++    // uniqueness is bought with a document ID: flatClaims/A_101 either exists
++    // or it does not. approveMember() creates it inside the same transaction
++    // that approves the resident, so two people claiming the same flat cannot
++    // both win — the loser's transaction fails.
++    match /flatClaims/{claimId} {
++      allow read: if isAdmin();
++      allow create, update: if canApproveMembers()
++                            && isNonEmptyString(request.resource.data.memberDocId, 200)
++                            && isNonEmptyString(request.resource.data.tower, 50)
++                            && isNonEmptyString(request.resource.data.flatNumber, 30);
++      // Released when a member is rejected or deactivated, so the flat can be
++      // claimed by whoever moves in next.
++      allow delete: if canApproveMembers();
++    }
++
+     // ---- Admin directory (Super Admin manages roles) --------------------
+     match /admins/{uid} {
+       allow read: if isAdmin();
+@@ -143,40 +203,66 @@
+ 
+       // A resident submitting a payment cannot pre-assign themselves a receipt
+       // number, cannot mark it verified, and cannot post an invalid amount.
++      // A verified email is required here rather than at registration: this is
++      // the point where a record enters the society's books, and it is the
++      // cheapest possible defence against someone filing payments in a
++      // neighbour's name.
+       allow create: if isSignedIn()
++                    && emailVerified()
+                     && request.resource.data.memberUid == request.auth.uid
+                     && isValidAmount(request.resource.data.amount)
+                     && isValidPaymentMode(request.resource.data.mode)
+                     && isValidFY(request.resource.data.financialYear)
+                     && request.resource.data.status in ['pending_approval', 'pending_verification']
+-                    && request.resource.data.receiptNumber == null
++                    && absentOrNull(request.resource.data, 'receiptNumber')
++                    && absentOrNull(request.resource.data, 'publicToken')
+                     && isNonEmptyString(request.resource.data.residentName, 100)
+                     && isNonEmptyString(request.resource.data.flatNumber, 30)
+-                    && isOptionalString(request.resource.data.utrOrChequeNo, 40);
++                    && isOptionalString(request.resource.data, 'utrOrChequeNo', 40);
+ 
+       // Verifying a payment issues a receipt number and moves money in the
+-      // books, so it is restricted to the Treasurer / Super Admin. The amount
+-      // and payer can never be edited after submission.
++      // books, so it is restricted to the Treasurer / Super Admin.
++      //
++      // A VERIFIED PAYMENT IS FROZEN. Not just the amount and the payer — the
++      // whole record. Un-verifying a receipt that has already been printed,
++      // QR-coded and handed to a resident would leave the society unable to
++      // explain its own paperwork. Mistakes are corrected with a reversing
++      // entry, which is what the accounts want anyway.
+       allow update: if canVerifyPayments()
++                    && resource.data.status != 'verified'
+                     && isValidPaymentStatus(request.resource.data.status)
+                     && unchanged('amount')
+                     && unchanged('memberUid')
+                     && unchanged('mode')
+-                    && unchanged('financialYear');
++                    && unchanged('financialYear')
++                    && unchanged('submittedAt')
++                    // A receipt number, once issued, is never rewritten.
++                    && (absentOrNull(resource.data, 'receiptNumber') || unchanged('receiptNumber'))
++                    && (absentOrNull(resource.data, 'publicToken') || unchanged('publicToken'))
++                    // Marking something verified must actually produce a receipt.
++                    && (request.resource.data.status != 'verified' || (
++                          isNonEmptyString(request.resource.data.receiptNumber, 40)
++                          && isPublicToken(request.resource.data.publicToken)
++                       ));
+ 
+       allow delete: if false;
+     }
+ 
+     // ---- Sequence counters (Member ID / Receipt No.) ---------------------
+-    // These are written ONLY by admin flows (approve member, verify payment,
+-    // bulk import). Leaving this open to any signed-in user would let a
+-    // resident rewind the receipt sequence and force duplicate receipt
+-    // numbers — so it is locked to admins.
++    // Admin-only, and STRICTLY INCREASING. The previous version allowed any
++    // admin to write any positive integer, which meant the receipt sequence
++    // could be wound backwards — accidentally or otherwise — and reissue a
++    // number that is already printed on somebody's receipt. Duplicate receipt
++    // numbers in a financial record are exactly what an auditor picks up on.
+     match /counters/{counterId} {
+       allow read: if isAdmin();
+-      allow write: if isAdmin()
+-                   && request.resource.data.value is int
+-                   && request.resource.data.value > 0;
++      allow create: if isAdmin()
++                    && request.resource.data.value is int
++                    && request.resource.data.value > 0;
++      allow update: if isAdmin()
++                    && request.resource.data.value is int
++                    && request.resource.data.value > resource.data.value;
++      allow delete: if false;
+     }
+ 
+     // ---- Notice board — public read, office-bearer write ------------------
+@@ -209,10 +295,18 @@
+     }
+ 
+     // ---- Public receipt verification (where the receipt QR lands) ---------
+-    // Deliberately world-readable so anyone can check a receipt without an
+-    // account. Holds only non-sensitive fields — never contact details,
+-    // documents or IDs. Written as part of payment verification.
+-    match /receiptsPublic/{receiptNumber} {
++    //
++    // KEYED BY RANDOM TOKEN, NOT BY RECEIPT NUMBER. This collection is
++    // world-readable so a resident can check a receipt without an account —
++    // but when the document ID was the sequential receipt number, anyone could
++    // request MHMRWS-2026-000001, 000002, 000003 ... and walk out with every
++    // payer name, flat and amount the society had ever banked, which totals to
++    // the society's income. The 128-bit token in the QR code fixes that: a
++    // scan still resolves instantly, a crawler gets nothing.
++    //
++    // Documents written before this change are still keyed by receipt number,
++    // so receipts already in residents' hands keep verifying. See MIGRATION.md.
++    match /receiptsPublic/{token} {
+       allow read: if true;
+       allow create: if canVerifyPayments()
+                     && isValidAmount(request.resource.data.amount)
+@@ -251,10 +345,15 @@
+     }
+ 
+     // ---- Public membership verification (where the card QR lands) ---------
+-    // World-readable by design: a guard at the gate scans the card without an
+-    // account. Holds only what that check needs — name, tower, flat, type and
+-    // status. Never contact details, documents or payment history.
+-    match /membersPublic/{memberID} {
++    //
++    // Same reasoning as receiptsPublic: keyed by random token so a guard at
++    // the gate can scan a card without an account, while nobody can enumerate
++    // MHM-2026-000001 upwards and walk off with the society's whole resident
++    // directory — every name, tower, flat and owner/tenant status.
++    //
++    // Holds only what the gate check needs. Never contact details, documents
++    // or payment history.
++    match /membersPublic/{token} {
+       allow read: if true;
+       allow create, update: if canApproveMembers()
+                             && isNonEmptyString(request.resource.data.memberID, 40)
+@@ -262,7 +361,14 @@
+       allow delete: if false;
+     }
+ 
+-    // ---- Audit log — append-only, never editable --------------------------
++    // ---- Activity log — append-only, never editable ------------------------
++    //
++    // Deliberately NOT called an audit log any more. It is written by the
++    // browser, so a determined admin can simply not write an entry, and the
++    // only field these rules can vouch for is userId. It is a useful record of
++    // what the committee did; it is not evidence. If the society ever needs
++    // something that would stand up in a dispute, the writes have to move into
++    // a Cloud Function that reads context.auth and the real request IP.
+     match /auditLogs/{logId} {
+       allow read: if isAdmin();
+       allow create: if isAdmin() && request.resource.data.userId == request.auth.uid;
+diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal/index.html MHMRWS-Portal/index.html
+--- a/MHMRWS-Portal/index.html	2026-07-23 11:25:48.000000000 +0000
++++ MHMRWS-Portal/index.html	2026-07-24 12:12:36.098350155 +0000
+@@ -2,6 +2,41 @@
+ <html lang="en">
+ <head>
+ <meta charset="UTF-8">
++<!-- ==========================================================================
++     CONTENT SECURITY POLICY
++     GitHub Pages cannot set HTTP headers, so this goes in a meta tag — which
++     must stay above every script and stylesheet it governs.
++
++     What this buys: an injected <script src="https://evil.example/x.js"> will
++     not load, and stolen data cannot be POSTed anywhere except the endpoints
++     listed in connect-src. That is the realistic attack against a page that
++     handles Aadhaar uploads and payment records.
++
++     What it does NOT buy: script-src still has 'unsafe-inline', because every
++     page here is built from inline module scripts and inline style attributes. Removing that needs the inline scripts moved into their
++     own .js files first — worth doing, but it is a refactor, not a patch.
++
++     frame-ancestors is not supported in a meta tag, so this cannot stop the
++     site being framed. If you ever move off GitHub Pages, set
++     `X-Frame-Options: DENY` (or frame-ancestors 'none') as a real header.
++
++     AFTER DEPLOYING: open the site, press F12, and check the Console for
++     "Refused to ..." messages. Any legitimate endpoint this policy blocks will
++     announce itself there and just needs adding to the right directive.
++     ========================================================================== -->
++<meta http-equiv="Content-Security-Policy" content="
++  default-src 'self';
++  script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://www.gstatic.com https://accounts.google.com https://apis.google.com https://www.google.com;
++  style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
++  img-src 'self' data: blob: https://firebasestorage.googleapis.com https://*.googleusercontent.com;
++  font-src 'self' data: https://fonts.gstatic.com;
++  connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://accounts.google.com;
++  frame-src https://www.google.com https://accounts.google.com;
++  worker-src 'self';
++  object-src 'none';
++  base-uri 'self';
++  form-action 'self';
++">
+ <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+ <title>Max Heights Majestic RWA — Digital Membership Portal</title>
+ <meta name="description" content="Register, pay and download QR-verified receipts for Max Heights Majestic Resident Welfare Society.">
+@@ -9,9 +44,25 @@
+ <link rel="manifest" href="manifest.json">
+ <link rel="icon" href="favicon-32.png">
+ <link rel="apple-touch-icon" href="icon-192.png">
++<meta name="color-scheme" content="light">
++<link rel="preconnect" href="https://fonts.googleapis.com">
++<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+ <link rel="stylesheet" href="styles.css">
+-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js"></script>
+-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode/1.5.3/qrcode.min.js"></script>
++<!-- Third-party libraries.
++     These are loaded from a CDN with no integrity hash, which means a
++     compromised or hijacked CDN gets script execution on a page that handles
++     ID documents and payment records. Fix this — it takes two minutes:
++
++       1. Open https://cdnjs.com and search for the library.
++       2. Click the copy button next to "SRI" for the exact version below.
++       3. Paste the sha384-... value into an integrity="" attribute here.
++
++     Stronger still: download these five files into a vendor/ folder in this
++     repo and load them from './vendor/...'. Same-origin scripts need no hash,
++     cannot be tampered with by a third party, and let the service worker cache
++     them for genuine offline use. -->
++<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
++<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode/1.5.3/qrcode.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+ <style>
+ /* =====================================================================
+    index.html — Resident Portal
+@@ -408,15 +459,51 @@
+ .pay-history-item{ display:flex; justify-content:space-between; align-items:center; padding:15px 0; border-bottom:1px solid var(--line); gap:12px; flex-wrap:wrap; }
+ .pay-history-item:last-child{ border-bottom:none; }
+ .dues-box{ border:1px solid var(--line); border-radius:var(--radius-md); overflow:hidden; }
+-.dues-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 16px; background:var(--paper); flex-wrap:wrap; }
+-.dues-head .amt{ font-family:var(--font-display); font-size:26px; font-weight:600; color:var(--navy-950); line-height:1.1; }
++.dues-head{ display:flex; align-items:center; gap:18px; padding:18px 16px; background:var(--paper); flex-wrap:wrap; }
++.dues-head .amt{ font-family:var(--font-display); font-size:28px; font-weight:600; color:var(--navy-950); line-height:1.1; font-variant-numeric:tabular-nums; margin:3px 0 8px; }
+ .dues-head .lbl{ font-family:var(--font-mono); font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-400); }
+ .dues-split{ display:flex; }
+ .dues-split > div{ flex:1; padding:11px 16px; border-right:1px solid var(--line); font-size:13px; }
++.dues-split b{ font-variant-numeric:tabular-nums; }
+ .dues-split > div:last-child{ border-right:none; }
+ .dues-split b{ display:block; font-size:14.5px; color:var(--navy-950); margin-top:2px; }
+-.dues-bar{ height:5px; background:var(--line); }
+-.dues-bar span{ display:block; height:100%; background:var(--gradient-saffron); }
++/* ---------- Dues ring ----------
++   This is the number a resident opens the app to find, and it used to be a
++   sentence plus a 5px bar. A ring answers "am I clear or not" before any
++   reading happens — and it is the seal motif that runs through the rest of
++   the site doing actual work rather than decoration.
++
++   The arc is drawn with stroke-dashoffset over the circle's circumference.
++   Both values are handed in as custom properties from renderDues(), so the
++   fill animates on insert with no JavaScript timing games. The global
++   reduced-motion rule collapses the duration to ~0 and `both` holds the end
++   state, so it simply appears filled — never stuck empty. */
++.dues-ring{ position:relative; width:104px; height:104px; flex-shrink:0; }
++.dues-ring svg{ width:100%; height:100%; transform:rotate(-90deg); }   /* start at 12 o'clock */
++.dues-ring circle{ fill:none; stroke-width:9; stroke-linecap:round; }
++.dues-ring .trk{ stroke:var(--line); }
++.dues-ring .val{
++  stroke:var(--saffron-500);
++  stroke-dasharray:var(--c);
++  stroke-dashoffset:var(--c);
++  animation:ring-fill .9s cubic-bezier(.2,.7,.3,1) both;
++}
++@keyframes ring-fill{ to{ stroke-dashoffset:var(--off); } }
++.dues-ring .val.is-paid,
++.dues-ring .val.is-overpaid{ stroke:var(--success); }
++.dues-ring .val.is-unpaid{ stroke:var(--danger); }
++.dues-ring .pct{
++  position:absolute; inset:0; display:grid; place-items:center; text-align:center;
++  font-family:var(--font-display); font-weight:600; font-size:22px; color:var(--navy-950);
++  line-height:1; letter-spacing:-.02em; font-variant-numeric:tabular-nums;
++}
++.dues-ring .pct small{ display:block; font-family:var(--font-mono); font-weight:500;
++  font-size:8.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-400); margin-top:3px; }
++.dues-figures{ min-width:0; }
++@media (max-width:420px){
++  .dues-ring{ width:86px; height:86px; }
++  .dues-ring .pct{ font-size:19px; }
++}
+ .detail-line{ display:flex; justify-content:space-between; gap:12px; padding:9px 0; border-bottom:1px solid var(--line); font-size:13.4px; }
+ .detail-line:last-child{ border-bottom:none; }
+ .detail-line span:first-child{ color:var(--ink-400); }
+@@ -459,6 +546,8 @@
+ .qr-box img{ width:172px; height:172px; margin:0 auto 12px; border-radius:8px; background:var(--white); padding:8px; }
+ 
+ /* ---------- Mobile bottom tab bar (the main mobile UX upgrade) ---------- */
++/* Tab bar is ~66px tall plus the safe area; lift toasts clear of it. */
++@media (max-width: 900px){ :root{ --toast-bottom-gap:80px; } }
+ .tabbar-mobile{
+   display:none; position:fixed; bottom:0; left:0; right:0; z-index:70;
+   background:rgba(10,27,51,.97); backdrop-filter:blur(14px);
+@@ -1214,7 +1303,7 @@
+ import { auth, db, storage, SOCIETY } from './firebase-config.js';
+ import {
+   createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged,
+-  signOut, sendPasswordResetEmail
++  signOut, sendPasswordResetEmail, sendEmailVerification, deleteUser, reload as reloadUser
+ } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
+ import {
+   doc, getDoc, setDoc, addDoc, collection, query, where, orderBy, getDocs, serverTimestamp, limit
+@@ -1341,9 +1430,10 @@
+   const regError = validateRegistration(f);
+   if (regError) return showToast(regError, 'error');
+   setLoading(btn, true);
++  let cred = null;
+   try {
+     const email = f.email.value.trim();
+-    const cred = await createUserWithEmailAndPassword(auth, email, f.password.value);
++    cred = await createUserWithEmailAndPassword(auth, email, f.password.value);
+     const uid = cred.user.uid;
+ 
+     let photoURL = '', idDocURL = '';
+@@ -1372,15 +1462,30 @@
+       updatedAt: serverTimestamp()
+     });
+ 
++    // Proof the person owns the address they registered with. Without this,
++    // anyone could sign up in a neighbour's name using their email — and the
++    // committee would have no way to tell the difference at approval time.
++    // Best-effort: a mail that fails to send must not undo a valid
++    // registration, the resident can resend it from the dashboard.
++    try { await sendEmailVerification(cred.user); } catch (e) { console.warn('Verification mail failed:', e); }
++
+     if (f.photo.files[0] && !photoURL) {
+       // The registration itself succeeded; only the file could not be stored.
+       showToast('Registration jama ho gaya, lekin photo upload nahi ho payi. Office se photo add karwa lein.', 'error');
+     } else {
+-      showToast('Registration jama ho gaya! Admin approval ke baad Member ID milegi.', 'success');
++      showToast('Registration jama ho gaya! Apne email par verification link check karein.', 'success');
+     }
+     f.reset();
+     showTab('login');
+   } catch (err) {
++    // If the member record never got written, the Auth account left behind is
++    // worse than no account at all: the resident cannot register again
++    // ("email already in use") and cannot log in to anything either. Roll it
++    // back so they can simply try once more.
++    if (cred?.user) {
++      try { await deleteUser(cred.user); }
++      catch (e) { console.warn('Could not roll back the half-created account:', e); }
++    }
+     showToast(friendlyAuthError(err), 'error');
+   } finally {
+     setLoading(btn, false);
+@@ -1449,12 +1554,31 @@
+     inactive: '<span class="badge badge-neutral"><span class="badge-dot"></span>Deactivated</span>'
+   };
+ 
++  /* The security rules require a verified email before a payment can be
++     filed. Without this banner that arrives as an unexplained permission
++     error at the worst possible moment — after the resident has already
++     transferred the money. Say it up front instead, and give them the button. */
++  const emailUnverified = !!currentUser && !currentUser.emailVerified;
++  const verifyBanner = emailUnverified ? `
++    <div class="card card-pad" style="border-left:4px solid var(--warning); margin-bottom:16px;">
++      <div style="font-weight:600; margin-bottom:5px;">Email verify karna baaki hai</div>
++      <p class="t-sub" style="font-size:13.5px; margin-bottom:12px;">
++        Payment submit karne se pehle apna email verify karein. Humne
++        <b>${escapeHtml(currentMember.email || '')}</b> par link bheja tha — inbox aur spam dono dekh lein.
++      </p>
++      <div style="display:flex; gap:8px; flex-wrap:wrap;">
++        <button class="btn btn-outline btn-sm" id="resendVerifyBtn">Link dobara bhejein</button>
++        <button class="btn btn-ghost btn-sm" id="recheckVerifyBtn">Ho gaya — dobara check karein</button>
++      </div>
++    </div>` : '';
++
+   let statusExtra = '';
+   if (currentMember.status === 'pending') statusExtra = '<p class="t-sub" style="margin-top:12px; font-size:13.5px;">Aapka registration committee ke review mein hai. Approve hone par yahan Member ID dikhega.</p>';
+   if (currentMember.status === 'rejected') statusExtra = `<p class="t-danger" style="margin-top:12px; font-size:13.5px;">Reason: ${escapeHtml(currentMember.rejectionReason || 'Office se contact karein.')}</p>`;
+   if (currentMember.status === 'inactive') statusExtra = '<p class="t-sub" style="margin-top:12px; font-size:13.5px;">Aapki membership deactivate ki gayi hai. Query ke liye office se contact karein.</p>';
+ 
+   content.innerHTML = `
++    ${verifyBanner}
+     <div class="card status-card">
+       <div class="status-head">
+         <img src="${currentMember.photoURL || LOGO_DATA_URI}" alt="">
+@@ -1474,10 +1598,10 @@
+     ${currentMember.status === 'approved' ? `
+     <div class="dash-grid">
+       <div class="card card-pad">
+-        <div id="duesPanel"><div class="skeleton" style="height:74px; margin-bottom:18px;"></div></div>
++        <div id="duesPanel"><div class="skeleton" style="height:186px; margin-bottom:18px;"></div></div>
+         <div class="spread" style="margin:18px 0 16px; gap:10px; flex-wrap:wrap;">
+           <h3 style="font-size:16px;">Payment History</h3>
+-          <button class="btn btn-primary btn-sm" id="openPaymentBtn">Make a Payment</button>
++          <button class="btn btn-primary btn-sm" id="openPaymentBtn"${emailUnverified ? ' disabled title="Pehle apna email verify karein"' : ''}>Make a Payment</button>
+         </div>
+         <div id="paymentList"><div class="skeleton" style="height:70px;"></div></div>
+       </div>
+@@ -1494,6 +1618,31 @@
+ 
+   window.__translate(content);
+ 
++  document.getElementById('resendVerifyBtn')?.addEventListener('click', async (e) => {
++    const b = e.currentTarget;
++    b.disabled = true;
++    try {
++      await sendEmailVerification(currentUser);
++      showToast('Verification link bhej diya. Inbox aur spam folder dekh lein.', 'success');
++    } catch (err) {
++      // Firebase rate-limits these; saying so beats a silent no-op.
++      showToast('Abhi link nahi bhej paaye. Thodi der baad try karein.', 'error');
++      b.disabled = false;
++    }
++  });
++
++  document.getElementById('recheckVerifyBtn')?.addEventListener('click', async () => {
++    // emailVerified is baked into the cached token, so it does not change on
++    // its own — the user object has to be reloaded from the server.
++    await reloadUser(currentUser);
++    if (currentUser.emailVerified) {
++      showToast('Email verify ho gaya. Ab aap payment kar sakte hain.', 'success');
++      await loadDashboard(uid);
++    } else {
++      showToast('Abhi tak verify nahi hua. Email mein diye link par click karein.', 'error');
++    }
++  });
++
+   if (currentMember.status === 'approved') {
+     document.getElementById('openPaymentBtn').addEventListener('click', openPaymentModal);
+     document.getElementById('downloadCardBtn')?.addEventListener('click', downloadCard);
+@@ -1560,16 +1709,32 @@
+   const headline = dues.outstanding > 0 ? dues.outstanding : dues.paid;
+   const headlineLabel = dues.outstanding > 0 ? 'Outstanding' : 'Paid in full';
+ 
++  /* Ring geometry. r=42 in a 100x100 viewBox leaves room for a 9px stroke
++     without clipping at the edges. The arc is the circumference minus the
++     share already paid, fed to stroke-dashoffset. */
++  const R = 42;
++  const CIRC = 2 * Math.PI * R;                       // 263.894...
++  const offset = CIRC * (1 - Math.min(pct, 100) / 100);
++
+   el.innerHTML = `
+     <div class="dues-box">
+       <div class="dues-head">
+-        <div>
++        <div class="dues-ring" role="progressbar"
++             aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"
++             aria-label="Maintenance paid for FY ${escapeHtml(financialYear)}">
++          <svg viewBox="0 0 100 100" aria-hidden="true">
++            <circle class="trk" cx="50" cy="50" r="${R}"></circle>
++            ${pct > 0 ? `<circle class="val is-${escapeHtml(dues.status)}" cx="50" cy="50" r="${R}"
++                    style="--c:${CIRC.toFixed(2)}; --off:${offset.toFixed(2)};"></circle>` : ''}
++          </svg>
++          <div class="pct" aria-hidden="true">${pct}%<small>Paid</small></div>
++        </div>
++        <div class="dues-figures">
+           <div class="lbl">${escapeHtml(headlineLabel)} &middot; FY ${escapeHtml(financialYear)}</div>
+           <div class="amt">${formatINR(headline)}</div>
++          <span class="badge ${DUES_BADGE[dues.status]}">${escapeHtml(DUES_LABEL[dues.status])}</span>
+         </div>
+-        <span class="badge ${DUES_BADGE[dues.status]}">${escapeHtml(DUES_LABEL[dues.status])}</span>
+       </div>
+-      <div class="dues-bar"><span style="width:${pct}%"></span></div>
+       <div class="dues-split">
+         <div><span class="lbl">Total Due</span><b>${formatINR(dues.expected)}</b></div>
+         <div><span class="lbl">Paid</span><b>${formatINR(dues.paid)}</b></div>
+@@ -1652,6 +1817,12 @@
+ }
+ 
+ async function openPaymentModal() {
++  // Belt and braces: the button is disabled when the email is unverified, but
++  // this is the function the rules will reject, so it should say why itself.
++  if (currentUser && !currentUser.emailVerified) {
++    showToast('Payment se pehle apna email verify karein — dashboard par "Link dobara bhejein" dabayein.', 'error');
++    return;
++  }
+   const q = query(collection(db, 'payments'), where('memberUid', '==', currentUser.uid), where('status', 'in', ['pending_approval', 'pending_verification']));
+   const existing = await getDocs(q);
+   if (!existing.empty) { showToast('Aapka ek payment pehle se pending hai — nayi entry ki zaroorat nahi.', 'error'); return; }
+diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal/storage.rules MHMRWS-Portal/storage.rules
+--- a/MHMRWS-Portal/storage.rules	2026-07-23 11:10:24.000000000 +0000
++++ MHMRWS-Portal/storage.rules	2026-07-24 11:52:24.731504335 +0000
+@@ -22,6 +22,21 @@
+         firestore.exists(/databases/(default)/documents/admins/$(request.auth.uid));
+     }
+ 
++    // An upload path that accepts "any bytes" is a hosting service for whoever
++    // finds it: an .html file dropped into the bucket is served from the
++    // society's own domain and can then be linked as if it were an official
++    // document. Everything a resident uploads is either a picture or a PDF —
++    // or, for the ID vault, an AES-GCM blob, which arrives as
++    // application/octet-stream because that is what encryptFile() produces.
++    function isImageOrPdf() {
++      return request.resource.contentType.matches('image/.*')
++          || request.resource.contentType == 'application/pdf';
++    }
++    function isImagePdfOrEncrypted() {
++      return isImageOrPdf()
++          || request.resource.contentType == 'application/octet-stream';
++    }
++
+     // Resident registration photo — owner + admins only (not public).
+     match /photos/{uid}/{fileName} {
+       allow read: if isAdmin() || request.auth.uid == uid;
+@@ -35,25 +50,33 @@
+     // before upload (see app-common.js encryptFile()) for defense in depth.
+     match /documents/{uid}/{fileName} {
+       allow read: if isAdmin() || request.auth.uid == uid;
+-      allow write: if request.auth.uid == uid && request.resource.size < 8 * 1024 * 1024;
++      allow write: if request.auth.uid == uid
++                   && request.resource.size < 8 * 1024 * 1024
++                   && isImagePdfOrEncrypted();
+     }
+ 
+     // UPI/bank-transfer payment screenshots — owner + admins only.
+     match /paymentProofs/{uid}/{fileName} {
+       allow read: if isAdmin() || request.auth.uid == uid;
+-      allow write: if request.auth.uid == uid && request.resource.size < 8 * 1024 * 1024;
++      allow write: if request.auth.uid == uid
++                   && request.resource.size < 8 * 1024 * 1024
++                   && isImageOrPdf();
+     }
+ 
+     // Notice board attachments (circulars, PDFs) — public read, admin write.
+     match /noticeAttachments/{fileName} {
+       allow read: if true;
+-      allow write: if isAdmin();
++      allow write: if isAdmin()
++                   && request.resource.size < 20 * 1024 * 1024
++                   && isImageOrPdf();
+     }
+ 
+     // Committee directory photos — intentionally public.
+     match /committeePhotos/{fileName} {
+       allow read: if true;
+-      allow write: if isAdmin();
++      allow write: if isAdmin()
++                   && request.resource.size < 5 * 1024 * 1024
++                   && request.resource.contentType.matches('image/.*');
+     }
+ 
+     // Society documents residents can download — bylaws, AGM minutes,
+@@ -67,23 +90,41 @@
+     // that turns into a leak the next time someone edits them.
+     match /publicDocs/{fileName} {
+       allow read: if true;
+-      allow write: if isAdmin() && request.resource.size < 20 * 1024 * 1024;
++      allow write: if isAdmin()
++                   && request.resource.size < 20 * 1024 * 1024
++                   && isImageOrPdf();
+     }
+ 
+     // Society logo, payment QR code, downloadable forms — public read.
+     match /settings/{fileName} {
+       allow read: if true;
+-      allow write: if isAdmin();
++      allow write: if isAdmin()
++                   && request.resource.size < 10 * 1024 * 1024
++                   && isImageOrPdf();
+     }
+   }
+ }
+ 
+ // ----------------------------------------------------------------------------
+-// FALLBACK if firestore.exists() is not available on your project:
+-// Replace isAdmin() above with `return isSignedIn();` and rely on the fact
+-// that admin accounts are never self-service (only a Super Admin can create
+-// one from the Admin Panel — see SETUP-GUIDE.md, Step 6). This is weaker
+-// (any signed-in resident could read any resident's documents) so upgrade
+-// to the firestore.exists() version above as soon as you can confirm it
+-// works on your project.
++// IF firestore.exists() IS NOT AVAILABLE ON YOUR PROJECT
++//
++// Do NOT fall back to `return isSignedIn();` here. That would make every
++// resident's Aadhaar and PAN upload readable by every other resident who can
++// log in — which is the single worst outcome this file exists to prevent, and
++// it fails silently: nothing breaks, nothing warns you, the documents are just
++// exposed.
++//
++// If the Firestore lookup genuinely does not work, mirror the admin UIDs into
++// this file by hand instead. It is ugly and you have to edit it whenever the
++// committee changes, but it fails closed:
++//
++//   function isAdmin() {
++//     return isSignedIn() && request.auth.uid in [
++//       'PASTE_SUPERADMIN_UID_HERE',
++//       'PASTE_TREASURER_UID_HERE'
++//     ];
++//   }
++//
++// Firestore-in-Storage-rules has been generally available since 2023, so in
++// practice the version above should just work.
+ // ----------------------------------------------------------------------------
+diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal/styles.css MHMRWS-Portal/styles.css
+--- a/MHMRWS-Portal/styles.css	2026-07-23 03:47:54.000000000 +0000
++++ MHMRWS-Portal/styles.css	2026-07-24 12:10:24.558470631 +0000
+@@ -233,10 +233,20 @@
+   text-align:left; font-family:var(--font-mono); font-size:11px; letter-spacing:.08em; text-transform:uppercase;
+   color:var(--ink-400); padding:12px 14px; border-bottom:1px solid var(--line); background:var(--paper); white-space:nowrap;
+ }
+-tbody td{ padding:12px 14px; border-bottom:1px solid var(--line); color:var(--ink-700); vertical-align:middle; }
++/* Proportional digits make a column of rupee figures unreadable: 1 is narrow,
++   4 and 7 are wide, so 1,400 and 2,400 do not line up and a defaulters list
++   reads as mush. Tabular figures give every digit the same advance width, so
++   the decimal points stack the way they would on a printed ledger. IBM Plex
++   Sans ships the feature; this is the whole fix. */
++tbody td{ padding:12px 14px; border-bottom:1px solid var(--line); color:var(--ink-700); vertical-align:middle;
++          font-variant-numeric:tabular-nums; }
+ tbody tr:last-child td{ border-bottom:none; }
+ tbody tr:hover{ background:#FAFBFD; }
+-.mono{ font-family:var(--font-mono); font-size:12.5px; letter-spacing:.01em; }
++.mono{ font-family:var(--font-mono); font-size:12.5px; letter-spacing:.01em; font-variant-numeric:tabular-nums; }
++/* Any figure meant to be compared against another figure above or below it. */
++.tnum, .stat-strip .stat b, .badge, .print-receipt .pr-amount .num, .print-receipt .pr-grid{
++  font-variant-numeric:tabular-nums;
++}
+ 
+ /* --- Responsive tables ------------------------------------------------------
+    Add class "responsive" to a .table-wrap and give every <td> a data-label.
+@@ -286,12 +296,45 @@
+   position:fixed; inset:0; background:rgba(10,20,40,.55); backdrop-filter:blur(2px);
+   display:none; align-items:center; justify-content:center; padding:20px; z-index:80;
+ }
+-.modal-backdrop.open{ display:flex; }
++.modal-backdrop.open{ display:flex; animation:modal-veil .18s ease both; }
+ .modal{ background:var(--white); border-radius:var(--radius-lg); max-width:560px; width:100%; max-height:88vh; overflow-y:auto; box-shadow:var(--shadow-pop); }
++
++/* The backdrop is toggled by adding/removing .open, which flips `display` —
++   and display is not animatable, so the modal used to appear in a single
++   frame. Animating on the .open class instead costs no JavaScript change and
++   gives the payment-verification dialog, the most-used control in the admin
++   panel, somewhere to come from.
++
++   Entry only. There is no exit animation because .open is removed
++   synchronously and the element is gone before a transition could run; doing
++   that properly needs the <dialog> element (see the note below). An instant
++   dismissal reads as responsive anyway — it is the arrival that needs to be
++   explained to the eye, not the departure. */
++.modal-backdrop.open .modal{ animation:modal-rise .24s cubic-bezier(.2,.7,.3,1) both; }
++@keyframes modal-veil{ from{ opacity:0; } }
++@keyframes modal-rise{ from{ opacity:0; transform:translateY(14px) scale(.985); } }
++
++/* On a phone a sheet rising from the bottom edge matches where the thumb
++   already is, and matches what every native app on the device does. */
++@media (max-width: 640px){
++  .modal-backdrop{ align-items:flex-end; padding:0; }
++  .modal{ max-width:none; border-radius:var(--radius-lg) var(--radius-lg) 0 0; max-height:92vh;
++          padding-bottom:env(safe-area-inset-bottom); }
++  .modal-backdrop.open .modal{ animation:modal-sheet .26s cubic-bezier(.2,.7,.3,1) both; }
++  @keyframes modal-sheet{ from{ transform:translateY(100%); } }
++}
++
++/* NOTE for later: replacing .modal-backdrop with a real <dialog> and
++   showModal() would give focus trapping, Esc-to-close, an inert background and
++   animatable exits, all for free. It is a markup change across six dialogs in
++   admin.html, so it is not done here — but it is the right end state. */
+ .modal-head{ display:flex; align-items:center; justify-content:space-between; padding:20px 24px; border-bottom:1px solid var(--line); }
+ .modal-body{ padding:24px; }
+ 
+ /* --- Toast ------------------------------------------------------------------ */
++/* Pages that have a fixed bottom bar raise this so toasts clear it. */
++:root{ --toast-bottom-gap:16px; }
++
+ #toast-region{ position:fixed; top:18px; right:18px; z-index:100; display:flex; flex-direction:column; gap:10px; max-width:340px; }
+ .toast{
+   background:var(--navy-950); color:var(--white); padding:13px 16px; border-radius:var(--radius-md);
+@@ -300,7 +343,24 @@
+ }
+ .toast.success{ background:var(--success); }
+ .toast.error{ background:var(--danger); }
++.toast.leaving{ animation:toast-out .3s ease forwards; }
+ @keyframes toast-in{ from{ opacity:0; transform:translateY(-8px);} to{ opacity:1; transform:translateY(0);} }
++@keyframes toast-out{ to{ opacity:0; transform:translateY(-6px); } }
++
++/* Top-right is the wrong corner on a phone. It sits under the sticky header,
++   and it is the furthest point on the screen from the thumb — so a toast that
++   says "verify your email first" appears exactly where nobody is looking.
++   Anchored to the bottom instead, clear of the tab bar, full width. */
++@media (max-width: 900px){
++  #toast-region{
++    top:auto; bottom:calc(var(--toast-bottom-gap) + env(safe-area-inset-bottom));
++    left:14px; right:14px; max-width:none;
++  }
++  .toast{ font-size:14px; padding:14px 16px; animation:toast-in-up .25s ease; }
++  .toast.leaving{ animation:toast-out-down .3s ease forwards; }
++  @keyframes toast-in-up{ from{ opacity:0; transform:translateY(10px);} to{ opacity:1; transform:translateY(0);} }
++  @keyframes toast-out-down{ to{ opacity:0; transform:translateY(8px); } }
++}
+ 
+ /* --- Loader ------------------------------------------------------------------ */
+ .spinner{ width:20px; height:20px; border-radius:50%; border:2.5px solid rgba(255,255,255,.35); border-top-color:currentColor; animation:spin .7s linear infinite; }
+diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal/sw.js MHMRWS-Portal/sw.js
+--- a/MHMRWS-Portal/sw.js	2026-07-23 10:40:52.000000000 +0000
++++ MHMRWS-Portal/sw.js	2026-07-24 11:57:01.441010942 +0000
+@@ -8,7 +8,7 @@
+    Bump CACHE_NAME on any future structural change to force a clean cache.
+    ========================================================================== */
+ 
+-const CACHE_NAME = 'mhmrws-shell-v4';
++const CACHE_NAME = 'mhmrws-shell-v5';
+ const SHELL_FILES = [
+   './',
+   './index.html',
+@@ -24,9 +24,17 @@
+ ];
+ 
+ self.addEventListener('install', (event) => {
++  // cache.addAll() is all-or-nothing: one 404 anywhere in SHELL_FILES and the
++  // whole install rejects, leaving the app with no offline fallback at all and
++  // nothing in the console to say why. Cache each file on its own instead, so
++  // a single missing asset costs exactly that one asset.
+   event.waitUntil(
+     caches.open(CACHE_NAME)
+-      .then((cache) => cache.addAll(SHELL_FILES))
++      .then((cache) => Promise.all(
++        SHELL_FILES.map((url) =>
++          cache.add(url).catch((err) => console.warn('[sw] could not cache', url, err))
++        )
++      ))
+       .then(() => self.skipWaiting())
+   );
+ });
+diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal/tools/migrate-public-tokens.mjs MHMRWS-Portal/tools/migrate-public-tokens.mjs
+--- a/MHMRWS-Portal/tools/migrate-public-tokens.mjs	1970-01-01 00:00:00.000000000 +0000
++++ MHMRWS-Portal/tools/migrate-public-tokens.mjs	2026-07-24 12:01:07.939416639 +0000
+@@ -0,0 +1,196 @@
++#!/usr/bin/env node
++/* ==========================================================================
++   MHMRWS Portal — backfill public verification tokens
++   ==========================================================================
++   Members and payments created before the hardening release have no
++   `publicToken`, and their public verification documents are keyed by the
++   sequential Member ID / Receipt Number — which means they can be enumerated.
++   This script gives each one a random token and writes a token-keyed copy of
++   the public record.
++
++   It does NOT delete the old, sequentially-keyed documents unless you pass
++   --purge-legacy, because deleting them stops every receipt and membership
++   card already printed from verifying. See MIGRATION.md, section 4.
++
++   Usage:
++     npm install firebase-admin
++     node migrate-public-tokens.mjs --dry-run
++     node migrate-public-tokens.mjs
++     node migrate-public-tokens.mjs --purge-legacy
++
++   Requires serviceAccountKey.json in the parent directory. That key bypasses
++   security rules entirely — treat it like a password and delete it afterwards.
++   ========================================================================== */
++
++import { readFileSync } from 'node:fs';
++import { randomBytes } from 'node:crypto';
++import { initializeApp, cert } from 'firebase-admin/app';
++import { getFirestore, FieldValue } from 'firebase-admin/firestore';
++
++const DRY_RUN = process.argv.includes('--dry-run');
++const PURGE   = process.argv.includes('--purge-legacy');
++
++const KEY_PATH = new URL('../serviceAccountKey.json', import.meta.url);
++let serviceAccount;
++try {
++  serviceAccount = JSON.parse(readFileSync(KEY_PATH, 'utf8'));
++} catch (e) {
++  console.error('Could not read serviceAccountKey.json in the project root.');
++  console.error('Firebase Console -> Project settings -> Service accounts -> Generate new private key');
++  process.exit(1);
++}
++
++initializeApp({ credential: cert(serviceAccount) });
++const db = getFirestore();
++
++/* Must match newPublicToken() in app-common.js and isPublicToken() in
++   firestore.rules: 32 lowercase hex characters. */
++const newPublicToken = () => randomBytes(16).toString('hex');
++
++const say = (...a) => console.log(DRY_RUN ? '[dry-run]' : '[apply]  ', ...a);
++
++/* Firestore batches cap at 500 writes. */
++async function commitInChunks(writes) {
++  if (DRY_RUN) return writes.length;
++  let done = 0;
++  for (let i = 0; i < writes.length; i += 400) {
++    const batch = db.batch();
++    for (const w of writes.slice(i, i + 400)) w(batch);
++    await batch.commit();
++    done += Math.min(400, writes.length - i);
++    process.stdout.write(`\r  committed ${done}/${writes.length}`);
++  }
++  if (done) process.stdout.write('\n');
++  return done;
++}
++
++async function migrateMembers() {
++  console.log('\n=== members ===');
++  const snap = await db.collection('members').get();
++  const writes = [];
++  let skipped = 0;
++
++  for (const d of snap.docs) {
++    const m = d.data();
++    if (m.publicToken) { skipped++; continue; }
++    // Only approved members have a public record to move.
++    if (!m.memberID || m.status !== 'approved') { skipped++; continue; }
++
++    const token = newPublicToken();
++    say(`member ${m.memberID}  ${m.tower}/${m.flatNumber}  ->  ${token}`);
++
++    writes.push((b) => b.update(d.ref, { publicToken: token }));
++    writes.push((b) => b.set(db.collection('membersPublic').doc(token), {
++      memberID: m.memberID,
++      name: m.name || '',
++      tower: m.tower || '',
++      flatNumber: m.flatNumber || '',
++      residentType: m.residentType || '',
++      status: m.status,
++      updatedAt: FieldValue.serverTimestamp()
++    }));
++    if (PURGE) {
++      writes.push((b) => b.delete(db.collection('membersPublic').doc(m.memberID)));
++    }
++  }
++
++  const n = await commitInChunks(writes);
++  console.log(`  ${writes.length ? writes.length : 0} writes queued, ${n} applied, ${skipped} already fine or not applicable`);
++}
++
++async function migratePayments() {
++  console.log('\n=== payments ===');
++  const snap = await db.collection('payments').where('status', '==', 'verified').get();
++  const writes = [];
++  let skipped = 0;
++
++  for (const d of snap.docs) {
++    const p = d.data();
++    if (p.publicToken) { skipped++; continue; }
++    if (!p.receiptNumber) { skipped++; continue; }
++
++    const token = newPublicToken();
++    say(`receipt ${p.receiptNumber}  ${p.residentName}  ->  ${token}`);
++
++    writes.push((b) => b.update(d.ref, { publicToken: token }));
++    writes.push((b) => b.set(db.collection('receiptsPublic').doc(token), {
++      receiptNumber: p.receiptNumber,
++      residentName: p.residentName || '',
++      flatNumber: p.flatNumber || '',
++      tower: p.tower || '',
++      amount: p.amount,
++      financialYear: p.financialYear || '',
++      verifiedAt: p.verifiedAt || FieldValue.serverTimestamp(),
++      status: 'Verified'
++    }));
++    if (PURGE) {
++      writes.push((b) => b.delete(db.collection('receiptsPublic').doc(p.receiptNumber)));
++    }
++  }
++
++  const n = await commitInChunks(writes);
++  console.log(`  ${writes.length} writes queued, ${n} applied, ${skipped} already fine or not applicable`);
++}
++
++/* Approvals now reserve a flat. Existing approved members predate that, so
++   backfill the claims — and report any duplicate flats rather than guessing
++   which record is the real one. */
++async function backfillFlatClaims() {
++  console.log('\n=== flat claims ===');
++  const snap = await db.collection('members').where('status', '==', 'approved').get();
++  const byFlat = new Map();
++
++  for (const d of snap.docs) {
++    const m = d.data();
++    if (!m.tower || !m.flatNumber) continue;
++    const key = `${String(m.tower).trim()}_${String(m.flatNumber).trim()}`;
++    if (!byFlat.has(key)) byFlat.set(key, []);
++    byFlat.get(key).push({ id: d.id, ...m });
++  }
++
++  const writes = [];
++  const duplicates = [];
++  for (const [key, members] of byFlat) {
++    if (members.length > 1) {
++      duplicates.push({ key, members });
++      continue;   // never auto-pick a winner
++    }
++    const m = members[0];
++    say(`claim ${key} -> ${m.memberID || m.id}`);
++    writes.push((b) => b.set(db.collection('flatClaims').doc(key), {
++      tower: m.tower, flatNumber: m.flatNumber,
++      memberDocId: m.id, memberUid: m.uid || null,
++      memberID: m.memberID || null,
++      claimedAt: FieldValue.serverTimestamp()
++    }, { merge: true }));
++  }
++
++  const n = await commitInChunks(writes);
++  console.log(`  ${writes.length} claims queued, ${n} applied`);
++
++  if (duplicates.length) {
++    console.log(`\n  !! ${duplicates.length} flats have more than one approved member.`);
++    console.log('     No claim was written for these — decide which record is correct,');
++    console.log('     deactivate the other in the Admin Panel, then re-run this script.\n');
++    for (const { key, members } of duplicates) {
++      console.log(`     ${key}:`);
++      for (const m of members) console.log(`       - ${m.memberID || '(no ID)'}  ${m.name}  (doc ${m.id})`);
++    }
++  }
++}
++
++console.log(DRY_RUN ? 'DRY RUN — nothing will be written.' : 'APPLYING CHANGES.');
++if (PURGE && !DRY_RUN) {
++  console.log('\n!! --purge-legacy is on. Receipts and membership cards printed before');
++  console.log('   this migration will STOP verifying. Ctrl-C now if that is not what');
++  console.log('   you meant. Continuing in 10 seconds...\n');
++  await new Promise((r) => setTimeout(r, 10000));
++}
++
++await migrateMembers();
++await migratePayments();
++await backfillFlatClaims();
++
++console.log('\nDone.');
++if (DRY_RUN) console.log('That was a dry run — re-run without --dry-run to apply.');
++process.exit(0);
+diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal/verify.html MHMRWS-Portal/verify.html
+--- a/MHMRWS-Portal/verify.html	2026-07-23 09:23:22.000000000 +0000
++++ MHMRWS-Portal/verify.html	2026-07-24 12:07:13.669361426 +0000
+@@ -2,10 +2,48 @@
+ <html lang="en">
+ <head>
+ <meta charset="UTF-8">
++<!-- ==========================================================================
++     CONTENT SECURITY POLICY
++     GitHub Pages cannot set HTTP headers, so this goes in a meta tag — which
++     must stay above every script and stylesheet it governs.
++
++     What this buys: an injected <script src="https://evil.example/x.js"> will
++     not load, and stolen data cannot be POSTed anywhere except the endpoints
++     listed in connect-src. That is the realistic attack against a page that
++     handles Aadhaar uploads and payment records.
++
++     What it does NOT buy: script-src still has 'unsafe-inline', because every
++     page here is built from inline module scripts and inline style attributes. Removing that needs the inline scripts moved into their
++     own .js files first — worth doing, but it is a refactor, not a patch.
++
++     frame-ancestors is not supported in a meta tag, so this cannot stop the
++     site being framed. If you ever move off GitHub Pages, set
++     `X-Frame-Options: DENY` (or frame-ancestors 'none') as a real header.
++
++     AFTER DEPLOYING: open the site, press F12, and check the Console for
++     "Refused to ..." messages. Any legitimate endpoint this policy blocks will
++     announce itself there and just needs adding to the right directive.
++     ========================================================================== -->
++<meta http-equiv="Content-Security-Policy" content="
++  default-src 'self';
++  script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://www.gstatic.com https://accounts.google.com https://apis.google.com https://www.google.com;
++  style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
++  img-src 'self' data: blob: https://firebasestorage.googleapis.com https://*.googleusercontent.com;
++  font-src 'self' data: https://fonts.gstatic.com;
++  connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://accounts.google.com;
++  frame-src https://www.google.com https://accounts.google.com;
++  worker-src 'self';
++  object-src 'none';
++  base-uri 'self';
++  form-action 'self';
++">
+ <meta name="viewport" content="width=device-width, initial-scale=1.0">
+ <title>Verify — MHMRWS</title>
+ <meta name="robots" content="noindex">
+ <link rel="icon" href="favicon-32.png">
++<meta name="color-scheme" content="light">
++<link rel="preconnect" href="https://fonts.googleapis.com">
++<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+ <link rel="stylesheet" href="styles.css">
+ <style>
+   body{ background:var(--gradient-navy); min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
+@@ -43,9 +81,14 @@
+ import { doc, getDoc } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+ import { escapeHtml, fmtDate, formatINR } from './app-common.js';
+ 
++/* The QR codes now carry an unguessable token (?r= / ?m=) instead of the
++   sequential receipt or member number, so the public records cannot be walked
++   from 000001 upwards. The old ?receipt= / ?member= parameters are still
++   honoured: receipts and cards printed before the change are already in
++   residents' hands and must keep verifying. */
+ const params = new URLSearchParams(window.location.search);
+-const receiptNumber = params.get('receipt');
+-const memberID = params.get('member');
++const receiptKey = params.get('r') || params.get('receipt');
++const memberKey  = params.get('m') || params.get('member');
+ 
+ const sealBox = document.getElementById('sealBox');
+ const stateTitle = document.getElementById('stateTitle');
+@@ -100,18 +143,18 @@
+ }
+ 
+ (async function run() {
+-  if (!receiptNumber && !memberID) {
++  if (!receiptKey && !memberKey) {
+     renderNotFound('Is link mein koi receipt ya member number nahi mila.');
+     return;
+   }
+   try {
+-    if (memberID) {
+-      const snap = await getDoc(doc(db, 'membersPublic', memberID));
++    if (memberKey) {
++      const snap = await getDoc(doc(db, 'membersPublic', memberKey));
+       if (snap.exists()) renderMember(snap.data());
+-      else renderNotFound('Yeh Member ID hamare record mein nahi mila.');
++      else renderNotFound('Yeh membership hamare record mein nahi mili.');
+       return;
+     }
+-    const snap = await getDoc(doc(db, 'receiptsPublic', receiptNumber));
++    const snap = await getDoc(doc(db, 'receiptsPublic', receiptKey));
+     if (snap.exists()) renderVerified(snap.data());
+     else renderNotFound();
+   } catch (e) {

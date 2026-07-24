@@ -22,6 +22,21 @@ service firebase.storage {
         firestore.exists(/databases/(default)/documents/admins/$(request.auth.uid));
     }
 
+    // An upload path that accepts "any bytes" is a hosting service for whoever
+    // finds it: an .html file dropped into the bucket is served from the
+    // society's own domain and can then be linked as if it were an official
+    // document. Everything a resident uploads is either a picture or a PDF —
+    // or, for the ID vault, an AES-GCM blob, which arrives as
+    // application/octet-stream because that is what encryptFile() produces.
+    function isImageOrPdf() {
+      return request.resource.contentType.matches('image/.*')
+          || request.resource.contentType == 'application/pdf';
+    }
+    function isImagePdfOrEncrypted() {
+      return isImageOrPdf()
+          || request.resource.contentType == 'application/octet-stream';
+    }
+
     // Resident registration photo — owner + admins only (not public).
     match /photos/{uid}/{fileName} {
       allow read: if isAdmin() || request.auth.uid == uid;
@@ -35,25 +50,33 @@ service firebase.storage {
     // before upload (see app-common.js encryptFile()) for defense in depth.
     match /documents/{uid}/{fileName} {
       allow read: if isAdmin() || request.auth.uid == uid;
-      allow write: if request.auth.uid == uid && request.resource.size < 8 * 1024 * 1024;
+      allow write: if request.auth.uid == uid
+                   && request.resource.size < 8 * 1024 * 1024
+                   && isImagePdfOrEncrypted();
     }
 
     // UPI/bank-transfer payment screenshots — owner + admins only.
     match /paymentProofs/{uid}/{fileName} {
       allow read: if isAdmin() || request.auth.uid == uid;
-      allow write: if request.auth.uid == uid && request.resource.size < 8 * 1024 * 1024;
+      allow write: if request.auth.uid == uid
+                   && request.resource.size < 8 * 1024 * 1024
+                   && isImageOrPdf();
     }
 
     // Notice board attachments (circulars, PDFs) — public read, admin write.
     match /noticeAttachments/{fileName} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if isAdmin()
+                   && request.resource.size < 20 * 1024 * 1024
+                   && isImageOrPdf();
     }
 
     // Committee directory photos — intentionally public.
     match /committeePhotos/{fileName} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if isAdmin()
+                   && request.resource.size < 5 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
     }
 
     // Society documents residents can download — bylaws, AGM minutes,
@@ -67,23 +90,41 @@ service firebase.storage {
     // that turns into a leak the next time someone edits them.
     match /publicDocs/{fileName} {
       allow read: if true;
-      allow write: if isAdmin() && request.resource.size < 20 * 1024 * 1024;
+      allow write: if isAdmin()
+                   && request.resource.size < 20 * 1024 * 1024
+                   && isImageOrPdf();
     }
 
     // Society logo, payment QR code, downloadable forms — public read.
     match /settings/{fileName} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if isAdmin()
+                   && request.resource.size < 10 * 1024 * 1024
+                   && isImageOrPdf();
     }
   }
 }
 
 // ----------------------------------------------------------------------------
-// FALLBACK if firestore.exists() is not available on your project:
-// Replace isAdmin() above with `return isSignedIn();` and rely on the fact
-// that admin accounts are never self-service (only a Super Admin can create
-// one from the Admin Panel — see SETUP-GUIDE.md, Step 6). This is weaker
-// (any signed-in resident could read any resident's documents) so upgrade
-// to the firestore.exists() version above as soon as you can confirm it
-// works on your project.
+// IF firestore.exists() IS NOT AVAILABLE ON YOUR PROJECT
+//
+// Do NOT fall back to `return isSignedIn();` here. That would make every
+// resident's Aadhaar and PAN upload readable by every other resident who can
+// log in — which is the single worst outcome this file exists to prevent, and
+// it fails silently: nothing breaks, nothing warns you, the documents are just
+// exposed.
+//
+// If the Firestore lookup genuinely does not work, mirror the admin UIDs into
+// this file by hand instead. It is ugly and you have to edit it whenever the
+// committee changes, but it fails closed:
+//
+//   function isAdmin() {
+//     return isSignedIn() && request.auth.uid in [
+//       'PASTE_SUPERADMIN_UID_HERE',
+//       'PASTE_TREASURER_UID_HERE'
+//     ];
+//   }
+//
+// Firestore-in-Storage-rules has been generally available since 2023, so in
+// practice the version above should just work.
 // ----------------------------------------------------------------------------

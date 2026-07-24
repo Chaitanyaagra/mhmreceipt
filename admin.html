@@ -2,16 +2,67 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<!-- ==========================================================================
+     CONTENT SECURITY POLICY
+     GitHub Pages cannot set HTTP headers, so this goes in a meta tag — which
+     must stay above every script and stylesheet it governs.
+
+     What this buys: an injected <script src="https://evil.example/x.js"> will
+     not load, and stolen data cannot be POSTed anywhere except the endpoints
+     listed in connect-src. That is the realistic attack against a page that
+     handles Aadhaar uploads and payment records.
+
+     What it does NOT buy: script-src still has 'unsafe-inline', because every
+     page here is built from inline module scripts and inline style attributes. Removing that needs the inline scripts moved into their
+     own .js files first — worth doing, but it is a refactor, not a patch.
+
+     frame-ancestors is not supported in a meta tag, so this cannot stop the
+     site being framed. If you ever move off GitHub Pages, set
+     `X-Frame-Options: DENY` (or frame-ancestors 'none') as a real header.
+
+     AFTER DEPLOYING: open the site, press F12, and check the Console for
+     "Refused to ..." messages. Any legitimate endpoint this policy blocks will
+     announce itself there and just needs adding to the right directive.
+     ========================================================================== -->
+<meta http-equiv="Content-Security-Policy" content="
+  default-src 'self';
+  script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://www.gstatic.com https://accounts.google.com https://apis.google.com https://www.google.com;
+  style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+  img-src 'self' data: blob: https://firebasestorage.googleapis.com https://*.googleusercontent.com;
+  font-src 'self' data: https://fonts.gstatic.com;
+  connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://accounts.google.com;
+  frame-src https://www.google.com https://accounts.google.com;
+  worker-src 'self';
+  object-src 'none';
+  base-uri 'self';
+  form-action 'self';
+">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Admin Panel — MHMRWS Digital Portal</title>
 <meta name="robots" content="noindex">
 <link rel="icon" href="favicon-32.png">
+<meta name="color-scheme" content="light">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="styles.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode/1.5.3/qrcode.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<!-- Third-party libraries.
+     These are loaded from a CDN with no integrity hash, which means a
+     compromised or hijacked CDN gets script execution on a page that handles
+     ID documents and payment records. Fix this — it takes two minutes:
+
+       1. Open https://cdnjs.com and search for the library.
+       2. Click the copy button next to "SRI" for the exact version below.
+       3. Paste the sha384-... value into an integrity="" attribute here.
+
+     Stronger still: download these five files into a vendor/ folder in this
+     repo and load them from './vendor/...'. Same-origin scripts need no hash,
+     cannot be tampered with by a third party, and let the service worker cache
+     them for genuine offline use. -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode/1.5.3/qrcode.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <style>
   body{ background:var(--paper); }
   .login-screen{ min-height:100vh; display:grid; place-items:center; background:var(--gradient-navy); padding:20px; }
@@ -35,7 +86,24 @@
 
   .main-area{ padding:28px 32px 60px; max-width:1360px; width:100%; }
   .topbar{ display:flex; justify-content:space-between; align-items:center; margin-bottom:26px; flex-wrap:wrap; gap:14px; }
-  .view-title{ font-size:23px; }
+  .view-title{ font-size:23px; position:relative; padding-top:14px; }
+  /* The engraved gold rule from the resident portal, so the admin panel reads
+     as the same product. Pure CSS — no markup change across the 9 views. */
+  .view-title::before{
+    content:''; position:absolute; top:0; left:0; width:44px; height:2px; border-radius:2px;
+    background:var(--gradient-saffron);
+  }
+  .view-title::after{
+    content:''; position:absolute; top:0; left:50px; width:14px; height:2px; border-radius:2px;
+    background:var(--magenta-500);
+  }
+  /* Sidebar brand gets the same hairline the site header has. */
+  .sidebar-brand{ position:relative; }
+  .sidebar-brand::after{
+    content:''; position:absolute; left:8px; right:8px; bottom:12px; height:1px;
+    background:linear-gradient(90deg, var(--gold-500), var(--magenta-500) 55%, transparent);
+    opacity:.55;
+  }
   .fy-select{ width:auto; }
 
   .stat-cards{ display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:22px; }
@@ -157,7 +225,7 @@
       <button data-view="importExport"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-importExport"/></svg></span> Import / Export</button>
       <button data-view="settings"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-settings"/></svg></span> Settings &amp; Backup</button>
       <button data-view="adminUsers"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-adminUsers"/></svg></span> Admin Users</button>
-      <button data-view="auditLog"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-auditLog"/></svg></span> Audit Log</button>
+      <button data-view="auditLog"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-auditLog"/></svg></span> Activity Log</button>
     </nav>
     <div class="sidebar-foot">
       <div class="admin-chip"><b id="adminName">—</b><span id="adminRole">—</span></div>
@@ -467,12 +535,16 @@
       </div>
     </div>
 
-    <!-- ---------------- AUDIT LOG ---------------- -->
+    <!-- ---------------- ACTIVITY LOG ---------------- -->
     <div class="view-panel" id="view-auditLog">
-      <div class="topbar"><h2 class="view-title">Audit Log</h2></div>
+      <div class="topbar"><h2 class="view-title">Activity Log</h2></div>
+      <p class="t-sub" style="font-size:12.5px; margin:-6px 0 14px;">
+        Committee ke actions ka record. Yeh browser se likha jaata hai, isliye ise
+        reference ke liye istemal karein — kisi vivaad mein proof ke taur par nahi.
+      </p>
       <div class="table-wrap">
-        <table><thead><tr><th>Time</th><th>User</th><th>Action</th><th>Details</th><th>IP</th></tr></thead>
-        <tbody id="auditLogBody"><tr><td colspan="5" class="t-muted">Loading…</td></tr></tbody></table>
+        <table><thead><tr><th>Time</th><th>User</th><th>Action</th><th>Details</th></tr></thead>
+        <tbody id="auditLogBody"><tr><td colspan="4" class="t-muted">Loading…</td></tr></tbody></table>
       </div>
     </div>
 
@@ -612,7 +684,8 @@ import {
   getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, createUserWithEmailAndPassword
 } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
 import {
-  doc, getDoc, setDoc, updateDoc, deleteDoc, addDoc, collection, getDocs, query, where, orderBy, serverTimestamp, limit
+  doc, getDoc, setDoc, updateDoc, deleteDoc, addDoc, collection, getDocs, query, where, orderBy, serverTimestamp, limit,
+  writeBatch, runTransaction
 } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
 import {
   ref as storageRef, uploadBytes, getDownloadURL
@@ -621,6 +694,7 @@ import {
   showToast, escapeHtml, fmtDate, fmtDateTime, formatINR, currentFinancialYear, financialYearOptions,
   generateMemberId, generateReceiptNumber, logAudit, generateReceiptPDF, exportToExcel, parseExcelFile,
   encryptFile, decryptToBlob, backupToDrive, waLink, serializeForExport,
+  newPublicToken, publicKeyForMember,
   TOWER_IDS, TOWER_PLAN, flatsForTower, isValidFlat,
   duesFor, DUES_LABEL, DUES_BADGE,
   EXPENSE_CATEGORIES, EXPENSE_MODES, expenseSummary, fundPosition, validateExpense
@@ -1070,16 +1144,64 @@ async function openMemberDoc(m) {
   } catch (e) { showToast('Decrypt fail — passphrase galat ho sakta hai.', 'error'); }
 }
 
+/* One flat, one member. Firestore has no unique index, so uniqueness is bought
+   with a document ID: flatClaims/A_101 either exists or it does not. */
+function flatClaimId(tower, flatNumber) {
+  return `${String(tower || '').trim()}_${String(flatNumber || '').trim()}`;
+}
+
+/* Approval used to be three separate round trips — assign an ID, update the
+   member, write the public record — with no guarantee the later ones ran. A
+   half-approved resident ends up holding a card whose QR resolves to "not
+   found", which is exactly the moment the portal has to be trustworthy.
+   All of it now commits together, or none of it does. */
 async function approveMember(id) {
   const m = allMembers.find(x => x.id === id) || {};
+  const claimRef = doc(db, 'flatClaims', flatClaimId(m.tower, m.flatNumber));
+
+  // Cheap pre-check so the common case gives a readable message instead of a
+  // transaction abort. The transaction below is what actually enforces it.
+  const existing = await getDoc(claimRef);
+  if (existing.exists() && existing.data().memberDocId !== id) {
+    const holder = allMembers.find(x => x.id === existing.data().memberDocId);
+    showToast(`Tower ${m.tower}, Flat ${m.flatNumber} pehle se ${holder?.name || 'kisi aur member'} ke naam par hai. Pehle unhe deactivate karein.`, 'error');
+    return;
+  }
+
   const memberID = await generateMemberId();
-  await updateDoc(doc(db, 'members', id), { status: 'approved', memberID, approvedBy: currentAdmin.email, approvedAt: serverTimestamp(), updatedAt: serverTimestamp() });
-  // Public record behind the membership card's QR code. Deliberately holds
-  // only what a guard at the gate needs — no contact details, no documents.
-  await setDoc(doc(db, 'membersPublic', memberID), {
-    memberID, name: m.name || '', tower: m.tower || '', flatNumber: m.flatNumber || '',
-    residentType: m.residentType || '', status: 'approved', updatedAt: serverTimestamp()
-  });
+  const publicToken = newPublicToken();
+
+  try {
+    await runTransaction(db, async (tx) => {
+      const claim = await tx.get(claimRef);
+      if (claim.exists() && claim.data().memberDocId !== id) throw new Error('FLAT_TAKEN');
+      tx.update(doc(db, 'members', id), {
+        status: 'approved', memberID, publicToken,
+        approvedBy: currentAdmin.email, approvedAt: serverTimestamp(), updatedAt: serverTimestamp()
+      });
+      // Public record behind the membership card's QR code. Keyed by the random
+      // token, not the member number, so the directory cannot be enumerated.
+      // Holds only what a guard at the gate needs — no contact details, no
+      // documents, no payment history.
+      tx.set(doc(db, 'membersPublic', publicToken), {
+        memberID, name: m.name || '', tower: m.tower || '', flatNumber: m.flatNumber || '',
+        residentType: m.residentType || '', status: 'approved', updatedAt: serverTimestamp()
+      });
+      tx.set(claimRef, {
+        tower: m.tower || '', flatNumber: m.flatNumber || '',
+        memberDocId: id, memberUid: m.uid || null, memberID, claimedAt: serverTimestamp()
+      });
+    });
+  } catch (err) {
+    if (err.message === 'FLAT_TAKEN') {
+      showToast('Yeh flat abhi-abhi kisi aur ko allot ho gaya. Page refresh karke dobara dekhein.', 'error');
+    } else {
+      console.error(err);
+      showToast('Approve nahi ho paaya — kuch bhi save nahi hua. Dobara try karein.', 'error');
+    }
+    return;
+  }
+
   await logAudit(auth.currentUser, 'approve_member', { id, memberID });
   showToast(`Approved! Member ID: ${memberID}`, 'success');
   document.getElementById('memberModalBackdrop').classList.remove('open');
@@ -1089,10 +1211,13 @@ async function rejectMember(id) {
   const reason = prompt('Reject karne ki wajah:');
   if (reason === null) return;
   const m = allMembers.find(x => x.id === id) || {};
-  await updateDoc(doc(db, 'members', id), { status: 'rejected', rejectionReason: reason, updatedAt: serverTimestamp() });
-  if (m.memberID) {
-    await setDoc(doc(db, 'membersPublic', m.memberID), { status: 'rejected', updatedAt: serverTimestamp() }, { merge: true });
-  }
+  const batch = writeBatch(db);
+  batch.update(doc(db, 'members', id), { status: 'rejected', rejectionReason: reason, updatedAt: serverTimestamp() });
+  const rejKey = publicKeyForMember(m);
+  if (rejKey) batch.set(doc(db, 'membersPublic', rejKey), { status: 'rejected', updatedAt: serverTimestamp() }, { merge: true });
+  // Free the flat so whoever actually lives there can be approved for it.
+  if (m.tower && m.flatNumber) batch.delete(doc(db, 'flatClaims', flatClaimId(m.tower, m.flatNumber)));
+  await batch.commit();
   await logAudit(auth.currentUser, 'reject_member', { id, reason });
   showToast('Registration reject kar diya gaya.', 'success');
   document.getElementById('memberModalBackdrop').classList.remove('open');
@@ -1102,12 +1227,16 @@ async function deactivateMember(id) {
   const reason = prompt('Deactivate karne ki wajah (history surakshit rahegi):');
   if (reason === null) return;
   const m = allMembers.find(x => x.id === id) || {};
-  await updateDoc(doc(db, 'members', id), { status: 'inactive', deactivatedReason: reason, deactivatedAt: serverTimestamp(), updatedAt: serverTimestamp() });
+  const batch = writeBatch(db);
+  batch.update(doc(db, 'members', id), { status: 'inactive', deactivatedReason: reason, deactivatedAt: serverTimestamp(), updatedAt: serverTimestamp() });
   // Flip the public record too, so the card stops verifying at the gate the
-  // moment the member is deactivated.
-  if (m.memberID) {
-    await setDoc(doc(db, 'membersPublic', m.memberID), { status: 'inactive', updatedAt: serverTimestamp() }, { merge: true });
-  }
+  // moment the member is deactivated — in the same commit, so it can never be
+  // the case that the member is inactive but the card still scans as valid.
+  const deacKey = publicKeyForMember(m);
+  if (deacKey) batch.set(doc(db, 'membersPublic', deacKey), { status: 'inactive', updatedAt: serverTimestamp() }, { merge: true });
+  // Release the flat for the next resident.
+  if (m.tower && m.flatNumber) batch.delete(doc(db, 'flatClaims', flatClaimId(m.tower, m.flatNumber)));
+  await batch.commit();
   await logAudit(auth.currentUser, 'deactivate_member', { id, reason });
   showToast('Member deactivate ho gaya.', 'success');
   document.getElementById('memberModalBackdrop').classList.remove('open');
@@ -1188,18 +1317,48 @@ function openPaymentDetail(id) {
 }
 document.getElementById('closePaymentDetailModal').addEventListener('click', () => document.getElementById('paymentDetailModalBackdrop').classList.remove('open'));
 
+/* Verification was four independent round trips: bump the counter, update the
+   payment, write the public receipt, log it. Lose the connection between any
+   two and the society is left with a payment marked verified whose printed QR
+   resolves to "receipt not found" — or a burned receipt number and no receipt.
+   The payment record and its public counterpart now commit as one write.
+
+   (The counter still has to be bumped first, because Firestore cannot batch a
+   transaction with a batch. A crash in that gap costs a gap in the receipt
+   sequence, which is inert; the case that actually hurt — a verified payment
+   with no verifiable receipt — is now impossible.) */
 async function verifyPayment(id) {
   const p = allPayments.find(x => x.id === id);
-  const receiptNumber = await generateReceiptNumber(p.financialYear);
-  await updateDoc(doc(db, 'payments', id), { status: 'verified', receiptNumber, verifiedAt: serverTimestamp(), verifiedBy: currentAdmin.email });
-  await setDoc(doc(db, 'receiptsPublic', receiptNumber), {
-    receiptNumber, residentName: p.residentName, flatNumber: p.flatNumber, tower: p.tower,
-    amount: p.amount, financialYear: p.financialYear, verifiedAt: serverTimestamp(), status: 'Verified'
-  });
-  await logAudit(auth.currentUser, 'verify_payment', { paymentId: id, receiptNumber, amount: p.amount });
-  showToast(`Verified! Receipt: ${receiptNumber}`, 'success');
-  document.getElementById('paymentDetailModalBackdrop').classList.remove('open');
-  await reloadPayments(); renderPendingPayments(); renderAllPayments(); renderOverview(); renderDefaulters();
+  if (!p) return;
+  const btn = document.getElementById('verifyBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Verifying…'; }
+  try {
+    const receiptNumber = await generateReceiptNumber(p.financialYear);
+    const publicToken = newPublicToken();
+
+    const batch = writeBatch(db);
+    batch.update(doc(db, 'payments', id), {
+      status: 'verified', receiptNumber, publicToken,
+      verifiedAt: serverTimestamp(), verifiedBy: currentAdmin.email
+    });
+    // Keyed by the random token: a resident scanning their own QR resolves it
+    // instantly, and nobody can walk the receipt numbers to total up what the
+    // society has collected and from whom.
+    batch.set(doc(db, 'receiptsPublic', publicToken), {
+      receiptNumber, residentName: p.residentName, flatNumber: p.flatNumber, tower: p.tower,
+      amount: p.amount, financialYear: p.financialYear, verifiedAt: serverTimestamp(), status: 'Verified'
+    });
+    await batch.commit();
+
+    await logAudit(auth.currentUser, 'verify_payment', { paymentId: id, receiptNumber, amount: p.amount });
+    showToast(`Verified! Receipt: ${receiptNumber}`, 'success');
+    document.getElementById('paymentDetailModalBackdrop').classList.remove('open');
+    await reloadPayments(); renderPendingPayments(); renderAllPayments(); renderOverview(); renderDefaulters();
+  } catch (e) {
+    console.error(e);
+    showToast('Verify nahi ho paaya — payment jaisa tha waisa hi hai. Dobara try karein.', 'error');
+    if (btn) { btn.disabled = false; btn.textContent = '\u2713 Verify & Issue Receipt'; }
+  }
 }
 async function rejectPayment(id) {
   const reason = prompt('Reject karne ki wajah:');
@@ -1497,22 +1656,32 @@ document.getElementById('zipExportBtn').addEventListener('click', async () => {
     }
   });
   const verifiedThisMonth = allPayments.filter(p => p.status === 'verified' && inMonth(p.verifiedAt));
-  statusEl.textContent = `Building ${verifiedThisMonth.length} receipts + ${files.length} documents…`;
+
+  // The society record is the same for every receipt — it used to be fetched
+  // once per receipt inside the loop, which is one billed read per PDF.
+  const societySnap = await getDoc(doc(db, 'settings', 'society'));
+  const society = societySnap.exists() ? societySnap.data() : { fullName: SOCIETY.fullName };
+
+  let done = 0;
+  const total = verifiedThisMonth.length + files.length;
+  const tick = () => { statusEl.textContent = `Building ${++done} / ${total}…`; };
+
   for (const p of verifiedThisMonth) {
     try {
       const mem = allMembers.find(x => x.uid === p.memberUid) || {};
-      const societySnap = await getDoc(doc(db, 'settings', 'society'));
-      const society = societySnap.exists() ? societySnap.data() : { fullName: SOCIETY.fullName };
       const blob = await generateReceiptPDF({ payment: p, member: mem, society, logoDataUrl: null, save: false });
       files.push({ blob, name: `Receipts/${p.receiptNumber}.pdf` });
     } catch (e) { /* skip a failed receipt rather than aborting the whole export */ }
+    tick();
   }
 
   const zip = new window.JSZip();
   for (const f of files) {
-    if (f.blob) { zip.file(f.name, f.blob); continue; }
+    if (f.blob) { zip.file(f.name, f.blob); tick(); continue; }
     try { const b = await fetch(f.url).then(r => r.blob()); zip.file(f.name, b); } catch (e) {}
+    tick();
   }
+  statusEl.textContent = 'Compressing…';
   const zipBlob = await zip.generateAsync({ type: 'blob' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(zipBlob); a.download = `MHMRWS-${monthVal}.zip`; a.click();
@@ -1811,15 +1980,38 @@ document.getElementById('addAdminForm').addEventListener('submit', async (e) => 
 
     let memberID = null;
     if (f.alsoResident.checked) {
+      const tower = f.tower.value.trim();
+      const flatNumber = f.flatNumber.value.trim();
+      const claimRef = doc(db, 'flatClaims', flatClaimId(tower, flatNumber));
+      const held = await getDoc(claimRef);
+      if (held.exists()) throw new Error(`Tower ${tower}, Flat ${flatNumber} pehle se kisi aur member ke naam par hai.`);
+
       memberID = await generateMemberId();
-      await setDoc(doc(db, 'members', newUid), {
-        uid: newUid, name: f.name.value, fatherHusbandName: '', tower: f.tower.value.trim(),
-        flatNumber: f.flatNumber.value.trim(), mobile: f.mobile.value.trim(), email: f.email.value.trim(),
+      const publicToken = newPublicToken();
+
+      // This path used to write the member record only — no public record and
+      // no flat claim — so a committee member created here got a membership
+      // card whose QR resolved to "not found". Approving a resident normally
+      // and creating one from here now produce identical state.
+      const batch = writeBatch(db);
+      batch.set(doc(db, 'members', newUid), {
+        uid: newUid, name: f.name.value, fatherHusbandName: '', tower,
+        flatNumber, mobile: f.mobile.value.trim(), email: f.email.value.trim(),
         occupation: '', residentType: 'owner', address: '', nomineeName: '', nomineeRelation: '',
-        photoURL: '', idDocURL: '', declarationAccepted: true, memberID, status: 'approved', role: 'resident',
+        photoURL: '', idDocURL: '', declarationAccepted: true, memberID, publicToken,
+        status: 'approved', role: 'resident',
         source: 'admin_created', createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
         approvedBy: currentAdmin.email, approvedAt: serverTimestamp()
       });
+      batch.set(doc(db, 'membersPublic', publicToken), {
+        memberID, name: f.name.value, tower, flatNumber,
+        residentType: 'owner', status: 'approved', updatedAt: serverTimestamp()
+      });
+      batch.set(claimRef, {
+        tower, flatNumber, memberDocId: newUid, memberUid: newUid, memberID, claimedAt: serverTimestamp()
+      });
+      await batch.commit();
+
       await reloadMembers(); renderMembersTable(); renderOverview(); populateTowerFilter();
     }
 
@@ -1832,16 +2024,16 @@ document.getElementById('addAdminForm').addEventListener('submit', async (e) => 
 });
 
 /* ---------------------------------------------------------------------- */
-/*  Audit Log                                                              */
+/*  Activity Log                                                           */
 /* ---------------------------------------------------------------------- */
 async function loadAuditLog() {
   try {
     const rows = (await getDocs(query(collection(db, 'auditLogs'), orderBy('timestamp', 'desc'), limit(200)))).docs.map(d => d.data());
     document.getElementById('auditLogBody').innerHTML = rows.map(r => `
       <tr><td>${fmtDateTime(r.timestamp)}</td><td>${escapeHtml(r.userEmail)}</td><td>${escapeHtml(r.action)}</td>
-      <td class="mono" style="font-size:11.5px;">${escapeHtml(JSON.stringify(r.details || {}))}</td><td>${escapeHtml(r.ip || '—')}</td></tr>
-    `).join('') || '<tr><td colspan="5" class="t-muted">No audit entries yet.</td></tr>';
-  } catch (e) { document.getElementById('auditLogBody').innerHTML = '<tr><td colspan="5" class="t-muted">Could not load audit log.</td></tr>'; }
+      <td class="mono" style="font-size:11.5px;">${escapeHtml(JSON.stringify(r.details || {}))}</td></tr>
+    `).join('') || '<tr><td colspan="4" class="t-muted">No activity recorded yet.</td></tr>';
+  } catch (e) { document.getElementById('auditLogBody').innerHTML = '<tr><td colspan="4" class="t-muted">Could not load activity log.</td></tr>'; }
 }
 </script>
 <style>.vrow{ display:flex; justify-content:space-between; padding:9px 0; border-bottom:1px solid var(--line); } .vrow:last-child{ border-bottom:none; } .vrow span:first-child{ color:var(--ink-400); }</style>
