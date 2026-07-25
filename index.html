@@ -1538,15 +1538,23 @@ registerForm.addEventListener('submit', async (e) => {
     // Proof the person owns the address they registered with. Without this,
     // anyone could sign up in a neighbour's name using their email — and the
     // committee would have no way to tell the difference at approval time.
-    // Best-effort: a mail that fails to send must not undo a valid
-    // registration, the resident can resend it from the dashboard.
-    try { await sendEmailVerification(cred.user); } catch (e) { console.warn('Verification mail failed:', e); }
+    // A mail that fails to send must not undo a valid registration — the
+    // resident can resend from the dashboard — but we must NOT claim the mail
+    // was sent when it was not, so the send result decides the message.
+    let verifySent = false, verifyErr = null;
+    try { await sendEmailVerification(cred.user); verifySent = true; }
+    catch (e) { verifyErr = e; console.warn('Verification mail failed:', e?.code, e?.message); }
 
     if (f.photo.files[0] && !photoURL) {
-      // The registration itself succeeded; only the file could not be stored.
       showToast('Registration jama ho gaya, lekin photo upload nahi ho payi. Office se photo add karwa lein.', 'error');
+    } else if (verifySent) {
+      showToast('Registration jama ho gaya! Apne email par verification link check karein (spam bhi dekh lein).', 'success');
     } else {
-      showToast('Registration jama ho gaya! Apne email par verification link check karein.', 'success');
+      // The account exists; only the mail failed. Tell them plainly, and log
+      // the Firebase error code so the cause is diagnosable from the console.
+      showToast('Registration ho gaya, par verification email abhi nahi bhej paaye' +
+                (verifyErr?.code ? ' (' + verifyErr.code + ')' : '') +
+                '. Login karke dashboard se "Link dobara bhejein" try karein.', 'error');
     }
     f.reset();
     showTab('login');
@@ -1696,10 +1704,15 @@ async function loadDashboard(uid) {
     b.disabled = true;
     try {
       await sendEmailVerification(currentUser);
-      showToast('Verification link bhej diya. Inbox aur spam folder dekh lein.', 'success');
+      showToast('Verification link bhej diya. Inbox aur spam folder dono dekh lein.', 'success');
+      // Re-enable after a cooldown so a resident can retry, but not spam it.
+      setTimeout(() => { b.disabled = false; }, 30000);
     } catch (err) {
-      // Firebase rate-limits these; saying so beats a silent no-op.
-      showToast('Abhi link nahi bhej paaye. Thodi der baad try karein.', 'error');
+      console.warn('Resend failed:', err?.code, err?.message);
+      const msg = err?.code === 'auth/too-many-requests'
+        ? 'Bahut baar bhej diya — thodi der (5-10 min) baad try karein.'
+        : 'Link nahi bhej paaye' + (err?.code ? ' (' + err.code + ')' : '') + '. Thodi der baad try karein.';
+      showToast(msg, 'error');
       b.disabled = false;
     }
   });
