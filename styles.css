@@ -398,6 +398,36 @@ tbody tr:hover{ background:#FAFBFD; }
 .field-error{ display:none; color:var(--danger); font-size:12px; margin-top:5px; font-weight:500; }
 .field.has-error .field-error{ display:block; }
 
+/* --- Maintenance invoice (payment modal) -------------------------------------- */
+/* Turns "type an amount" into "here is exactly what you owe, tap to pay it".
+   The committee's per-tower rate already produces expected/paid/outstanding
+   (duesFor); this just shows that breakdown as a bill and pre-locks the amount
+   to the outstanding figure, so a resident pays the right sum without doing
+   arithmetic — the whole point of the feature. */
+.invoice-card{ border:1px solid var(--line); border-radius:var(--radius-md); overflow:hidden; margin-bottom:16px; }
+.invoice-head{ background:var(--navy-950); color:#fff; padding:12px 14px; display:flex; align-items:center; justify-content:space-between; }
+.invoice-head .lbl{ font-family:var(--font-mono); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--gold-500); }
+.invoice-head .fy{ font-size:12px; color:rgba(255,255,255,.75); }
+.invoice-rows{ padding:6px 14px; }
+.invoice-rows .r{ display:flex; justify-content:space-between; padding:8px 0; font-size:13.5px; border-bottom:1px solid var(--line); font-variant-numeric:tabular-nums; }
+.invoice-rows .r:last-child{ border-bottom:none; }
+.invoice-rows .r.total{ font-weight:700; color:var(--navy-950); font-size:15px; }
+.invoice-rows .r .muted{ color:var(--ink-400); }
+.invoice-rows .r .paid{ color:var(--success); }
+.invoice-rows .r .owe{ color:var(--danger); font-weight:700; }
+.invoice-clear{ padding:16px 14px; text-align:center; }
+.invoice-clear .tick{ color:var(--success); font-size:15px; font-weight:600; }
+/* Amount presets */
+.amount-presets{ display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap; }
+.amount-preset{ flex:1; min-width:120px; padding:11px 12px; border:1.5px solid var(--line); border-radius:var(--radius-md);
+  background:var(--white); cursor:pointer; text-align:left; transition:border-color .15s ease, background .15s ease; }
+.amount-preset.selected{ border-color:var(--saffron-500); background:var(--paper); }
+.amount-preset .pa-top{ font-size:11px; color:var(--ink-400); font-family:var(--font-mono); letter-spacing:.04em; text-transform:uppercase; }
+.amount-preset .pa-amt{ font-size:16px; font-weight:700; color:var(--navy-950); font-variant-numeric:tabular-nums; margin-top:2px; }
+.amount-preset.locked-note{ cursor:default; }
+
+/* --- Maintenance invoice (payment modal) end ---------------------------------- */
+
 /* --- Pager --------------------------------------------------------------------- */
 .pager{ display:flex; align-items:center; justify-content:space-between; gap:14px;
   flex-wrap:wrap; margin-top:16px; }

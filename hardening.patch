@@ -1817,7 +1817,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
        allow create: if isAdmin() && request.resource.data.userId == request.auth.uid;
 diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal/index.html MHMRWS-Portal/index.html
 --- a/MHMRWS-Portal/index.html	2026-07-23 11:25:48.000000000 +0000
-+++ MHMRWS-Portal/index.html	2026-07-25 12:53:54.330246398 +0000
++++ MHMRWS-Portal/index.html	2026-07-25 15:51:22.632325284 +0000
 @@ -2,6 +2,41 @@
  <html lang="en">
  <head>
@@ -2684,7 +2684,114 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
    const q = query(collection(db, 'payments'), where('memberUid', '==', currentUser.uid), where('status', 'in', ['pending_approval', 'pending_verification']));
    const existing = await getDocs(q);
    if (!existing.empty) { showToast('Aapka ek payment pehle se pending hai — nayi entry ki zaroorat nahi.', 'error'); return; }
-@@ -1757,6 +2188,8 @@
+@@ -1659,8 +2090,31 @@
+   const paySettingsSnap = await getDoc(doc(db, 'settings', 'payment'));
+   const paySettings = paySettingsSnap.exists() ? paySettingsSnap.data() : {};
+ 
++  // The maintenance invoice — expected / paid / outstanding for this FY,
++  // straight from the committee's per-tower rate. This is what makes "type an
++  // amount" unnecessary: the bill is shown and the amount is pre-set to it.
++  const fy = currentFinancialYear();
++  const dues = currentDues || { expected: 0, paid: 0, outstanding: 0, status: 'no_rate' };
++  const hasRate = dues.expected > 0;
++  const invoiceHtml = hasRate ? `
++    <div class="invoice-card">
++      <div class="invoice-head"><span class="lbl">Maintenance Invoice</span><span class="fy">FY ${escapeHtml(fy)}</span></div>
++      <div class="invoice-rows">
++        <div class="r"><span class="muted">Flat ${escapeHtml(currentMember.flatNumber)} · Tower ${escapeHtml(currentMember.tower)} ka charge</span><span>${formatINR(dues.expected)}</span></div>
++        <div class="r"><span class="muted">Ab tak jama (verified)</span><span class="paid">− ${formatINR(dues.paid)}</span></div>
++        ${dues.outstanding > 0
++          ? `<div class="r total"><span>Bakaya (Outstanding)</span><span class="owe">${formatINR(dues.outstanding)}</span></div>`
++          : `<div class="invoice-clear"><span class="tick">✓ FY ${escapeHtml(fy)} ka poora maintenance clear hai</span></div>`}
++      </div>
++    </div>` : `
++    <div class="invoice-card">
++      <div class="invoice-head"><span class="lbl">Maintenance Invoice</span><span class="fy">FY ${escapeHtml(fy)}</span></div>
++      <div class="invoice-rows"><div class="r"><span class="muted">Is saal ke liye rate abhi set nahi hua — koi bhi rakam de sakte hain.</span></div></div>
++    </div>`;
++
+   const body = document.getElementById('paymentModalBody');
+   body.innerHTML = `
++    ${invoiceHtml}
+     <div class="pay-option" data-mode="cash"><svg viewBox="0 0 24 24"><use href="#i-cash"/></svg><div><b>Cash</b><div class="t-muted" style="font-size:12.5px;">Visit the RWA office</div></div></div>
+     <div class="pay-option" data-mode="cheque"><svg viewBox="0 0 24 24"><use href="#i-cheque"/></svg><div><b>Cheque</b><div class="t-muted" style="font-size:12.5px;">Visit the RWA office</div></div></div>
+     <div class="pay-option" data-mode="upi"><svg viewBox="0 0 24 24"><use href="#i-qr"/></svg><div><b>UPI / QR Scan</b><div class="t-muted" style="font-size:12.5px;">Pay instantly from your phone</div></div></div>
+@@ -1674,12 +2128,12 @@
+     opt.addEventListener('click', () => {
+       body.querySelectorAll('.pay-option').forEach(o => o.classList.remove('selected'));
+       opt.classList.add('selected');
+-      renderPayDetailForm(opt.dataset.mode, paySettings);
++      renderPayDetailForm(opt.dataset.mode, paySettings, dues, hasRate);
+     });
+   });
+ }
+ 
+-function renderPayDetailForm(mode, paySettings) {
++function renderPayDetailForm(mode, paySettings, dues, hasRate) {
+   const holder = document.getElementById('payDetailForm');
+   const isOffline = mode === 'cash' || mode === 'cheque';
+   holder.innerHTML = `
+@@ -1693,18 +2147,53 @@
+           <div style="font-size:12.4px;" class="t-muted">${escapeHtml(paySettings.bankName || '')} · A/C ${escapeHtml(paySettings.accountNumber || '—')} · IFSC ${escapeHtml(paySettings.ifsc || '—')}</div>
+         </div>
+       `}
+-      <div class="field"><label for="payAmount">Amount (₹)</label>
+-        <input type="number" id="payAmount" min="1" required inputmode="numeric"
+-               value="${currentDues && currentDues.outstanding > 0 ? currentDues.outstanding : ''}">
+-        ${currentDues && currentDues.outstanding > 0
+-          ? `<div class="hint">Aapka balance ${formatINR(currentDues.outstanding)} hai. Isse kam bhi de sakte hain — baaki rakam bakaya dikhti rahegi.</div>`
+-          : ''}
++      <div class="amount-block">
++        ${dues.outstanding > 0 ? `
++          <label style="display:block; font-size:11px; font-family:var(--font-mono); letter-spacing:.06em; text-transform:uppercase; color:var(--ink-400); margin-bottom:8px;">Kitna pay karna hai?</label>
++          <div class="amount-presets">
++            <button type="button" class="amount-preset selected" data-preset="full" data-amt="${dues.outstanding}">
++              <div class="pa-top">Poora bakaya</div>
++              <div class="pa-amt">${formatINR(dues.outstanding)}</div>
++            </button>
++            <button type="button" class="amount-preset" data-preset="custom">
++              <div class="pa-top">Alag rakam</div>
++              <div class="pa-amt">Choose</div>
++            </button>
++          </div>
++        ` : ''}
++        <div class="field" id="amountFieldWrap"${dues.outstanding > 0 ? ' style="display:none;"' : ''}>
++          <label for="payAmount">Amount (₹)</label>
++          <input type="number" id="payAmount" min="1" required inputmode="numeric"
++                 value="${dues.outstanding > 0 ? dues.outstanding : ''}">
++          ${dues.outstanding > 0
++            ? `<div class="hint">Poore bakaye se kam bhi de sakte hain — baaki rakam outstanding dikhti rahegi.</div>`
++            : (hasRate ? `<div class="hint">Is saal ka maintenance clear hai. Aap advance ya koi aur payment de sakte hain.</div>` : '')}
++        </div>
+       </div>
+       ${!isOffline ? `<div class="field"><label for="payUtr">UTR / Transaction ID</label><input id="payUtr" required autocapitalize="characters"></div>
+       <div class="field"><label for="payProof">Payment Screenshot <span class="t-muted" style="font-weight:400;">(optional)</span></label><input type="file" id="payProof" accept="image/*"></div>` : ''}
+       <button class="btn btn-primary btn-block" id="submitPaymentBtn">${isOffline ? 'Submit — I Will Pay at Office' : 'I Have Paid'}</button>
+     </div>
+   `;
++  // Preset toggle: "Poora bakaya" locks the amount to the outstanding figure;
++  // "Alag rakam" reveals the editable field. Locking is the default so the
++  // common case — pay exactly what you owe — is one tap with no typing.
++  const presets = holder.querySelectorAll('.amount-preset');
++  const amtWrap = document.getElementById('amountFieldWrap');
++  const amtInput = document.getElementById('payAmount');
++  presets.forEach(btn => btn.addEventListener('click', () => {
++    presets.forEach(b => b.classList.remove('selected'));
++    btn.classList.add('selected');
++    if (btn.dataset.preset === 'full') {
++      amtInput.value = btn.dataset.amt;
++      amtWrap.style.display = 'none';           // locked to the outstanding
++    } else {
++      amtWrap.style.display = 'block';          // let them type a different sum
++      amtInput.value = '';
++      amtInput.focus();
++    }
++  }));
++
+   window.__translate(holder);
+   document.getElementById('submitPaymentBtn').addEventListener('click', () => submitPayment(mode));
+ }
+@@ -1757,6 +2246,8 @@
  
  /* ---- Public content ---- */
  async function loadNotices() {
@@ -2693,7 +2800,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
    const listEl = document.getElementById('noticeList');
    try {
      const q = query(collection(db, 'notices'), orderBy('postedAt', 'desc'), limit(5));
-@@ -1764,18 +2197,19 @@
+@@ -1764,18 +2255,19 @@
      renderNotices();
    } catch (e) {
      window.__notices = null;
@@ -2715,7 +2822,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
      window.__translate(listEl);
      return;
    }
-@@ -1792,12 +2226,31 @@
+@@ -1792,12 +2284,31 @@
            <h4 data-no-translate>${escapeHtml(lang === 'hi' ? (n.titleHi || n.titleEn) : n.titleEn)}</h4>
            <p data-no-translate>${escapeHtml(lang === 'hi' ? (n.bodyHi || n.bodyEn) : n.bodyEn)}</p>
            ${n.attachmentURL ? `<a href="${n.attachmentURL}" target="_blank" rel="noopener" style="font-size:12.5px; text-decoration:underline; display:inline-block; margin-top:7px;" class="t-sub">Download attachment</a>` : ''}
@@ -2747,7 +2854,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  // Re-render notices (and re-translate the page) whenever the language changes.
  window.addEventListener('mhm:langchange', () => {
    if (document.getElementById('noticeList')) renderNotices();
-@@ -1844,7 +2297,7 @@
+@@ -1844,7 +2355,7 @@
      `;
      window.__translate(el);
    } catch (e) {
@@ -2756,7 +2863,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
      window.__translate(el);
    }
  }
-@@ -1855,7 +2308,7 @@
+@@ -1855,7 +2366,7 @@
      const rows = (await getDocs(query(collection(db, 'documents'), orderBy('addedAt', 'desc'))))
        .docs.map(d => d.data());
      if (!rows.length) {
@@ -2765,7 +2872,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
        window.__translate(el); return;
      }
      el.innerHTML = '<div class="doc-grid">' + rows.map(d => `
-@@ -1869,7 +2322,7 @@
+@@ -1869,7 +2380,7 @@
        </a>`).join('') + '</div>';
      window.__translate(el);
    } catch (e) {
@@ -2946,7 +3053,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  // ----------------------------------------------------------------------------
 diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal/styles.css MHMRWS-Portal/styles.css
 --- a/MHMRWS-Portal/styles.css	2026-07-23 03:47:54.000000000 +0000
-+++ MHMRWS-Portal/styles.css	2026-07-25 12:47:54.577164751 +0000
++++ MHMRWS-Portal/styles.css	2026-07-25 15:50:39.292853932 +0000
 @@ -233,10 +233,20 @@
    text-align:left; font-family:var(--font-mono); font-size:11px; letter-spacing:.08em; text-transform:uppercase;
    color:var(--ink-400); padding:12px 14px; border-bottom:1px solid var(--line); background:var(--paper); white-space:nowrap;
@@ -3042,7 +3149,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  
  /* --- Loader ------------------------------------------------------------------ */
  .spinner{ width:20px; height:20px; border-radius:50%; border:2.5px solid rgba(255,255,255,.35); border-top-color:currentColor; animation:spin .7s linear infinite; }
-@@ -308,9 +368,94 @@
+@@ -308,9 +368,124 @@
  .skeleton{ background:linear-gradient(90deg, var(--line) 25%, #EDF0F6 37%, var(--line) 63%); background-size:400% 100%; animation:sk 1.4s ease infinite; border-radius:6px; }
  @keyframes sk{ 0%{background-position:100% 50%;} 100%{background-position:0 50%;} }
  
@@ -3075,6 +3182,36 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
 +}
 +.field-error{ display:none; color:var(--danger); font-size:12px; margin-top:5px; font-weight:500; }
 +.field.has-error .field-error{ display:block; }
++
++/* --- Maintenance invoice (payment modal) -------------------------------------- */
++/* Turns "type an amount" into "here is exactly what you owe, tap to pay it".
++   The committee's per-tower rate already produces expected/paid/outstanding
++   (duesFor); this just shows that breakdown as a bill and pre-locks the amount
++   to the outstanding figure, so a resident pays the right sum without doing
++   arithmetic — the whole point of the feature. */
++.invoice-card{ border:1px solid var(--line); border-radius:var(--radius-md); overflow:hidden; margin-bottom:16px; }
++.invoice-head{ background:var(--navy-950); color:#fff; padding:12px 14px; display:flex; align-items:center; justify-content:space-between; }
++.invoice-head .lbl{ font-family:var(--font-mono); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--gold-500); }
++.invoice-head .fy{ font-size:12px; color:rgba(255,255,255,.75); }
++.invoice-rows{ padding:6px 14px; }
++.invoice-rows .r{ display:flex; justify-content:space-between; padding:8px 0; font-size:13.5px; border-bottom:1px solid var(--line); font-variant-numeric:tabular-nums; }
++.invoice-rows .r:last-child{ border-bottom:none; }
++.invoice-rows .r.total{ font-weight:700; color:var(--navy-950); font-size:15px; }
++.invoice-rows .r .muted{ color:var(--ink-400); }
++.invoice-rows .r .paid{ color:var(--success); }
++.invoice-rows .r .owe{ color:var(--danger); font-weight:700; }
++.invoice-clear{ padding:16px 14px; text-align:center; }
++.invoice-clear .tick{ color:var(--success); font-size:15px; font-weight:600; }
++/* Amount presets */
++.amount-presets{ display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap; }
++.amount-preset{ flex:1; min-width:120px; padding:11px 12px; border:1.5px solid var(--line); border-radius:var(--radius-md);
++  background:var(--white); cursor:pointer; text-align:left; transition:border-color .15s ease, background .15s ease; }
++.amount-preset.selected{ border-color:var(--saffron-500); background:var(--paper); }
++.amount-preset .pa-top{ font-size:11px; color:var(--ink-400); font-family:var(--font-mono); letter-spacing:.04em; text-transform:uppercase; }
++.amount-preset .pa-amt{ font-size:16px; font-weight:700; color:var(--navy-950); font-variant-numeric:tabular-nums; margin-top:2px; }
++.amount-preset.locked-note{ cursor:default; }
++
++/* --- Maintenance invoice (payment modal) end ---------------------------------- */
 +
 +/* --- Pager --------------------------------------------------------------------- */
 +.pager{ display:flex; align-items:center; justify-content:space-between; gap:14px;
