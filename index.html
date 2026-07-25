@@ -377,6 +377,15 @@ section{ padding:76px 0; position:relative; }
 .notice-date .m{ font-family:var(--font-mono); font-size:9.5px; letter-spacing:.08em; color:var(--ink-400); text-transform:uppercase; margin-top:3px; }
 .notice-body h4{ font-size:15px; margin-bottom:5px; }
 .notice-body p{ font-size:13.5px; color:var(--ink-600); }
+.notice-actions{ margin-top:10px; }
+.notice-share{
+  display:inline-flex; align-items:center; gap:6px; padding:6px 12px;
+  border-radius:var(--radius-pill); font-size:12px; font-weight:600;
+  color:#128C7E; background:rgba(18,140,126,.08); border:1px solid rgba(18,140,126,.22);
+  text-decoration:none; transition:background .15s ease;
+}
+.notice-share:hover{ background:rgba(18,140,126,.15); }
+.notice-share svg{ color:#128C7E; }
 .lang-toggle{ display:inline-flex; background:var(--paper); border-radius:var(--radius-pill); padding:3px; border:1px solid var(--line); }
 .lang-toggle button{ border:none; background:transparent; padding:6px 14px; border-radius:var(--radius-pill); font-size:12.5px; font-weight:600; color:var(--ink-400); cursor:pointer; }
 .lang-toggle button.active{ background:var(--navy-900); color:var(--white); }
@@ -744,6 +753,7 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
     <g id="i-phone"><rect x="6" y="2.5" width="12" height="19" rx="2.6" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M10.5 18.5h3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></g>
     <g id="i-home"><path d="M3.5 10.5L12 3.5l8.5 7M6 9.5v11h12v-11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></g>
     <g id="i-bell"><path d="M12 3.2a5.6 5.6 0 00-5.6 5.6c0 5-2 6.4-2 6.4h15.2s-2-1.4-2-6.4A5.6 5.6 0 0012 3.2zM10.3 19a2 2 0 003.4 0" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <g id="i-whatsapp"><path d="M12 2.6a9.3 9.3 0 00-8 14l-1.3 4.8 4.9-1.3A9.3 9.3 0 1012 2.6zm0 1.7a7.6 7.6 0 016.6 11.4l-.2.3.8 2.8-2.9-.8-.3.2A7.6 7.6 0 1112 4.3z" fill="currentColor"/><path d="M9.3 7.4c-.2-.5-.4-.5-.6-.5h-.5a1 1 0 00-.7.3c-.3.3-.9.9-.9 2.1s.9 2.4 1 2.6c.1.2 1.7 2.8 4.3 3.8 2.1.8 2.6.7 3 .6.6-.1 1.4-.6 1.6-1.1.2-.6.2-1 .1-1.1l-.6-.3c-.3-.2-1.4-.7-1.6-.8-.2-.1-.4-.1-.5.1l-.7.9c-.1.2-.3.2-.5.1a6.3 6.3 0 01-1.9-1.2 7 7 0 01-1.3-1.6c-.1-.2 0-.4.1-.5l.4-.4.3-.5v-.4l-.8-1.9z" fill="currentColor"/></g>
     <g id="i-rupee"><path d="M7.5 4.5h9M7.5 8.5h9M15.5 4.5c0 3-2 4-5 4h-3l7.5 11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></g>
     <g id="i-user"><circle cx="12" cy="8.2" r="3.9" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M4.6 20.2c.9-3.7 3.9-5.8 7.4-5.8s6.5 2.1 7.4 5.8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></g>
     <g id="i-pin"><path d="M12 21.5s7-6.3 7-11.2A7 7 0 005 10.3c0 4.9 7 11.2 7 11.2z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="12" cy="10" r="2.6" fill="none" stroke="currentColor" stroke-width="1.7"/></g>
@@ -1038,6 +1048,13 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
       </form>
 
       <form id="registerForm" style="display:none;">
+        <div class="step-indicator" id="stepIndicator" style="display:none;">
+          <div class="step-dot" data-step="0"><span class="num">1</span><span class="lbl">Details</span></div>
+          <div class="step-line" data-line="0"></div>
+          <div class="step-dot" data-step="1"><span class="num">2</span><span class="lbl">Uploads</span></div>
+          <div class="step-line" data-line="1"></div>
+          <div class="step-dot" data-step="2"><span class="num">3</span><span class="lbl">Account</span></div>
+        </div>
         <fieldset>
           <legend>Resident Details</legend>
           <div class="form-2col">
@@ -1099,12 +1116,20 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
           </div>
         </fieldset>
 
-        <label class="checkbox-row" style="margin-bottom:20px;">
-          <input type="checkbox" name="declaration" required>
-          <span>I declare that the information provided above is true to the best of my knowledge, and I authorize MHMRWS to verify these details.</span>
-        </label>
+        <div class="final-only">
+          <label class="checkbox-row" style="margin-bottom:20px;">
+            <input type="checkbox" name="declaration" required>
+            <span>I declare that the information provided above is true to the best of my knowledge, and I authorize MHMRWS to verify these details.</span>
+          </label>
 
-        <button class="btn btn-primary btn-block" type="submit">Submit Registration</button>
+          <button class="btn btn-primary btn-block" type="submit">Submit Registration</button>
+        </div>
+
+        <!-- Back / Next; shown only when JS enables stepped mode. -->
+        <div class="step-nav" id="stepNav" style="display:none;">
+          <button type="button" class="btn btn-ghost" id="stepBack">Back</button>
+          <button type="button" class="btn btn-primary" id="stepNext">Next</button>
+        </div>
       </form>
     </div>
   </div>
@@ -1201,10 +1226,11 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
      failed import blanks out the entire page's branding.
      ===================================================================== -->
 <script type="module">
-import { LOGO_DATA_URI } from './logo-data.js';
+import { LOGO_DATA_URI, getLogoDataUri } from './logo-data.js';
 import { initLang, setLang, translateSubtree, HI } from './i18n.js';
 import { TOWER_IDS, flatsForTower } from './tower-plan.js';
-window.__MHM_LOGO = LOGO_DATA_URI;
+window.__MHM_LOGO = LOGO_DATA_URI;          // image URL, fine for <img src>
+window.__MHM_LOGO_DATAURI = getLogoDataUri;  // call to get a data: URI for PDFs
 window.__translate = translateSubtree;
 window.__HI = HI;
 
@@ -1388,7 +1414,9 @@ import {
   showToast, escapeHtml, fmtDate, formatINR, currentFinancialYear,
   generateReceiptPDF, printReceipt, validatePayment, validateRegistration,
   generateMembershipCard, duesFor, DUES_LABEL, DUES_BADGE,
-  expenseSummary, fundPosition
+  expenseSummary, fundPosition,
+  generateStatementPDF, skeletonList, emptyState, showFieldError, clearFieldErrors,
+  waShareText
 } from './app-common.js';
 
 /* Branding, the year stamp and the committee fallback are handled by the
@@ -1426,6 +1454,82 @@ function showTab(which) {
 }
 tabLogin.addEventListener('click', () => showTab('login'));
 tabRegister.addEventListener('click', () => showTab('register'));
+
+/* ---- Stepped registration (progressive enhancement) ----------------------
+   The three fieldsets become three steps. If anything here throws, the form is
+   left in its plain all-visible state, so registration never depends on this. */
+(function initSteps() {
+  const form = registerForm;
+  const fieldsets = Array.from(form.querySelectorAll('fieldset'));
+  const indicator = document.getElementById('stepIndicator');
+  const nav = document.getElementById('stepNav');
+  const backBtn = document.getElementById('stepBack');
+  const nextBtn = document.getElementById('stepNext');
+  if (fieldsets.length !== 3 || !indicator || !nav) return;   // markup changed; bail safely
+
+  form.classList.add('steps-on');
+  indicator.style.display = 'flex';
+  nav.style.display = 'flex';
+
+  // Which fieldset each field name lives on — powers goToStepForField on a
+  // submit-time error and per-step "Next" validation.
+  const stepOfField = {};
+  fieldsets.forEach((fs, i) => {
+    fs.classList.toggle('step-current', i === 0);
+    fs.querySelectorAll('[name]').forEach(el => { stepOfField[el.name] = i; });
+  });
+  // declaration lives with the final step for the purpose of jumping to it.
+  stepOfField['declaration'] = 2;
+
+  let current = 0;
+  const render = () => {
+    fieldsets.forEach((fs, i) => fs.classList.toggle('step-current', i === current));
+    indicator.querySelectorAll('.step-dot').forEach((d, i) => {
+      d.classList.toggle('active', i === current);
+      d.classList.toggle('done', i < current);
+    });
+    indicator.querySelectorAll('.step-line').forEach((l, i) => l.classList.toggle('done', i < current));
+    backBtn.style.visibility = current === 0 ? 'hidden' : 'visible';
+    nextBtn.textContent = current === fieldsets.length - 1 ? 'Review' : 'Next';
+    form.classList.toggle('at-last', current === fieldsets.length - 1);
+    // On the last step the real submit button (inside .final-only) is the CTA,
+    // so hide the "Next" to avoid two primary buttons.
+    nextBtn.style.display = current === fieldsets.length - 1 ? 'none' : 'block';
+  };
+
+  // Let the browser's own required/pattern checks gate each step's fields, so
+  // we get native messages for free and never advance past an invalid step.
+  const stepIsValid = () => {
+    const controls = fieldsets[current].querySelectorAll('input, select, textarea');
+    for (const c of controls) {
+      if (!c.checkValidity()) { c.reportValidity(); return false; }
+    }
+    return true;
+  };
+
+  nextBtn.addEventListener('click', () => {
+    if (!stepIsValid()) return;
+    if (current < fieldsets.length - 1) { current++; render(); form.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
+  });
+  backBtn.addEventListener('click', () => {
+    if (current > 0) { current--; render(); }
+  });
+
+  // Called by the submit handler when validateRegistration reports a field on a
+  // step that isn't currently shown.
+  window.__goToStepForField = (fieldName) => {
+    const step = stepOfField[fieldName];
+    if (step != null && step !== current) { current = step; render(); }
+  };
+
+  render();
+})();
+
+// Fallback no-op if steps didn't initialise, so the submit handler can call it
+// unconditionally.
+if (!window.__goToStepForField) window.__goToStepForField = () => {};
+function goToStepForField(form, field) { window.__goToStepForField(field); }
+
 window.__goToPortal = (tab) => {
   if (currentUser) { document.getElementById('dashboard').scrollIntoView({ behavior: 'smooth' }); return; }
   showTab(tab);
@@ -1500,8 +1604,24 @@ registerForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   const f = e.target;
   const btn = f.querySelector('button[type="submit"]');
+  clearFieldErrors(f);
   const regError = validateRegistration(f);
-  if (regError) return showToast(regError, 'error');
+  if (regError) {
+    // Show the message directly under the field that caused it, scroll it into
+    // view, and focus it — so the resident sees exactly what to fix instead of
+    // hunting back from a toast in the corner.
+    const input = f.elements[regError.field];
+    if (input && input.closest('.field')) {
+      showFieldError(input, regError.message);
+      // If the bad field is on a step that isn't showing, jump to that step.
+      goToStepForField(f, regError.field);
+      input.closest('.field').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      try { input.focus({ preventScroll: true }); } catch (_) {}
+    } else {
+      showToast(regError.message, 'error');
+    }
+    return;
+  }
   setLoading(btn, true);
   let cred = null;
   try {
@@ -1682,9 +1802,12 @@ async function loadDashboard(uid) {
         <div id="duesPanel"><div class="skeleton" style="height:186px; margin-bottom:18px;"></div></div>
         <div class="spread" style="margin:18px 0 16px; gap:10px; flex-wrap:wrap;">
           <h3 style="font-size:16px;">Payment History</h3>
-          <button class="btn btn-primary btn-sm" id="openPaymentBtn"${emailUnverified ? ' disabled title="Pehle apna email verify karein"' : ''}>Make a Payment</button>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="btn btn-outline btn-sm" id="downloadStatementBtn" title="Poore financial year ki receipts ek PDF mein">FY Statement</button>
+            <button class="btn btn-primary btn-sm" id="openPaymentBtn"${emailUnverified ? ' disabled title="Pehle apna email verify karein"' : ''}>Make a Payment</button>
+          </div>
         </div>
-        <div id="paymentList"><div class="skeleton" style="height:70px;"></div></div>
+        <div id="paymentList"></div>
       </div>
       <div class="card card-pad">
         <h3 style="font-size:16px; margin-bottom:12px;">Your Details</h3>
@@ -1732,7 +1855,34 @@ async function loadDashboard(uid) {
   if (currentMember.status === 'approved') {
     document.getElementById('openPaymentBtn').addEventListener('click', openPaymentModal);
     document.getElementById('downloadCardBtn')?.addEventListener('click', downloadCard);
+    document.getElementById('downloadStatementBtn')?.addEventListener('click', downloadStatement);
     await loadPayments(uid);
+  }
+}
+
+/* Full financial-year statement — every verified receipt on one PDF, for a
+   loan file or income proof. Uses the current FY; a resident who needs an
+   older year can be given it from the admin side. */
+async function downloadStatement(e) {
+  const btn = e.currentTarget;
+  const fy = currentFinancialYear();
+  const verified = allPaymentRows.filter(p => p.status === 'verified' && p.financialYear === fy);
+  if (!verified.length) {
+    showToast(`FY ${fy} mein koi verified payment nahi hai — statement banane ke liye kam se kam ek chahiye.`, 'error');
+    return;
+  }
+  setLoading(btn, true);
+  try {
+    const societySnap = await getDoc(doc(db, 'settings', 'society'));
+    const society = societySnap.exists() ? societySnap.data() : { fullName: SOCIETY.fullName };
+    let logoDataUrl = null;
+    try { logoDataUrl = await window.__MHM_LOGO_DATAURI(); } catch (_) {}
+    await generateStatementPDF({ payments: allPaymentRows, member: currentMember, society, financialYear: fy, logoDataUrl });
+  } catch (err) {
+    console.error(err);
+    showToast('Statement nahi ban paaya. Dobara try karein.', 'error');
+  } finally {
+    setLoading(btn, false);
   }
 }
 
@@ -1769,6 +1919,7 @@ async function downloadCard() {
 
 /* ---- Payments ---- */
 let currentDues = null;   // recomputed whenever payments are loaded
+let allPaymentRows = [];  // full payment history for the signed-in member
 
 async function loadMaintenanceSettings() {
   try {
@@ -1832,10 +1983,15 @@ function renderDues(dues, financialYear) {
 
 async function loadPayments(uid) {
   const list = document.getElementById('paymentList');
-  const q = query(collection(db, 'payments'), where('memberUid', '==', uid), orderBy('submittedAt', 'desc'), limit(10));
+  list.innerHTML = skeletonList(3);          // shaped placeholder, no "Loading…" jump
+  // Pull the whole history for this member: the dues panel and the FY statement
+  // both need every row, and one resident's payments are few. The list itself
+  // still shows only the most recent (below).
+  const q = query(collection(db, 'payments'), where('memberUid', '==', uid), orderBy('submittedAt', 'desc'));
   let rows;
   try { rows = (await getDocs(q)).docs.map(d => ({ id: d.id, ...d.data() })); }
   catch (e) { rows = []; }
+  allPaymentRows = rows;   // kept for the statement button
 
   // Dues are computed from the same rows the history renders, so the panel
   // and the list can never disagree with each other.
@@ -1843,7 +1999,14 @@ async function loadPayments(uid) {
   currentDues = duesFor(currentMember, rows, currentFinancialYear(), maintenance);
   renderDues(currentDues, currentFinancialYear());
 
-  if (!rows.length) { list.innerHTML = '<div class="empty" style="padding:28px 12px;"><p>No payment records yet.</p></div>'; window.__translate(list); return; }
+  if (!rows.length) {
+    list.innerHTML = emptyState('Abhi tak koi payment nahi', 'Aapke verified payments aur receipts yahan dikhenge.', { compact: true });
+    window.__translate(list); return;
+  }
+
+  // Show only the 10 most recent in the list; the full set stays in
+  // allPaymentRows for the dues panel and the statement download.
+  const listRows = rows.slice(0, 10);
 
   const statusBadge = {
     pending_approval: '<span class="badge badge-warning">Pending Approval</span>',
@@ -1852,7 +2015,7 @@ async function loadPayments(uid) {
     rejected: '<span class="badge badge-danger">Rejected</span>'
   };
 
-  list.innerHTML = rows.map(p => `
+  list.innerHTML = listRows.map(p => `
     <div class="pay-history-item">
       <div>
         <div style="font-weight:600; font-size:14.5px;">${formatINR(p.amount)} <span class="t-muted" style="font-weight:400;">· ${escapeHtml((p.mode||'').toUpperCase())}</span></div>
@@ -1869,12 +2032,23 @@ async function loadPayments(uid) {
     </div>
   `).join('');
 
+  if (rows.length > listRows.length) {
+    const note = document.createElement('div');
+    note.className = 't-muted';
+    note.style.cssText = 'font-size:12px; text-align:center; padding:12px 0 2px;';
+    note.textContent = `${listRows.length} recent dikha rahe hain · poori history ke liye "FY Statement" download karein`;
+    list.appendChild(note);
+  }
+
   window.__translate(list);
 
   async function loadReceiptContext() {
     const societySnap = await getDoc(doc(db, 'settings', 'society'));
     const society = societySnap.exists() ? societySnap.data() : { fullName: SOCIETY.fullName };
-    return { society, logoDataUrl: LOGO_DATA_URI };
+    // jsPDF needs actual bytes, not a URL — fetch-and-cache the data URI.
+    let logoDataUrl = null;
+    try { logoDataUrl = await window.__MHM_LOGO_DATAURI(); } catch (e) { /* PDF still renders sans seal */ }
+    return { society, logoDataUrl };
   }
 
   list.querySelectorAll('[data-receipt-id]').forEach(btn => {
@@ -2014,6 +2188,8 @@ document.getElementById('closePaymentModal').addEventListener('click', () => doc
 
 /* ---- Public content ---- */
 async function loadNotices() {
+  const _nl = document.getElementById('noticeList');
+  if (_nl && !_nl.dataset.loaded) _nl.innerHTML = skeletonList(2);
   const listEl = document.getElementById('noticeList');
   try {
     const q = query(collection(db, 'notices'), orderBy('postedAt', 'desc'), limit(5));
@@ -2021,18 +2197,19 @@ async function loadNotices() {
     renderNotices();
   } catch (e) {
     window.__notices = null;
-    listEl.innerHTML = '<div class="empty" style="padding:30px 12px;"><p>Notices could not be loaded.</p></div>';
+    listEl.innerHTML = emptyState('Notices load nahi ho paaye', 'Internet check karke page refresh karein.', { compact: true });
     window.__translate(listEl);
   }
 }
 function renderNotices() {
   const listEl = document.getElementById('noticeList');
+  listEl.dataset.loaded = '1';
   const rows = window.__notices;
 
   // Guard: without this, switching language on a society with no notices
   // yet would blank the box instead of keeping the empty-state message.
   if (!rows || !rows.length) {
-    listEl.innerHTML = '<div class="empty" style="padding:30px 12px;"><p>No notices have been posted yet.</p></div>';
+    listEl.innerHTML = emptyState('Abhi koi notice nahi', 'Committee ke naye notices yahan dikhenge.', { compact: true });
     window.__translate(listEl);
     return;
   }
@@ -2049,10 +2226,29 @@ function renderNotices() {
           <h4 data-no-translate>${escapeHtml(lang === 'hi' ? (n.titleHi || n.titleEn) : n.titleEn)}</h4>
           <p data-no-translate>${escapeHtml(lang === 'hi' ? (n.bodyHi || n.bodyEn) : n.bodyEn)}</p>
           ${n.attachmentURL ? `<a href="${n.attachmentURL}" target="_blank" rel="noopener" style="font-size:12.5px; text-decoration:underline; display:inline-block; margin-top:7px;" class="t-sub">Download attachment</a>` : ''}
+          <div class="notice-actions">
+            <a class="notice-share" target="_blank" rel="noopener"
+               href="${waShareText(noticeShareText(n, lang))}"
+               aria-label="Share this notice on WhatsApp">
+              <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><use href="#i-whatsapp"/></svg>
+              WhatsApp
+            </a>
+          </div>
         </div>
       </div>`;
   }).join('');
   window.__translate(listEl);
+}
+
+/* Plain-text version of a notice for a WhatsApp message: title, body, the
+   society name, and the attachment link if there is one. Uses whichever
+   language the portal is currently in. */
+function noticeShareText(n, lang) {
+  const title = lang === 'hi' ? (n.titleHi || n.titleEn) : n.titleEn;
+  const body = lang === 'hi' ? (n.bodyHi || n.bodyEn) : n.bodyEn;
+  const lines = [`📢 ${title}`, '', body, '', '— Max Heights Majestic RWS'];
+  if (n.attachmentURL) lines.push('', n.attachmentURL);
+  return lines.join('\n');
 }
 
 // Re-render notices (and re-translate the page) whenever the language changes.
@@ -2101,7 +2297,7 @@ async function loadAccounts() {
     `;
     window.__translate(el);
   } catch (e) {
-    el.innerHTML = '<div class="empty" style="padding:38px 12px;"><p>Accounts could not be loaded.</p></div>';
+    el.innerHTML = emptyState('Accounts load nahi ho paaye', 'Thodi der baad dobara try karein.', { compact: true });
     window.__translate(el);
   }
 }
@@ -2112,7 +2308,7 @@ async function loadDownloads() {
     const rows = (await getDocs(query(collection(db, 'documents'), orderBy('addedAt', 'desc'))))
       .docs.map(d => d.data());
     if (!rows.length) {
-      el.innerHTML = '<div class="empty" style="padding:34px 12px;"><p>No documents have been published yet.</p></div>';
+      el.innerHTML = emptyState('Abhi koi document nahi', 'Bylaws, minutes aur forms yahan publish honge.', { compact: true });
       window.__translate(el); return;
     }
     el.innerHTML = '<div class="doc-grid">' + rows.map(d => `
@@ -2126,7 +2322,7 @@ async function loadDownloads() {
       </a>`).join('') + '</div>';
     window.__translate(el);
   } catch (e) {
-    el.innerHTML = '<div class="empty" style="padding:34px 12px;"><p>Documents could not be loaded.</p></div>';
+    el.innerHTML = emptyState('Documents load nahi ho paaye', 'Thodi der baad dobara try karein.', { compact: true });
     window.__translate(el);
   }
 }

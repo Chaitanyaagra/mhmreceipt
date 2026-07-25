@@ -293,6 +293,7 @@
           <tbody id="membersTableBody"><tr><td colspan="6" class="t-muted">Loading…</td></tr></tbody>
         </table>
       </div>
+      <div class="pager" id="membersPager"></div>
     </div>
 
     <!-- ---------------- PAYMENTS ---------------- -->
@@ -316,6 +317,7 @@
           <table><thead><tr><th>Resident</th><th>Flat</th><th>Amount</th><th>Mode</th><th>Status</th><th>Receipt No.</th><th>Date</th></tr></thead>
           <tbody id="allPaymentsBody"><tr><td colspan="7" class="t-muted">Loading…</td></tr></tbody></table>
         </div>
+        <div class="pager" id="allPaymentsPager"></div>
       </div>
       <div id="paymentsDefaultersPanel" style="display:none;">
         <div class="toolbar"><span id="defaultersTotal" class="mono" style="font-size:12.5px; color:var(--ink-600);"></span></div>
@@ -693,11 +695,12 @@ import {
 import {
   showToast, escapeHtml, fmtDate, fmtDateTime, formatINR, currentFinancialYear, financialYearOptions,
   generateMemberId, generateReceiptNumber, logAudit, generateReceiptPDF, exportToExcel, parseExcelFile,
-  encryptFile, decryptToBlob, backupToDrive, waLink, serializeForExport,
+  encryptFile, decryptToBlob, backupToDrive, waLink, waShareText, serializeForExport,
   newPublicToken, publicKeyForMember,
   TOWER_IDS, TOWER_PLAN, flatsForTower, isValidFlat,
   duesFor, DUES_LABEL, DUES_BADGE,
-  EXPENSE_CATEGORIES, EXPENSE_MODES, expenseSummary, fundPosition, validateExpense
+  EXPENSE_CATEGORIES, EXPENSE_MODES, expenseSummary, fundPosition, validateExpense,
+  renderPager, skeletonTableRows, emptyState
 } from './app-common.js';
 
 /* ---------------------------------------------------------------------- */
@@ -1072,9 +1075,25 @@ const statusBadgeHtml = {
   inactive: '<span class="badge badge-neutral">Inactive</span>'
 };
 
+const MEMBERS_PAGE_SIZE = 25;
+let membersPage = 1;
 function renderMembersTable() {
   const rows = filteredMembers();
-  document.getElementById('membersTableBody').innerHTML = rows.map(m => `
+  const body = document.getElementById('membersTableBody');
+  const pager = document.getElementById('membersPager');
+
+  if (!rows.length) {
+    body.innerHTML = `<tr><td colspan="6">${emptyState('Koi member nahi mila', 'In filters ke saath koi resident nahi hai.', { compact: true })}</td></tr>`;
+    if (pager) pager.innerHTML = '';
+    return;
+  }
+
+  // Clamp the page if the filtered set shrank under the current page.
+  const pages = Math.max(1, Math.ceil(rows.length / MEMBERS_PAGE_SIZE));
+  if (membersPage > pages) membersPage = pages;
+  const slice = rows.slice((membersPage - 1) * MEMBERS_PAGE_SIZE, membersPage * MEMBERS_PAGE_SIZE);
+
+  body.innerHTML = slice.map(m => `
     <tr>
       <td data-label="Resident">${escapeHtml(m.name)}</td>
       <td data-label="Flat / Tower">${escapeHtml(m.flatNumber)} / ${escapeHtml(m.tower)}</td>
@@ -1083,10 +1102,18 @@ function renderMembersTable() {
       <td data-label="Member ID" class="mono">${escapeHtml(m.memberID || '—')}</td>
       <td data-label="Actions"><button class="btn btn-outline btn-sm" data-view-member="${m.id}">View Details</button></td>
     </tr>
-  `).join('') || '<tr><td colspan="6" class="t-muted">No members match these filters.</td></tr>';
+  `).join('');
   document.querySelectorAll('[data-view-member]').forEach(b => b.addEventListener('click', () => openMemberModal(b.dataset.viewMember)));
+
+  renderPager(pager, {
+    page: membersPage, pageSize: MEMBERS_PAGE_SIZE, total: rows.length,
+    onPage: (p) => { membersPage = p; renderMembersTable();
+      document.getElementById('membersTableBody').scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
+  });
 }
-['memberSearch', 'filterTower', 'filterStatus'].forEach(id => document.getElementById(id).addEventListener('input', renderMembersTable));
+// A filter change should always return to page 1, else you can land on an empty page.
+['memberSearch', 'filterTower', 'filterStatus'].forEach(id =>
+  document.getElementById(id).addEventListener('input', () => { membersPage = 1; renderMembersTable(); }));
 
 document.getElementById('exportMembersBtn').addEventListener('click', () => {
   exportToExcel(serializeForExport(filteredMembers()).map(m => ({
@@ -1270,17 +1297,38 @@ function renderPendingPayments() {
   document.querySelectorAll('[data-pay-detail]').forEach(b => b.addEventListener('click', () => openPaymentDetail(b.dataset.payDetail)));
 }
 
+const PAYMENTS_PAGE_SIZE = 25;
+let allPaymentsPage = 1;
 function renderAllPayments() {
   const rows = [...allPayments].sort((a, b) => (b.submittedAt?.seconds || 0) - (a.submittedAt?.seconds || 0));
   const badge = { pending_approval: 'badge-warning', pending_verification: 'badge-warning', verified: 'badge-success', rejected: 'badge-danger' };
-  document.getElementById('allPaymentsBody').innerHTML = rows.map(p => `
+  const body = document.getElementById('allPaymentsBody');
+  const pager = document.getElementById('allPaymentsPager');
+
+  if (!rows.length) {
+    body.innerHTML = `<tr><td colspan="7">${emptyState('Abhi tak koi payment nahi', 'Verify ki gayi aur pending — sabhi payments yahan aayenge.', { compact: true })}</td></tr>`;
+    if (pager) pager.innerHTML = '';
+    return;
+  }
+
+  const pages = Math.max(1, Math.ceil(rows.length / PAYMENTS_PAGE_SIZE));
+  if (allPaymentsPage > pages) allPaymentsPage = pages;
+  const slice = rows.slice((allPaymentsPage - 1) * PAYMENTS_PAGE_SIZE, allPaymentsPage * PAYMENTS_PAGE_SIZE);
+
+  body.innerHTML = slice.map(p => `
     <tr>
       <td data-label="Resident">${escapeHtml(p.residentName)}</td><td data-label="Flat">${escapeHtml(p.flatNumber)}</td><td data-label="Amount"><b>${formatINR(p.amount)}</b></td>
       <td data-label="Mode">${escapeHtml((p.mode || '').toUpperCase())}</td>
       <td data-label="Status"><span class="badge ${badge[p.status] || 'badge-neutral'}">${escapeHtml((p.status || '').replace('_', ' '))}</span></td>
       <td data-label="Receipt No." class="mono">${escapeHtml(p.receiptNumber || '—')}</td><td data-label="Date">${fmtDate(p.submittedAt)}</td>
     </tr>
-  `).join('') || '<tr><td colspan="7" class="t-muted">No payments yet.</td></tr>';
+  `).join('');
+
+  renderPager(pager, {
+    page: allPaymentsPage, pageSize: PAYMENTS_PAGE_SIZE, total: rows.length,
+    onPage: (p) => { allPaymentsPage = p; renderAllPayments();
+      document.getElementById('allPaymentsBody').scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
+  });
 }
 
 document.getElementById('exportPaymentsBtn').addEventListener('click', () => {
@@ -1383,6 +1431,27 @@ function outstandingMembers() {
     .sort((a, b) => b.d.outstanding - a.d.outstanding);   // biggest debts first
 }
 
+/* A maintenance reminder most residents will actually read: Hindi first, then
+   the same in English, with the exact figures and the flat it concerns. Kept
+   as one builder so the per-defaulter button and any future bulk flow stay in
+   step. */
+function defaulterReminderText(m, d) {
+  const flat = `${m.tower}-${m.flatNumber}`;
+  return [
+    `Namaste ${m.name} ji,`,
+    ``,
+    `Max Heights Majestic RWS ki taraf se maintenance reminder:`,
+    `Flat ${flat} par FY ${selectedFY} ka ${formatINR(d.outstanding)} bakaya hai (kul ${formatINR(d.expected)}).`,
+    `Kripya resident portal se online ya office mein jama kar dein.`,
+    ``,
+    `— — —`,
+    `Reminder: ${formatINR(d.outstanding)} of your FY ${selectedFY} maintenance for Flat ${flat} is outstanding. Please pay via the resident portal or at the office.`,
+    ``,
+    `Dhanyavaad,`,
+    `MHMRWS Committee`
+  ].join('\n');
+}
+
 function renderDefaulters() {
   const rows = outstandingMembers();
   const body = document.getElementById('defaultersBody');
@@ -1412,7 +1481,7 @@ function renderDefaulters() {
         <span class="t-muted" style="font-size:11.5px;"> of ${formatINR(d.expected)}</span></td>
       <td data-label="Status"><span class="badge ${DUES_BADGE[d.status]}">${escapeHtml(DUES_LABEL[d.status])}</span></td>
       <td data-label="Remind"><a class="btn btn-outline btn-sm" target="_blank" rel="noopener"
-        href="${waLink(m.mobile, `Dear ${m.name}, MHMRWS reminder: ${formatINR(d.outstanding)} of your FY ${selectedFY} maintenance (${formatINR(d.expected)}) is still outstanding. You can pay via the resident portal.`)}">WhatsApp</a></td>
+        href="${waLink(m.mobile, defaulterReminderText(m, d))}">WhatsApp</a></td>
     </tr>
   `).join('') || '<tr><td colspan="5" class="t-muted">No outstanding dues for this FY</td></tr>';
 }
@@ -1551,6 +1620,17 @@ document.getElementById('noticeForm').addEventListener('submit', async (e) => {
   await logAudit(auth.currentUser, 'add_notice', { title: f.titleEn.value });
   showToast('Notice post ho gaya.', 'success');
   document.getElementById('noticeModalBackdrop').classList.remove('open');
+
+  // A notice nobody sees isn't much use, so offer to push it to the society
+  // WhatsApp group straight away. Hindi if we have it, else English.
+  const shareTitle = f.titleHi.value || f.titleEn.value;
+  const shareBody = f.bodyHi.value || f.bodyEn.value;
+  const shareLines = [`📢 ${shareTitle}`, '', shareBody, '', '— Max Heights Majestic RWS'];
+  if (attachmentURL) shareLines.push('', attachmentURL);
+  if (confirm('Notice post ho gaya. Ise WhatsApp group par share karein?')) {
+    window.open(waShareText(shareLines.join('\n')), '_blank', 'noopener');
+  }
+
   f.reset(); loadContentPanels();
 });
 document.getElementById('addCommitteeBtn').addEventListener('click', () => document.getElementById('committeeModalBackdrop').classList.add('open'));

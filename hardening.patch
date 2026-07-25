@@ -161,7 +161,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
 +the page. Check all three pages: `index.html`, `admin.html`, `verify.html`.
 diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal/SETUP-GUIDE.md MHMRWS-Portal/SETUP-GUIDE.md
 --- a/MHMRWS-Portal/SETUP-GUIDE.md	2026-07-23 11:28:38.000000000 +0000
-+++ MHMRWS-Portal/SETUP-GUIDE.md	2026-07-24 12:01:19.898223580 +0000
++++ MHMRWS-Portal/SETUP-GUIDE.md	2026-07-25 13:05:02.822145322 +0000
 @@ -114,6 +114,22 @@
  
  ---
@@ -185,9 +185,18 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  ## Step 3 — Security Rules Deploy Karein
  
  **Option A — Firebase Console se (sabse aasaan):**
+@@ -235,7 +251,7 @@
+ ## 🎨 Customization
+ 
+ - Colors: `styles.css` ke top mein `:root { --navy-950: ...; --saffron-500: ...; }` — yahin se poori site ka theme change ho jaata hai.
+-- Logo: seal `logo-data.js` mein base64 ke roop mein embedded hai (isliye woh kabhi missing nahi ho sakta). Badalna ho toh naya logo bhej kar dobara generate karwa lein. `icon-192.png` / `icon-512.png` PWA ke liye alag files hain.
++- Logo: seal ab `logo.webp` file mein hai (pehle 66 KB base64 JS mein tha — woh har page load par bhaari padta tha). Badalna ho toh usi naam se naya `logo.webp` daal dein. PDF/card ke liye woh apne aap data-URI bana leta hai. `icon-192.png` / `icon-512.png` PWA ke liye alag files hain.
+ - Society details (address, phone, bank details): yeh sab database mein hain, code mein nahi — Admin Panel → Settings se hi update karein.
+ 
+ ## 🆘 Common Errors
 diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal/admin.html MHMRWS-Portal/admin.html
 --- a/MHMRWS-Portal/admin.html	2026-07-23 11:26:32.000000000 +0000
-+++ MHMRWS-Portal/admin.html	2026-07-24 12:11:29.611992279 +0000
++++ MHMRWS-Portal/admin.html	2026-07-25 12:53:28.451645720 +0000
 @@ -2,16 +2,67 @@
  <html lang="en">
  <head>
@@ -296,7 +305,23 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
      </nav>
      <div class="sidebar-foot">
        <div class="admin-chip"><b id="adminName">—</b><span id="adminRole">—</span></div>
-@@ -467,12 +535,16 @@
+@@ -225,6 +293,7 @@
+           <tbody id="membersTableBody"><tr><td colspan="6" class="t-muted">Loading…</td></tr></tbody>
+         </table>
+       </div>
++      <div class="pager" id="membersPager"></div>
+     </div>
+ 
+     <!-- ---------------- PAYMENTS ---------------- -->
+@@ -248,6 +317,7 @@
+           <table><thead><tr><th>Resident</th><th>Flat</th><th>Amount</th><th>Mode</th><th>Status</th><th>Receipt No.</th><th>Date</th></tr></thead>
+           <tbody id="allPaymentsBody"><tr><td colspan="7" class="t-muted">Loading…</td></tr></tbody></table>
+         </div>
++        <div class="pager" id="allPaymentsPager"></div>
+       </div>
+       <div id="paymentsDefaultersPanel" style="display:none;">
+         <div class="toolbar"><span id="defaultersTotal" class="mono" style="font-size:12.5px; color:var(--ink-600);"></span></div>
+@@ -467,12 +537,16 @@
        </div>
      </div>
  
@@ -317,7 +342,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
        </div>
      </div>
  
-@@ -612,7 +684,8 @@
+@@ -612,7 +686,8 @@
    getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, createUserWithEmailAndPassword
  } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
  import {
@@ -327,15 +352,70 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
  import {
    ref as storageRef, uploadBytes, getDownloadURL
-@@ -621,6 +694,7 @@
+@@ -620,10 +695,12 @@
+ import {
    showToast, escapeHtml, fmtDate, fmtDateTime, formatINR, currentFinancialYear, financialYearOptions,
    generateMemberId, generateReceiptNumber, logAudit, generateReceiptPDF, exportToExcel, parseExcelFile,
-   encryptFile, decryptToBlob, backupToDrive, waLink, serializeForExport,
+-  encryptFile, decryptToBlob, backupToDrive, waLink, serializeForExport,
++  encryptFile, decryptToBlob, backupToDrive, waLink, waShareText, serializeForExport,
 +  newPublicToken, publicKeyForMember,
    TOWER_IDS, TOWER_PLAN, flatsForTower, isValidFlat,
    duesFor, DUES_LABEL, DUES_BADGE,
-   EXPENSE_CATEGORIES, EXPENSE_MODES, expenseSummary, fundPosition, validateExpense
-@@ -1070,16 +1144,64 @@
+-  EXPENSE_CATEGORIES, EXPENSE_MODES, expenseSummary, fundPosition, validateExpense
++  EXPENSE_CATEGORIES, EXPENSE_MODES, expenseSummary, fundPosition, validateExpense,
++  renderPager, skeletonTableRows, emptyState
+ } from './app-common.js';
+ 
+ /* ---------------------------------------------------------------------- */
+@@ -998,9 +1075,25 @@
+   inactive: '<span class="badge badge-neutral">Inactive</span>'
+ };
+ 
++const MEMBERS_PAGE_SIZE = 25;
++let membersPage = 1;
+ function renderMembersTable() {
+   const rows = filteredMembers();
+-  document.getElementById('membersTableBody').innerHTML = rows.map(m => `
++  const body = document.getElementById('membersTableBody');
++  const pager = document.getElementById('membersPager');
++
++  if (!rows.length) {
++    body.innerHTML = `<tr><td colspan="6">${emptyState('Koi member nahi mila', 'In filters ke saath koi resident nahi hai.', { compact: true })}</td></tr>`;
++    if (pager) pager.innerHTML = '';
++    return;
++  }
++
++  // Clamp the page if the filtered set shrank under the current page.
++  const pages = Math.max(1, Math.ceil(rows.length / MEMBERS_PAGE_SIZE));
++  if (membersPage > pages) membersPage = pages;
++  const slice = rows.slice((membersPage - 1) * MEMBERS_PAGE_SIZE, membersPage * MEMBERS_PAGE_SIZE);
++
++  body.innerHTML = slice.map(m => `
+     <tr>
+       <td data-label="Resident">${escapeHtml(m.name)}</td>
+       <td data-label="Flat / Tower">${escapeHtml(m.flatNumber)} / ${escapeHtml(m.tower)}</td>
+@@ -1009,10 +1102,18 @@
+       <td data-label="Member ID" class="mono">${escapeHtml(m.memberID || '—')}</td>
+       <td data-label="Actions"><button class="btn btn-outline btn-sm" data-view-member="${m.id}">View Details</button></td>
+     </tr>
+-  `).join('') || '<tr><td colspan="6" class="t-muted">No members match these filters.</td></tr>';
++  `).join('');
+   document.querySelectorAll('[data-view-member]').forEach(b => b.addEventListener('click', () => openMemberModal(b.dataset.viewMember)));
++
++  renderPager(pager, {
++    page: membersPage, pageSize: MEMBERS_PAGE_SIZE, total: rows.length,
++    onPage: (p) => { membersPage = p; renderMembersTable();
++      document.getElementById('membersTableBody').scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
++  });
+ }
+-['memberSearch', 'filterTower', 'filterStatus'].forEach(id => document.getElementById(id).addEventListener('input', renderMembersTable));
++// A filter change should always return to page 1, else you can land on an empty page.
++['memberSearch', 'filterTower', 'filterStatus'].forEach(id =>
++  document.getElementById(id).addEventListener('input', () => { membersPage = 1; renderMembersTable(); }));
+ 
+ document.getElementById('exportMembersBtn').addEventListener('click', () => {
+   exportToExcel(serializeForExport(filteredMembers()).map(m => ({
+@@ -1070,16 +1171,64 @@
    } catch (e) { showToast('Decrypt fail — passphrase galat ho sakta hai.', 'error'); }
  }
  
@@ -407,7 +487,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
    await logAudit(auth.currentUser, 'approve_member', { id, memberID });
    showToast(`Approved! Member ID: ${memberID}`, 'success');
    document.getElementById('memberModalBackdrop').classList.remove('open');
-@@ -1089,10 +1211,13 @@
+@@ -1089,10 +1238,13 @@
    const reason = prompt('Reject karne ki wajah:');
    if (reason === null) return;
    const m = allMembers.find(x => x.id === id) || {};
@@ -425,7 +505,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
    await logAudit(auth.currentUser, 'reject_member', { id, reason });
    showToast('Registration reject kar diya gaya.', 'success');
    document.getElementById('memberModalBackdrop').classList.remove('open');
-@@ -1102,12 +1227,16 @@
+@@ -1102,12 +1254,16 @@
    const reason = prompt('Deactivate karne ki wajah (history surakshit rahegi):');
    if (reason === null) return;
    const m = allMembers.find(x => x.id === id) || {};
@@ -447,7 +527,48 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
    await logAudit(auth.currentUser, 'deactivate_member', { id, reason });
    showToast('Member deactivate ho gaya.', 'success');
    document.getElementById('memberModalBackdrop').classList.remove('open');
-@@ -1188,18 +1317,48 @@
+@@ -1141,17 +1297,38 @@
+   document.querySelectorAll('[data-pay-detail]').forEach(b => b.addEventListener('click', () => openPaymentDetail(b.dataset.payDetail)));
+ }
+ 
++const PAYMENTS_PAGE_SIZE = 25;
++let allPaymentsPage = 1;
+ function renderAllPayments() {
+   const rows = [...allPayments].sort((a, b) => (b.submittedAt?.seconds || 0) - (a.submittedAt?.seconds || 0));
+   const badge = { pending_approval: 'badge-warning', pending_verification: 'badge-warning', verified: 'badge-success', rejected: 'badge-danger' };
+-  document.getElementById('allPaymentsBody').innerHTML = rows.map(p => `
++  const body = document.getElementById('allPaymentsBody');
++  const pager = document.getElementById('allPaymentsPager');
++
++  if (!rows.length) {
++    body.innerHTML = `<tr><td colspan="7">${emptyState('Abhi tak koi payment nahi', 'Verify ki gayi aur pending — sabhi payments yahan aayenge.', { compact: true })}</td></tr>`;
++    if (pager) pager.innerHTML = '';
++    return;
++  }
++
++  const pages = Math.max(1, Math.ceil(rows.length / PAYMENTS_PAGE_SIZE));
++  if (allPaymentsPage > pages) allPaymentsPage = pages;
++  const slice = rows.slice((allPaymentsPage - 1) * PAYMENTS_PAGE_SIZE, allPaymentsPage * PAYMENTS_PAGE_SIZE);
++
++  body.innerHTML = slice.map(p => `
+     <tr>
+       <td data-label="Resident">${escapeHtml(p.residentName)}</td><td data-label="Flat">${escapeHtml(p.flatNumber)}</td><td data-label="Amount"><b>${formatINR(p.amount)}</b></td>
+       <td data-label="Mode">${escapeHtml((p.mode || '').toUpperCase())}</td>
+       <td data-label="Status"><span class="badge ${badge[p.status] || 'badge-neutral'}">${escapeHtml((p.status || '').replace('_', ' '))}</span></td>
+       <td data-label="Receipt No." class="mono">${escapeHtml(p.receiptNumber || '—')}</td><td data-label="Date">${fmtDate(p.submittedAt)}</td>
+     </tr>
+-  `).join('') || '<tr><td colspan="7" class="t-muted">No payments yet.</td></tr>';
++  `).join('');
++
++  renderPager(pager, {
++    page: allPaymentsPage, pageSize: PAYMENTS_PAGE_SIZE, total: rows.length,
++    onPage: (p) => { allPaymentsPage = p; renderAllPayments();
++      document.getElementById('allPaymentsBody').scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
++  });
+ }
+ 
+ document.getElementById('exportPaymentsBtn').addEventListener('click', () => {
+@@ -1188,18 +1365,48 @@
  }
  document.getElementById('closePaymentDetailModal').addEventListener('click', () => document.getElementById('paymentDetailModalBackdrop').classList.remove('open'));
  
@@ -506,7 +627,62 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  }
  async function rejectPayment(id) {
    const reason = prompt('Reject karne ki wajah:');
-@@ -1497,22 +1656,32 @@
+@@ -1224,6 +1431,27 @@
+     .sort((a, b) => b.d.outstanding - a.d.outstanding);   // biggest debts first
+ }
+ 
++/* A maintenance reminder most residents will actually read: Hindi first, then
++   the same in English, with the exact figures and the flat it concerns. Kept
++   as one builder so the per-defaulter button and any future bulk flow stay in
++   step. */
++function defaulterReminderText(m, d) {
++  const flat = `${m.tower}-${m.flatNumber}`;
++  return [
++    `Namaste ${m.name} ji,`,
++    ``,
++    `Max Heights Majestic RWS ki taraf se maintenance reminder:`,
++    `Flat ${flat} par FY ${selectedFY} ka ${formatINR(d.outstanding)} bakaya hai (kul ${formatINR(d.expected)}).`,
++    `Kripya resident portal se online ya office mein jama kar dein.`,
++    ``,
++    `— — —`,
++    `Reminder: ${formatINR(d.outstanding)} of your FY ${selectedFY} maintenance for Flat ${flat} is outstanding. Please pay via the resident portal or at the office.`,
++    ``,
++    `Dhanyavaad,`,
++    `MHMRWS Committee`
++  ].join('\n');
++}
++
+ function renderDefaulters() {
+   const rows = outstandingMembers();
+   const body = document.getElementById('defaultersBody');
+@@ -1253,7 +1481,7 @@
+         <span class="t-muted" style="font-size:11.5px;"> of ${formatINR(d.expected)}</span></td>
+       <td data-label="Status"><span class="badge ${DUES_BADGE[d.status]}">${escapeHtml(DUES_LABEL[d.status])}</span></td>
+       <td data-label="Remind"><a class="btn btn-outline btn-sm" target="_blank" rel="noopener"
+-        href="${waLink(m.mobile, `Dear ${m.name}, MHMRWS reminder: ${formatINR(d.outstanding)} of your FY ${selectedFY} maintenance (${formatINR(d.expected)}) is still outstanding. You can pay via the resident portal.`)}">WhatsApp</a></td>
++        href="${waLink(m.mobile, defaulterReminderText(m, d))}">WhatsApp</a></td>
+     </tr>
+   `).join('') || '<tr><td colspan="5" class="t-muted">No outstanding dues for this FY</td></tr>';
+ }
+@@ -1392,6 +1620,17 @@
+   await logAudit(auth.currentUser, 'add_notice', { title: f.titleEn.value });
+   showToast('Notice post ho gaya.', 'success');
+   document.getElementById('noticeModalBackdrop').classList.remove('open');
++
++  // A notice nobody sees isn't much use, so offer to push it to the society
++  // WhatsApp group straight away. Hindi if we have it, else English.
++  const shareTitle = f.titleHi.value || f.titleEn.value;
++  const shareBody = f.bodyHi.value || f.bodyEn.value;
++  const shareLines = [`📢 ${shareTitle}`, '', shareBody, '', '— Max Heights Majestic RWS'];
++  if (attachmentURL) shareLines.push('', attachmentURL);
++  if (confirm('Notice post ho gaya. Ise WhatsApp group par share karein?')) {
++    window.open(waShareText(shareLines.join('\n')), '_blank', 'noopener');
++  }
++
+   f.reset(); loadContentPanels();
+ });
+ document.getElementById('addCommitteeBtn').addEventListener('click', () => document.getElementById('committeeModalBackdrop').classList.add('open'));
+@@ -1497,22 +1736,32 @@
      }
    });
    const verifiedThisMonth = allPayments.filter(p => p.status === 'verified' && inMonth(p.verifiedAt));
@@ -543,7 +719,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
    const zipBlob = await zip.generateAsync({ type: 'blob' });
    const a = document.createElement('a');
    a.href = URL.createObjectURL(zipBlob); a.download = `MHMRWS-${monthVal}.zip`; a.click();
-@@ -1811,15 +1980,38 @@
+@@ -1811,15 +2060,38 @@
  
      let memberID = null;
      if (f.alsoResident.checked) {
@@ -586,7 +762,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
        await reloadMembers(); renderMembersTable(); renderOverview(); populateTowerFilter();
      }
  
-@@ -1832,16 +2024,16 @@
+@@ -1832,16 +2104,16 @@
  });
  
  /* ---------------------------------------------------------------------- */
@@ -609,7 +785,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  <style>.vrow{ display:flex; justify-content:space-between; padding:9px 0; border-bottom:1px solid var(--line); } .vrow:last-child{ border-bottom:none; } .vrow span:first-child{ color:var(--ink-400); }</style>
 diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal/app-common.js MHMRWS-Portal/app-common.js
 --- a/MHMRWS-Portal/app-common.js	2026-07-23 11:23:40.000000000 +0000
-+++ MHMRWS-Portal/app-common.js	2026-07-24 12:10:36.787979056 +0000
++++ MHMRWS-Portal/app-common.js	2026-07-25 12:51:53.898900973 +0000
 @@ -14,22 +14,44 @@
  /* ---------------------------------------------------------------------- */
  /*  Toasts                                                                 */
@@ -664,10 +840,93 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
    }, 4200);
  }
  
-@@ -330,10 +352,12 @@
+@@ -101,47 +123,47 @@
+   const nomineeRelation = val('nomineeRelation');
+   const residentType = val('residentType');
+ 
+-  if (!name) return 'Naam zaroori hai.';
++  if (!name) return { field: 'name', message: 'Naam zaroori hai.' };
+   if (name.length > LIMITS.nameMax) return `Naam ${LIMITS.nameMax} characters se lamba nahi ho sakta.`;
+   // \p{M} matters here: Devanagari matras (ा ि ो) are Unicode *Marks*, not
+   // Letters, so without it every Hindi name would be rejected.
+-  if (!/^[\p{L}\p{M}\s.'-]+$/u.test(name)) return 'Naam mein sirf akshar, space, aur . \' - ho sakte hain.';
++  if (!/^[\p{L}\p{M}\s.'-]+$/u.test(name)) return { field: 'name', message: 'Naam mein sirf akshar, space, aur . \' - ho sakte hain.' };
+ 
+-  if (!father) return 'Pita / Pati ka naam zaroori hai.';
+-  if (father.length > LIMITS.nameMax) return 'Pita / Pati ka naam bahut lamba hai.';
+-  if (!/^[\p{L}\p{M}\s.'-]+$/u.test(father)) return 'Pita / Pati ke naam mein sirf akshar aur space ho sakte hain.';
+-
+-  if (!tower) return 'Tower chunna zaroori hai.';
+-  if (!TOWER_PLAN[tower]) return 'Tower valid nahi hai.';
+-  if (!flat) return 'Flat number chunna zaroori hai.';
++  if (!father) return { field: 'fatherHusbandName', message: 'Pita / Pati ka naam zaroori hai.' };
++  if (father.length > LIMITS.nameMax) return { field: 'fatherHusbandName', message: 'Pita / Pati ka naam bahut lamba hai.' };
++  if (!/^[\p{L}\p{M}\s.'-]+$/u.test(father)) return { field: 'fatherHusbandName', message: 'Pita / Pati ke naam mein sirf akshar aur space ho sakte hain.' };
++
++  if (!tower) return { field: 'tower', message: 'Tower chunna zaroori hai.' };
++  if (!TOWER_PLAN[tower]) return { field: 'tower', message: 'Tower valid nahi hai.' };
++  if (!flat) return { field: 'flatNumber', message: 'Flat number chunna zaroori hai.' };
+   if (!isValidFlat(tower, flat)) return `Flat ${flat} Tower ${tower} mein maujood nahi hai.`;
+ 
+   // Indian mobile numbers begin 6, 7, 8 or 9 — this rejects landlines and
+   // the common habit of typing a 0 or +91 prefix into the field.
+-  if (!/^[0-9]{10}$/.test(mobile)) return 'Mobile number theek 10 ankon ka hona chahiye (bina 0 ya +91 ke).';
+-  if (!/^[6-9]/.test(mobile)) return 'Mobile number 6, 7, 8 ya 9 se shuru hona chahiye.';
++  if (!/^[0-9]{10}$/.test(mobile)) return { field: 'mobile', message: 'Mobile number theek 10 ankon ka hona chahiye (bina 0 ya +91 ke).' };
++  if (!/^[6-9]/.test(mobile)) return { field: 'mobile', message: 'Mobile number 6, 7, 8 ya 9 se shuru hona chahiye.' };
+ 
+-  if (!email) return 'Email zaroori hai.';
+-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return 'Email address sahi format mein nahi hai.';
++  if (!email) return { field: 'email', message: 'Email zaroori hai.' };
++  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { field: 'email', message: 'Email address sahi format mein nahi hai.' };
+ 
+-  if (!occupation) return 'Occupation zaroori hai.';
+-  if (occupation.length > 100) return 'Occupation bahut lamba hai.';
+-  if (!residentType) return 'Owner ya Tenant chunna zaroori hai.';
+-  if (!['owner', 'tenant'].includes(residentType)) return 'Owner / Tenant valid nahi hai.';
++  if (!occupation) return { field: 'occupation', message: 'Occupation zaroori hai.' };
++  if (occupation.length > 100) return { field: 'occupation', message: 'Occupation bahut lamba hai.' };
++  if (!residentType) return { field: 'residentType', message: 'Owner ya Tenant chunna zaroori hai.' };
++  if (!['owner', 'tenant'].includes(residentType)) return { field: 'residentType', message: 'Owner / Tenant valid nahi hai.' };
+ 
+-  if (!address) return 'Address zaroori hai.';
+-  if (address.length > LIMITS.addressMax) return 'Address bahut lamba hai.';
++  if (!address) return { field: 'address', message: 'Address zaroori hai.' };
++  if (address.length > LIMITS.addressMax) return { field: 'address', message: 'Address bahut lamba hai.' };
+ 
+-  if (!nomineeName) return 'Nominee ka naam zaroori hai.';
+-  if (!/^[\p{L}\p{M}\s.'-]+$/u.test(nomineeName)) return 'Nominee ke naam mein sirf akshar aur space ho sakte hain.';
+-  if (!nomineeRelation) return 'Nominee se sambandh zaroori hai.';
++  if (!nomineeName) return { field: 'nomineeName', message: 'Nominee ka naam zaroori hai.' };
++  if (!/^[\p{L}\p{M}\s.'-]+$/u.test(nomineeName)) return { field: 'nomineeName', message: 'Nominee ke naam mein sirf akshar aur space ho sakte hain.' };
++  if (!nomineeRelation) return { field: 'nomineeRelation', message: 'Nominee se sambandh zaroori hai.' };
+ 
+-  if (!f.photo?.files?.length) return 'Apni photo upload karna zaroori hai.';
++  if (!f.photo?.files?.length) return { field: 'photo', message: 'Apni photo upload karna zaroori hai.' };
+   // Aadhaar / PAN is deliberately NOT required — see the note in index.html.
+ 
+-  if (f.password.value.length < 6) return 'Password kam se kam 6 characters ka hona chahiye.';
+-  if (f.password.value !== f.confirmPassword.value) return 'Password match nahi kar raha.';
+-  if (!f.declaration.checked) return 'Aage badhne ke liye declaration par tick karein.';
++  if (f.password.value.length < 6) return { field: 'password', message: 'Password kam se kam 6 characters ka hona chahiye.' };
++  if (f.password.value !== f.confirmPassword.value) return { field: 'confirmPassword', message: 'Password match nahi kar raha.' };
++  if (!f.declaration.checked) return { field: 'declaration', message: 'Aage badhne ke liye declaration par tick karein.' };
+   return null;
+ }
+ 
+@@ -330,10 +352,21 @@
    return d.toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
  }
  
++/* Milliseconds from either a Firestore Timestamp or anything Date can parse,
++   for sorting mixed rows without each caller re-checking for .toDate. */
++export function tsMillis(ts) {
++  if (!ts) return 0;
++  const d = ts.toDate ? ts.toDate() : new Date(ts);
++  const n = d.getTime();
++  return Number.isFinite(n) ? n : 0;
++}
++
 +/* Called once per cell while rendering tables of several hundred rows, so it
 +   must not allocate a DOM node each time — the old createElement version was
 +   measurably the slowest thing in renderMembersTable(). */
@@ -680,7 +939,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  }
  
  export function debounce(fn, delay = 300) {
-@@ -389,34 +413,63 @@
+@@ -389,34 +422,63 @@
  }
  
  /* ---------------------------------------------------------------------- */
@@ -712,8 +971,8 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
 +export function newPublicToken() {
 +  const bytes = crypto.getRandomValues(new Uint8Array(16));
 +  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
- }
- 
++}
++
 +/* Records issued before the token change are still keyed by their sequential
 +   number, so receipts and cards already in residents' hands keep verifying.
 +   Everything issued from now on uses the token. */
@@ -722,8 +981,8 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
 +}
 +export function publicKeyForMember(member) {
 +  return member?.publicToken || member?.memberID || '';
-+}
-+
+ }
+ 
 +/* ---------------------------------------------------------------------- */
 +/*  Activity log — append-only record of committee actions                 */
 +/*                                                                          */
@@ -759,7 +1018,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
    }
  }
  
-@@ -432,9 +485,14 @@
+@@ -432,9 +494,14 @@
    });
  }
  
@@ -776,7 +1035,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  }
  
  /* ---------------------------------------------------------------------- */
-@@ -519,7 +577,7 @@
+@@ -519,7 +586,7 @@
  
    // QR code
    try {
@@ -785,7 +1044,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
      const qrData = await generateQR(qrUrl, 260);
      pdf.addImage(qrData, 'PNG', W - marginX - 74, y - 4, 74, 74);
      pdf.setFont('helvetica', 'normal'); pdf.setFontSize(7); pdf.setTextColor(124, 135, 156);
-@@ -532,7 +590,7 @@
+@@ -532,7 +599,7 @@
    y += 22;
    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8.5); pdf.setTextColor(124, 135, 156);
    pdf.text('This is a system-generated receipt from the MHMRWS Digital Portal.', marginX, y);
@@ -794,7 +1053,323 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  
    if (save) {
      pdf.save(`Receipt-${payment.receiptNumber}.pdf`);
-@@ -558,7 +616,7 @@
+@@ -541,6 +608,315 @@
+   return pdf.output('blob');
+ }
+ 
++/* ---------------------------------------------------------------------- */
++/*  Payment statement PDF — a whole financial year on one page             */
++/*                                                                          */
++/*  A single receipt proves one payment; residents also need the full year */
++/*  in one document — for a loan file, a rent agreement, an income proof.   */
++/*  This lists every verified payment for the chosen FY with a running      */
++/*  total, in the same navy-and-gold identity as the receipt, and paginates */
++/*  automatically once a year has more rows than fit on a page.             */
++/* ---------------------------------------------------------------------- */
++export async function generateStatementPDF({ payments, member, society, financialYear, logoDataUrl, save = true }) {
++  const { jsPDF } = window.jspdf;
++  const pdf = new jsPDF({ unit: 'pt', format: 'a4' });
++  const W = pdf.internal.pageSize.getWidth();
++  const H = pdf.internal.pageSize.getHeight();
++  const marginX = 48;
++
++  // Only verified payments belong on a statement — pending ones are not yet
++  // money the society acknowledges receiving. Sorted oldest-first so the
++  // running total reads down the page the way a passbook does.
++  const rows = (payments || [])
++    .filter(p => p.status === 'verified' && p.financialYear === financialYear)
++    .sort((a, b) => tsMillis(a.verifiedAt || a.submittedAt) - tsMillis(b.verifiedAt || b.submittedAt));
++
++  const drawHeader = async () => {
++    pdf.setFillColor(10, 27, 51);
++    pdf.rect(0, 0, W, 100, 'F');
++    if (logoDataUrl) {
++      try {
++        const sealImg = await sealOnWhiteDisc(logoDataUrl);
++        if (sealImg) {
++          const cx = marginX + 26, cy = 50, r = 27;
++          pdf.setFillColor(255, 255, 255); pdf.circle(cx, cy, r, 'F');
++          pdf.addImage(sealImg, 'JPEG', cx - r * 0.94, cy - r * 0.94, r * 1.88, r * 1.88);
++          pdf.setDrawColor(228, 199, 101); pdf.setLineWidth(1); pdf.circle(cx, cy, r, 'S');
++        }
++      } catch (e) {/* statement is still valid without the seal */}
++    }
++    pdf.setTextColor(255, 255, 255);
++    pdf.setFont('times', 'bold'); pdf.setFontSize(18);
++    pdf.text(society.fullName || 'Resident Welfare Society', marginX + 64, 46);
++    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(10);
++    pdf.text(`Reg. No: ${society.regNumber || '—'}`, marginX + 64, 62);
++    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(11);
++    pdf.text('PAYMENT STATEMENT', W - marginX, 46, { align: 'right' });
++    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9);
++    pdf.text(`FY ${financialYear}`, W - marginX, 62, { align: 'right' });
++  };
++
++  await drawHeader();
++
++  // Resident block
++  let y = 128;
++  pdf.setTextColor(16, 25, 43);
++  pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8.5); pdf.setTextColor(124, 135, 156);
++  pdf.text('RESIDENT', marginX, y);
++  pdf.text('FLAT / TOWER', W / 2 + 10, y);
++  pdf.setFont('helvetica', 'bold'); pdf.setFontSize(12); pdf.setTextColor(16, 25, 43);
++  pdf.text(member?.name || '—', marginX, y + 16);
++  pdf.text(`${member?.flatNumber || '—'} / ${member?.tower || '—'}`, W / 2 + 10, y + 16);
++  if (member?.memberID) {
++    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9); pdf.setTextColor(124, 135, 156);
++    pdf.text(`Member ID: ${member.memberID}`, marginX, y + 30);
++  }
++  y += 50;
++
++  // Table header
++  const cols = { date: marginX, receipt: marginX + 96, mode: marginX + 250, amount: W - marginX };
++  const drawTableHead = () => {
++    pdf.setFillColor(245, 246, 250);
++    pdf.rect(marginX, y, W - marginX * 2, 22, 'F');
++    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(8.5); pdf.setTextColor(70, 80, 102);
++    pdf.text('DATE', cols.date + 6, y + 15);
++    pdf.text('RECEIPT NO.', cols.receipt, y + 15);
++    pdf.text('MODE', cols.mode, y + 15);
++    pdf.text('AMOUNT', cols.amount - 6, y + 15, { align: 'right' });
++    y += 22;
++  };
++  drawTableHead();
++
++  pdf.setFont('helvetica', 'normal'); pdf.setFontSize(10);
++  let runningTotal = 0;
++
++  for (const p of rows) {
++    // New page when we run low, repeating the header and column titles.
++    if (y > H - 120) {
++      pdf.addPage();
++      y = 60;
++      drawTableHead();
++      pdf.setFont('helvetica', 'normal'); pdf.setFontSize(10);
++    }
++    runningTotal += Number(p.amount) || 0;
++    pdf.setTextColor(16, 25, 43);
++    pdf.text(fmtDate(p.verifiedAt || p.submittedAt), cols.date + 6, y + 15);
++    pdf.setFontSize(9);
++    pdf.text(String(p.receiptNumber || '—'), cols.receipt, y + 15);
++    pdf.setFontSize(10);
++    pdf.text((p.mode || '—').toUpperCase(), cols.mode, y + 15);
++    pdf.text(formatINR(p.amount), cols.amount - 6, y + 15, { align: 'right' });
++    pdf.setDrawColor(226, 230, 239); pdf.setLineWidth(0.5);
++    pdf.line(marginX, y + 22, W - marginX, y + 22);
++    y += 24;
++  }
++
++  if (!rows.length) {
++    pdf.setTextColor(124, 135, 156); pdf.setFont('helvetica', 'italic');
++    pdf.text(`No verified payments recorded for FY ${financialYear}.`, marginX, y + 18);
++    y += 30;
++  }
++
++  // Total band
++  y += 8;
++  pdf.setFillColor(10, 27, 51);
++  pdf.roundedRect(marginX, y, W - marginX * 2, 46, 8, 8, 'F');
++  pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9); pdf.setTextColor(228, 199, 101);
++  pdf.text(`TOTAL PAID · FY ${financialYear}`, marginX + 16, y + 20);
++  pdf.setFont('times', 'bold'); pdf.setFontSize(18); pdf.setTextColor(255, 255, 255);
++  pdf.text(formatINR(runningTotal), W - marginX - 16, y + 30, { align: 'right' });
++  pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8); pdf.setTextColor(180, 190, 205);
++  pdf.text(`${rows.length} payment${rows.length === 1 ? '' : 's'}`, marginX + 16, y + 34);
++
++  // Footer
++  y += 70;
++  pdf.setDrawColor(226, 230, 239); pdf.setLineWidth(0.6);
++  pdf.line(marginX, y, W - marginX, y);
++  pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8.5); pdf.setTextColor(124, 135, 156);
++  pdf.text('This is a system-generated statement from the MHMRWS Digital Portal.', marginX, y + 16);
++  pdf.text(`Generated on ${fmtDate(new Date())}. Each receipt can be verified individually via its QR code.`, marginX, y + 28);
++
++  if (save) {
++    pdf.save(`Statement-${member?.flatNumber || 'MHMRWS'}-FY${financialYear}.pdf`);
++    return null;
++  }
++  return pdf.output('blob');
++}
++
++/* ---------------------------------------------------------------------- */
++/*  Shared UI helpers — skeletons, empty states, inline field errors        */
++/* ---------------------------------------------------------------------- */
++
++/* A block of placeholder rows shaped like a two-line list item with a pill on
++   the right — matches the payment history, notices and documents lists. Drop
++   the returned HTML into a container while its data loads. */
++export function skeletonList(count = 3) {
++  const row = `
++    <div class="sk-row">
++      <div class="sk-stack">
++        <div class="sk-line sk sk-w-60"></div>
++        <div class="sk-line sk sk-w-40"></div>
++      </div>
++      <div class="sk-line sk sk-pill"></div>
++    </div>`;
++  return row.repeat(count);
++}
++
++/* Placeholder rows for a table body; spans the given column count so the layout
++   does not collapse while loading. */
++export function skeletonTableRows(cols = 4, rows = 4) {
++  const widths = ['sk-w-60', 'sk-w-40', 'sk-w-80', 'sk-w-25', 'sk-w-60'];
++  const tr = () => `<tr>${Array.from({ length: cols }, (_, i) =>
++    `<td><div class="sk-line sk ${widths[i % widths.length]}"></div></td>`).join('')}</tr>`;
++  return tr().repeat(rows);
++}
++
++/* A consistent empty state everywhere — the same small seal, a heading and a
++   line of guidance — instead of the assortment of bare "No records" strings
++   the panels grew independently. */
++export function emptyState(heading, detail = '', { compact = false } = {}) {
++  const seal = `<svg class="seal" width="40" height="40" viewBox="0 0 24 24" aria-hidden="true">
++    <circle cx="12" cy="12" r="10.5" fill="none" stroke="var(--gold-500)" stroke-width="1.2"/>
++    <circle cx="12" cy="12" r="7.5" fill="none" stroke="var(--line)" stroke-width="1"/>
++    <path d="M8.5 12.2l2.4 2.4 4.6-4.8" fill="none" stroke="var(--gold-700)" stroke-width="1.4"
++      stroke-linecap="round" stroke-linejoin="round"/></svg>`;
++  return `<div class="empty${compact ? ' empty-sm' : ''}">${seal}
++    <h4>${escapeHtml(heading)}</h4>${detail ? `<p>${escapeHtml(detail)}</p>` : ''}</div>`;
++}
++
++/* Mark a form field as invalid with a message directly beneath it. Expects the
++   input to live inside a .field wrapper (the registration form's structure).
++   Returns false so callers can `if (!showFieldError(...)) return;`-style guard. */
++export function showFieldError(input, message) {
++  const field = input?.closest('.field');
++  if (!field) return false;
++  field.classList.add('has-error');
++  let el = field.querySelector('.field-error');
++  if (!el) { el = document.createElement('div'); el.className = 'field-error'; field.appendChild(el); }
++  el.textContent = message;
++  return false;
++}
++
++export function clearFieldErrors(form) {
++  form?.querySelectorAll('.field.has-error').forEach(f => f.classList.remove('has-error'));
++}
++
++/* ---------------------------------------------------------------------- */
++/*  Idle auto-logout                                                        */
++/*                                                                          */
++/*  A committee member who signs in on a shared or public device and walks  */
++/*  away leaves the financial panel open to whoever sits down next. This    */
++/*  watches for inactivity, shows a warning with a countdown, and signs the  */
++/*  user out if they do not respond. Any real interaction resets the timer.  */
++/*                                                                          */
++/*  Call startIdleLogout({ onLogout, warnAfterMs, graceMs }). Returns a stop */
++/*  function to call on sign-out so the timers do not outlive the session.   */
++/* ---------------------------------------------------------------------- */
++export function startIdleLogout({ onLogout, warnAfterMs = 25 * 60 * 1000, graceMs = 60 * 1000 } = {}) {
++  let warnTimer = null, graceTimer = null, banner = null, countdown = null;
++
++  const clearBanner = () => {
++    countdown && clearInterval(countdown); countdown = null;
++    banner && banner.remove(); banner = null;
++    graceTimer && clearTimeout(graceTimer); graceTimer = null;
++  };
++
++  const doLogout = () => { clearBanner(); stop(); onLogout?.(); };
++
++  const showWarning = () => {
++    if (banner) return;
++    let left = Math.round(graceMs / 1000);
++    banner = document.createElement('div');
++    banner.className = 'session-banner';
++    banner.setAttribute('role', 'alertdialog');
++    banner.innerHTML = `<span>Suraksha ke liye aapko <b class="sec">${left}</b> second mein logout kiya jaayega.</span>
++      <button class="stay">Logged in rahein</button>
++      <button class="out">Abhi logout</button>`;
++    document.body.appendChild(banner);
++    banner.querySelector('.stay').onclick = () => { clearBanner(); reset(); };
++    banner.querySelector('.out').onclick = doLogout;
++    countdown = setInterval(() => {
++      left -= 1;
++      const s = banner?.querySelector('.sec'); if (s) s.textContent = left;
++      if (left <= 0) doLogout();
++    }, 1000);
++    graceTimer = setTimeout(doLogout, graceMs);
++  };
++
++  const reset = () => {
++    if (banner) return;                 // don't reset while the warning is up
++    warnTimer && clearTimeout(warnTimer);
++    warnTimer = setTimeout(showWarning, warnAfterMs);
++  };
++
++  // Throttle: activity fires constantly, but we only need to push the timer.
++  let last = 0;
++  const onActivity = () => {
++    const now = Date.now();
++    if (now - last < 1000) return;
++    last = now;
++    reset();
++  };
++  const events = ['click', 'keydown', 'touchstart', 'scroll', 'mousemove'];
++  events.forEach(e => document.addEventListener(e, onActivity, { passive: true }));
++
++  function stop() {
++    warnTimer && clearTimeout(warnTimer);
++    clearBanner();
++    events.forEach(e => document.removeEventListener(e, onActivity));
++  }
++
++  reset();
++  return stop;
++}
++
++/* ---------------------------------------------------------------------- */
++/*  Pagination                                                              */
++/*                                                                          */
++/*  Tables that load an unbounded set — the member directory, the full      */
++/*  payment ledger — are fine today at a few hundred rows but grow every    */
++/*  year, and rendering all of them at once is what makes the admin panel   */
++/*  crawl on a phone. This renders a compact pager (‹ 1 … 4 5 6 … 12 ›) into */
++/*  a container; the caller slices its own rows and re-renders on change.   */
++/* ---------------------------------------------------------------------- */
++export function renderPager(container, { page, pageSize, total, onPage }) {
++  if (!container) return;
++  const pages = Math.max(1, Math.ceil(total / pageSize));
++  if (pages <= 1) { container.innerHTML = ''; return; }
++
++  page = Math.min(Math.max(1, page), pages);
++  const from = (page - 1) * pageSize + 1;
++  const to = Math.min(page * pageSize, total);
++
++  // Window of page numbers around the current one, with ellipses.
++  const nums = [];
++  const push = (n) => nums.push(n);
++  const window = 1;
++  for (let n = 1; n <= pages; n++) {
++    if (n === 1 || n === pages || (n >= page - window && n <= page + window)) push(n);
++    else if (nums[nums.length - 1] !== '…') push('…');
++  }
++
++  container.innerHTML = `
++    <div class="pager-info">${from}–${to} of ${total}</div>
++    <div class="pager-btns">
++      <button class="pager-btn" data-pg="${page - 1}" ${page === 1 ? 'disabled' : ''} aria-label="Previous page">‹</button>
++      ${nums.map(n => n === '…'
++        ? `<span class="pager-gap">…</span>`
++        : `<button class="pager-btn ${n === page ? 'is-current' : ''}" data-pg="${n}" ${n === page ? 'aria-current="page"' : ''}>${n}</button>`
++      ).join('')}
++      <button class="pager-btn" data-pg="${page + 1}" ${page === pages ? 'disabled' : ''} aria-label="Next page">›</button>
++    </div>`;
++
++  container.querySelectorAll('.pager-btn[data-pg]').forEach(b => {
++    if (b.disabled) return;
++    b.addEventListener('click', () => {
++      const p = parseInt(b.dataset.pg, 10);
++      if (p >= 1 && p <= pages && p !== page) onPage(p);
++    });
++  });
++}
++
+ export function serializeForExport(rows) {
+   return (rows || []).map(row => {
+     const clean = {};
+@@ -558,7 +934,7 @@
  /* ---------------------------------------------------------------------- */
  export async function printReceipt({ payment, member, society, logoDataUrl }) {
    let qrImg = '';
@@ -803,7 +1378,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  
    const area = document.getElementById('printReceiptArea');
    if (!area) { showToast('Print area is missing from this page.', 'error'); return; }
-@@ -593,7 +651,7 @@
+@@ -593,7 +969,7 @@
        </div>
        <div class="pr-foot">
          This is a system-generated receipt from the MHMRWS Digital Portal.<br>
@@ -812,7 +1387,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
        </div>
      </div>
    `;
-@@ -617,9 +675,12 @@
+@@ -617,9 +993,12 @@
  /* ---------------------------------------------------------------------- */
  const CARD_W = 85.6, CARD_H = 54;   // mm — ISO/IEC 7810 ID-1, the usual card size
  
@@ -827,7 +1402,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  }
  
  function loadImage(src) {
-@@ -761,7 +822,7 @@
+@@ -761,7 +1140,7 @@
  
    // --- QR ----------------------------------------------------------------
    try {
@@ -836,7 +1411,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
      const qs = 15.5, qx = CARD_W - M - qs, qy = 15.5;
      pdf.setFillColor(255, 255, 255);
      pdf.roundedRect(qx - 0.8, qy - 0.8, qs + 1.6, qs + 1.6, 0.8, 0.8, 'F');
-@@ -939,22 +1000,8 @@
+@@ -939,22 +1318,15 @@
    return `https://wa.me/${withCountry}?text=${encodeURIComponent(message)}`;
  }
  
@@ -858,7 +1433,13 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
 -  a.download = zipFilename;
 -  a.click();
 -  URL.revokeObjectURL(a.href);
--}
++/* Share sheet with no fixed recipient — WhatsApp lets the user pick the chat or
++   group. This is what a notice "Share on WhatsApp" button needs: the committee
++   posts to the society group, a resident forwards to a neighbour. */
++export function waShareText(message) {
++  return `https://wa.me/?text=${encodeURIComponent(message)}`;
+ }
++
 +/* NOTE: zipFilesFromUrls() used to live here. It fetched every file into
 +   memory before zipping, which would fall over on a phone for a bulk export of
 +   a few hundred ID scans — and nothing called it, since admin.html has its own
@@ -866,7 +1447,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
 +   trap for the next person who goes looking for a bulk-export helper. */
 diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal/firebase-config.js MHMRWS-Portal/firebase-config.js
 --- a/MHMRWS-Portal/firebase-config.js	2026-07-23 04:00:32.000000000 +0000
-+++ MHMRWS-Portal/firebase-config.js	2026-07-24 11:57:01.421162839 +0000
++++ MHMRWS-Portal/firebase-config.js	2026-07-25 13:20:05.870966782 +0000
 @@ -9,6 +9,11 @@
     See SETUP-GUIDE.md, Step 2, for the full walkthrough.
     ========================================================================== */
@@ -879,6 +1460,15 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  const firebaseConfig = {
    apiKey: "AIzaSyAoPrgFpUlkjSfnF0560RXkusqAY65ysXY",
    authDomain: "mhm-portal.firebaseapp.com",
+@@ -24,7 +29,7 @@
+    Create it in: Google Cloud Console → APIs & Services → Credentials
+    → Create Credentials → OAuth client ID → Web application
+    See SETUP-GUIDE.md, Step 5. */
+-const GOOGLE_OAUTH_CLIENT_ID = "REPLACE_WITH_YOUR_OAUTH_CLIENT_ID.apps.googleusercontent.com";
++const GOOGLE_OAUTH_CLIENT_ID = "801279298623-hulscgf3756i0arebt5ql48fv6mrsj8q.apps.googleusercontent.com";
+ 
+ /* Society identity — used in page titles, receipts and the audit log. */
+ const SOCIETY = {
 @@ -38,11 +43,50 @@
     no build step needed). Every page imports { auth, db, storage } from here.
     -------------------------------------------------------------------------- */
@@ -1227,7 +1817,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
        allow create: if isAdmin() && request.resource.data.userId == request.auth.uid;
 diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal/index.html MHMRWS-Portal/index.html
 --- a/MHMRWS-Portal/index.html	2026-07-23 11:25:48.000000000 +0000
-+++ MHMRWS-Portal/index.html	2026-07-25 11:43:34.971697715 +0000
++++ MHMRWS-Portal/index.html	2026-07-25 12:53:54.330246398 +0000
 @@ -2,6 +2,41 @@
  <html lang="en">
  <head>
@@ -1464,7 +2054,23 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
    .bird-3{ display:none; }
    .bird-1{ top:3%; }
    .bird-2{ top:6%; }
-@@ -298,6 +407,14 @@
+@@ -268,6 +377,15 @@
+ .notice-date .m{ font-family:var(--font-mono); font-size:9.5px; letter-spacing:.08em; color:var(--ink-400); text-transform:uppercase; margin-top:3px; }
+ .notice-body h4{ font-size:15px; margin-bottom:5px; }
+ .notice-body p{ font-size:13.5px; color:var(--ink-600); }
++.notice-actions{ margin-top:10px; }
++.notice-share{
++  display:inline-flex; align-items:center; gap:6px; padding:6px 12px;
++  border-radius:var(--radius-pill); font-size:12px; font-weight:600;
++  color:#128C7E; background:rgba(18,140,126,.08); border:1px solid rgba(18,140,126,.22);
++  text-decoration:none; transition:background .15s ease;
++}
++.notice-share:hover{ background:rgba(18,140,126,.15); }
++.notice-share svg{ color:#128C7E; }
+ .lang-toggle{ display:inline-flex; background:var(--paper); border-radius:var(--radius-pill); padding:3px; border:1px solid var(--line); }
+ .lang-toggle button{ border:none; background:transparent; padding:6px 14px; border-radius:var(--radius-pill); font-size:12.5px; font-weight:600; color:var(--ink-400); cursor:pointer; }
+ .lang-toggle button.active{ background:var(--navy-900); color:var(--white); }
+@@ -298,6 +416,14 @@
    width:100%; height:100%; object-fit:cover; display:block;
    transition:transform .7s cubic-bezier(.2,.7,.3,1), opacity .45s ease;
    opacity:0;                       /* revealed once the file has decoded */
@@ -1479,7 +2085,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  }
  .shot img.loaded{ opacity:1; }
  /* A ~900-byte blurred version of the same photo, inlined so it paints on the
-@@ -305,10 +422,15 @@
+@@ -305,10 +431,15 @@
     grey box, and because .shot already has a fixed aspect ratio nothing
     shifts when the full image arrives. */
  .shot::before{
@@ -1496,7 +2102,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  .shot:hover img{ transform:scale(1.045); }
  .shot figcaption{
    position:absolute; left:0; right:0; bottom:0; padding:26px 20px 16px;
-@@ -408,15 +530,51 @@
+@@ -408,15 +539,51 @@
  .pay-history-item{ display:flex; justify-content:space-between; align-items:center; padding:15px 0; border-bottom:1px solid var(--line); gap:12px; flex-wrap:wrap; }
  .pay-history-item:last-child{ border-bottom:none; }
  .dues-box{ border:1px solid var(--line); border-radius:var(--radius-md); overflow:hidden; }
@@ -1552,7 +2158,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  .detail-line{ display:flex; justify-content:space-between; gap:12px; padding:9px 0; border-bottom:1px solid var(--line); font-size:13.4px; }
  .detail-line:last-child{ border-bottom:none; }
  .detail-line span:first-child{ color:var(--ink-400); }
-@@ -459,6 +617,8 @@
+@@ -459,6 +626,8 @@
  .qr-box img{ width:172px; height:172px; margin:0 auto 12px; border-radius:8px; background:var(--white); padding:8px; }
  
  /* ---------- Mobile bottom tab bar (the main mobile UX upgrade) ---------- */
@@ -1561,7 +2167,15 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  .tabbar-mobile{
    display:none; position:fixed; bottom:0; left:0; right:0; z-index:70;
    background:rgba(10,27,51,.97); backdrop-filter:blur(14px);
-@@ -598,7 +758,6 @@
+@@ -584,6 +753,7 @@
+     <g id="i-phone"><rect x="6" y="2.5" width="12" height="19" rx="2.6" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M10.5 18.5h3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></g>
+     <g id="i-home"><path d="M3.5 10.5L12 3.5l8.5 7M6 9.5v11h12v-11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></g>
+     <g id="i-bell"><path d="M12 3.2a5.6 5.6 0 00-5.6 5.6c0 5-2 6.4-2 6.4h15.2s-2-1.4-2-6.4A5.6 5.6 0 0012 3.2zM10.3 19a2 2 0 003.4 0" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></g>
++    <g id="i-whatsapp"><path d="M12 2.6a9.3 9.3 0 00-8 14l-1.3 4.8 4.9-1.3A9.3 9.3 0 1012 2.6zm0 1.7a7.6 7.6 0 016.6 11.4l-.2.3.8 2.8-2.9-.8-.3.2A7.6 7.6 0 1112 4.3z" fill="currentColor"/><path d="M9.3 7.4c-.2-.5-.4-.5-.6-.5h-.5a1 1 0 00-.7.3c-.3.3-.9.9-.9 2.1s.9 2.4 1 2.6c.1.2 1.7 2.8 4.3 3.8 2.1.8 2.6.7 3 .6.6-.1 1.4-.6 1.6-1.1.2-.6.2-1 .1-1.1l-.6-.3c-.3-.2-1.4-.7-1.6-.8-.2-.1-.4-.1-.5.1l-.7.9c-.1.2-.3.2-.5.1a6.3 6.3 0 01-1.9-1.2 7 7 0 01-1.3-1.6c-.1-.2 0-.4.1-.5l.4-.4.3-.5v-.4l-.8-1.9z" fill="currentColor"/></g>
+     <g id="i-rupee"><path d="M7.5 4.5h9M7.5 8.5h9M15.5 4.5c0 3-2 4-5 4h-3l7.5 11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></g>
+     <g id="i-user"><circle cx="12" cy="8.2" r="3.9" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M4.6 20.2c.9-3.7 3.9-5.8 7.4-5.8s6.5 2.1 7.4 5.8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></g>
+     <g id="i-pin"><path d="M12 21.5s7-6.3 7-11.2A7 7 0 005 10.3c0 4.9 7 11.2 7 11.2z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="12" cy="10" r="2.6" fill="none" stroke="currentColor" stroke-width="1.7"/></g>
+@@ -598,7 +768,6 @@
           under one pixel, which anti-aliasing then washed away almost entirely. -->
      <g id="i-file"><path d="M6 3.5h8l4 4v13H6z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M13.8 3.5V8h4.2M9 12.5h6M9 16h6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></g>
      <g id="i-download"><path d="M12 3.5v11M8 11l4 4 4-4M4.5 19.5h15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></g>
@@ -1569,7 +2183,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
      <g id="i-shield"><path d="M12 2.8l7.5 3v6c0 4.6-3.1 8.4-7.5 9.4-4.4-1-7.5-4.8-7.5-9.4v-6z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M9 12l2.2 2.2L15.4 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></g>
      <g id="i-pool"><path d="M3 17.5c1.6 0 1.6 1.4 3.2 1.4s1.6-1.4 3.2-1.4 1.6 1.4 3.2 1.4 1.6-1.4 3.2-1.4 1.6 1.4 3.2 1.4M7 15.5V6a2.2 2.2 0 014.4 0M13.6 15.5V6A2.2 2.2 0 0118 6M7 9.5h4.4M7 12.6h4.4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></g>
      <g id="i-gym"><path d="M3.5 9.5v5M6.5 7v10M17.5 7v10M20.5 9.5v5M6.5 12h11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></g>
-@@ -642,9 +801,9 @@
+@@ -642,9 +811,9 @@
  <section class="hero engrave" id="top" style="padding-top:70px;">
    <div class="hero-photo" aria-hidden="true"></div>
    <div class="birds" aria-hidden="true">
@@ -1582,7 +2196,61 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
    </div>
    <div class="wrap hero-grid">
      <div>
-@@ -1109,7 +1268,10 @@
+@@ -879,6 +1048,13 @@
+       </form>
+ 
+       <form id="registerForm" style="display:none;">
++        <div class="step-indicator" id="stepIndicator" style="display:none;">
++          <div class="step-dot" data-step="0"><span class="num">1</span><span class="lbl">Details</span></div>
++          <div class="step-line" data-line="0"></div>
++          <div class="step-dot" data-step="1"><span class="num">2</span><span class="lbl">Uploads</span></div>
++          <div class="step-line" data-line="1"></div>
++          <div class="step-dot" data-step="2"><span class="num">3</span><span class="lbl">Account</span></div>
++        </div>
+         <fieldset>
+           <legend>Resident Details</legend>
+           <div class="form-2col">
+@@ -940,12 +1116,20 @@
+           </div>
+         </fieldset>
+ 
+-        <label class="checkbox-row" style="margin-bottom:20px;">
+-          <input type="checkbox" name="declaration" required>
+-          <span>I declare that the information provided above is true to the best of my knowledge, and I authorize MHMRWS to verify these details.</span>
+-        </label>
++        <div class="final-only">
++          <label class="checkbox-row" style="margin-bottom:20px;">
++            <input type="checkbox" name="declaration" required>
++            <span>I declare that the information provided above is true to the best of my knowledge, and I authorize MHMRWS to verify these details.</span>
++          </label>
+ 
+-        <button class="btn btn-primary btn-block" type="submit">Submit Registration</button>
++          <button class="btn btn-primary btn-block" type="submit">Submit Registration</button>
++        </div>
++
++        <!-- Back / Next; shown only when JS enables stepped mode. -->
++        <div class="step-nav" id="stepNav" style="display:none;">
++          <button type="button" class="btn btn-ghost" id="stepBack">Back</button>
++          <button type="button" class="btn btn-primary" id="stepNext">Next</button>
++        </div>
+       </form>
+     </div>
+   </div>
+@@ -1042,10 +1226,11 @@
+      failed import blanks out the entire page's branding.
+      ===================================================================== -->
+ <script type="module">
+-import { LOGO_DATA_URI } from './logo-data.js';
++import { LOGO_DATA_URI, getLogoDataUri } from './logo-data.js';
+ import { initLang, setLang, translateSubtree, HI } from './i18n.js';
+ import { TOWER_IDS, flatsForTower } from './tower-plan.js';
+-window.__MHM_LOGO = LOGO_DATA_URI;
++window.__MHM_LOGO = LOGO_DATA_URI;          // image URL, fine for <img src>
++window.__MHM_LOGO_DATAURI = getLogoDataUri;  // call to get a data: URI for PDFs
+ window.__translate = translateSubtree;
+ window.__HI = HI;
+ 
+@@ -1109,7 +1294,10 @@
    // Fade the real photo in over its blurred placeholder once it has decoded.
    // Images already complete (from cache) are marked immediately, otherwise
    // a cached image would stay invisible because 'load' never fires.
@@ -1594,7 +2262,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
    if (img.complete && img.naturalWidth > 0) reveal();
    else img.addEventListener('load', reveal);
  
-@@ -1214,7 +1376,7 @@
+@@ -1214,7 +1402,7 @@
  import { auth, db, storage, SOCIETY } from './firebase-config.js';
  import {
    createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged,
@@ -1603,9 +2271,123 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
  import {
    doc, getDoc, setDoc, addDoc, collection, query, where, orderBy, getDocs, serverTimestamp, limit
-@@ -1341,9 +1503,10 @@
+@@ -1226,7 +1414,9 @@
+   showToast, escapeHtml, fmtDate, formatINR, currentFinancialYear,
+   generateReceiptPDF, printReceipt, validatePayment, validateRegistration,
+   generateMembershipCard, duesFor, DUES_LABEL, DUES_BADGE,
+-  expenseSummary, fundPosition
++  expenseSummary, fundPosition,
++  generateStatementPDF, skeletonList, emptyState, showFieldError, clearFieldErrors,
++  waShareText
+ } from './app-common.js';
+ 
+ /* Branding, the year stamp and the committee fallback are handled by the
+@@ -1264,6 +1454,82 @@
+ }
+ tabLogin.addEventListener('click', () => showTab('login'));
+ tabRegister.addEventListener('click', () => showTab('register'));
++
++/* ---- Stepped registration (progressive enhancement) ----------------------
++   The three fieldsets become three steps. If anything here throws, the form is
++   left in its plain all-visible state, so registration never depends on this. */
++(function initSteps() {
++  const form = registerForm;
++  const fieldsets = Array.from(form.querySelectorAll('fieldset'));
++  const indicator = document.getElementById('stepIndicator');
++  const nav = document.getElementById('stepNav');
++  const backBtn = document.getElementById('stepBack');
++  const nextBtn = document.getElementById('stepNext');
++  if (fieldsets.length !== 3 || !indicator || !nav) return;   // markup changed; bail safely
++
++  form.classList.add('steps-on');
++  indicator.style.display = 'flex';
++  nav.style.display = 'flex';
++
++  // Which fieldset each field name lives on — powers goToStepForField on a
++  // submit-time error and per-step "Next" validation.
++  const stepOfField = {};
++  fieldsets.forEach((fs, i) => {
++    fs.classList.toggle('step-current', i === 0);
++    fs.querySelectorAll('[name]').forEach(el => { stepOfField[el.name] = i; });
++  });
++  // declaration lives with the final step for the purpose of jumping to it.
++  stepOfField['declaration'] = 2;
++
++  let current = 0;
++  const render = () => {
++    fieldsets.forEach((fs, i) => fs.classList.toggle('step-current', i === current));
++    indicator.querySelectorAll('.step-dot').forEach((d, i) => {
++      d.classList.toggle('active', i === current);
++      d.classList.toggle('done', i < current);
++    });
++    indicator.querySelectorAll('.step-line').forEach((l, i) => l.classList.toggle('done', i < current));
++    backBtn.style.visibility = current === 0 ? 'hidden' : 'visible';
++    nextBtn.textContent = current === fieldsets.length - 1 ? 'Review' : 'Next';
++    form.classList.toggle('at-last', current === fieldsets.length - 1);
++    // On the last step the real submit button (inside .final-only) is the CTA,
++    // so hide the "Next" to avoid two primary buttons.
++    nextBtn.style.display = current === fieldsets.length - 1 ? 'none' : 'block';
++  };
++
++  // Let the browser's own required/pattern checks gate each step's fields, so
++  // we get native messages for free and never advance past an invalid step.
++  const stepIsValid = () => {
++    const controls = fieldsets[current].querySelectorAll('input, select, textarea');
++    for (const c of controls) {
++      if (!c.checkValidity()) { c.reportValidity(); return false; }
++    }
++    return true;
++  };
++
++  nextBtn.addEventListener('click', () => {
++    if (!stepIsValid()) return;
++    if (current < fieldsets.length - 1) { current++; render(); form.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
++  });
++  backBtn.addEventListener('click', () => {
++    if (current > 0) { current--; render(); }
++  });
++
++  // Called by the submit handler when validateRegistration reports a field on a
++  // step that isn't currently shown.
++  window.__goToStepForField = (fieldName) => {
++    const step = stepOfField[fieldName];
++    if (step != null && step !== current) { current = step; render(); }
++  };
++
++  render();
++})();
++
++// Fallback no-op if steps didn't initialise, so the submit handler can call it
++// unconditionally.
++if (!window.__goToStepForField) window.__goToStepForField = () => {};
++function goToStepForField(form, field) { window.__goToStepForField(field); }
++
+ window.__goToPortal = (tab) => {
+   if (currentUser) { document.getElementById('dashboard').scrollIntoView({ behavior: 'smooth' }); return; }
+   showTab(tab);
+@@ -1338,12 +1604,29 @@
+   e.preventDefault();
+   const f = e.target;
+   const btn = f.querySelector('button[type="submit"]');
++  clearFieldErrors(f);
    const regError = validateRegistration(f);
-   if (regError) return showToast(regError, 'error');
+-  if (regError) return showToast(regError, 'error');
++  if (regError) {
++    // Show the message directly under the field that caused it, scroll it into
++    // view, and focus it — so the resident sees exactly what to fix instead of
++    // hunting back from a toast in the corner.
++    const input = f.elements[regError.field];
++    if (input && input.closest('.field')) {
++      showFieldError(input, regError.message);
++      // If the bad field is on a step that isn't showing, jump to that step.
++      goToStepForField(f, regError.field);
++      input.closest('.field').scrollIntoView({ behavior: 'smooth', block: 'center' });
++      try { input.focus({ preventScroll: true }); } catch (_) {}
++    } else {
++      showToast(regError.message, 'error');
++    }
++    return;
++  }
    setLoading(btn, true);
 +  let cred = null;
    try {
@@ -1615,7 +2397,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
      const uid = cred.user.uid;
  
      let photoURL = '', idDocURL = '';
-@@ -1372,15 +1535,38 @@
+@@ -1372,15 +1655,38 @@
        updatedAt: serverTimestamp()
      });
  
@@ -1656,7 +2438,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
      showToast(friendlyAuthError(err), 'error');
    } finally {
      setLoading(btn, false);
-@@ -1449,12 +1635,31 @@
+@@ -1449,12 +1755,31 @@
      inactive: '<span class="badge badge-neutral"><span class="badge-dot"></span>Deactivated</span>'
    };
  
@@ -1688,7 +2470,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
      <div class="card status-card">
        <div class="status-head">
          <img src="${currentMember.photoURL || LOGO_DATA_URI}" alt="">
-@@ -1474,10 +1679,10 @@
+@@ -1474,12 +1799,15 @@
      ${currentMember.status === 'approved' ? `
      <div class="dash-grid">
        <div class="card card-pad">
@@ -1697,11 +2479,17 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
          <div class="spread" style="margin:18px 0 16px; gap:10px; flex-wrap:wrap;">
            <h3 style="font-size:16px;">Payment History</h3>
 -          <button class="btn btn-primary btn-sm" id="openPaymentBtn">Make a Payment</button>
-+          <button class="btn btn-primary btn-sm" id="openPaymentBtn"${emailUnverified ? ' disabled title="Pehle apna email verify karein"' : ''}>Make a Payment</button>
++          <div style="display:flex; gap:8px; flex-wrap:wrap;">
++            <button class="btn btn-outline btn-sm" id="downloadStatementBtn" title="Poore financial year ki receipts ek PDF mein">FY Statement</button>
++            <button class="btn btn-primary btn-sm" id="openPaymentBtn"${emailUnverified ? ' disabled title="Pehle apna email verify karein"' : ''}>Make a Payment</button>
++          </div>
          </div>
-         <div id="paymentList"><div class="skeleton" style="height:70px;"></div></div>
+-        <div id="paymentList"><div class="skeleton" style="height:70px;"></div></div>
++        <div id="paymentList"></div>
        </div>
-@@ -1494,6 +1699,36 @@
+       <div class="card card-pad">
+         <h3 style="font-size:16px; margin-bottom:12px;">Your Details</h3>
+@@ -1494,13 +1822,70 @@
  
    window.__translate(content);
  
@@ -1738,7 +2526,49 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
    if (currentMember.status === 'approved') {
      document.getElementById('openPaymentBtn').addEventListener('click', openPaymentModal);
      document.getElementById('downloadCardBtn')?.addEventListener('click', downloadCard);
-@@ -1560,16 +1795,32 @@
++    document.getElementById('downloadStatementBtn')?.addEventListener('click', downloadStatement);
+     await loadPayments(uid);
+   }
+ }
+ 
++/* Full financial-year statement — every verified receipt on one PDF, for a
++   loan file or income proof. Uses the current FY; a resident who needs an
++   older year can be given it from the admin side. */
++async function downloadStatement(e) {
++  const btn = e.currentTarget;
++  const fy = currentFinancialYear();
++  const verified = allPaymentRows.filter(p => p.status === 'verified' && p.financialYear === fy);
++  if (!verified.length) {
++    showToast(`FY ${fy} mein koi verified payment nahi hai — statement banane ke liye kam se kam ek chahiye.`, 'error');
++    return;
++  }
++  setLoading(btn, true);
++  try {
++    const societySnap = await getDoc(doc(db, 'settings', 'society'));
++    const society = societySnap.exists() ? societySnap.data() : { fullName: SOCIETY.fullName };
++    let logoDataUrl = null;
++    try { logoDataUrl = await window.__MHM_LOGO_DATAURI(); } catch (_) {}
++    await generateStatementPDF({ payments: allPaymentRows, member: currentMember, society, financialYear: fy, logoDataUrl });
++  } catch (err) {
++    console.error(err);
++    showToast('Statement nahi ban paaya. Dobara try karein.', 'error');
++  } finally {
++    setLoading(btn, false);
++  }
++}
++
+ /* ---- Membership card ---- */
+ async function downloadCard() {
+   const btn = document.getElementById('downloadCardBtn');
+@@ -1534,6 +1919,7 @@
+ 
+ /* ---- Payments ---- */
+ let currentDues = null;   // recomputed whenever payments are loaded
++let allPaymentRows = [];  // full payment history for the signed-in member
+ 
+ async function loadMaintenanceSettings() {
+   try {
+@@ -1560,16 +1946,32 @@
    const headline = dues.outstanding > 0 ? dues.outstanding : dues.paid;
    const headlineLabel = dues.outstanding > 0 ? 'Outstanding' : 'Paid in full';
  
@@ -1774,7 +2604,74 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
        <div class="dues-split">
          <div><span class="lbl">Total Due</span><b>${formatINR(dues.expected)}</b></div>
          <div><span class="lbl">Paid</span><b>${formatINR(dues.paid)}</b></div>
-@@ -1652,6 +1903,12 @@
+@@ -1581,10 +1983,15 @@
+ 
+ async function loadPayments(uid) {
+   const list = document.getElementById('paymentList');
+-  const q = query(collection(db, 'payments'), where('memberUid', '==', uid), orderBy('submittedAt', 'desc'), limit(10));
++  list.innerHTML = skeletonList(3);          // shaped placeholder, no "Loading…" jump
++  // Pull the whole history for this member: the dues panel and the FY statement
++  // both need every row, and one resident's payments are few. The list itself
++  // still shows only the most recent (below).
++  const q = query(collection(db, 'payments'), where('memberUid', '==', uid), orderBy('submittedAt', 'desc'));
+   let rows;
+   try { rows = (await getDocs(q)).docs.map(d => ({ id: d.id, ...d.data() })); }
+   catch (e) { rows = []; }
++  allPaymentRows = rows;   // kept for the statement button
+ 
+   // Dues are computed from the same rows the history renders, so the panel
+   // and the list can never disagree with each other.
+@@ -1592,7 +1999,14 @@
+   currentDues = duesFor(currentMember, rows, currentFinancialYear(), maintenance);
+   renderDues(currentDues, currentFinancialYear());
+ 
+-  if (!rows.length) { list.innerHTML = '<div class="empty" style="padding:28px 12px;"><p>No payment records yet.</p></div>'; window.__translate(list); return; }
++  if (!rows.length) {
++    list.innerHTML = emptyState('Abhi tak koi payment nahi', 'Aapke verified payments aur receipts yahan dikhenge.', { compact: true });
++    window.__translate(list); return;
++  }
++
++  // Show only the 10 most recent in the list; the full set stays in
++  // allPaymentRows for the dues panel and the statement download.
++  const listRows = rows.slice(0, 10);
+ 
+   const statusBadge = {
+     pending_approval: '<span class="badge badge-warning">Pending Approval</span>',
+@@ -1601,7 +2015,7 @@
+     rejected: '<span class="badge badge-danger">Rejected</span>'
+   };
+ 
+-  list.innerHTML = rows.map(p => `
++  list.innerHTML = listRows.map(p => `
+     <div class="pay-history-item">
+       <div>
+         <div style="font-weight:600; font-size:14.5px;">${formatINR(p.amount)} <span class="t-muted" style="font-weight:400;">· ${escapeHtml((p.mode||'').toUpperCase())}</span></div>
+@@ -1618,12 +2032,23 @@
+     </div>
+   `).join('');
+ 
++  if (rows.length > listRows.length) {
++    const note = document.createElement('div');
++    note.className = 't-muted';
++    note.style.cssText = 'font-size:12px; text-align:center; padding:12px 0 2px;';
++    note.textContent = `${listRows.length} recent dikha rahe hain · poori history ke liye "FY Statement" download karein`;
++    list.appendChild(note);
++  }
++
+   window.__translate(list);
+ 
+   async function loadReceiptContext() {
+     const societySnap = await getDoc(doc(db, 'settings', 'society'));
+     const society = societySnap.exists() ? societySnap.data() : { fullName: SOCIETY.fullName };
+-    return { society, logoDataUrl: LOGO_DATA_URI };
++    // jsPDF needs actual bytes, not a URL — fetch-and-cache the data URI.
++    let logoDataUrl = null;
++    try { logoDataUrl = await window.__MHM_LOGO_DATAURI(); } catch (e) { /* PDF still renders sans seal */ }
++    return { society, logoDataUrl };
+   }
+ 
+   list.querySelectorAll('[data-receipt-id]').forEach(btn => {
+@@ -1652,6 +2077,12 @@
  }
  
  async function openPaymentModal() {
@@ -1787,6 +2684,152 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
    const q = query(collection(db, 'payments'), where('memberUid', '==', currentUser.uid), where('status', 'in', ['pending_approval', 'pending_verification']));
    const existing = await getDocs(q);
    if (!existing.empty) { showToast('Aapka ek payment pehle se pending hai — nayi entry ki zaroorat nahi.', 'error'); return; }
+@@ -1757,6 +2188,8 @@
+ 
+ /* ---- Public content ---- */
+ async function loadNotices() {
++  const _nl = document.getElementById('noticeList');
++  if (_nl && !_nl.dataset.loaded) _nl.innerHTML = skeletonList(2);
+   const listEl = document.getElementById('noticeList');
+   try {
+     const q = query(collection(db, 'notices'), orderBy('postedAt', 'desc'), limit(5));
+@@ -1764,18 +2197,19 @@
+     renderNotices();
+   } catch (e) {
+     window.__notices = null;
+-    listEl.innerHTML = '<div class="empty" style="padding:30px 12px;"><p>Notices could not be loaded.</p></div>';
++    listEl.innerHTML = emptyState('Notices load nahi ho paaye', 'Internet check karke page refresh karein.', { compact: true });
+     window.__translate(listEl);
+   }
+ }
+ function renderNotices() {
+   const listEl = document.getElementById('noticeList');
++  listEl.dataset.loaded = '1';
+   const rows = window.__notices;
+ 
+   // Guard: without this, switching language on a society with no notices
+   // yet would blank the box instead of keeping the empty-state message.
+   if (!rows || !rows.length) {
+-    listEl.innerHTML = '<div class="empty" style="padding:30px 12px;"><p>No notices have been posted yet.</p></div>';
++    listEl.innerHTML = emptyState('Abhi koi notice nahi', 'Committee ke naye notices yahan dikhenge.', { compact: true });
+     window.__translate(listEl);
+     return;
+   }
+@@ -1792,12 +2226,31 @@
+           <h4 data-no-translate>${escapeHtml(lang === 'hi' ? (n.titleHi || n.titleEn) : n.titleEn)}</h4>
+           <p data-no-translate>${escapeHtml(lang === 'hi' ? (n.bodyHi || n.bodyEn) : n.bodyEn)}</p>
+           ${n.attachmentURL ? `<a href="${n.attachmentURL}" target="_blank" rel="noopener" style="font-size:12.5px; text-decoration:underline; display:inline-block; margin-top:7px;" class="t-sub">Download attachment</a>` : ''}
++          <div class="notice-actions">
++            <a class="notice-share" target="_blank" rel="noopener"
++               href="${waShareText(noticeShareText(n, lang))}"
++               aria-label="Share this notice on WhatsApp">
++              <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><use href="#i-whatsapp"/></svg>
++              WhatsApp
++            </a>
++          </div>
+         </div>
+       </div>`;
+   }).join('');
+   window.__translate(listEl);
+ }
+ 
++/* Plain-text version of a notice for a WhatsApp message: title, body, the
++   society name, and the attachment link if there is one. Uses whichever
++   language the portal is currently in. */
++function noticeShareText(n, lang) {
++  const title = lang === 'hi' ? (n.titleHi || n.titleEn) : n.titleEn;
++  const body = lang === 'hi' ? (n.bodyHi || n.bodyEn) : n.bodyEn;
++  const lines = [`📢 ${title}`, '', body, '', '— Max Heights Majestic RWS'];
++  if (n.attachmentURL) lines.push('', n.attachmentURL);
++  return lines.join('\n');
++}
++
+ // Re-render notices (and re-translate the page) whenever the language changes.
+ window.addEventListener('mhm:langchange', () => {
+   if (document.getElementById('noticeList')) renderNotices();
+@@ -1844,7 +2297,7 @@
+     `;
+     window.__translate(el);
+   } catch (e) {
+-    el.innerHTML = '<div class="empty" style="padding:38px 12px;"><p>Accounts could not be loaded.</p></div>';
++    el.innerHTML = emptyState('Accounts load nahi ho paaye', 'Thodi der baad dobara try karein.', { compact: true });
+     window.__translate(el);
+   }
+ }
+@@ -1855,7 +2308,7 @@
+     const rows = (await getDocs(query(collection(db, 'documents'), orderBy('addedAt', 'desc'))))
+       .docs.map(d => d.data());
+     if (!rows.length) {
+-      el.innerHTML = '<div class="empty" style="padding:34px 12px;"><p>No documents have been published yet.</p></div>';
++      el.innerHTML = emptyState('Abhi koi document nahi', 'Bylaws, minutes aur forms yahan publish honge.', { compact: true });
+       window.__translate(el); return;
+     }
+     el.innerHTML = '<div class="doc-grid">' + rows.map(d => `
+@@ -1869,7 +2322,7 @@
+       </a>`).join('') + '</div>';
+     window.__translate(el);
+   } catch (e) {
+-    el.innerHTML = '<div class="empty" style="padding:34px 12px;"><p>Documents could not be loaded.</p></div>';
++    el.innerHTML = emptyState('Documents load nahi ho paaye', 'Thodi der baad dobara try karein.', { compact: true });
+     window.__translate(el);
+   }
+ }
+diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal/logo-data.js MHMRWS-Portal/logo-data.js
+--- a/MHMRWS-Portal/logo-data.js	2026-07-23 04:00:32.000000000 +0000
++++ MHMRWS-Portal/logo-data.js	2026-07-25 12:40:22.127415688 +0000
+@@ -1,10 +1,46 @@
+ /* ==========================================================================
+-   MHMRWS society seal — embedded directly as a base64 WebP data URI.
++   MHMRWS society seal
++   --------------------------------------------------------------------------
++   The seal now lives in logo.webp as a real image file, not as 66 KB of
++   base64 inlined here. That base64 used to parse on EVERY page before first
++   paint, in a render-blocking module — pure dead weight for the common case,
++   where the seal is just an <img> the browser can fetch and cache on its own.
+ 
+-   WHY EMBEDDED: the logo must never depend on a separate file upload
+-   succeeding. Even if an image file is missing or was not deployed, the
+-   seal still renders everywhere. The icon-*.png files at the repo root are
+-   kept only for the PWA manifest and favicon, which need real files.
++   What still needs a data-URI is the PDF and canvas code (jsPDF cannot take a
++   URL, and a <canvas> tainted by a cross-origin-ish load cannot be exported).
++   So this module keeps a data-URI available — but fetches it lazily, only when
++   something actually asks, and caches the result. On a normal visit it never
++   runs at all.
++
++   This module still imports nothing from Firebase, so the branding path stays
++   independent of the SDK: an <img src="logo.webp"> renders even if everything
++   else on the page fails to load.
+    ========================================================================== */
+ 
+-export const LOGO_DATA_URI = 'data:image/webp;base64,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';
++// Resolve logo.webp relative to this module, so it works from / and from /tools.
++export const LOGO_URL = new URL('./logo.webp', import.meta.url).href;
++
++let _dataUriPromise = null;
++
++/* Fetch the seal and return it as a data: URI, for jsPDF / canvas. Cached, so
++   repeated receipts in one session cost one network read (and the service
++   worker serves it offline). */
++export function getLogoDataUri() {
++  if (_dataUriPromise) return _dataUriPromise;
++  _dataUriPromise = fetch(LOGO_URL)
++    .then(r => { if (!r.ok) throw new Error('logo fetch ' + r.status); return r.blob(); })
++    .then(blob => new Promise((res, rej) => {
++      const fr = new FileReader();
++      fr.onload = () => res(fr.result);
++      fr.onerror = () => rej(fr.error);
++      fr.readAsDataURL(blob);
++    }))
++    .catch(err => { _dataUriPromise = null; throw err; });  // let a later call retry
++  return _dataUriPromise;
++}
++
++/* Back-compat shim. Older code imported LOGO_DATA_URI expecting a ready string.
++   That eager value is exactly what we are trying to avoid, so this is now the
++   image URL — correct for any <img src> or CSS use. Code paths that feed jsPDF
++   or canvas must call getLogoDataUri() instead; those have been updated. */
++export const LOGO_DATA_URI = LOGO_URL;
 diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal/storage.rules MHMRWS-Portal/storage.rules
 --- a/MHMRWS-Portal/storage.rules	2026-07-23 11:10:24.000000000 +0000
 +++ MHMRWS-Portal/storage.rules	2026-07-24 11:52:24.731504335 +0000
@@ -1903,7 +2946,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  // ----------------------------------------------------------------------------
 diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal/styles.css MHMRWS-Portal/styles.css
 --- a/MHMRWS-Portal/styles.css	2026-07-23 03:47:54.000000000 +0000
-+++ MHMRWS-Portal/styles.css	2026-07-24 12:10:24.558470631 +0000
++++ MHMRWS-Portal/styles.css	2026-07-25 12:47:54.577164751 +0000
 @@ -233,10 +233,20 @@
    text-align:left; font-family:var(--font-mono); font-size:11px; letter-spacing:.08em; text-transform:uppercase;
    color:var(--ink-400); padding:12px 14px; border-bottom:1px solid var(--line); background:var(--paper); white-space:nowrap;
@@ -1999,19 +3042,122 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  
  /* --- Loader ------------------------------------------------------------------ */
  .spinner{ width:20px; height:20px; border-radius:50%; border:2.5px solid rgba(255,255,255,.35); border-top-color:currentColor; animation:spin .7s linear infinite; }
+@@ -308,9 +368,94 @@
+ .skeleton{ background:linear-gradient(90deg, var(--line) 25%, #EDF0F6 37%, var(--line) 63%); background-size:400% 100%; animation:sk 1.4s ease infinite; border-radius:6px; }
+ @keyframes sk{ 0%{background-position:100% 50%;} 100%{background-position:0 50%;} }
+ 
++/* Reusable skeleton rows for lists and tables. Instead of a bare "Loading…"
++   that then jumps to content, every list shows a few grey rows shaped like the
++   real thing, so the arrival is a fade rather than a jolt. Build them with the
++   skeletonRows()/skeletonList() helpers in app-common.js. */
++.sk-row{ display:flex; align-items:center; gap:14px; padding:14px 4px; }
++.sk-line{ height:12px; border-radius:6px; }
++.sk-line.sk{ background:linear-gradient(90deg, var(--line) 25%, #EDF0F6 37%, var(--line) 63%);
++  background-size:400% 100%; animation:sk 1.4s ease infinite; }
++.sk-w-40{ width:40%; } .sk-w-60{ width:60%; } .sk-w-25{ width:25%; } .sk-w-80{ width:80%; }
++.sk-stack{ display:flex; flex-direction:column; gap:8px; flex:1; }
++.sk-pill{ width:74px; height:26px; border-radius:var(--radius-pill); flex-shrink:0; }
++@media (prefers-reduced-motion: reduce){ .skeleton, .sk-line.sk{ animation:none; } }
++
+ /* --- Empty state -------------------------------------------------------------- */
+ .empty{ text-align:center; padding:48px 20px; color:var(--ink-400); }
+ .empty .seal{ margin:0 auto 16px; }
++.empty h4{ color:var(--ink-600); font-size:15px; margin-bottom:6px; }
++.empty p{ font-size:13.5px; max-width:340px; margin:0 auto; }
++/* Compact variant for inside a table cell or a short panel. */
++.empty.empty-sm{ padding:30px 16px; }
++
++/* --- Inline field errors ------------------------------------------------------ */
++/* A validation problem belongs under the field that caused it, not in a toast
++   at the corner of the screen the user then has to hunt back from. */
++.field.has-error input, .field.has-error select, .field.has-error textarea{
++  border-color:var(--danger); background:#FEF4F3;
++}
++.field-error{ display:none; color:var(--danger); font-size:12px; margin-top:5px; font-weight:500; }
++.field.has-error .field-error{ display:block; }
++
++/* --- Pager --------------------------------------------------------------------- */
++.pager{ display:flex; align-items:center; justify-content:space-between; gap:14px;
++  flex-wrap:wrap; margin-top:16px; }
++.pager:empty{ margin-top:0; }
++.pager-info{ font-family:var(--font-mono); font-size:12px; color:var(--ink-400); font-variant-numeric:tabular-nums; }
++.pager-btns{ display:flex; align-items:center; gap:4px; margin-left:auto; }
++.pager-btn{
++  min-width:34px; height:34px; padding:0 8px; border-radius:var(--radius-md);
++  border:1px solid var(--line); background:var(--white); color:var(--ink-700);
++  font-size:13.5px; font-weight:600; cursor:pointer; font-variant-numeric:tabular-nums;
++  transition:background .15s ease, border-color .15s ease;
++}
++.pager-btn:hover:not(:disabled):not(.is-current){ border-color:var(--gold-500); background:var(--paper); }
++.pager-btn.is-current{ background:var(--navy-950); color:#fff; border-color:transparent; cursor:default; }
++.pager-btn:disabled{ opacity:.4; cursor:not-allowed; }
++.pager-gap{ color:var(--ink-400); padding:0 2px; }
++@media (max-width:560px){ .pager{ justify-content:center; } .pager-btns{ margin-left:0; } }
++
++/* --- Registration steps ------------------------------------------------------- */
++/* The form has three natural sections; on a phone all fifteen fields in one
++   scroll is a wall. Showing one section at a time with a progress indicator
++   makes it feel short. Pure progressive enhancement: .steps-on is added by JS,
++   so if the script fails every fieldset simply shows and the form still works. */
++.step-indicator{ display:flex; align-items:center; gap:0; margin:0 0 22px; }
++.step-dot{ display:flex; flex-direction:column; align-items:center; gap:6px; flex:0 0 auto; }
++.step-dot .num{
++  width:30px; height:30px; border-radius:50%; display:grid; place-items:center;
++  font-family:var(--font-mono); font-size:13px; font-weight:600;
++  background:var(--paper); color:var(--ink-400); border:1.5px solid var(--line); transition:all .25s ease;
++}
++.step-dot .lbl{ font-size:10.5px; font-weight:600; letter-spacing:.03em; text-transform:uppercase; color:var(--ink-400); transition:color .25s ease; }
++.step-dot.active .num{ background:var(--gradient-saffron); color:#fff; border-color:transparent; }
++.step-dot.active .lbl{ color:var(--navy-950); }
++.step-dot.done .num{ background:var(--navy-950); color:#fff; border-color:transparent; }
++.step-line{ flex:1; height:2px; background:var(--line); margin:0 8px; align-self:flex-start; margin-top:14px; border-radius:2px; transition:background .25s ease; }
++.step-line.done{ background:var(--navy-950); }
++.steps-on fieldset{ display:none; }
++.steps-on fieldset.step-current{ display:block; animation:step-in .25s ease; }
++@keyframes step-in{ from{ opacity:0; transform:translateY(6px); } }
++.step-nav{ display:flex; gap:10px; margin-top:8px; }
++.step-nav .btn{ flex:1; }
++/* The declaration + submit belong to the last step only. */
++.steps-on .final-only{ display:none; }
++.steps-on.at-last .final-only{ display:block; }
++@media (prefers-reduced-motion: reduce){ .steps-on fieldset.step-current{ animation:none; } }
++
++/* --- Session expiry banner ---------------------------------------------------- */
++.session-banner{
++  position:fixed; left:0; right:0; bottom:0; z-index:120;
++  background:var(--navy-950); color:#fff; padding:14px 18px;
++  display:flex; align-items:center; gap:14px; flex-wrap:wrap; justify-content:center;
++  box-shadow:0 -6px 24px rgba(0,0,0,.18); font-size:13.5px;
++  transform:translateY(100%); animation:session-rise .3s ease forwards;
++}
++@keyframes session-rise{ to{ transform:translateY(0); } }
++.session-banner button{ padding:8px 16px; border-radius:var(--radius-md); font-weight:600; font-size:13px; cursor:pointer; border:none; }
++.session-banner .stay{ background:var(--gold-500); color:var(--navy-950); }
++.session-banner .out{ background:transparent; color:rgba(255,255,255,.7); border:1px solid rgba(255,255,255,.3); }
+ 
+ /* --- Utility text colors -------------------------------------------------------- */
+ .t-muted{ color:var(--ink-400); }
 diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal/sw.js MHMRWS-Portal/sw.js
 --- a/MHMRWS-Portal/sw.js	2026-07-23 10:40:52.000000000 +0000
-+++ MHMRWS-Portal/sw.js	2026-07-24 11:57:01.441010942 +0000
++++ MHMRWS-Portal/sw.js	2026-07-25 12:49:36.553680996 +0000
 @@ -8,7 +8,7 @@
     Bump CACHE_NAME on any future structural change to force a clean cache.
     ========================================================================== */
  
 -const CACHE_NAME = 'mhmrws-shell-v4';
-+const CACHE_NAME = 'mhmrws-shell-v5';
++const CACHE_NAME = 'mhmrws-shell-v6';
  const SHELL_FILES = [
    './',
    './index.html',
-@@ -24,9 +24,17 @@
+@@ -17,6 +17,7 @@
+   './app-common.js',
+   './manifest.json',
+   './logo-data.js',
++  './logo.webp',
+   './i18n.js',
+   './tower-plan.js',
+   './icon-192.png',
+@@ -24,9 +25,17 @@
  ];
  
  self.addEventListener('install', (event) => {

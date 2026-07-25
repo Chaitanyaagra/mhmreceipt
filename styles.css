@@ -368,9 +368,94 @@ tbody tr:hover{ background:#FAFBFD; }
 .skeleton{ background:linear-gradient(90deg, var(--line) 25%, #EDF0F6 37%, var(--line) 63%); background-size:400% 100%; animation:sk 1.4s ease infinite; border-radius:6px; }
 @keyframes sk{ 0%{background-position:100% 50%;} 100%{background-position:0 50%;} }
 
+/* Reusable skeleton rows for lists and tables. Instead of a bare "Loading…"
+   that then jumps to content, every list shows a few grey rows shaped like the
+   real thing, so the arrival is a fade rather than a jolt. Build them with the
+   skeletonRows()/skeletonList() helpers in app-common.js. */
+.sk-row{ display:flex; align-items:center; gap:14px; padding:14px 4px; }
+.sk-line{ height:12px; border-radius:6px; }
+.sk-line.sk{ background:linear-gradient(90deg, var(--line) 25%, #EDF0F6 37%, var(--line) 63%);
+  background-size:400% 100%; animation:sk 1.4s ease infinite; }
+.sk-w-40{ width:40%; } .sk-w-60{ width:60%; } .sk-w-25{ width:25%; } .sk-w-80{ width:80%; }
+.sk-stack{ display:flex; flex-direction:column; gap:8px; flex:1; }
+.sk-pill{ width:74px; height:26px; border-radius:var(--radius-pill); flex-shrink:0; }
+@media (prefers-reduced-motion: reduce){ .skeleton, .sk-line.sk{ animation:none; } }
+
 /* --- Empty state -------------------------------------------------------------- */
 .empty{ text-align:center; padding:48px 20px; color:var(--ink-400); }
 .empty .seal{ margin:0 auto 16px; }
+.empty h4{ color:var(--ink-600); font-size:15px; margin-bottom:6px; }
+.empty p{ font-size:13.5px; max-width:340px; margin:0 auto; }
+/* Compact variant for inside a table cell or a short panel. */
+.empty.empty-sm{ padding:30px 16px; }
+
+/* --- Inline field errors ------------------------------------------------------ */
+/* A validation problem belongs under the field that caused it, not in a toast
+   at the corner of the screen the user then has to hunt back from. */
+.field.has-error input, .field.has-error select, .field.has-error textarea{
+  border-color:var(--danger); background:#FEF4F3;
+}
+.field-error{ display:none; color:var(--danger); font-size:12px; margin-top:5px; font-weight:500; }
+.field.has-error .field-error{ display:block; }
+
+/* --- Pager --------------------------------------------------------------------- */
+.pager{ display:flex; align-items:center; justify-content:space-between; gap:14px;
+  flex-wrap:wrap; margin-top:16px; }
+.pager:empty{ margin-top:0; }
+.pager-info{ font-family:var(--font-mono); font-size:12px; color:var(--ink-400); font-variant-numeric:tabular-nums; }
+.pager-btns{ display:flex; align-items:center; gap:4px; margin-left:auto; }
+.pager-btn{
+  min-width:34px; height:34px; padding:0 8px; border-radius:var(--radius-md);
+  border:1px solid var(--line); background:var(--white); color:var(--ink-700);
+  font-size:13.5px; font-weight:600; cursor:pointer; font-variant-numeric:tabular-nums;
+  transition:background .15s ease, border-color .15s ease;
+}
+.pager-btn:hover:not(:disabled):not(.is-current){ border-color:var(--gold-500); background:var(--paper); }
+.pager-btn.is-current{ background:var(--navy-950); color:#fff; border-color:transparent; cursor:default; }
+.pager-btn:disabled{ opacity:.4; cursor:not-allowed; }
+.pager-gap{ color:var(--ink-400); padding:0 2px; }
+@media (max-width:560px){ .pager{ justify-content:center; } .pager-btns{ margin-left:0; } }
+
+/* --- Registration steps ------------------------------------------------------- */
+/* The form has three natural sections; on a phone all fifteen fields in one
+   scroll is a wall. Showing one section at a time with a progress indicator
+   makes it feel short. Pure progressive enhancement: .steps-on is added by JS,
+   so if the script fails every fieldset simply shows and the form still works. */
+.step-indicator{ display:flex; align-items:center; gap:0; margin:0 0 22px; }
+.step-dot{ display:flex; flex-direction:column; align-items:center; gap:6px; flex:0 0 auto; }
+.step-dot .num{
+  width:30px; height:30px; border-radius:50%; display:grid; place-items:center;
+  font-family:var(--font-mono); font-size:13px; font-weight:600;
+  background:var(--paper); color:var(--ink-400); border:1.5px solid var(--line); transition:all .25s ease;
+}
+.step-dot .lbl{ font-size:10.5px; font-weight:600; letter-spacing:.03em; text-transform:uppercase; color:var(--ink-400); transition:color .25s ease; }
+.step-dot.active .num{ background:var(--gradient-saffron); color:#fff; border-color:transparent; }
+.step-dot.active .lbl{ color:var(--navy-950); }
+.step-dot.done .num{ background:var(--navy-950); color:#fff; border-color:transparent; }
+.step-line{ flex:1; height:2px; background:var(--line); margin:0 8px; align-self:flex-start; margin-top:14px; border-radius:2px; transition:background .25s ease; }
+.step-line.done{ background:var(--navy-950); }
+.steps-on fieldset{ display:none; }
+.steps-on fieldset.step-current{ display:block; animation:step-in .25s ease; }
+@keyframes step-in{ from{ opacity:0; transform:translateY(6px); } }
+.step-nav{ display:flex; gap:10px; margin-top:8px; }
+.step-nav .btn{ flex:1; }
+/* The declaration + submit belong to the last step only. */
+.steps-on .final-only{ display:none; }
+.steps-on.at-last .final-only{ display:block; }
+@media (prefers-reduced-motion: reduce){ .steps-on fieldset.step-current{ animation:none; } }
+
+/* --- Session expiry banner ---------------------------------------------------- */
+.session-banner{
+  position:fixed; left:0; right:0; bottom:0; z-index:120;
+  background:var(--navy-950); color:#fff; padding:14px 18px;
+  display:flex; align-items:center; gap:14px; flex-wrap:wrap; justify-content:center;
+  box-shadow:0 -6px 24px rgba(0,0,0,.18); font-size:13.5px;
+  transform:translateY(100%); animation:session-rise .3s ease forwards;
+}
+@keyframes session-rise{ to{ transform:translateY(0); } }
+.session-banner button{ padding:8px 16px; border-radius:var(--radius-md); font-weight:600; font-size:13px; cursor:pointer; border:none; }
+.session-banner .stay{ background:var(--gold-500); color:var(--navy-950); }
+.session-banner .out{ background:transparent; color:rgba(255,255,255,.7); border:1px solid rgba(255,255,255,.3); }
 
 /* --- Utility text colors -------------------------------------------------------- */
 .t-muted{ color:var(--ink-400); }

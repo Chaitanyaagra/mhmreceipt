@@ -29,7 +29,7 @@ const firebaseConfig = {
    Create it in: Google Cloud Console → APIs & Services → Credentials
    → Create Credentials → OAuth client ID → Web application
    See SETUP-GUIDE.md, Step 5. */
-const GOOGLE_OAUTH_CLIENT_ID = "REPLACE_WITH_YOUR_OAUTH_CLIENT_ID.apps.googleusercontent.com";
+const GOOGLE_OAUTH_CLIENT_ID = "801279298623-hulscgf3756i0arebt5ql48fv6mrsj8q.apps.googleusercontent.com";
 
 /* Society identity — used in page titles, receipts and the audit log. */
 const SOCIETY = {

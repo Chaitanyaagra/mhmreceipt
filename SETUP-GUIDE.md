@@ -251,7 +251,7 @@ Is setup mein **sach mein apne aap chalne wala backup nahi ho sakta** — uske l
 ## 🎨 Customization
 
 - Colors: `styles.css` ke top mein `:root { --navy-950: ...; --saffron-500: ...; }` — yahin se poori site ka theme change ho jaata hai.
-- Logo: seal `logo-data.js` mein base64 ke roop mein embedded hai (isliye woh kabhi missing nahi ho sakta). Badalna ho toh naya logo bhej kar dobara generate karwa lein. `icon-192.png` / `icon-512.png` PWA ke liye alag files hain.
+- Logo: seal ab `logo.webp` file mein hai (pehle 66 KB base64 JS mein tha — woh har page load par bhaari padta tha). Badalna ho toh usi naam se naya `logo.webp` daal dein. PDF/card ke liye woh apne aap data-URI bana leta hai. `icon-192.png` / `icon-512.png` PWA ke liye alag files hain.
 - Society details (address, phone, bank details): yeh sab database mein hain, code mein nahi — Admin Panel → Settings se hi update karein.
 
 ## 🆘 Common Errors

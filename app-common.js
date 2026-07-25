@@ -123,47 +123,47 @@ export function validateRegistration(f) {
   const nomineeRelation = val('nomineeRelation');
   const residentType = val('residentType');
 
-  if (!name) return 'Naam zaroori hai.';
+  if (!name) return { field: 'name', message: 'Naam zaroori hai.' };
   if (name.length > LIMITS.nameMax) return `Naam ${LIMITS.nameMax} characters se lamba nahi ho sakta.`;
   // \p{M} matters here: Devanagari matras (ा ि ो) are Unicode *Marks*, not
   // Letters, so without it every Hindi name would be rejected.
-  if (!/^[\p{L}\p{M}\s.'-]+$/u.test(name)) return 'Naam mein sirf akshar, space, aur . \' - ho sakte hain.';
+  if (!/^[\p{L}\p{M}\s.'-]+$/u.test(name)) return { field: 'name', message: 'Naam mein sirf akshar, space, aur . \' - ho sakte hain.' };
 
-  if (!father) return 'Pita / Pati ka naam zaroori hai.';
-  if (father.length > LIMITS.nameMax) return 'Pita / Pati ka naam bahut lamba hai.';
-  if (!/^[\p{L}\p{M}\s.'-]+$/u.test(father)) return 'Pita / Pati ke naam mein sirf akshar aur space ho sakte hain.';
+  if (!father) return { field: 'fatherHusbandName', message: 'Pita / Pati ka naam zaroori hai.' };
+  if (father.length > LIMITS.nameMax) return { field: 'fatherHusbandName', message: 'Pita / Pati ka naam bahut lamba hai.' };
+  if (!/^[\p{L}\p{M}\s.'-]+$/u.test(father)) return { field: 'fatherHusbandName', message: 'Pita / Pati ke naam mein sirf akshar aur space ho sakte hain.' };
 
-  if (!tower) return 'Tower chunna zaroori hai.';
-  if (!TOWER_PLAN[tower]) return 'Tower valid nahi hai.';
-  if (!flat) return 'Flat number chunna zaroori hai.';
+  if (!tower) return { field: 'tower', message: 'Tower chunna zaroori hai.' };
+  if (!TOWER_PLAN[tower]) return { field: 'tower', message: 'Tower valid nahi hai.' };
+  if (!flat) return { field: 'flatNumber', message: 'Flat number chunna zaroori hai.' };
   if (!isValidFlat(tower, flat)) return `Flat ${flat} Tower ${tower} mein maujood nahi hai.`;
 
   // Indian mobile numbers begin 6, 7, 8 or 9 — this rejects landlines and
   // the common habit of typing a 0 or +91 prefix into the field.
-  if (!/^[0-9]{10}$/.test(mobile)) return 'Mobile number theek 10 ankon ka hona chahiye (bina 0 ya +91 ke).';
-  if (!/^[6-9]/.test(mobile)) return 'Mobile number 6, 7, 8 ya 9 se shuru hona chahiye.';
+  if (!/^[0-9]{10}$/.test(mobile)) return { field: 'mobile', message: 'Mobile number theek 10 ankon ka hona chahiye (bina 0 ya +91 ke).' };
+  if (!/^[6-9]/.test(mobile)) return { field: 'mobile', message: 'Mobile number 6, 7, 8 ya 9 se shuru hona chahiye.' };
 
-  if (!email) return 'Email zaroori hai.';
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return 'Email address sahi format mein nahi hai.';
+  if (!email) return { field: 'email', message: 'Email zaroori hai.' };
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { field: 'email', message: 'Email address sahi format mein nahi hai.' };
 
-  if (!occupation) return 'Occupation zaroori hai.';
-  if (occupation.length > 100) return 'Occupation bahut lamba hai.';
-  if (!residentType) return 'Owner ya Tenant chunna zaroori hai.';
-  if (!['owner', 'tenant'].includes(residentType)) return 'Owner / Tenant valid nahi hai.';
+  if (!occupation) return { field: 'occupation', message: 'Occupation zaroori hai.' };
+  if (occupation.length > 100) return { field: 'occupation', message: 'Occupation bahut lamba hai.' };
+  if (!residentType) return { field: 'residentType', message: 'Owner ya Tenant chunna zaroori hai.' };
+  if (!['owner', 'tenant'].includes(residentType)) return { field: 'residentType', message: 'Owner / Tenant valid nahi hai.' };
 
-  if (!address) return 'Address zaroori hai.';
-  if (address.length > LIMITS.addressMax) return 'Address bahut lamba hai.';
+  if (!address) return { field: 'address', message: 'Address zaroori hai.' };
+  if (address.length > LIMITS.addressMax) return { field: 'address', message: 'Address bahut lamba hai.' };
 
-  if (!nomineeName) return 'Nominee ka naam zaroori hai.';
-  if (!/^[\p{L}\p{M}\s.'-]+$/u.test(nomineeName)) return 'Nominee ke naam mein sirf akshar aur space ho sakte hain.';
-  if (!nomineeRelation) return 'Nominee se sambandh zaroori hai.';
+  if (!nomineeName) return { field: 'nomineeName', message: 'Nominee ka naam zaroori hai.' };
+  if (!/^[\p{L}\p{M}\s.'-]+$/u.test(nomineeName)) return { field: 'nomineeName', message: 'Nominee ke naam mein sirf akshar aur space ho sakte hain.' };
+  if (!nomineeRelation) return { field: 'nomineeRelation', message: 'Nominee se sambandh zaroori hai.' };
 
-  if (!f.photo?.files?.length) return 'Apni photo upload karna zaroori hai.';
+  if (!f.photo?.files?.length) return { field: 'photo', message: 'Apni photo upload karna zaroori hai.' };
   // Aadhaar / PAN is deliberately NOT required — see the note in index.html.
 
-  if (f.password.value.length < 6) return 'Password kam se kam 6 characters ka hona chahiye.';
-  if (f.password.value !== f.confirmPassword.value) return 'Password match nahi kar raha.';
-  if (!f.declaration.checked) return 'Aage badhne ke liye declaration par tick karein.';
+  if (f.password.value.length < 6) return { field: 'password', message: 'Password kam se kam 6 characters ka hona chahiye.' };
+  if (f.password.value !== f.confirmPassword.value) return { field: 'confirmPassword', message: 'Password match nahi kar raha.' };
+  if (!f.declaration.checked) return { field: 'declaration', message: 'Aage badhne ke liye declaration par tick karein.' };
   return null;
 }
 
@@ -350,6 +350,15 @@ export function fmtDateTime(ts) {
   if (!ts) return '—';
   const d = ts.toDate ? ts.toDate() : new Date(ts);
   return d.toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+/* Milliseconds from either a Firestore Timestamp or anything Date can parse,
+   for sorting mixed rows without each caller re-checking for .toDate. */
+export function tsMillis(ts) {
+  if (!ts) return 0;
+  const d = ts.toDate ? ts.toDate() : new Date(ts);
+  const n = d.getTime();
+  return Number.isFinite(n) ? n : 0;
 }
 
 /* Called once per cell while rendering tables of several hundred rows, so it
@@ -597,6 +606,315 @@ export async function generateReceiptPDF({ payment, member, society, logoDataUrl
     return null;
   }
   return pdf.output('blob');
+}
+
+/* ---------------------------------------------------------------------- */
+/*  Payment statement PDF — a whole financial year on one page             */
+/*                                                                          */
+/*  A single receipt proves one payment; residents also need the full year */
+/*  in one document — for a loan file, a rent agreement, an income proof.   */
+/*  This lists every verified payment for the chosen FY with a running      */
+/*  total, in the same navy-and-gold identity as the receipt, and paginates */
+/*  automatically once a year has more rows than fit on a page.             */
+/* ---------------------------------------------------------------------- */
+export async function generateStatementPDF({ payments, member, society, financialYear, logoDataUrl, save = true }) {
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({ unit: 'pt', format: 'a4' });
+  const W = pdf.internal.pageSize.getWidth();
+  const H = pdf.internal.pageSize.getHeight();
+  const marginX = 48;
+
+  // Only verified payments belong on a statement — pending ones are not yet
+  // money the society acknowledges receiving. Sorted oldest-first so the
+  // running total reads down the page the way a passbook does.
+  const rows = (payments || [])
+    .filter(p => p.status === 'verified' && p.financialYear === financialYear)
+    .sort((a, b) => tsMillis(a.verifiedAt || a.submittedAt) - tsMillis(b.verifiedAt || b.submittedAt));
+
+  const drawHeader = async () => {
+    pdf.setFillColor(10, 27, 51);
+    pdf.rect(0, 0, W, 100, 'F');
+    if (logoDataUrl) {
+      try {
+        const sealImg = await sealOnWhiteDisc(logoDataUrl);
+        if (sealImg) {
+          const cx = marginX + 26, cy = 50, r = 27;
+          pdf.setFillColor(255, 255, 255); pdf.circle(cx, cy, r, 'F');
+          pdf.addImage(sealImg, 'JPEG', cx - r * 0.94, cy - r * 0.94, r * 1.88, r * 1.88);
+          pdf.setDrawColor(228, 199, 101); pdf.setLineWidth(1); pdf.circle(cx, cy, r, 'S');
+        }
+      } catch (e) {/* statement is still valid without the seal */}
+    }
+    pdf.setTextColor(255, 255, 255);
+    pdf.setFont('times', 'bold'); pdf.setFontSize(18);
+    pdf.text(society.fullName || 'Resident Welfare Society', marginX + 64, 46);
+    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(10);
+    pdf.text(`Reg. No: ${society.regNumber || '—'}`, marginX + 64, 62);
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(11);
+    pdf.text('PAYMENT STATEMENT', W - marginX, 46, { align: 'right' });
+    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9);
+    pdf.text(`FY ${financialYear}`, W - marginX, 62, { align: 'right' });
+  };
+
+  await drawHeader();
+
+  // Resident block
+  let y = 128;
+  pdf.setTextColor(16, 25, 43);
+  pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8.5); pdf.setTextColor(124, 135, 156);
+  pdf.text('RESIDENT', marginX, y);
+  pdf.text('FLAT / TOWER', W / 2 + 10, y);
+  pdf.setFont('helvetica', 'bold'); pdf.setFontSize(12); pdf.setTextColor(16, 25, 43);
+  pdf.text(member?.name || '—', marginX, y + 16);
+  pdf.text(`${member?.flatNumber || '—'} / ${member?.tower || '—'}`, W / 2 + 10, y + 16);
+  if (member?.memberID) {
+    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9); pdf.setTextColor(124, 135, 156);
+    pdf.text(`Member ID: ${member.memberID}`, marginX, y + 30);
+  }
+  y += 50;
+
+  // Table header
+  const cols = { date: marginX, receipt: marginX + 96, mode: marginX + 250, amount: W - marginX };
+  const drawTableHead = () => {
+    pdf.setFillColor(245, 246, 250);
+    pdf.rect(marginX, y, W - marginX * 2, 22, 'F');
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(8.5); pdf.setTextColor(70, 80, 102);
+    pdf.text('DATE', cols.date + 6, y + 15);
+    pdf.text('RECEIPT NO.', cols.receipt, y + 15);
+    pdf.text('MODE', cols.mode, y + 15);
+    pdf.text('AMOUNT', cols.amount - 6, y + 15, { align: 'right' });
+    y += 22;
+  };
+  drawTableHead();
+
+  pdf.setFont('helvetica', 'normal'); pdf.setFontSize(10);
+  let runningTotal = 0;
+
+  for (const p of rows) {
+    // New page when we run low, repeating the header and column titles.
+    if (y > H - 120) {
+      pdf.addPage();
+      y = 60;
+      drawTableHead();
+      pdf.setFont('helvetica', 'normal'); pdf.setFontSize(10);
+    }
+    runningTotal += Number(p.amount) || 0;
+    pdf.setTextColor(16, 25, 43);
+    pdf.text(fmtDate(p.verifiedAt || p.submittedAt), cols.date + 6, y + 15);
+    pdf.setFontSize(9);
+    pdf.text(String(p.receiptNumber || '—'), cols.receipt, y + 15);
+    pdf.setFontSize(10);
+    pdf.text((p.mode || '—').toUpperCase(), cols.mode, y + 15);
+    pdf.text(formatINR(p.amount), cols.amount - 6, y + 15, { align: 'right' });
+    pdf.setDrawColor(226, 230, 239); pdf.setLineWidth(0.5);
+    pdf.line(marginX, y + 22, W - marginX, y + 22);
+    y += 24;
+  }
+
+  if (!rows.length) {
+    pdf.setTextColor(124, 135, 156); pdf.setFont('helvetica', 'italic');
+    pdf.text(`No verified payments recorded for FY ${financialYear}.`, marginX, y + 18);
+    y += 30;
+  }
+
+  // Total band
+  y += 8;
+  pdf.setFillColor(10, 27, 51);
+  pdf.roundedRect(marginX, y, W - marginX * 2, 46, 8, 8, 'F');
+  pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9); pdf.setTextColor(228, 199, 101);
+  pdf.text(`TOTAL PAID · FY ${financialYear}`, marginX + 16, y + 20);
+  pdf.setFont('times', 'bold'); pdf.setFontSize(18); pdf.setTextColor(255, 255, 255);
+  pdf.text(formatINR(runningTotal), W - marginX - 16, y + 30, { align: 'right' });
+  pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8); pdf.setTextColor(180, 190, 205);
+  pdf.text(`${rows.length} payment${rows.length === 1 ? '' : 's'}`, marginX + 16, y + 34);
+
+  // Footer
+  y += 70;
+  pdf.setDrawColor(226, 230, 239); pdf.setLineWidth(0.6);
+  pdf.line(marginX, y, W - marginX, y);
+  pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8.5); pdf.setTextColor(124, 135, 156);
+  pdf.text('This is a system-generated statement from the MHMRWS Digital Portal.', marginX, y + 16);
+  pdf.text(`Generated on ${fmtDate(new Date())}. Each receipt can be verified individually via its QR code.`, marginX, y + 28);
+
+  if (save) {
+    pdf.save(`Statement-${member?.flatNumber || 'MHMRWS'}-FY${financialYear}.pdf`);
+    return null;
+  }
+  return pdf.output('blob');
+}
+
+/* ---------------------------------------------------------------------- */
+/*  Shared UI helpers — skeletons, empty states, inline field errors        */
+/* ---------------------------------------------------------------------- */
+
+/* A block of placeholder rows shaped like a two-line list item with a pill on
+   the right — matches the payment history, notices and documents lists. Drop
+   the returned HTML into a container while its data loads. */
+export function skeletonList(count = 3) {
+  const row = `
+    <div class="sk-row">
+      <div class="sk-stack">
+        <div class="sk-line sk sk-w-60"></div>
+        <div class="sk-line sk sk-w-40"></div>
+      </div>
+      <div class="sk-line sk sk-pill"></div>
+    </div>`;
+  return row.repeat(count);
+}
+
+/* Placeholder rows for a table body; spans the given column count so the layout
+   does not collapse while loading. */
+export function skeletonTableRows(cols = 4, rows = 4) {
+  const widths = ['sk-w-60', 'sk-w-40', 'sk-w-80', 'sk-w-25', 'sk-w-60'];
+  const tr = () => `<tr>${Array.from({ length: cols }, (_, i) =>
+    `<td><div class="sk-line sk ${widths[i % widths.length]}"></div></td>`).join('')}</tr>`;
+  return tr().repeat(rows);
+}
+
+/* A consistent empty state everywhere — the same small seal, a heading and a
+   line of guidance — instead of the assortment of bare "No records" strings
+   the panels grew independently. */
+export function emptyState(heading, detail = '', { compact = false } = {}) {
+  const seal = `<svg class="seal" width="40" height="40" viewBox="0 0 24 24" aria-hidden="true">
+    <circle cx="12" cy="12" r="10.5" fill="none" stroke="var(--gold-500)" stroke-width="1.2"/>
+    <circle cx="12" cy="12" r="7.5" fill="none" stroke="var(--line)" stroke-width="1"/>
+    <path d="M8.5 12.2l2.4 2.4 4.6-4.8" fill="none" stroke="var(--gold-700)" stroke-width="1.4"
+      stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  return `<div class="empty${compact ? ' empty-sm' : ''}">${seal}
+    <h4>${escapeHtml(heading)}</h4>${detail ? `<p>${escapeHtml(detail)}</p>` : ''}</div>`;
+}
+
+/* Mark a form field as invalid with a message directly beneath it. Expects the
+   input to live inside a .field wrapper (the registration form's structure).
+   Returns false so callers can `if (!showFieldError(...)) return;`-style guard. */
+export function showFieldError(input, message) {
+  const field = input?.closest('.field');
+  if (!field) return false;
+  field.classList.add('has-error');
+  let el = field.querySelector('.field-error');
+  if (!el) { el = document.createElement('div'); el.className = 'field-error'; field.appendChild(el); }
+  el.textContent = message;
+  return false;
+}
+
+export function clearFieldErrors(form) {
+  form?.querySelectorAll('.field.has-error').forEach(f => f.classList.remove('has-error'));
+}
+
+/* ---------------------------------------------------------------------- */
+/*  Idle auto-logout                                                        */
+/*                                                                          */
+/*  A committee member who signs in on a shared or public device and walks  */
+/*  away leaves the financial panel open to whoever sits down next. This    */
+/*  watches for inactivity, shows a warning with a countdown, and signs the  */
+/*  user out if they do not respond. Any real interaction resets the timer.  */
+/*                                                                          */
+/*  Call startIdleLogout({ onLogout, warnAfterMs, graceMs }). Returns a stop */
+/*  function to call on sign-out so the timers do not outlive the session.   */
+/* ---------------------------------------------------------------------- */
+export function startIdleLogout({ onLogout, warnAfterMs = 25 * 60 * 1000, graceMs = 60 * 1000 } = {}) {
+  let warnTimer = null, graceTimer = null, banner = null, countdown = null;
+
+  const clearBanner = () => {
+    countdown && clearInterval(countdown); countdown = null;
+    banner && banner.remove(); banner = null;
+    graceTimer && clearTimeout(graceTimer); graceTimer = null;
+  };
+
+  const doLogout = () => { clearBanner(); stop(); onLogout?.(); };
+
+  const showWarning = () => {
+    if (banner) return;
+    let left = Math.round(graceMs / 1000);
+    banner = document.createElement('div');
+    banner.className = 'session-banner';
+    banner.setAttribute('role', 'alertdialog');
+    banner.innerHTML = `<span>Suraksha ke liye aapko <b class="sec">${left}</b> second mein logout kiya jaayega.</span>
+      <button class="stay">Logged in rahein</button>
+      <button class="out">Abhi logout</button>`;
+    document.body.appendChild(banner);
+    banner.querySelector('.stay').onclick = () => { clearBanner(); reset(); };
+    banner.querySelector('.out').onclick = doLogout;
+    countdown = setInterval(() => {
+      left -= 1;
+      const s = banner?.querySelector('.sec'); if (s) s.textContent = left;
+      if (left <= 0) doLogout();
+    }, 1000);
+    graceTimer = setTimeout(doLogout, graceMs);
+  };
+
+  const reset = () => {
+    if (banner) return;                 // don't reset while the warning is up
+    warnTimer && clearTimeout(warnTimer);
+    warnTimer = setTimeout(showWarning, warnAfterMs);
+  };
+
+  // Throttle: activity fires constantly, but we only need to push the timer.
+  let last = 0;
+  const onActivity = () => {
+    const now = Date.now();
+    if (now - last < 1000) return;
+    last = now;
+    reset();
+  };
+  const events = ['click', 'keydown', 'touchstart', 'scroll', 'mousemove'];
+  events.forEach(e => document.addEventListener(e, onActivity, { passive: true }));
+
+  function stop() {
+    warnTimer && clearTimeout(warnTimer);
+    clearBanner();
+    events.forEach(e => document.removeEventListener(e, onActivity));
+  }
+
+  reset();
+  return stop;
+}
+
+/* ---------------------------------------------------------------------- */
+/*  Pagination                                                              */
+/*                                                                          */
+/*  Tables that load an unbounded set — the member directory, the full      */
+/*  payment ledger — are fine today at a few hundred rows but grow every    */
+/*  year, and rendering all of them at once is what makes the admin panel   */
+/*  crawl on a phone. This renders a compact pager (‹ 1 … 4 5 6 … 12 ›) into */
+/*  a container; the caller slices its own rows and re-renders on change.   */
+/* ---------------------------------------------------------------------- */
+export function renderPager(container, { page, pageSize, total, onPage }) {
+  if (!container) return;
+  const pages = Math.max(1, Math.ceil(total / pageSize));
+  if (pages <= 1) { container.innerHTML = ''; return; }
+
+  page = Math.min(Math.max(1, page), pages);
+  const from = (page - 1) * pageSize + 1;
+  const to = Math.min(page * pageSize, total);
+
+  // Window of page numbers around the current one, with ellipses.
+  const nums = [];
+  const push = (n) => nums.push(n);
+  const window = 1;
+  for (let n = 1; n <= pages; n++) {
+    if (n === 1 || n === pages || (n >= page - window && n <= page + window)) push(n);
+    else if (nums[nums.length - 1] !== '…') push('…');
+  }
+
+  container.innerHTML = `
+    <div class="pager-info">${from}–${to} of ${total}</div>
+    <div class="pager-btns">
+      <button class="pager-btn" data-pg="${page - 1}" ${page === 1 ? 'disabled' : ''} aria-label="Previous page">‹</button>
+      ${nums.map(n => n === '…'
+        ? `<span class="pager-gap">…</span>`
+        : `<button class="pager-btn ${n === page ? 'is-current' : ''}" data-pg="${n}" ${n === page ? 'aria-current="page"' : ''}>${n}</button>`
+      ).join('')}
+      <button class="pager-btn" data-pg="${page + 1}" ${page === pages ? 'disabled' : ''} aria-label="Next page">›</button>
+    </div>`;
+
+  container.querySelectorAll('.pager-btn[data-pg]').forEach(b => {
+    if (b.disabled) return;
+    b.addEventListener('click', () => {
+      const p = parseInt(b.dataset.pg, 10);
+      if (p >= 1 && p <= pages && p !== page) onPage(p);
+    });
+  });
 }
 
 export function serializeForExport(rows) {
@@ -998,6 +1316,13 @@ export function waLink(mobile, message) {
   const digits = String(mobile || '').replace(/\D/g, '');
   const withCountry = digits.length === 10 ? `91${digits}` : digits;
   return `https://wa.me/${withCountry}?text=${encodeURIComponent(message)}`;
+}
+
+/* Share sheet with no fixed recipient — WhatsApp lets the user pick the chat or
+   group. This is what a notice "Share on WhatsApp" button needs: the committee
+   posts to the society group, a resident forwards to a neighbour. */
+export function waShareText(message) {
+  return `https://wa.me/?text=${encodeURIComponent(message)}`;
 }
 
 /* NOTE: zipFilesFromUrls() used to live here. It fetched every file into
