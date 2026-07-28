@@ -1229,6 +1229,14 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
 import { LOGO_DATA_URI, getLogoDataUri } from './logo-data.js';
 import { initLang, setLang, translateSubtree, HI } from './i18n.js';
 import { TOWER_IDS, flatsForTower } from './tower-plan.js';
+import { installModalA11y, installOfflineBanner, isOffline } from './ui-a11y.js';
+
+/* Accessibility + offline live in a Firebase-free module and are installed
+   here, in the Firebase-free block, so a slow or failed SDK load never strips
+   the page of focus-trapping, Esc-to-close, or the offline banner. */
+installModalA11y();
+installOfflineBanner();
+window.__isOffline = isOffline;
 window.__MHM_LOGO = LOGO_DATA_URI;          // image URL, fine for <img src>
 window.__MHM_LOGO_DATAURI = getLogoDataUri;  // call to get a data: URI for PDFs
 window.__translate = translateSubtree;
@@ -2198,6 +2206,7 @@ function renderPayDetailForm(mode, paySettings, dues, hasRate) {
   document.getElementById('submitPaymentBtn').addEventListener('click', () => submitPayment(mode));
 }
 
+let paymentInFlight = false;   // re-entrancy lock: a payment is a financial record, never submit twice
 async function submitPayment(mode) {
   const btn = document.getElementById('submitPaymentBtn');
   const amount = Number(document.getElementById('payAmount').value);
@@ -2205,9 +2214,22 @@ async function submitPayment(mode) {
   let utr = isOffline ? '' : document.getElementById('payUtr').value.trim();
   let proofURL = '';
 
+  // A double-tap on a slow network must not create two payment records. The
+  // button is also disabled below, but this lock covers the gap before that
+  // takes effect and any programmatic re-entry.
+  if (paymentInFlight) return;
+
   const payError = validatePayment({ amount, mode, utr, isOffline });
   if (payError) return showToast(payError, 'error');
 
+  // An online payment write will just fail on a dropped connection — say so
+  // clearly instead of letting it surface as a generic error after a wait.
+  if (window.__isOffline && window.__isOffline()) {
+    showToast('Aap offline hain — payment submit karne ke liye internet zaroori hai. Network aane par dobara try karein.', 'error');
+    return;
+  }
+
+  paymentInFlight = true;
   setLoading(btn, true);
   try {
     if (!isOffline) {
@@ -2240,7 +2262,7 @@ async function submitPayment(mode) {
     await loadPayments(currentUser.uid);
   } catch (e) {
     showToast('Kuch galat ho gaya, dobara try karein.', 'error');
-  } finally { setLoading(btn, false); }
+  } finally { setLoading(btn, false); paymentInFlight = false; }
 }
 document.getElementById('closePaymentModal').addEventListener('click', () => document.getElementById('paymentModalBackdrop').classList.remove('open'));
 

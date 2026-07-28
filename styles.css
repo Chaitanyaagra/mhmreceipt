@@ -428,6 +428,18 @@ tbody tr:hover{ background:#FAFBFD; }
 
 /* --- Maintenance invoice (payment modal) end ---------------------------------- */
 
+/* --- Offline banner ----------------------------------------------------------- */
+.offline-banner{
+  position:fixed; left:0; right:0; top:0; z-index:130;
+  background:var(--ink-700); color:#fff; padding:9px 16px;
+  display:flex; align-items:center; justify-content:center; gap:9px;
+  font-size:13px; font-weight:500; box-shadow:0 3px 12px rgba(0,0,0,.15);
+  animation:offline-drop .25s ease;
+}
+.offline-banner svg{ color:var(--gold-500); flex-shrink:0; }
+@keyframes offline-drop{ from{ transform:translateY(-100%); } }
+@media (prefers-reduced-motion: reduce){ .offline-banner{ animation:none; } }
+
 /* --- Pager --------------------------------------------------------------------- */
 .pager{ display:flex; align-items:center; justify-content:space-between; gap:14px;
   flex-wrap:wrap; margin-top:16px; }

@@ -39,6 +39,8 @@ if (typeof document !== 'undefined') {
   }
 }
 
+export { installModalA11y, installOfflineBanner, isOffline } from './ui-a11y.js';
+
 export function showToast(message, type = 'info') {
   const region = ensureToastRegion();
   const el = document.createElement('div');
@@ -124,7 +126,7 @@ export function validateRegistration(f) {
   const residentType = val('residentType');
 
   if (!name) return { field: 'name', message: 'Naam zaroori hai.' };
-  if (name.length > LIMITS.nameMax) return `Naam ${LIMITS.nameMax} characters se lamba nahi ho sakta.`;
+  if (name.length > LIMITS.nameMax) return { field: 'name', message: `Naam ${LIMITS.nameMax} characters se lamba nahi ho sakta.` };
   // \p{M} matters here: Devanagari matras (ा ि ो) are Unicode *Marks*, not
   // Letters, so without it every Hindi name would be rejected.
   if (!/^[\p{L}\p{M}\s.'-]+$/u.test(name)) return { field: 'name', message: 'Naam mein sirf akshar, space, aur . \' - ho sakte hain.' };
@@ -136,7 +138,7 @@ export function validateRegistration(f) {
   if (!tower) return { field: 'tower', message: 'Tower chunna zaroori hai.' };
   if (!TOWER_PLAN[tower]) return { field: 'tower', message: 'Tower valid nahi hai.' };
   if (!flat) return { field: 'flatNumber', message: 'Flat number chunna zaroori hai.' };
-  if (!isValidFlat(tower, flat)) return `Flat ${flat} Tower ${tower} mein maujood nahi hai.`;
+  if (!isValidFlat(tower, flat)) return { field: 'flatNumber', message: `Flat ${flat} Tower ${tower} mein maujood nahi hai.` };
 
   // Indian mobile numbers begin 6, 7, 8 or 9 — this rejects landlines and
   // the common habit of typing a 0 or +91 prefix into the field.
@@ -916,6 +918,8 @@ export function renderPager(container, { page, pageSize, total, onPage }) {
     });
   });
 }
+
+
 
 export function serializeForExport(rows) {
   return (rows || []).map(row => {

@@ -670,11 +670,17 @@
      renders even if the SDK or a CDN fails to load. -->
 <script type="module">
 import { LOGO_DATA_URI } from './logo-data.js';
+import { installModalA11y, installOfflineBanner } from './ui-a11y.js';
 window.__MHM_LOGO = LOGO_DATA_URI;
 ['loginLogo','sidebarLogo'].forEach(id => {
   const el = document.getElementById(id);
   if (el) el.src = LOGO_DATA_URI;
 });
+
+/* Focus-trap dialogs + offline banner: installed from the Firebase-free block
+   so they work even if the Firebase SDK is slow or fails to load. */
+installModalA11y();
+installOfflineBanner();
 </script>
 
 <script type="module">

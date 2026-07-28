@@ -1,6 +1,6 @@
 diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal/.github/workflows/deploy.yml MHMRWS-Portal/.github/workflows/deploy.yml
 --- a/MHMRWS-Portal/.github/workflows/deploy.yml	2026-07-22 09:58:18.000000000 +0000
-+++ MHMRWS-Portal/.github/workflows/deploy.yml	2026-07-24 11:57:01.462017139 +0000
++++ MHMRWS-Portal/.github/workflows/deploy.yml	2026-07-28 08:24:31.352835495 +0000
 @@ -29,10 +29,20 @@
        - name: Configure GitHub Pages
          uses: actions/configure-pages@v5
@@ -13,7 +13,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
 +      - name: Stage publishable files
 +        run: |
 +          mkdir -p _site
-+          rsync -av             --exclude '_site'             --exclude '.git*'             --exclude '*.md'             --exclude '*.rules'             --exclude 'firebase.json'             --exclude '.firebaserc'             ./ _site/
++          rsync -av             --exclude '_site'             --exclude '.git*'             --exclude '*.md'             --exclude '*.rules'             --exclude 'firebase.json'             --exclude '.firebaserc'             --exclude 'tests'             --exclude 'tools'             --exclude 'package.json'             --exclude 'package-lock.json'             --exclude 'node_modules'             ./ _site/
 +
        - name: Upload site as Pages artifact
          uses: actions/upload-pages-artifact@v3
@@ -161,7 +161,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
 +the page. Check all three pages: `index.html`, `admin.html`, `verify.html`.
 diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal/SETUP-GUIDE.md MHMRWS-Portal/SETUP-GUIDE.md
 --- a/MHMRWS-Portal/SETUP-GUIDE.md	2026-07-23 11:28:38.000000000 +0000
-+++ MHMRWS-Portal/SETUP-GUIDE.md	2026-07-25 13:05:02.822145322 +0000
++++ MHMRWS-Portal/SETUP-GUIDE.md	2026-07-28 08:25:12.019655655 +0000
 @@ -114,6 +114,22 @@
  
  ---
@@ -185,7 +185,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  ## Step 3 — Security Rules Deploy Karein
  
  **Option A — Firebase Console se (sabse aasaan):**
-@@ -235,7 +251,7 @@
+@@ -235,9 +251,22 @@
  ## 🎨 Customization
  
  - Colors: `styles.css` ke top mein `:root { --navy-950: ...; --saffron-500: ...; }` — yahin se poori site ka theme change ho jaata hai.
@@ -193,10 +193,25 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
 +- Logo: seal ab `logo.webp` file mein hai (pehle 66 KB base64 JS mein tha — woh har page load par bhaari padta tha). Badalna ho toh usi naam se naya `logo.webp` daal dein. PDF/card ke liye woh apne aap data-URI bana leta hai. `icon-192.png` / `icon-512.png` PWA ke liye alag files hain.
  - Society details (address, phone, bank details): yeh sab database mein hain, code mein nahi — Admin Panel → Settings se hi update karein.
  
++## 🧪 Code test karna (optional, developer ke liye)
++
++Agar aap code badalte hain, to changes ke baad yeh chalayein taaki kuch toota to nahi:
++
++```bash
++npm test
++```
++
++Iske liye sirf Node.js (v18+) chahiye — koi package install nahi karna. Yeh
++maintenance dues ki calculation, receipt tokens, payment validation waghera
++ke 38 tests chalata hai. Sab "passed" aana chahiye. `tests/` folder aur
++`package.json` live site par publish nahi hote (deploy workflow inhe chhod deta hai).
++
  ## 🆘 Common Errors
+ 
+ | Error | Wajah |
 diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal/admin.html MHMRWS-Portal/admin.html
 --- a/MHMRWS-Portal/admin.html	2026-07-23 11:26:32.000000000 +0000
-+++ MHMRWS-Portal/admin.html	2026-07-25 12:53:28.451645720 +0000
++++ MHMRWS-Portal/admin.html	2026-07-28 08:39:57.603745800 +0000
 @@ -2,16 +2,67 @@
  <html lang="en">
  <head>
@@ -342,7 +357,25 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
        </div>
      </div>
  
-@@ -612,7 +686,8 @@
+@@ -596,11 +670,17 @@
+      renders even if the SDK or a CDN fails to load. -->
+ <script type="module">
+ import { LOGO_DATA_URI } from './logo-data.js';
++import { installModalA11y, installOfflineBanner } from './ui-a11y.js';
+ window.__MHM_LOGO = LOGO_DATA_URI;
+ ['loginLogo','sidebarLogo'].forEach(id => {
+   const el = document.getElementById(id);
+   if (el) el.src = LOGO_DATA_URI;
+ });
++
++/* Focus-trap dialogs + offline banner: installed from the Firebase-free block
++   so they work even if the Firebase SDK is slow or fails to load. */
++installModalA11y();
++installOfflineBanner();
+ </script>
+ 
+ <script type="module">
+@@ -612,7 +692,8 @@
    getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, createUserWithEmailAndPassword
  } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
  import {
@@ -352,7 +385,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
  import {
    ref as storageRef, uploadBytes, getDownloadURL
-@@ -620,10 +695,12 @@
+@@ -620,10 +701,12 @@
  import {
    showToast, escapeHtml, fmtDate, fmtDateTime, formatINR, currentFinancialYear, financialYearOptions,
    generateMemberId, generateReceiptNumber, logAudit, generateReceiptPDF, exportToExcel, parseExcelFile,
@@ -367,7 +400,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  } from './app-common.js';
  
  /* ---------------------------------------------------------------------- */
-@@ -998,9 +1075,25 @@
+@@ -998,9 +1081,25 @@
    inactive: '<span class="badge badge-neutral">Inactive</span>'
  };
  
@@ -394,7 +427,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
      <tr>
        <td data-label="Resident">${escapeHtml(m.name)}</td>
        <td data-label="Flat / Tower">${escapeHtml(m.flatNumber)} / ${escapeHtml(m.tower)}</td>
-@@ -1009,10 +1102,18 @@
+@@ -1009,10 +1108,18 @@
        <td data-label="Member ID" class="mono">${escapeHtml(m.memberID || '—')}</td>
        <td data-label="Actions"><button class="btn btn-outline btn-sm" data-view-member="${m.id}">View Details</button></td>
      </tr>
@@ -415,7 +448,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  
  document.getElementById('exportMembersBtn').addEventListener('click', () => {
    exportToExcel(serializeForExport(filteredMembers()).map(m => ({
-@@ -1070,16 +1171,64 @@
+@@ -1070,16 +1177,64 @@
    } catch (e) { showToast('Decrypt fail — passphrase galat ho sakta hai.', 'error'); }
  }
  
@@ -487,7 +520,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
    await logAudit(auth.currentUser, 'approve_member', { id, memberID });
    showToast(`Approved! Member ID: ${memberID}`, 'success');
    document.getElementById('memberModalBackdrop').classList.remove('open');
-@@ -1089,10 +1238,13 @@
+@@ -1089,10 +1244,13 @@
    const reason = prompt('Reject karne ki wajah:');
    if (reason === null) return;
    const m = allMembers.find(x => x.id === id) || {};
@@ -505,7 +538,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
    await logAudit(auth.currentUser, 'reject_member', { id, reason });
    showToast('Registration reject kar diya gaya.', 'success');
    document.getElementById('memberModalBackdrop').classList.remove('open');
-@@ -1102,12 +1254,16 @@
+@@ -1102,12 +1260,16 @@
    const reason = prompt('Deactivate karne ki wajah (history surakshit rahegi):');
    if (reason === null) return;
    const m = allMembers.find(x => x.id === id) || {};
@@ -527,7 +560,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
    await logAudit(auth.currentUser, 'deactivate_member', { id, reason });
    showToast('Member deactivate ho gaya.', 'success');
    document.getElementById('memberModalBackdrop').classList.remove('open');
-@@ -1141,17 +1297,38 @@
+@@ -1141,17 +1303,38 @@
    document.querySelectorAll('[data-pay-detail]').forEach(b => b.addEventListener('click', () => openPaymentDetail(b.dataset.payDetail)));
  }
  
@@ -568,7 +601,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  }
  
  document.getElementById('exportPaymentsBtn').addEventListener('click', () => {
-@@ -1188,18 +1365,48 @@
+@@ -1188,18 +1371,48 @@
  }
  document.getElementById('closePaymentDetailModal').addEventListener('click', () => document.getElementById('paymentDetailModalBackdrop').classList.remove('open'));
  
@@ -627,7 +660,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  }
  async function rejectPayment(id) {
    const reason = prompt('Reject karne ki wajah:');
-@@ -1224,6 +1431,27 @@
+@@ -1224,6 +1437,27 @@
      .sort((a, b) => b.d.outstanding - a.d.outstanding);   // biggest debts first
  }
  
@@ -655,7 +688,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  function renderDefaulters() {
    const rows = outstandingMembers();
    const body = document.getElementById('defaultersBody');
-@@ -1253,7 +1481,7 @@
+@@ -1253,7 +1487,7 @@
          <span class="t-muted" style="font-size:11.5px;"> of ${formatINR(d.expected)}</span></td>
        <td data-label="Status"><span class="badge ${DUES_BADGE[d.status]}">${escapeHtml(DUES_LABEL[d.status])}</span></td>
        <td data-label="Remind"><a class="btn btn-outline btn-sm" target="_blank" rel="noopener"
@@ -664,7 +697,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
      </tr>
    `).join('') || '<tr><td colspan="5" class="t-muted">No outstanding dues for this FY</td></tr>';
  }
-@@ -1392,6 +1620,17 @@
+@@ -1392,6 +1626,17 @@
    await logAudit(auth.currentUser, 'add_notice', { title: f.titleEn.value });
    showToast('Notice post ho gaya.', 'success');
    document.getElementById('noticeModalBackdrop').classList.remove('open');
@@ -682,7 +715,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
    f.reset(); loadContentPanels();
  });
  document.getElementById('addCommitteeBtn').addEventListener('click', () => document.getElementById('committeeModalBackdrop').classList.add('open'));
-@@ -1497,22 +1736,32 @@
+@@ -1497,22 +1742,32 @@
      }
    });
    const verifiedThisMonth = allPayments.filter(p => p.status === 'verified' && inMonth(p.verifiedAt));
@@ -719,7 +752,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
    const zipBlob = await zip.generateAsync({ type: 'blob' });
    const a = document.createElement('a');
    a.href = URL.createObjectURL(zipBlob); a.download = `MHMRWS-${monthVal}.zip`; a.click();
-@@ -1811,15 +2060,38 @@
+@@ -1811,15 +2066,38 @@
  
      let memberID = null;
      if (f.alsoResident.checked) {
@@ -762,7 +795,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
        await reloadMembers(); renderMembersTable(); renderOverview(); populateTowerFilter();
      }
  
-@@ -1832,16 +2104,16 @@
+@@ -1832,16 +2110,16 @@
  });
  
  /* ---------------------------------------------------------------------- */
@@ -785,8 +818,8 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  <style>.vrow{ display:flex; justify-content:space-between; padding:9px 0; border-bottom:1px solid var(--line); } .vrow:last-child{ border-bottom:none; } .vrow span:first-child{ color:var(--ink-400); }</style>
 diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal/app-common.js MHMRWS-Portal/app-common.js
 --- a/MHMRWS-Portal/app-common.js	2026-07-23 11:23:40.000000000 +0000
-+++ MHMRWS-Portal/app-common.js	2026-07-25 12:51:53.898900973 +0000
-@@ -14,22 +14,44 @@
++++ MHMRWS-Portal/app-common.js	2026-07-28 08:33:24.351079166 +0000
+@@ -14,22 +14,46 @@
  /* ---------------------------------------------------------------------- */
  /*  Toasts                                                                 */
  /* ---------------------------------------------------------------------- */
@@ -820,6 +853,8 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
    }
 +}
 +
++export { installModalA11y, installOfflineBanner, isOffline } from './ui-a11y.js';
++
 +export function showToast(message, type = 'info') {
 +  const region = ensureToastRegion();
    const el = document.createElement('div');
@@ -840,13 +875,14 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
    }, 4200);
  }
  
-@@ -101,47 +123,47 @@
+@@ -101,47 +125,47 @@
    const nomineeRelation = val('nomineeRelation');
    const residentType = val('residentType');
  
 -  if (!name) return 'Naam zaroori hai.';
+-  if (name.length > LIMITS.nameMax) return `Naam ${LIMITS.nameMax} characters se lamba nahi ho sakta.`;
 +  if (!name) return { field: 'name', message: 'Naam zaroori hai.' };
-   if (name.length > LIMITS.nameMax) return `Naam ${LIMITS.nameMax} characters se lamba nahi ho sakta.`;
++  if (name.length > LIMITS.nameMax) return { field: 'name', message: `Naam ${LIMITS.nameMax} characters se lamba nahi ho sakta.` };
    // \p{M} matters here: Devanagari matras (ा ि ो) are Unicode *Marks*, not
    // Letters, so without it every Hindi name would be rejected.
 -  if (!/^[\p{L}\p{M}\s.'-]+$/u.test(name)) return 'Naam mein sirf akshar, space, aur . \' - ho sakte hain.';
@@ -859,6 +895,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
 -  if (!tower) return 'Tower chunna zaroori hai.';
 -  if (!TOWER_PLAN[tower]) return 'Tower valid nahi hai.';
 -  if (!flat) return 'Flat number chunna zaroori hai.';
+-  if (!isValidFlat(tower, flat)) return `Flat ${flat} Tower ${tower} mein maujood nahi hai.`;
 +  if (!father) return { field: 'fatherHusbandName', message: 'Pita / Pati ka naam zaroori hai.' };
 +  if (father.length > LIMITS.nameMax) return { field: 'fatherHusbandName', message: 'Pita / Pati ka naam bahut lamba hai.' };
 +  if (!/^[\p{L}\p{M}\s.'-]+$/u.test(father)) return { field: 'fatherHusbandName', message: 'Pita / Pati ke naam mein sirf akshar aur space ho sakte hain.' };
@@ -866,7 +903,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
 +  if (!tower) return { field: 'tower', message: 'Tower chunna zaroori hai.' };
 +  if (!TOWER_PLAN[tower]) return { field: 'tower', message: 'Tower valid nahi hai.' };
 +  if (!flat) return { field: 'flatNumber', message: 'Flat number chunna zaroori hai.' };
-   if (!isValidFlat(tower, flat)) return `Flat ${flat} Tower ${tower} mein maujood nahi hai.`;
++  if (!isValidFlat(tower, flat)) return { field: 'flatNumber', message: `Flat ${flat} Tower ${tower} mein maujood nahi hai.` };
  
    // Indian mobile numbers begin 6, 7, 8 or 9 — this rejects landlines and
    // the common habit of typing a 0 or +91 prefix into the field.
@@ -914,7 +951,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
    return null;
  }
  
-@@ -330,10 +352,21 @@
+@@ -330,10 +354,21 @@
    return d.toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
  }
  
@@ -939,7 +976,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  }
  
  export function debounce(fn, delay = 300) {
-@@ -389,34 +422,63 @@
+@@ -389,34 +424,63 @@
  }
  
  /* ---------------------------------------------------------------------- */
@@ -1018,7 +1055,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
    }
  }
  
-@@ -432,9 +494,14 @@
+@@ -432,9 +496,14 @@
    });
  }
  
@@ -1035,7 +1072,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  }
  
  /* ---------------------------------------------------------------------- */
-@@ -519,7 +586,7 @@
+@@ -519,7 +588,7 @@
  
    // QR code
    try {
@@ -1044,7 +1081,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
      const qrData = await generateQR(qrUrl, 260);
      pdf.addImage(qrData, 'PNG', W - marginX - 74, y - 4, 74, 74);
      pdf.setFont('helvetica', 'normal'); pdf.setFontSize(7); pdf.setTextColor(124, 135, 156);
-@@ -532,7 +599,7 @@
+@@ -532,7 +601,7 @@
    y += 22;
    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8.5); pdf.setTextColor(124, 135, 156);
    pdf.text('This is a system-generated receipt from the MHMRWS Digital Portal.', marginX, y);
@@ -1053,7 +1090,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  
    if (save) {
      pdf.save(`Receipt-${payment.receiptNumber}.pdf`);
-@@ -541,6 +608,315 @@
+@@ -541,6 +610,317 @@
    return pdf.output('blob');
  }
  
@@ -1366,10 +1403,12 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
 +  });
 +}
 +
++
++
  export function serializeForExport(rows) {
    return (rows || []).map(row => {
      const clean = {};
-@@ -558,7 +934,7 @@
+@@ -558,7 +938,7 @@
  /* ---------------------------------------------------------------------- */
  export async function printReceipt({ payment, member, society, logoDataUrl }) {
    let qrImg = '';
@@ -1378,7 +1417,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  
    const area = document.getElementById('printReceiptArea');
    if (!area) { showToast('Print area is missing from this page.', 'error'); return; }
-@@ -593,7 +969,7 @@
+@@ -593,7 +973,7 @@
        </div>
        <div class="pr-foot">
          This is a system-generated receipt from the MHMRWS Digital Portal.<br>
@@ -1387,7 +1426,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
        </div>
      </div>
    `;
-@@ -617,9 +993,12 @@
+@@ -617,9 +997,12 @@
  /* ---------------------------------------------------------------------- */
  const CARD_W = 85.6, CARD_H = 54;   // mm — ISO/IEC 7810 ID-1, the usual card size
  
@@ -1402,7 +1441,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  }
  
  function loadImage(src) {
-@@ -761,7 +1140,7 @@
+@@ -761,7 +1144,7 @@
  
    // --- QR ----------------------------------------------------------------
    try {
@@ -1411,7 +1450,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
      const qs = 15.5, qx = CARD_W - M - qs, qy = 15.5;
      pdf.setFillColor(255, 255, 255);
      pdf.roundedRect(qx - 0.8, qy - 0.8, qs + 1.6, qs + 1.6, 0.8, 0.8, 'F');
-@@ -939,22 +1318,15 @@
+@@ -939,22 +1322,15 @@
    return `https://wa.me/${withCountry}?text=${encodeURIComponent(message)}`;
  }
  
@@ -1817,7 +1856,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
        allow create: if isAdmin() && request.resource.data.userId == request.auth.uid;
 diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal/index.html MHMRWS-Portal/index.html
 --- a/MHMRWS-Portal/index.html	2026-07-23 11:25:48.000000000 +0000
-+++ MHMRWS-Portal/index.html	2026-07-25 15:51:22.632325284 +0000
++++ MHMRWS-Portal/index.html	2026-07-28 08:33:48.313926114 +0000
 @@ -2,6 +2,41 @@
  <html lang="en">
  <head>
@@ -2236,7 +2275,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
        </form>
      </div>
    </div>
-@@ -1042,10 +1226,11 @@
+@@ -1042,10 +1226,19 @@
       failed import blanks out the entire page's branding.
       ===================================================================== -->
  <script type="module">
@@ -2245,12 +2284,20 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  import { initLang, setLang, translateSubtree, HI } from './i18n.js';
  import { TOWER_IDS, flatsForTower } from './tower-plan.js';
 -window.__MHM_LOGO = LOGO_DATA_URI;
++import { installModalA11y, installOfflineBanner, isOffline } from './ui-a11y.js';
++
++/* Accessibility + offline live in a Firebase-free module and are installed
++   here, in the Firebase-free block, so a slow or failed SDK load never strips
++   the page of focus-trapping, Esc-to-close, or the offline banner. */
++installModalA11y();
++installOfflineBanner();
++window.__isOffline = isOffline;
 +window.__MHM_LOGO = LOGO_DATA_URI;          // image URL, fine for <img src>
 +window.__MHM_LOGO_DATAURI = getLogoDataUri;  // call to get a data: URI for PDFs
  window.__translate = translateSubtree;
  window.__HI = HI;
  
-@@ -1109,7 +1294,10 @@
+@@ -1109,7 +1302,10 @@
    // Fade the real photo in over its blurred placeholder once it has decoded.
    // Images already complete (from cache) are marked immediately, otherwise
    // a cached image would stay invisible because 'load' never fires.
@@ -2262,7 +2309,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
    if (img.complete && img.naturalWidth > 0) reveal();
    else img.addEventListener('load', reveal);
  
-@@ -1214,7 +1402,7 @@
+@@ -1214,7 +1410,7 @@
  import { auth, db, storage, SOCIETY } from './firebase-config.js';
  import {
    createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged,
@@ -2271,7 +2318,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
  import {
    doc, getDoc, setDoc, addDoc, collection, query, where, orderBy, getDocs, serverTimestamp, limit
-@@ -1226,7 +1414,9 @@
+@@ -1226,7 +1422,9 @@
    showToast, escapeHtml, fmtDate, formatINR, currentFinancialYear,
    generateReceiptPDF, printReceipt, validatePayment, validateRegistration,
    generateMembershipCard, duesFor, DUES_LABEL, DUES_BADGE,
@@ -2282,7 +2329,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  } from './app-common.js';
  
  /* Branding, the year stamp and the committee fallback are handled by the
-@@ -1264,6 +1454,82 @@
+@@ -1264,6 +1462,82 @@
  }
  tabLogin.addEventListener('click', () => showTab('login'));
  tabRegister.addEventListener('click', () => showTab('register'));
@@ -2365,7 +2412,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  window.__goToPortal = (tab) => {
    if (currentUser) { document.getElementById('dashboard').scrollIntoView({ behavior: 'smooth' }); return; }
    showTab(tab);
-@@ -1338,12 +1604,29 @@
+@@ -1338,12 +1612,29 @@
    e.preventDefault();
    const f = e.target;
    const btn = f.querySelector('button[type="submit"]');
@@ -2397,7 +2444,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
      const uid = cred.user.uid;
  
      let photoURL = '', idDocURL = '';
-@@ -1372,15 +1655,38 @@
+@@ -1372,15 +1663,38 @@
        updatedAt: serverTimestamp()
      });
  
@@ -2438,7 +2485,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
      showToast(friendlyAuthError(err), 'error');
    } finally {
      setLoading(btn, false);
-@@ -1449,12 +1755,31 @@
+@@ -1449,12 +1763,31 @@
      inactive: '<span class="badge badge-neutral"><span class="badge-dot"></span>Deactivated</span>'
    };
  
@@ -2470,7 +2517,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
      <div class="card status-card">
        <div class="status-head">
          <img src="${currentMember.photoURL || LOGO_DATA_URI}" alt="">
-@@ -1474,12 +1799,15 @@
+@@ -1474,12 +1807,15 @@
      ${currentMember.status === 'approved' ? `
      <div class="dash-grid">
        <div class="card card-pad">
@@ -2489,7 +2536,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
        </div>
        <div class="card card-pad">
          <h3 style="font-size:16px; margin-bottom:12px;">Your Details</h3>
-@@ -1494,13 +1822,70 @@
+@@ -1494,13 +1830,70 @@
  
    window.__translate(content);
  
@@ -2560,7 +2607,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  /* ---- Membership card ---- */
  async function downloadCard() {
    const btn = document.getElementById('downloadCardBtn');
-@@ -1534,6 +1919,7 @@
+@@ -1534,6 +1927,7 @@
  
  /* ---- Payments ---- */
  let currentDues = null;   // recomputed whenever payments are loaded
@@ -2568,7 +2615,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  
  async function loadMaintenanceSettings() {
    try {
-@@ -1560,16 +1946,32 @@
+@@ -1560,16 +1954,32 @@
    const headline = dues.outstanding > 0 ? dues.outstanding : dues.paid;
    const headlineLabel = dues.outstanding > 0 ? 'Outstanding' : 'Paid in full';
  
@@ -2604,7 +2651,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
        <div class="dues-split">
          <div><span class="lbl">Total Due</span><b>${formatINR(dues.expected)}</b></div>
          <div><span class="lbl">Paid</span><b>${formatINR(dues.paid)}</b></div>
-@@ -1581,10 +1983,15 @@
+@@ -1581,10 +1991,15 @@
  
  async function loadPayments(uid) {
    const list = document.getElementById('paymentList');
@@ -2621,7 +2668,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  
    // Dues are computed from the same rows the history renders, so the panel
    // and the list can never disagree with each other.
-@@ -1592,7 +1999,14 @@
+@@ -1592,7 +2007,14 @@
    currentDues = duesFor(currentMember, rows, currentFinancialYear(), maintenance);
    renderDues(currentDues, currentFinancialYear());
  
@@ -2637,7 +2684,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  
    const statusBadge = {
      pending_approval: '<span class="badge badge-warning">Pending Approval</span>',
-@@ -1601,7 +2015,7 @@
+@@ -1601,7 +2023,7 @@
      rejected: '<span class="badge badge-danger">Rejected</span>'
    };
  
@@ -2646,7 +2693,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
      <div class="pay-history-item">
        <div>
          <div style="font-weight:600; font-size:14.5px;">${formatINR(p.amount)} <span class="t-muted" style="font-weight:400;">· ${escapeHtml((p.mode||'').toUpperCase())}</span></div>
-@@ -1618,12 +2032,23 @@
+@@ -1618,12 +2040,23 @@
      </div>
    `).join('');
  
@@ -2671,7 +2718,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
    }
  
    list.querySelectorAll('[data-receipt-id]').forEach(btn => {
-@@ -1652,6 +2077,12 @@
+@@ -1652,6 +2085,12 @@
  }
  
  async function openPaymentModal() {
@@ -2684,7 +2731,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
    const q = query(collection(db, 'payments'), where('memberUid', '==', currentUser.uid), where('status', 'in', ['pending_approval', 'pending_verification']));
    const existing = await getDocs(q);
    if (!existing.empty) { showToast('Aapka ek payment pehle se pending hai — nayi entry ki zaroorat nahi.', 'error'); return; }
-@@ -1659,8 +2090,31 @@
+@@ -1659,8 +2098,31 @@
    const paySettingsSnap = await getDoc(doc(db, 'settings', 'payment'));
    const paySettings = paySettingsSnap.exists() ? paySettingsSnap.data() : {};
  
@@ -2716,7 +2763,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
      <div class="pay-option" data-mode="cash"><svg viewBox="0 0 24 24"><use href="#i-cash"/></svg><div><b>Cash</b><div class="t-muted" style="font-size:12.5px;">Visit the RWA office</div></div></div>
      <div class="pay-option" data-mode="cheque"><svg viewBox="0 0 24 24"><use href="#i-cheque"/></svg><div><b>Cheque</b><div class="t-muted" style="font-size:12.5px;">Visit the RWA office</div></div></div>
      <div class="pay-option" data-mode="upi"><svg viewBox="0 0 24 24"><use href="#i-qr"/></svg><div><b>UPI / QR Scan</b><div class="t-muted" style="font-size:12.5px;">Pay instantly from your phone</div></div></div>
-@@ -1674,12 +2128,12 @@
+@@ -1674,12 +2136,12 @@
      opt.addEventListener('click', () => {
        body.querySelectorAll('.pay-option').forEach(o => o.classList.remove('selected'));
        opt.classList.add('selected');
@@ -2731,7 +2778,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
    const holder = document.getElementById('payDetailForm');
    const isOffline = mode === 'cash' || mode === 'cheque';
    holder.innerHTML = `
-@@ -1693,18 +2147,53 @@
+@@ -1693,22 +2155,58 @@
            <div style="font-size:12.4px;" class="t-muted">${escapeHtml(paySettings.bankName || '')} · A/C ${escapeHtml(paySettings.accountNumber || '—')} · IFSC ${escapeHtml(paySettings.ifsc || '—')}</div>
          </div>
        `}
@@ -2791,7 +2838,42 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
    window.__translate(holder);
    document.getElementById('submitPaymentBtn').addEventListener('click', () => submitPayment(mode));
  }
-@@ -1757,6 +2246,8 @@
+ 
++let paymentInFlight = false;   // re-entrancy lock: a payment is a financial record, never submit twice
+ async function submitPayment(mode) {
+   const btn = document.getElementById('submitPaymentBtn');
+   const amount = Number(document.getElementById('payAmount').value);
+@@ -1716,9 +2214,22 @@
+   let utr = isOffline ? '' : document.getElementById('payUtr').value.trim();
+   let proofURL = '';
+ 
++  // A double-tap on a slow network must not create two payment records. The
++  // button is also disabled below, but this lock covers the gap before that
++  // takes effect and any programmatic re-entry.
++  if (paymentInFlight) return;
++
+   const payError = validatePayment({ amount, mode, utr, isOffline });
+   if (payError) return showToast(payError, 'error');
+ 
++  // An online payment write will just fail on a dropped connection — say so
++  // clearly instead of letting it surface as a generic error after a wait.
++  if (window.__isOffline && window.__isOffline()) {
++    showToast('Aap offline hain — payment submit karne ke liye internet zaroori hai. Network aane par dobara try karein.', 'error');
++    return;
++  }
++
++  paymentInFlight = true;
+   setLoading(btn, true);
+   try {
+     if (!isOffline) {
+@@ -1751,12 +2262,14 @@
+     await loadPayments(currentUser.uid);
+   } catch (e) {
+     showToast('Kuch galat ho gaya, dobara try karein.', 'error');
+-  } finally { setLoading(btn, false); }
++  } finally { setLoading(btn, false); paymentInFlight = false; }
+ }
+ document.getElementById('closePaymentModal').addEventListener('click', () => document.getElementById('paymentModalBackdrop').classList.remove('open'));
  
  /* ---- Public content ---- */
  async function loadNotices() {
@@ -2800,7 +2882,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
    const listEl = document.getElementById('noticeList');
    try {
      const q = query(collection(db, 'notices'), orderBy('postedAt', 'desc'), limit(5));
-@@ -1764,18 +2255,19 @@
+@@ -1764,18 +2277,19 @@
      renderNotices();
    } catch (e) {
      window.__notices = null;
@@ -2822,7 +2904,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
      window.__translate(listEl);
      return;
    }
-@@ -1792,12 +2284,31 @@
+@@ -1792,12 +2306,31 @@
            <h4 data-no-translate>${escapeHtml(lang === 'hi' ? (n.titleHi || n.titleEn) : n.titleEn)}</h4>
            <p data-no-translate>${escapeHtml(lang === 'hi' ? (n.bodyHi || n.bodyEn) : n.bodyEn)}</p>
            ${n.attachmentURL ? `<a href="${n.attachmentURL}" target="_blank" rel="noopener" style="font-size:12.5px; text-decoration:underline; display:inline-block; margin-top:7px;" class="t-sub">Download attachment</a>` : ''}
@@ -2854,7 +2936,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  // Re-render notices (and re-translate the page) whenever the language changes.
  window.addEventListener('mhm:langchange', () => {
    if (document.getElementById('noticeList')) renderNotices();
-@@ -1844,7 +2355,7 @@
+@@ -1844,7 +2377,7 @@
      `;
      window.__translate(el);
    } catch (e) {
@@ -2863,7 +2945,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
      window.__translate(el);
    }
  }
-@@ -1855,7 +2366,7 @@
+@@ -1855,7 +2388,7 @@
      const rows = (await getDocs(query(collection(db, 'documents'), orderBy('addedAt', 'desc'))))
        .docs.map(d => d.data());
      if (!rows.length) {
@@ -2872,7 +2954,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
        window.__translate(el); return;
      }
      el.innerHTML = '<div class="doc-grid">' + rows.map(d => `
-@@ -1869,7 +2380,7 @@
+@@ -1869,7 +2402,7 @@
        </a>`).join('') + '</div>';
      window.__translate(el);
    } catch (e) {
@@ -2937,6 +3019,23 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
 +   image URL — correct for any <img src> or CSS use. Code paths that feed jsPDF
 +   or canvas must call getLogoDataUri() instead; those have been updated. */
 +export const LOGO_DATA_URI = LOGO_URL;
+diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal/package.json MHMRWS-Portal/package.json
+--- a/MHMRWS-Portal/package.json	1970-01-01 00:00:00.000000000 +0000
++++ MHMRWS-Portal/package.json	2026-07-28 08:22:49.154802434 +0000
+@@ -0,0 +1,13 @@
++{
++  "name": "mhmrws-portal",
++  "version": "1.0.0",
++  "private": true,
++  "description": "Max Heights Majestic Resident Welfare Society — member, payment and receipt portal.",
++  "type": "module",
++  "scripts": {
++    "test": "node tests/run.mjs"
++  },
++  "engines": {
++    "node": ">=18"
++  }
++}
 diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal/storage.rules MHMRWS-Portal/storage.rules
 --- a/MHMRWS-Portal/storage.rules	2026-07-23 11:10:24.000000000 +0000
 +++ MHMRWS-Portal/storage.rules	2026-07-24 11:52:24.731504335 +0000
@@ -3053,7 +3152,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  // ----------------------------------------------------------------------------
 diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal/styles.css MHMRWS-Portal/styles.css
 --- a/MHMRWS-Portal/styles.css	2026-07-23 03:47:54.000000000 +0000
-+++ MHMRWS-Portal/styles.css	2026-07-25 15:50:39.292853932 +0000
++++ MHMRWS-Portal/styles.css	2026-07-28 08:19:29.930120414 +0000
 @@ -233,10 +233,20 @@
    text-align:left; font-family:var(--font-mono); font-size:11px; letter-spacing:.08em; text-transform:uppercase;
    color:var(--ink-400); padding:12px 14px; border-bottom:1px solid var(--line); background:var(--paper); white-space:nowrap;
@@ -3149,7 +3248,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  
  /* --- Loader ------------------------------------------------------------------ */
  .spinner{ width:20px; height:20px; border-radius:50%; border:2.5px solid rgba(255,255,255,.35); border-top-color:currentColor; animation:spin .7s linear infinite; }
-@@ -308,9 +368,124 @@
+@@ -308,9 +368,136 @@
  .skeleton{ background:linear-gradient(90deg, var(--line) 25%, #EDF0F6 37%, var(--line) 63%); background-size:400% 100%; animation:sk 1.4s ease infinite; border-radius:6px; }
  @keyframes sk{ 0%{background-position:100% 50%;} 100%{background-position:0 50%;} }
  
@@ -3212,6 +3311,18 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
 +.amount-preset.locked-note{ cursor:default; }
 +
 +/* --- Maintenance invoice (payment modal) end ---------------------------------- */
++
++/* --- Offline banner ----------------------------------------------------------- */
++.offline-banner{
++  position:fixed; left:0; right:0; top:0; z-index:130;
++  background:var(--ink-700); color:#fff; padding:9px 16px;
++  display:flex; align-items:center; justify-content:center; gap:9px;
++  font-size:13px; font-weight:500; box-shadow:0 3px 12px rgba(0,0,0,.15);
++  animation:offline-drop .25s ease;
++}
++.offline-banner svg{ color:var(--gold-500); flex-shrink:0; }
++@keyframes offline-drop{ from{ transform:translateY(-100%); } }
++@media (prefers-reduced-motion: reduce){ .offline-banner{ animation:none; } }
 +
 +/* --- Pager --------------------------------------------------------------------- */
 +.pager{ display:flex; align-items:center; justify-content:space-between; gap:14px;
@@ -3276,25 +3387,27 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  .t-muted{ color:var(--ink-400); }
 diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal/sw.js MHMRWS-Portal/sw.js
 --- a/MHMRWS-Portal/sw.js	2026-07-23 10:40:52.000000000 +0000
-+++ MHMRWS-Portal/sw.js	2026-07-25 12:49:36.553680996 +0000
-@@ -8,7 +8,7 @@
++++ MHMRWS-Portal/sw.js	2026-07-28 08:34:13.924616930 +0000
+@@ -8,15 +8,17 @@
     Bump CACHE_NAME on any future structural change to force a clean cache.
     ========================================================================== */
  
 -const CACHE_NAME = 'mhmrws-shell-v4';
-+const CACHE_NAME = 'mhmrws-shell-v6';
++const CACHE_NAME = 'mhmrws-shell-v7';
  const SHELL_FILES = [
    './',
    './index.html',
-@@ -17,6 +17,7 @@
+   './styles.css',
+   './firebase-config.js',
    './app-common.js',
++  './ui-a11y.js',
    './manifest.json',
    './logo-data.js',
 +  './logo.webp',
    './i18n.js',
    './tower-plan.js',
    './icon-192.png',
-@@ -24,9 +25,17 @@
+@@ -24,9 +26,17 @@
  ];
  
  self.addEventListener('install', (event) => {
@@ -3313,6 +3426,299 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
        .then(() => self.skipWaiting())
    );
  });
+diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal/tests/_harness.mjs MHMRWS-Portal/tests/_harness.mjs
+--- a/MHMRWS-Portal/tests/_harness.mjs	1970-01-01 00:00:00.000000000 +0000
++++ MHMRWS-Portal/tests/_harness.mjs	2026-07-28 08:21:42.354804141 +0000
+@@ -0,0 +1,34 @@
++/* Minimal zero-dependency test harness. No Jest, no install — just `node`.
++   Keeps the project dependency-free, which matters for a static-hosted site
++   maintained by a volunteer committee. */
++let passed = 0, failed = 0;
++const failures = [];
++
++export function eq(actual, expected, label) {
++  const a = JSON.stringify(actual), e = JSON.stringify(expected);
++  if (a === e) passed++;
++  else { failed++; failures.push(`${label}\n    got:  ${a}\n    want: ${e}`); }
++}
++
++export function ok(cond, label) {
++  if (cond) passed++;
++  else { failed++; failures.push(label); }
++}
++
++export function near(actual, expected, label, tol = 0.5) {
++  if (Math.abs(actual - expected) <= tol) passed++;
++  else { failed++; failures.push(`${label}: got ${actual}, want ~${expected}`); }
++}
++
++export function section(name) {
++  console.log(`\n  ${name}`);
++}
++
++export function report() {
++  if (failures.length) {
++    console.log('\n  FAILURES:');
++    failures.forEach(f => console.log('   ✗ ' + f));
++  }
++  console.log(`\n  ${passed} passed, ${failed} failed\n`);
++  process.exit(failed ? 1 : 0);
++}
+diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal/tests/_load-app-common.mjs MHMRWS-Portal/tests/_load-app-common.mjs
+--- a/MHMRWS-Portal/tests/_load-app-common.mjs	1970-01-01 00:00:00.000000000 +0000
++++ MHMRWS-Portal/tests/_load-app-common.mjs	2026-07-28 08:34:50.098918295 +0000
+@@ -0,0 +1,35 @@
++/* Loads app-common.js for testing by rewriting its three environment imports
++   (Firebase config, the Firestore SDK URL, and leaving tower-plan as-is) to
++   local stubs, writing the result to a temp file, and importing that.
++
++   Done this way rather than with a bundler so the tests need nothing installed
++   — `node tests/run.mjs` works on a bare checkout. */
++import { readFileSync, writeFileSync, mkdtempSync, copyFileSync } from 'node:fs';
++import { tmpdir } from 'node:os';
++import { join, dirname } from 'node:path';
++import { fileURLToPath, pathToFileURL } from 'node:url';
++
++const here = dirname(fileURLToPath(import.meta.url));
++const projectRoot = join(here, '..');
++
++export async function loadAppCommon() {
++  let src = readFileSync(join(projectRoot, 'app-common.js'), 'utf8');
++
++  // Point the two environment imports at the stubs.
++  src = src.replace("import { db } from './firebase-config.js';",
++                    "import { db } from './firebase-config.js';"); // stub copied alongside
++  src = src.replace(
++    /from "https:\/\/www\.gstatic\.com\/firebasejs\/[^"]*firebase-firestore\.js"/,
++    'from "./firestore.js"');
++
++  const dir = mkdtempSync(join(tmpdir(), 'mhm-test-'));
++  // Copy the real tower-plan and ui-a11y (both dependency-free) and the stubs
++  // next to the module, so app-common's imports and re-exports all resolve.
++  copyFileSync(join(projectRoot, 'tower-plan.js'), join(dir, 'tower-plan.js'));
++  copyFileSync(join(projectRoot, 'ui-a11y.js'), join(dir, 'ui-a11y.js'));
++  copyFileSync(join(here, '_stubs', 'firebase-config.js'), join(dir, 'firebase-config.js'));
++  copyFileSync(join(here, '_stubs', 'firestore.js'), join(dir, 'firestore.js'));
++  writeFileSync(join(dir, 'app-common.js'), src);
++
++  return import(pathToFileURL(join(dir, 'app-common.js')).href);
++}
+diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal/tests/_stubs/firebase-config.js MHMRWS-Portal/tests/_stubs/firebase-config.js
+--- a/MHMRWS-Portal/tests/_stubs/firebase-config.js	1970-01-01 00:00:00.000000000 +0000
++++ MHMRWS-Portal/tests/_stubs/firebase-config.js	2026-07-28 08:21:29.782804463 +0000
+@@ -0,0 +1,4 @@
++// Test stub for app-common's `import { db } from './firebase-config.js'`.
++// The real module initialises the Firebase SDK (browser + network); tests only
++// exercise the pure logic, so an empty db object is enough.
++export const db = {};
+diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal/tests/_stubs/firestore.js MHMRWS-Portal/tests/_stubs/firestore.js
+--- a/MHMRWS-Portal/tests/_stubs/firestore.js	1970-01-01 00:00:00.000000000 +0000
++++ MHMRWS-Portal/tests/_stubs/firestore.js	2026-07-28 08:21:29.785692467 +0000
+@@ -0,0 +1,9 @@
++// Test stub for the Firestore SDK import in app-common.js. None of the pure
++// functions under test call these; they exist only so the module loads.
++export const doc = () => ({});
++export const getDoc = async () => ({ exists: () => false, data: () => ({}) });
++export const setDoc = async () => {};
++export const addDoc = async () => ({ id: 'stub' });
++export const collection = () => ({});
++export const runTransaction = async (_db, fn) => fn({ get: async () => ({ exists: () => false }), set(){}, update(){}, delete(){} });
++export const serverTimestamp = () => new Date();
+diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal/tests/run.mjs MHMRWS-Portal/tests/run.mjs
+--- a/MHMRWS-Portal/tests/run.mjs	1970-01-01 00:00:00.000000000 +0000
++++ MHMRWS-Portal/tests/run.mjs	2026-07-28 08:36:36.412854481 +0000
+@@ -0,0 +1,191 @@
++/* MHMRWS Portal — test suite.  Run with:  node tests/run.mjs   (or: npm test)
++
++   Covers the parts where a bug means wrong money or a broken record: the dues
++   maths, the maintenance invoice figures, receipt/member token format, INR
++   formatting, payment validation, the pager windowing, and HTML escaping.
++   No browser, no network, no installed packages. */
++import { loadAppCommon } from './_load-app-common.mjs';
++import { eq, ok, near, section, report } from './_harness.mjs';
++
++// Minimal DOM shim so the couple of functions that touch `document`/`crypto`
++// at module scope don't throw on import.
++globalThis.document = globalThis.document || undefined;
++if (!globalThis.crypto) globalThis.crypto = (await import('node:crypto')).webcrypto;
++
++const A = await loadAppCommon();
++
++/* ---- Maintenance dues / invoice ---------------------------------------- */
++section('Maintenance dues & invoice');
++const settings = { rates: { '2025-26': { default: 2400, byTower: { A: 2000 } } } };
++const memA = { uid: 'u1', tower: 'A', flatNumber: 'A-101' };
++const memB = { uid: 'u2', tower: 'B', flatNumber: 'B-202' };
++
++eq(A.expectedDue(memA, '2025-26', settings), 2000, 'per-tower rate overrides default (Tower A = 2000)');
++eq(A.expectedDue(memB, '2025-26', settings), 2400, 'tower without an override falls back to default');
++eq(A.expectedDue(memA, '2099-99', settings), 0, 'no rate for the year = nothing owed');
++eq(A.expectedDue(memA, '2025-26', {}), 0, 'no settings at all = nothing owed');
++
++const pays = [
++  { memberUid: 'u1', status: 'verified', financialYear: '2025-26', amount: 600 },
++  { memberUid: 'u1', status: 'verified', financialYear: '2025-26', amount: 400 },
++  { memberUid: 'u1', status: 'pending_verification', financialYear: '2025-26', amount: 999 }, // must be ignored
++  { memberUid: 'u1', status: 'verified', financialYear: '2024-25', amount: 500 },             // wrong year, ignored
++  { memberUid: 'u2', status: 'verified', financialYear: '2025-26', amount: 100 },             // other member, ignored
++];
++eq(A.paidSoFar(pays, 'u1', '2025-26'), 1000, 'only verified, same-year, same-member payments count');
++
++const dues = A.duesFor(memA, pays, '2025-26', settings);
++eq(dues.expected, 2000, 'invoice: expected');
++eq(dues.paid, 1000, 'invoice: paid');
++eq(dues.outstanding, 1000, 'invoice: outstanding = expected − paid');
++eq(dues.status, 'partial', 'invoice: partial when 0 < paid < expected');
++
++eq(A.duesFor(memA, [], '2025-26', settings).status, 'unpaid', 'status unpaid when nothing paid');
++eq(A.duesFor(memA, [{ memberUid: 'u1', status: 'verified', financialYear: '2025-26', amount: 2000 }], '2025-26', settings).status, 'paid', 'status paid when exactly cleared');
++eq(A.duesFor(memA, [{ memberUid: 'u1', status: 'verified', financialYear: '2025-26', amount: 5000 }], '2025-26', settings).status, 'overpaid', 'status overpaid beyond expected');
++eq(A.duesFor(memA, pays, '2099-99', settings).status, 'no_rate', 'status no_rate when the year has no rate');
++// Outstanding must never go negative (drives the ring + invoice).
++ok(A.duesFor(memA, [{ memberUid: 'u1', status: 'verified', financialYear: '2025-26', amount: 9999 }], '2025-26', settings).outstanding === 0, 'overpaid outstanding clamps to 0');
++
++/* ---- Public verification tokens ---------------------------------------- */
++section('Public tokens');
++const tok = A.newPublicToken();
++ok(/^[0-9a-f]{32}$/.test(tok), 'token is 32 lowercase hex chars (matches firestore.rules isPublicToken)');
++const many = new Set(Array.from({ length: 4000 }, () => A.newPublicToken()));
++eq(many.size, 4000, 'no collisions across 4000 tokens');
++ok(A.publicKeyForReceipt({ publicToken: tok, receiptNumber: 'R-1' }) === tok, 'receipt key prefers the token');
++ok(A.publicKeyForReceipt({ receiptNumber: 'R-1' }) === 'R-1', 'receipt key falls back to the number (legacy)');
++ok(A.publicKeyForMember({ memberID: 'M-1' }) === 'M-1', 'member key falls back to the member ID');
++
++/* ---- INR formatting ----------------------------------------------------- */
++section('INR formatting');
++ok(A.formatINR(2400).includes('2,400'), 'thousands separator');
++ok(A.formatINR(0).includes('0'), 'zero renders');
++ok(typeof A.formatINR(null) === 'string', 'null does not throw');
++
++/* ---- Payment validation ------------------------------------------------- */
++section('Payment validation');
++ok(A.validatePayment({ amount: 2000, mode: 'upi', utr: 'ABC123', isOffline: false }) == null, 'valid online payment passes');
++ok(A.validatePayment({ amount: 0, mode: 'upi', utr: 'X', isOffline: false }) != null, 'zero amount rejected');
++ok(A.validatePayment({ amount: -5, mode: 'cash', utr: '', isOffline: true }) != null, 'negative amount rejected');
++ok(A.validatePayment({ amount: 2000, mode: 'upi', utr: '', isOffline: false }) != null, 'online payment needs a UTR');
++ok(A.validatePayment({ amount: 2000, mode: 'cash', utr: '', isOffline: true }) == null, 'offline (cash) payment needs no UTR');
++
++/* ---- HTML escaping ------------------------------------------------------ */
++section('HTML escaping');
++eq(A.escapeHtml('<b>&"\'</b>'), '&lt;b&gt;&amp;&quot;&#39;&lt;/b&gt;', 'all five special chars escaped');
++eq(A.escapeHtml('राज कुमार'), 'राज कुमार', 'Devanagari passes through untouched');
++eq(A.escapeHtml(0), '0', 'number 0 renders, not blank');
++eq(A.escapeHtml(null), '', 'null becomes empty string');
++
++/* ---- Pager windowing ---------------------------------------------------- */
++section('Pager windowing');
++function pagerSeq(page, pages, pageSize = 10) {
++  let html = '';
++  const container = { set innerHTML(v) { html = v; }, get innerHTML() { return html; }, querySelectorAll: () => [] };
++  A.renderPager(container, { page, pageSize, total: pages * pageSize, onPage() {} });
++  return [...html.matchAll(/<button class="pager-btn[^"]*"[^>]*>([^<]+)<\/button>|<span class="pager-gap">…<\/span>/g)]
++    .map(x => x[1] ? x[1] : '…').filter(x => x !== '‹' && x !== '›').join(' ');
++}
++{
++  let html = '';
++  const c = { set innerHTML(v) { html = v; }, get innerHTML() { return html; }, querySelectorAll: () => [] };
++  A.renderPager(c, { page: 1, pageSize: 10, total: 8, onPage() {} });
++  eq(html, '', 'single page renders no pager');
++}
++eq(pagerSeq(1, 12), '1 2 … 12', 'first page');
++eq(pagerSeq(6, 12), '1 … 5 6 7 … 12', 'middle page has both ellipses');
++eq(pagerSeq(12, 12), '1 … 11 12', 'last page');
++
++/* ---- tsMillis ----------------------------------------------------------- */
++section('Timestamp helper');
++eq(A.tsMillis(null), 0, 'null → 0');
++ok(A.tsMillis({ toDate: () => new Date(1000) }) === 1000, 'Firestore Timestamp handled');
++ok(A.tsMillis('2025-01-01') > 0, 'ISO string handled');
++
++/* ---- Registration validation (shape + fields) --------------------------- */
++section('Registration validation');
++function makeForm(over = {}) {
++  const base = {
++    name: 'Ramesh Kumar', fatherHusbandName: 'Suresh Kumar',
++    tower: 'A', flatNumber: 'A-101', mobile: '9876543210',
++    email: 'r@example.com', occupation: 'Engineer', residentType: 'owner',
++    address: 'Flat A-101, Tower A', nomineeName: 'Sita Devi', nomineeRelation: 'Wife',
++    password: 'secret123', confirmPassword: 'secret123',
++  };
++  const merged = { ...base, ...over };
++  const f = {};
++  for (const [k, v] of Object.entries(merged)) if (!k.startsWith('__')) f[k] = { value: v };
++  f.photo = { files: over.__noPhoto ? [] : [{ name: 'p.jpg' }] };
++  f.declaration = { checked: over.__noDeclaration ? false : true };
++  f.elements = f;
++  return f;
++}
++const towers = Object.keys(A.TOWER_PLAN || {});
++ok(towers.length > 0, 'TOWER_PLAN has at least one tower');
++const t0 = towers[0];
++// flatsForTower returns floor-groups {floor,label,flats:[...]}; grab a real flat.
++const groups = A.flatsForTower ? A.flatsForTower(t0) : [];
++const firstFlat = (groups.find(g => g.flats && g.flats.length) || { flats: ['101'] }).flats[0];
++ok(A.isValidFlat(t0, firstFlat), 'derived a genuinely valid flat for the happy path');
++eq(A.validateRegistration(makeForm({ tower: t0, flatNumber: firstFlat })), null, 'a fully valid form passes (returns null)');
++
++// EVERY error return must be a {field, message} object — the exact bug class
++// that broke the long-name and invalid-flat returns.
++const badForms = [
++  makeForm({ tower: t0, flatNumber: firstFlat, name: '' }),
++  makeForm({ tower: t0, flatNumber: firstFlat, name: 'x'.repeat(200) }),   // regression guard: long name
++  makeForm({ tower: t0, flatNumber: 'Z-999' }),                            // regression guard: bad flat
++  makeForm({ tower: t0, flatNumber: firstFlat, mobile: '12345' }),
++  makeForm({ tower: t0, flatNumber: firstFlat, mobile: '5876543210' }),
++  makeForm({ tower: t0, flatNumber: firstFlat, email: 'notanemail' }),
++  makeForm({ tower: t0, flatNumber: firstFlat, residentType: 'landlord' }),
++  makeForm({ tower: t0, flatNumber: firstFlat, password: '123' }),
++  makeForm({ tower: t0, flatNumber: firstFlat, confirmPassword: 'different' }),
++  makeForm({ tower: t0, flatNumber: firstFlat, __noPhoto: true }),
++  makeForm({ tower: t0, flatNumber: firstFlat, __noDeclaration: true }),
++];
++let allShaped = true, fieldsValid = true;
++const validFields = new Set(['name','fatherHusbandName','tower','flatNumber','mobile','email',
++  'occupation','residentType','address','nomineeName','nomineeRelation','photo','password','confirmPassword','declaration']);
++for (const bf of badForms) {
++  const r = A.validateRegistration(bf);
++  if (!r || typeof r !== 'object' || typeof r.field !== 'string' || typeof r.message !== 'string') allShaped = false;
++  else if (!validFields.has(r.field)) { fieldsValid = false; console.log('    unexpected field:', r.field); }
++}
++ok(allShaped, 'every validation error is a {field,message} object (guards the 2 fixed returns)');
++ok(fieldsValid, 'every error.field names a real form field');
++
++/* ---- currentFinancialYear ---------------------------------------------- */
++section('Financial year');
++ok(/^\d{4}-\d{2}$/.test(A.currentFinancialYear()), 'FY has the shape YYYY-YY');
++
++/* ---- Edge cases: malformed data must never yield NaN or wrong money ----- */
++section('Edge cases (money safety)');
++{
++  const s2 = { rates: { '2025-26': { default: 2400 } } };
++  // Floating-point payments must sum without loss.
++  ok(A.paidSoFar([
++    { memberUid: 'u', status: 'verified', financialYear: '2025-26', amount: 0.1 },
++    { memberUid: 'u', status: 'verified', financialYear: '2025-26', amount: 0.2 },
++  ], 'u', '2025-26') > 0.29, 'float amounts sum without loss');
++  // null / missing / non-numeric amounts count as 0, never NaN.
++  const paid = A.paidSoFar([
++    { memberUid: 'u', status: 'verified', financialYear: '2025-26', amount: null },
++    { memberUid: 'u', status: 'verified', financialYear: '2025-26' },
++    { memberUid: 'u', status: 'verified', financialYear: '2025-26', amount: 'abc' },
++  ], 'u', '2025-26');
++  ok(Number.isFinite(paid) && paid === 0, 'malformed amounts count as 0, not NaN');
++  // duesFor tolerates null payments and never throws.
++  const d = A.duesFor({ uid: 'u', tower: 'X', flatNumber: '1' }, null, '2025-26', s2);
++  ok(d.expected === 2400 && d.paid === 0 && d.outstanding === 2400, 'duesFor handles null payments');
++  // formatINR survives hostile inputs.
++  ok(typeof A.formatINR(2400.5) === 'string', 'formatINR handles a float');
++  ok(typeof A.formatINR(-500) === 'string', 'formatINR handles a negative');
++  ok(typeof A.formatINR(Infinity) === 'string', 'formatINR handles Infinity without throwing');
++  // Amount precision + bounds in validation.
++  ok(A.validatePayment({ amount: 100.999, mode: 'cash', utr: '', isOffline: true }) !== null, 'more than 2 decimals rejected');
++  ok(A.validatePayment({ amount: 99999999, mode: 'upi', utr: 'X1', isOffline: false }) !== null, 'absurdly large amount rejected');
++}
++
++report();
 diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal/tools/migrate-public-tokens.mjs MHMRWS-Portal/tools/migrate-public-tokens.mjs
 --- a/MHMRWS-Portal/tools/migrate-public-tokens.mjs	1970-01-01 00:00:00.000000000 +0000
 +++ MHMRWS-Portal/tools/migrate-public-tokens.mjs	2026-07-24 12:01:07.939416639 +0000
@@ -3621,6 +4027,141 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
 +</script>
 +</body>
 +</html>
+diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal/ui-a11y.js MHMRWS-Portal/ui-a11y.js
+--- a/MHMRWS-Portal/ui-a11y.js	1970-01-01 00:00:00.000000000 +0000
++++ MHMRWS-Portal/ui-a11y.js	2026-07-28 08:33:24.350633051 +0000
+@@ -0,0 +1,131 @@
++/* ==========================================================================
++   ui-a11y.js — accessibility + offline helpers, with NO Firebase dependency.
++   --------------------------------------------------------------------------
++   These deliberately live in their own module rather than in app-common.js.
++   app-common imports the Firebase SDK, so anything in it only runs after those
++   CDN scripts load. Modal focus-trapping and the offline banner must work even
++   when Firebase is slow or down — a resident on a dead connection still needs
++   Esc to close a dialog and a "you are offline" hint. Keeping these here lets
++   the Firebase-free part of each page install them unconditionally.
++   ========================================================================== */
++
++/* ---------------------------------------------------------------------- */
++/*  Modal accessibility — focus trap, Esc to close, aria-modal              */
++/*                                                                          */
++/*  The app has seven dialogs, all opened by toggling an `.open` class on a */
++/*  `.modal-backdrop`. Previously that was all it did: the background stayed */
++/*  reachable by Tab, Esc did nothing, and a screen reader was never told a */
++/*  dialog had appeared. Rewriting every open/close call site would be many */
++/*  risky edits, so instead this watches for the `.open` class landing on   */
++/*  any backdrop and layers the accessibility on centrally:                 */
++/*                                                                          */
++/*    • marks the backdrop role="dialog" aria-modal="true"                  */
++/*    • moves focus into the dialog, remembering where it came from         */
++/*    • traps Tab within the dialog while it is open                        */
++/*    • closes on Esc (by removing `.open`, so existing close code runs)    */
++/*    • restores focus to the trigger on close                             */
++/*                                                                          */
++/*  No call site changes: opening a modal the old way now just works.       */
++/* ---------------------------------------------------------------------- */
++export function installModalA11y() {
++  if (typeof document === 'undefined') return;
++
++  const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
++  let openBackdrop = null;
++  let lastFocused = null;
++
++  const focusables = (root) => Array.from(root.querySelectorAll(FOCUSABLE))
++    .filter(el => el.offsetParent !== null || el === document.activeElement);
++
++  const onKeydown = (e) => {
++    if (!openBackdrop) return;
++    if (e.key === 'Escape') {
++      e.preventDefault();
++      openBackdrop.classList.remove('open');   // triggers the existing close path
++      return;
++    }
++    if (e.key === 'Tab') {
++      const items = focusables(openBackdrop);
++      if (!items.length) { e.preventDefault(); return; }
++      const first = items[0], last = items[items.length - 1];
++      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
++      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
++    }
++  };
++
++  const activate = (backdrop) => {
++    openBackdrop = backdrop;
++    lastFocused = document.activeElement;
++    backdrop.setAttribute('role', 'dialog');
++    backdrop.setAttribute('aria-modal', 'true');
++    // Prefer the modal's heading/first control for the initial focus.
++    const modal = backdrop.querySelector('.modal') || backdrop;
++    const target = modal.querySelector('h2, h3, [autofocus]') || focusables(modal)[0] || modal;
++    if (target && target.tagName && /H2|H3/.test(target.tagName)) target.setAttribute('tabindex', '-1');
++    setTimeout(() => { try { target.focus({ preventScroll: false }); } catch (_) {} }, 40);
++    document.addEventListener('keydown', onKeydown, true);
++  };
++
++  const deactivate = () => {
++    document.removeEventListener('keydown', onKeydown, true);
++    if (lastFocused) { try { lastFocused.focus({ preventScroll: true }); } catch (_) {} }
++    openBackdrop = null; lastFocused = null;
++  };
++
++  // Watch every backdrop's class list for `.open` coming and going.
++  const observer = new MutationObserver((mutations) => {
++    for (const m of mutations) {
++      if (m.attributeName !== 'class') continue;
++      const el = m.target;
++      if (!el.classList || !el.classList.contains('modal-backdrop')) continue;
++      const isOpen = el.classList.contains('open');
++      if (isOpen && el !== openBackdrop) activate(el);
++      else if (!isOpen && el === openBackdrop) deactivate();
++    }
++  });
++  document.querySelectorAll('.modal-backdrop').forEach(b =>
++    observer.observe(b, { attributes: true, attributeFilter: ['class'] }));
++
++  // Clicking the dark area outside the dialog closes it — expected modal
++  // behaviour that was also missing.
++  document.querySelectorAll('.modal-backdrop').forEach(backdrop => {
++    backdrop.addEventListener('mousedown', (e) => {
++      if (e.target === backdrop) backdrop.classList.remove('open');
++    });
++  });
++}
++
++/* ---------------------------------------------------------------------- */
++/*  Offline awareness                                                       */
++/*                                                                          */
++/*  This is a PWA — residents open it on the move, on patchy networks. When */
++/*  the connection drops, a submit used to fail with a generic error and no */
++/*  explanation. This shows a quiet banner while offline so the person      */
++/*  knows to wait, and clears it the moment the network returns.            */
++/* ---------------------------------------------------------------------- */
++export function installOfflineBanner() {
++  if (typeof window === 'undefined') return;
++  let banner = null;
++
++  const show = () => {
++    if (banner) return;
++    banner = document.createElement('div');
++    banner.className = 'offline-banner';
++    banner.setAttribute('role', 'status');
++    banner.innerHTML = `<svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true">
++      <path d="M2 4l20 16M8.5 8.5A6 6 0 0021 12M12 5a9 9 0 019 4M3 9a9 9 0 013.5-2.6M6.5 12.5A6 6 0 019 11M12 20h.01" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
++      <span>Aap abhi offline hain — internet aate hi dobara koshish karein.</span>`;
++    document.body.appendChild(banner);
++  };
++  const hide = () => { banner && banner.remove(); banner = null; };
++
++  window.addEventListener('offline', show);
++  window.addEventListener('online', hide);
++  if (!navigator.onLine) show();
++}
++
++/* Is the browser currently offline? Callers use this to give a specific
++   message before attempting a write that is bound to fail. */
++export function isOffline() {
++  return typeof navigator !== 'undefined' && navigator.onLine === false;
++}
 diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal/verify.html MHMRWS-Portal/verify.html
 --- a/MHMRWS-Portal/verify.html	2026-07-23 09:23:22.000000000 +0000
 +++ MHMRWS-Portal/verify.html	2026-07-24 12:07:13.669361426 +0000

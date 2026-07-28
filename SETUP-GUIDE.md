@@ -254,6 +254,19 @@ Is setup mein **sach mein apne aap chalne wala backup nahi ho sakta** — uske l
 - Logo: seal ab `logo.webp` file mein hai (pehle 66 KB base64 JS mein tha — woh har page load par bhaari padta tha). Badalna ho toh usi naam se naya `logo.webp` daal dein. PDF/card ke liye woh apne aap data-URI bana leta hai. `icon-192.png` / `icon-512.png` PWA ke liye alag files hain.
 - Society details (address, phone, bank details): yeh sab database mein hain, code mein nahi — Admin Panel → Settings se hi update karein.
 
+## 🧪 Code test karna (optional, developer ke liye)
+
+Agar aap code badalte hain, to changes ke baad yeh chalayein taaki kuch toota to nahi:
+
+```bash
+npm test
+```
+
+Iske liye sirf Node.js (v18+) chahiye — koi package install nahi karna. Yeh
+maintenance dues ki calculation, receipt tokens, payment validation waghera
+ke 38 tests chalata hai. Sab "passed" aana chahiye. `tests/` folder aur
+`package.json` live site par publish nahi hote (deploy workflow inhe chhod deta hai).
+
 ## 🆘 Common Errors
 
 | Error | Wajah |
