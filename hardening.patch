@@ -1126,7 +1126,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  <style>.vrow{ display:flex; justify-content:space-between; padding:9px 0; border-bottom:1px solid var(--line); } .vrow:last-child{ border-bottom:none; } .vrow span:first-child{ color:var(--ink-400); }</style>
 diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal/app-common.js MHMRWS-Portal/app-common.js
 --- a/MHMRWS-Portal/app-common.js	2026-07-23 11:23:40.000000000 +0000
-+++ MHMRWS-Portal/app-common.js	2026-07-28 15:15:59.592531914 +0000
++++ MHMRWS-Portal/app-common.js	2026-07-29 07:47:51.444067604 +0000
 @@ -14,22 +14,46 @@
  /* ---------------------------------------------------------------------- */
  /*  Toasts                                                                 */
@@ -1362,8 +1362,8 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
 +export function newPublicToken() {
 +  const bytes = crypto.getRandomValues(new Uint8Array(16));
 +  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
- }
- 
++}
++
 +/* Records issued before the token change are still keyed by their sequential
 +   number, so receipts and cards already in residents' hands keep verifying.
 +   Everything issued from now on uses the token. */
@@ -1372,8 +1372,8 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
 +}
 +export function publicKeyForMember(member) {
 +  return member?.publicToken || member?.memberID || '';
-+}
-+
+ }
+ 
 +/* ---------------------------------------------------------------------- */
 +/*  Activity log — append-only record of committee actions                 */
 +/*                                                                          */
@@ -1806,7 +1806,56 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
      img.onload = () => resolve(img);
      img.onerror = () => resolve(null);   // a missing backdrop must not break the card
      img.src = src;
-@@ -761,7 +1187,7 @@
+@@ -653,18 +1079,24 @@
+  */
+ export async function sealOnWhiteDisc(logoDataUrl, size = 256) {
+   if (!logoDataUrl) return null;
+-  const img = await loadImage(logoDataUrl);
+-  if (!img) return null;
+-  const c = document.createElement('canvas');
+-  c.width = c.height = size;
+-  const g = c.getContext('2d');
+-  // opaque white square first — no alpha survives into the PDF
+-  g.fillStyle = '#ffffff';
+-  g.fillRect(0, 0, size, size);
+-  // then a slightly inset seal, leaving a clean white rim around the navy ring
+-  const pad = size * 0.045;
+-  g.drawImage(img, pad, pad, size - pad * 2, size - pad * 2);
+-  return c.toDataURL('image/jpeg', 0.92);
++  try {
++    const img = await loadImage(logoDataUrl);
++    if (!img) return null;
++    const c = document.createElement('canvas');
++    c.width = c.height = size;
++    const g = c.getContext('2d');
++    // opaque white square first — no alpha survives into the PDF
++    g.fillStyle = '#ffffff';
++    g.fillRect(0, 0, size, size);
++    // then a slightly inset seal, leaving a clean white rim around the navy ring
++    const pad = size * 0.045;
++    g.drawImage(img, pad, pad, size - pad * 2, size - pad * 2);
++    // toDataURL throws on a tainted canvas (a cross-origin image drawn without
++    // CORS). Returning null then just means "no seal", never a broken card.
++    return c.toDataURL('image/jpeg', 0.92);
++  } catch (e) {
++    return null;
++  }
+ }
+ 
+ export async function generateMembershipCard({ member, society, logoDataUrl, financialYear }) {
+@@ -706,7 +1138,10 @@
+   // --- header ------------------------------------------------------------
+   // The seal is flattened onto an opaque white disc first — see
+   // sealOnWhiteDisc() for why jsPDF cannot be handed the transparent original.
+-  const sealImg = await sealOnWhiteDisc(logoDataUrl);
++  // Wrapped so a seal problem (e.g. a canvas-export quirk) leaves a plain card
++  // rather than failing the whole download.
++  let sealImg = null;
++  try { sealImg = await sealOnWhiteDisc(logoDataUrl); } catch (e) { sealImg = null; }
+   if (sealImg) {
+     try {
+       const cx = M + 3.6, cy = 7.4, r = 3.9;
+@@ -761,7 +1196,7 @@
  
    // --- QR ----------------------------------------------------------------
    try {
@@ -1815,7 +1864,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
      const qs = 15.5, qx = CARD_W - M - qs, qy = 15.5;
      pdf.setFillColor(255, 255, 255);
      pdf.roundedRect(qx - 0.8, qy - 0.8, qs + 1.6, qs + 1.6, 0.8, 0.8, 'F');
-@@ -939,22 +1365,15 @@
+@@ -939,22 +1374,15 @@
    return `https://wa.me/${withCountry}?text=${encodeURIComponent(message)}`;
  }
  
@@ -2228,9 +2277,39 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
      match /auditLogs/{logId} {
        allow read: if isAdmin();
        allow create: if isAdmin() && request.resource.data.userId == request.auth.uid;
+diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal/i18n.js MHMRWS-Portal/i18n.js
+--- a/MHMRWS-Portal/i18n.js	2026-07-23 11:26:50.000000000 +0000
++++ MHMRWS-Portal/i18n.js	2026-07-29 09:16:03.747132060 +0000
+@@ -342,6 +342,26 @@
+   });
+ }
+ 
++/**
++ * Set the text of an element that JavaScript controls dynamically (e.g. the
++ * header button that flips between "Resident Login" and "Logout").
++ *
++ * Plain textContent = 'Logout' breaks under translation: translateSubtree
++ * caches each text node's FIRST value ("Resident Login") and, in English,
++ * restores that cached value — clobbering the new text. This sets the English
++ * source of truth, forgets any stale cache for the element, then renders it in
++ * the current language. Call it instead of assigning textContent for such
++ * controls.
++ */
++export function setDynamicLabel(el, englishText) {
++  if (!el) return;
++  // Drop cached originals for every text node under this element.
++  walkTextNodes(el).forEach(node => originals.delete(node));
++  el.textContent = englishText;
++  // Re-capture the new English text and render it in the active language.
++  translateSubtree(el);
++}
++
+ /** Switch the whole page to 'en' or 'hi' and remember the choice. */
+ export function setLang(lang) {
+   currentLang = lang === 'hi' ? 'hi' : 'en';
 diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal/index.html MHMRWS-Portal/index.html
 --- a/MHMRWS-Portal/index.html	2026-07-23 11:25:48.000000000 +0000
-+++ MHMRWS-Portal/index.html	2026-07-29 07:36:00.887028670 +0000
++++ MHMRWS-Portal/index.html	2026-07-29 09:16:20.004052941 +0000
 @@ -2,6 +2,41 @@
  <html lang="en">
  <head>
@@ -2659,11 +2738,11 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
 +            <input type="checkbox" name="declaration" required>
 +            <span>I declare that the information provided above is true to the best of my knowledge, and I authorize MHMRWS to verify these details.</span>
 +          </label>
-+
-+          <button class="btn btn-primary btn-block" type="submit">Submit Registration</button>
-+        </div>
  
 -        <button class="btn btn-primary btn-block" type="submit">Submit Registration</button>
++          <button class="btn btn-primary btn-block" type="submit">Submit Registration</button>
++        </div>
++
 +        <!-- Back / Next; shown only when JS enables stepped mode. -->
 +        <div class="step-nav" id="stepNav" style="display:none;">
 +          <button type="button" class="btn btn-ghost" id="stepBack">Back</button>
@@ -2677,8 +2756,9 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
       ===================================================================== -->
  <script type="module">
 -import { LOGO_DATA_URI } from './logo-data.js';
+-import { initLang, setLang, translateSubtree, HI } from './i18n.js';
 +import { LOGO_DATA_URI, getLogoDataUri } from './logo-data.js';
- import { initLang, setLang, translateSubtree, HI } from './i18n.js';
++import { initLang, setLang, translateSubtree, setDynamicLabel, HI } from './i18n.js';
  import { TOWER_IDS, flatsForTower } from './tower-plan.js';
 -window.__MHM_LOGO = LOGO_DATA_URI;
 +import { installModalA11y, installOfflineBanner, isOffline } from './ui-a11y.js';
@@ -2866,6 +2946,23 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
      showToast(friendlyAuthError(err), 'error');
    } finally {
      setLoading(btn, false);
+@@ -1420,14 +1726,14 @@
+   const portal = document.getElementById('portal');
+   const navBtn = document.getElementById('navAuthBtn');
+   if (user) {
+-    navBtn.textContent = 'Logout';
++    setDynamicLabel(navBtn, 'Logout');
+     navBtn.onclick = async () => { await signOut(auth); location.reload(); };
+     portal.style.display = 'none';
+     dash.style.display = 'block';
+     await loadDashboard(user.uid);
+   } else {
+     currentMember = null;
+-    navBtn.textContent = 'Resident Login';
++    setDynamicLabel(navBtn, 'Resident Login');
+     navBtn.onclick = () => window.__goToPortal('login');
+     portal.style.display = 'block';
+     dash.style.display = 'none';
 @@ -1474,12 +1780,15 @@
      ${currentMember.status === 'approved' ? `
      <div class="dash-grid">
@@ -2885,7 +2982,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
        </div>
        <div class="card card-pad">
          <h3 style="font-size:16px; margin-bottom:12px;">Your Details</h3>
-@@ -1497,10 +1806,37 @@
+@@ -1497,17 +1806,56 @@
    if (currentMember.status === 'approved') {
      document.getElementById('openPaymentBtn').addEventListener('click', openPaymentModal);
      document.getElementById('downloadCardBtn')?.addEventListener('click', downloadCard);
@@ -2923,7 +3020,28 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  /* ---- Membership card ---- */
  async function downloadCard() {
    const btn = document.getElementById('downloadCardBtn');
-@@ -1517,10 +1853,17 @@
++
++  // The PDF libraries load from a CDN. If a network block, ad-blocker or a
++  // strict corporate proxy stopped them, every later call throws a cryptic
++  // destructure error — so check up front and say so plainly.
++  if (!window.jspdf || !window.jspdf.jsPDF) {
++    showToast('PDF library load nahi hui — internet check karein ya page refresh karke dobara try karein.', 'error');
++    return;
++  }
++
+   setLoading(btn, true);
+   try {
+-    const societySnap = await getDoc(doc(db, 'settings', 'society'));
+-    const society = societySnap.exists() ? societySnap.data() : { name: SOCIETY.fullName };
++    let society = { name: SOCIETY.fullName };
++    try {
++      const societySnap = await getDoc(doc(db, 'settings', 'society'));
++      if (societySnap.exists()) society = societySnap.data();
++    } catch (e) { /* settings read is optional; the card still works */ }
+ 
+     // The resident's own photo, converted to a data URL so jsPDF can embed it.
+     // A missing or unreadable photo just leaves the frame empty — the card is
+@@ -1517,15 +1865,24 @@
        try { photoDataUrl = await toDataUrl(currentMember.photoURL); } catch (e) {}
      }
  
@@ -2942,7 +3060,16 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
        financialYear: currentFinancialYear()
      });
    } catch (e) {
-@@ -1534,6 +1877,9 @@
+-    console.error(e);
+-    showToast('Card banane mein dikkat aayi. Dobara try karein.', 'error');
++    console.error('Membership card error:', e);
++    // Show the real reason so a recurring failure is diagnosable, not silent.
++    const detail = (e && e.message) ? ` (${e.message})` : '';
++    showToast('Card banane mein dikkat aayi' + detail + '. Dobara try karein.', 'error');
+   } finally {
+     setLoading(btn, false);
+     btn.textContent = 'Download Membership Card';
+@@ -1534,6 +1891,9 @@
  
  /* ---- Payments ---- */
  let currentDues = null;   // recomputed whenever payments are loaded
@@ -2952,7 +3079,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  
  async function loadMaintenanceSettings() {
    try {
-@@ -1560,16 +1906,32 @@
+@@ -1560,16 +1920,32 @@
    const headline = dues.outstanding > 0 ? dues.outstanding : dues.paid;
    const headlineLabel = dues.outstanding > 0 ? 'Outstanding' : 'Paid in full';
  
@@ -2988,7 +3115,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
        <div class="dues-split">
          <div><span class="lbl">Total Due</span><b>${formatINR(dues.expected)}</b></div>
          <div><span class="lbl">Paid</span><b>${formatINR(dues.paid)}</b></div>
-@@ -1581,18 +1943,32 @@
+@@ -1581,18 +1957,32 @@
  
  async function loadPayments(uid) {
    const list = document.getElementById('paymentList');
@@ -3023,7 +3150,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  
    const statusBadge = {
      pending_approval: '<span class="badge badge-warning">Pending Approval</span>',
-@@ -1601,7 +1977,7 @@
+@@ -1601,7 +1991,7 @@
      rejected: '<span class="badge badge-danger">Rejected</span>'
    };
  
@@ -3032,7 +3159,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
      <div class="pay-history-item">
        <div>
          <div style="font-weight:600; font-size:14.5px;">${formatINR(p.amount)} <span class="t-muted" style="font-weight:400;">· ${escapeHtml((p.mode||'').toUpperCase())}</span></div>
-@@ -1618,12 +1994,23 @@
+@@ -1618,12 +2008,23 @@
      </div>
    `).join('');
  
@@ -3057,7 +3184,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
    }
  
    list.querySelectorAll('[data-receipt-id]').forEach(btn => {
-@@ -1659,8 +2046,65 @@
+@@ -1659,8 +2060,65 @@
    const paySettingsSnap = await getDoc(doc(db, 'settings', 'payment'));
    const paySettings = paySettingsSnap.exists() ? paySettingsSnap.data() : {};
  
@@ -3123,7 +3250,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
      <div class="pay-option" data-mode="cash"><svg viewBox="0 0 24 24"><use href="#i-cash"/></svg><div><b>Cash</b><div class="t-muted" style="font-size:12.5px;">Visit the RWA office</div></div></div>
      <div class="pay-option" data-mode="cheque"><svg viewBox="0 0 24 24"><use href="#i-cheque"/></svg><div><b>Cheque</b><div class="t-muted" style="font-size:12.5px;">Visit the RWA office</div></div></div>
      <div class="pay-option" data-mode="upi"><svg viewBox="0 0 24 24"><use href="#i-qr"/></svg><div><b>UPI / QR Scan</b><div class="t-muted" style="font-size:12.5px;">Pay instantly from your phone</div></div></div>
-@@ -1670,18 +2114,44 @@
+@@ -1670,18 +2128,44 @@
    window.__translate(body);
    document.getElementById('paymentModalBackdrop').classList.add('open');
  
@@ -3170,7 +3297,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
    holder.innerHTML = `
      <div style="margin-top:18px; border-top:1px solid var(--line); padding-top:18px;">
        ${isOffline ? `
-@@ -1693,22 +2163,58 @@
+@@ -1693,22 +2177,58 @@
            <div style="font-size:12.4px;" class="t-muted">${escapeHtml(paySettings.bankName || '')} · A/C ${escapeHtml(paySettings.accountNumber || '—')} · IFSC ${escapeHtml(paySettings.ifsc || '—')}</div>
          </div>
        `}
@@ -3235,7 +3362,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  async function submitPayment(mode) {
    const btn = document.getElementById('submitPaymentBtn');
    const amount = Number(document.getElementById('payAmount').value);
-@@ -1716,9 +2222,22 @@
+@@ -1716,9 +2236,22 @@
    let utr = isOffline ? '' : document.getElementById('payUtr').value.trim();
    let proofURL = '';
  
@@ -3258,7 +3385,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
    setLoading(btn, true);
    try {
      if (!isOffline) {
-@@ -1737,6 +2256,9 @@
+@@ -1737,6 +2270,9 @@
        tower: currentMember.tower,
        residentName: currentMember.name,
        amount,
@@ -3268,7 +3395,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
        financialYear: currentFinancialYear(),
        mode,
        utrOrChequeNo: utr,
-@@ -1751,12 +2273,14 @@
+@@ -1751,12 +2287,14 @@
      await loadPayments(currentUser.uid);
    } catch (e) {
      showToast('Kuch galat ho gaya, dobara try karein.', 'error');
@@ -3284,7 +3411,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
    const listEl = document.getElementById('noticeList');
    try {
      const q = query(collection(db, 'notices'), orderBy('postedAt', 'desc'), limit(5));
-@@ -1764,18 +2288,19 @@
+@@ -1764,18 +2302,19 @@
      renderNotices();
    } catch (e) {
      window.__notices = null;
@@ -3306,7 +3433,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
      window.__translate(listEl);
      return;
    }
-@@ -1792,12 +2317,31 @@
+@@ -1792,12 +2331,31 @@
            <h4 data-no-translate>${escapeHtml(lang === 'hi' ? (n.titleHi || n.titleEn) : n.titleEn)}</h4>
            <p data-no-translate>${escapeHtml(lang === 'hi' ? (n.bodyHi || n.bodyEn) : n.bodyEn)}</p>
            ${n.attachmentURL ? `<a href="${n.attachmentURL}" target="_blank" rel="noopener" style="font-size:12.5px; text-decoration:underline; display:inline-block; margin-top:7px;" class="t-sub">Download attachment</a>` : ''}
@@ -3338,7 +3465,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  // Re-render notices (and re-translate the page) whenever the language changes.
  window.addEventListener('mhm:langchange', () => {
    if (document.getElementById('noticeList')) renderNotices();
-@@ -1844,7 +2388,7 @@
+@@ -1844,7 +2402,7 @@
      `;
      window.__translate(el);
    } catch (e) {
@@ -3347,7 +3474,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
      window.__translate(el);
    }
  }
-@@ -1855,7 +2399,7 @@
+@@ -1855,7 +2413,7 @@
      const rows = (await getDocs(query(collection(db, 'documents'), orderBy('addedAt', 'desc'))))
        .docs.map(d => d.data());
      if (!rows.length) {
@@ -3356,7 +3483,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
        window.__translate(el); return;
      }
      el.innerHTML = '<div class="doc-grid">' + rows.map(d => `
-@@ -1869,7 +2413,7 @@
+@@ -1869,7 +2427,7 @@
        </a>`).join('') + '</div>';
      window.__translate(el);
    } catch (e) {

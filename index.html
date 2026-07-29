@@ -1234,7 +1234,7 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
      ===================================================================== -->
 <script type="module">
 import { LOGO_DATA_URI, getLogoDataUri } from './logo-data.js';
-import { initLang, setLang, translateSubtree, HI } from './i18n.js';
+import { initLang, setLang, translateSubtree, setDynamicLabel, HI } from './i18n.js';
 import { TOWER_IDS, flatsForTower } from './tower-plan.js';
 import { installModalA11y, installOfflineBanner, isOffline } from './ui-a11y.js';
 
@@ -1726,14 +1726,14 @@ onAuthStateChanged(auth, async (user) => {
   const portal = document.getElementById('portal');
   const navBtn = document.getElementById('navAuthBtn');
   if (user) {
-    navBtn.textContent = 'Logout';
+    setDynamicLabel(navBtn, 'Logout');
     navBtn.onclick = async () => { await signOut(auth); location.reload(); };
     portal.style.display = 'none';
     dash.style.display = 'block';
     await loadDashboard(user.uid);
   } else {
     currentMember = null;
-    navBtn.textContent = 'Resident Login';
+    setDynamicLabel(navBtn, 'Resident Login');
     navBtn.onclick = () => window.__goToPortal('login');
     portal.style.display = 'block';
     dash.style.display = 'none';
@@ -1840,10 +1840,22 @@ async function downloadStatement(e) {
 /* ---- Membership card ---- */
 async function downloadCard() {
   const btn = document.getElementById('downloadCardBtn');
+
+  // The PDF libraries load from a CDN. If a network block, ad-blocker or a
+  // strict corporate proxy stopped them, every later call throws a cryptic
+  // destructure error — so check up front and say so plainly.
+  if (!window.jspdf || !window.jspdf.jsPDF) {
+    showToast('PDF library load nahi hui — internet check karein ya page refresh karke dobara try karein.', 'error');
+    return;
+  }
+
   setLoading(btn, true);
   try {
-    const societySnap = await getDoc(doc(db, 'settings', 'society'));
-    const society = societySnap.exists() ? societySnap.data() : { name: SOCIETY.fullName };
+    let society = { name: SOCIETY.fullName };
+    try {
+      const societySnap = await getDoc(doc(db, 'settings', 'society'));
+      if (societySnap.exists()) society = societySnap.data();
+    } catch (e) { /* settings read is optional; the card still works */ }
 
     // The resident's own photo, converted to a data URL so jsPDF can embed it.
     // A missing or unreadable photo just leaves the frame empty — the card is
@@ -1867,8 +1879,10 @@ async function downloadCard() {
       financialYear: currentFinancialYear()
     });
   } catch (e) {
-    console.error(e);
-    showToast('Card banane mein dikkat aayi. Dobara try karein.', 'error');
+    console.error('Membership card error:', e);
+    // Show the real reason so a recurring failure is diagnosable, not silent.
+    const detail = (e && e.message) ? ` (${e.message})` : '';
+    showToast('Card banane mein dikkat aayi' + detail + '. Dobara try karein.', 'error');
   } finally {
     setLoading(btn, false);
     btn.textContent = 'Download Membership Card';

@@ -1079,18 +1079,24 @@ function imageToDataUrl(img, mime = 'image/jpeg', quality = 0.85) {
  */
 export async function sealOnWhiteDisc(logoDataUrl, size = 256) {
   if (!logoDataUrl) return null;
-  const img = await loadImage(logoDataUrl);
-  if (!img) return null;
-  const c = document.createElement('canvas');
-  c.width = c.height = size;
-  const g = c.getContext('2d');
-  // opaque white square first — no alpha survives into the PDF
-  g.fillStyle = '#ffffff';
-  g.fillRect(0, 0, size, size);
-  // then a slightly inset seal, leaving a clean white rim around the navy ring
-  const pad = size * 0.045;
-  g.drawImage(img, pad, pad, size - pad * 2, size - pad * 2);
-  return c.toDataURL('image/jpeg', 0.92);
+  try {
+    const img = await loadImage(logoDataUrl);
+    if (!img) return null;
+    const c = document.createElement('canvas');
+    c.width = c.height = size;
+    const g = c.getContext('2d');
+    // opaque white square first — no alpha survives into the PDF
+    g.fillStyle = '#ffffff';
+    g.fillRect(0, 0, size, size);
+    // then a slightly inset seal, leaving a clean white rim around the navy ring
+    const pad = size * 0.045;
+    g.drawImage(img, pad, pad, size - pad * 2, size - pad * 2);
+    // toDataURL throws on a tainted canvas (a cross-origin image drawn without
+    // CORS). Returning null then just means "no seal", never a broken card.
+    return c.toDataURL('image/jpeg', 0.92);
+  } catch (e) {
+    return null;
+  }
 }
 
 export async function generateMembershipCard({ member, society, logoDataUrl, financialYear }) {
@@ -1132,7 +1138,10 @@ export async function generateMembershipCard({ member, society, logoDataUrl, fin
   // --- header ------------------------------------------------------------
   // The seal is flattened onto an opaque white disc first — see
   // sealOnWhiteDisc() for why jsPDF cannot be handed the transparent original.
-  const sealImg = await sealOnWhiteDisc(logoDataUrl);
+  // Wrapped so a seal problem (e.g. a canvas-export quirk) leaves a plain card
+  // rather than failing the whole download.
+  let sealImg = null;
+  try { sealImg = await sealOnWhiteDisc(logoDataUrl); } catch (e) { sealImg = null; }
   if (sealImg) {
     try {
       const cx = M + 3.6, cy = 7.4, r = 3.9;

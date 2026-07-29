@@ -342,6 +342,26 @@ export function translateSubtree(root = document.body) {
   });
 }
 
+/**
+ * Set the text of an element that JavaScript controls dynamically (e.g. the
+ * header button that flips between "Resident Login" and "Logout").
+ *
+ * Plain textContent = 'Logout' breaks under translation: translateSubtree
+ * caches each text node's FIRST value ("Resident Login") and, in English,
+ * restores that cached value — clobbering the new text. This sets the English
+ * source of truth, forgets any stale cache for the element, then renders it in
+ * the current language. Call it instead of assigning textContent for such
+ * controls.
+ */
+export function setDynamicLabel(el, englishText) {
+  if (!el) return;
+  // Drop cached originals for every text node under this element.
+  walkTextNodes(el).forEach(node => originals.delete(node));
+  el.textContent = englishText;
+  // Re-capture the new English text and render it in the active language.
+  translateSubtree(el);
+}
+
 /** Switch the whole page to 'en' or 'hi' and remember the choice. */
 export function setLang(lang) {
   currentLang = lang === 'hi' ? 'hi' : 'en';
