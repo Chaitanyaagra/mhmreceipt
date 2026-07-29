@@ -1671,8 +1671,6 @@ registerForm.addEventListener('submit', async (e) => {
       updatedAt: serverTimestamp()
     });
 
-    // Proof the person owns the address they registered with. Without this,
-    // anyone could sign up in a neighbour's name using their email — and the
     if (f.photo.files[0] && !photoURL) {
       showToast('Registration jama ho gaya, lekin photo upload nahi ho payi. Office se photo add karwa lein.', 'error');
     } else {

@@ -2230,7 +2230,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
        allow create: if isAdmin() && request.resource.data.userId == request.auth.uid;
 diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal/index.html MHMRWS-Portal/index.html
 --- a/MHMRWS-Portal/index.html	2026-07-23 11:25:48.000000000 +0000
-+++ MHMRWS-Portal/index.html	2026-07-29 07:10:02.992911701 +0000
++++ MHMRWS-Portal/index.html	2026-07-29 07:36:00.887028670 +0000
 @@ -2,6 +2,41 @@
  <html lang="en">
  <head>
@@ -2842,12 +2842,9 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
      const uid = cred.user.uid;
  
      let photoURL = '', idDocURL = '';
-@@ -1372,15 +1671,24 @@
-       updatedAt: serverTimestamp()
+@@ -1373,14 +1672,21 @@
      });
  
-+    // Proof the person owns the address they registered with. Without this,
-+    // anyone could sign up in a neighbour's name using their email — and the
      if (f.photo.files[0] && !photoURL) {
 -      // The registration itself succeeded; only the file could not be stored.
        showToast('Registration jama ho gaya, lekin photo upload nahi ho payi. Office se photo add karwa lein.', 'error');
@@ -2869,7 +2866,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
      showToast(friendlyAuthError(err), 'error');
    } finally {
      setLoading(btn, false);
-@@ -1474,12 +1782,15 @@
+@@ -1474,12 +1780,15 @@
      ${currentMember.status === 'approved' ? `
      <div class="dash-grid">
        <div class="card card-pad">
@@ -2888,7 +2885,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
        </div>
        <div class="card card-pad">
          <h3 style="font-size:16px; margin-bottom:12px;">Your Details</h3>
-@@ -1497,10 +1808,37 @@
+@@ -1497,10 +1806,37 @@
    if (currentMember.status === 'approved') {
      document.getElementById('openPaymentBtn').addEventListener('click', openPaymentModal);
      document.getElementById('downloadCardBtn')?.addEventListener('click', downloadCard);
@@ -2926,7 +2923,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  /* ---- Membership card ---- */
  async function downloadCard() {
    const btn = document.getElementById('downloadCardBtn');
-@@ -1517,10 +1855,17 @@
+@@ -1517,10 +1853,17 @@
        try { photoDataUrl = await toDataUrl(currentMember.photoURL); } catch (e) {}
      }
  
@@ -2945,7 +2942,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
        financialYear: currentFinancialYear()
      });
    } catch (e) {
-@@ -1534,6 +1879,9 @@
+@@ -1534,6 +1877,9 @@
  
  /* ---- Payments ---- */
  let currentDues = null;   // recomputed whenever payments are loaded
@@ -2955,7 +2952,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  
  async function loadMaintenanceSettings() {
    try {
-@@ -1560,16 +1908,32 @@
+@@ -1560,16 +1906,32 @@
    const headline = dues.outstanding > 0 ? dues.outstanding : dues.paid;
    const headlineLabel = dues.outstanding > 0 ? 'Outstanding' : 'Paid in full';
  
@@ -2991,7 +2988,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
        <div class="dues-split">
          <div><span class="lbl">Total Due</span><b>${formatINR(dues.expected)}</b></div>
          <div><span class="lbl">Paid</span><b>${formatINR(dues.paid)}</b></div>
-@@ -1581,18 +1945,32 @@
+@@ -1581,18 +1943,32 @@
  
  async function loadPayments(uid) {
    const list = document.getElementById('paymentList');
@@ -3026,7 +3023,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  
    const statusBadge = {
      pending_approval: '<span class="badge badge-warning">Pending Approval</span>',
-@@ -1601,7 +1979,7 @@
+@@ -1601,7 +1977,7 @@
      rejected: '<span class="badge badge-danger">Rejected</span>'
    };
  
@@ -3035,7 +3032,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
      <div class="pay-history-item">
        <div>
          <div style="font-weight:600; font-size:14.5px;">${formatINR(p.amount)} <span class="t-muted" style="font-weight:400;">· ${escapeHtml((p.mode||'').toUpperCase())}</span></div>
-@@ -1618,12 +1996,23 @@
+@@ -1618,12 +1994,23 @@
      </div>
    `).join('');
  
@@ -3060,7 +3057,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
    }
  
    list.querySelectorAll('[data-receipt-id]').forEach(btn => {
-@@ -1659,8 +2048,65 @@
+@@ -1659,8 +2046,65 @@
    const paySettingsSnap = await getDoc(doc(db, 'settings', 'payment'));
    const paySettings = paySettingsSnap.exists() ? paySettingsSnap.data() : {};
  
@@ -3126,7 +3123,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
      <div class="pay-option" data-mode="cash"><svg viewBox="0 0 24 24"><use href="#i-cash"/></svg><div><b>Cash</b><div class="t-muted" style="font-size:12.5px;">Visit the RWA office</div></div></div>
      <div class="pay-option" data-mode="cheque"><svg viewBox="0 0 24 24"><use href="#i-cheque"/></svg><div><b>Cheque</b><div class="t-muted" style="font-size:12.5px;">Visit the RWA office</div></div></div>
      <div class="pay-option" data-mode="upi"><svg viewBox="0 0 24 24"><use href="#i-qr"/></svg><div><b>UPI / QR Scan</b><div class="t-muted" style="font-size:12.5px;">Pay instantly from your phone</div></div></div>
-@@ -1670,18 +2116,44 @@
+@@ -1670,18 +2114,44 @@
    window.__translate(body);
    document.getElementById('paymentModalBackdrop').classList.add('open');
  
@@ -3173,7 +3170,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
    holder.innerHTML = `
      <div style="margin-top:18px; border-top:1px solid var(--line); padding-top:18px;">
        ${isOffline ? `
-@@ -1693,22 +2165,58 @@
+@@ -1693,22 +2163,58 @@
            <div style="font-size:12.4px;" class="t-muted">${escapeHtml(paySettings.bankName || '')} · A/C ${escapeHtml(paySettings.accountNumber || '—')} · IFSC ${escapeHtml(paySettings.ifsc || '—')}</div>
          </div>
        `}
@@ -3238,7 +3235,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  async function submitPayment(mode) {
    const btn = document.getElementById('submitPaymentBtn');
    const amount = Number(document.getElementById('payAmount').value);
-@@ -1716,9 +2224,22 @@
+@@ -1716,9 +2222,22 @@
    let utr = isOffline ? '' : document.getElementById('payUtr').value.trim();
    let proofURL = '';
  
@@ -3261,7 +3258,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
    setLoading(btn, true);
    try {
      if (!isOffline) {
-@@ -1737,6 +2258,9 @@
+@@ -1737,6 +2256,9 @@
        tower: currentMember.tower,
        residentName: currentMember.name,
        amount,
@@ -3271,7 +3268,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
        financialYear: currentFinancialYear(),
        mode,
        utrOrChequeNo: utr,
-@@ -1751,12 +2275,14 @@
+@@ -1751,12 +2273,14 @@
      await loadPayments(currentUser.uid);
    } catch (e) {
      showToast('Kuch galat ho gaya, dobara try karein.', 'error');
@@ -3287,7 +3284,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
    const listEl = document.getElementById('noticeList');
    try {
      const q = query(collection(db, 'notices'), orderBy('postedAt', 'desc'), limit(5));
-@@ -1764,18 +2290,19 @@
+@@ -1764,18 +2288,19 @@
      renderNotices();
    } catch (e) {
      window.__notices = null;
@@ -3309,7 +3306,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
      window.__translate(listEl);
      return;
    }
-@@ -1792,12 +2319,31 @@
+@@ -1792,12 +2317,31 @@
            <h4 data-no-translate>${escapeHtml(lang === 'hi' ? (n.titleHi || n.titleEn) : n.titleEn)}</h4>
            <p data-no-translate>${escapeHtml(lang === 'hi' ? (n.bodyHi || n.bodyEn) : n.bodyEn)}</p>
            ${n.attachmentURL ? `<a href="${n.attachmentURL}" target="_blank" rel="noopener" style="font-size:12.5px; text-decoration:underline; display:inline-block; margin-top:7px;" class="t-sub">Download attachment</a>` : ''}
@@ -3341,7 +3338,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  // Re-render notices (and re-translate the page) whenever the language changes.
  window.addEventListener('mhm:langchange', () => {
    if (document.getElementById('noticeList')) renderNotices();
-@@ -1844,7 +2390,7 @@
+@@ -1844,7 +2388,7 @@
      `;
      window.__translate(el);
    } catch (e) {
@@ -3350,7 +3347,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
      window.__translate(el);
    }
  }
-@@ -1855,7 +2401,7 @@
+@@ -1855,7 +2399,7 @@
      const rows = (await getDocs(query(collection(db, 'documents'), orderBy('addedAt', 'desc'))))
        .docs.map(d => d.data());
      if (!rows.length) {
@@ -3359,7 +3356,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
        window.__translate(el); return;
      }
      el.innerHTML = '<div class="doc-grid">' + rows.map(d => `
-@@ -1869,7 +2415,7 @@
+@@ -1869,7 +2413,7 @@
        </a>`).join('') + '</div>';
      window.__translate(el);
    } catch (e) {
