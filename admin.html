@@ -299,7 +299,10 @@
     <!-- ---------------- PAYMENTS ---------------- -->
     <div class="view-panel" id="view-payments">
       <div class="topbar"><h2 class="view-title">Payments</h2>
-        <div class="action-row"><button class="btn btn-outline btn-sm" id="exportPaymentsBtn">⬇ Export Excel</button></div>
+        <div class="action-row">
+          <button class="btn btn-primary btn-sm" id="recordPaymentBtn">+ Record Cash/Cheque</button>
+          <button class="btn btn-outline btn-sm" id="exportPaymentsBtn">⬇ Export Excel</button>
+        </div>
       </div>
       <div class="tab-strip">
         <button data-ptab="pending" class="active">Pending Verification</button>
@@ -457,6 +460,11 @@
               </summary>
               <div class="form-2col" style="margin-top:12px;" id="towerRateFields"></div>
             </details>
+            <div class="field" style="border-top:1px solid var(--line); padding-top:14px;">
+              <label>One-Time Membership Fee (₹)</label>
+              <input name="membershipFee" type="number" min="0" step="1" placeholder="1100">
+              <div class="hint">Har naye member se ek baar li jaane wali joining fee. Khaali chhodne par default ₹1100.</div>
+            </div>
             <button class="btn btn-primary btn-block" type="submit">Save Maintenance Rate</button>
           </form>
           <div id="maintSummary" class="t-sub" style="font-size:12.5px; margin-top:12px;"></div>
@@ -565,6 +573,63 @@
   <div class="modal">
     <div class="modal-head"><h3 style="font-size:16.5px;">Payment Details</h3><button class="icon-btn" id="closePaymentDetailModal">✕</button></div>
     <div class="modal-body" id="paymentDetailModalBody"></div>
+  </div>
+</div>
+
+<!-- Treasurer records a cash / cheque payment on a member's behalf. The money
+     was physically received at the office, so this creates the payment already
+     verified and issues a receipt in one step. -->
+<div class="modal-backdrop" id="recordPaymentModalBackdrop">
+  <div class="modal">
+    <div class="modal-head"><h3 style="font-size:16.5px;">Record Cash / Cheque Payment</h3><button class="icon-btn" id="closeRecordPaymentModal">✕</button></div>
+    <div class="modal-body">
+      <form id="recordPaymentForm">
+        <div class="field">
+          <label for="rpMember">Member</label>
+          <input list="rpMemberList" id="rpMember" placeholder="Naam, flat ya Member ID se dhoondhein" autocomplete="off" required>
+          <datalist id="rpMemberList"></datalist>
+          <div class="hint" id="rpMemberHint">Sirf approved members hi list mein hain.</div>
+        </div>
+        <div class="form-2col">
+          <div class="field">
+            <label for="rpType">Payment type</label>
+            <select id="rpType" required>
+              <option value="maintenance">Maintenance</option>
+              <option value="membership">Membership Fee (one-time)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="rpMode">Mode</label>
+            <select id="rpMode" required>
+              <option value="cash">Cash</option>
+              <option value="cheque">Cheque</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-2col">
+          <div class="field">
+            <label for="rpAmount">Amount (₹)</label>
+            <input type="number" id="rpAmount" min="1" step="1" inputmode="numeric" required>
+          </div>
+          <div class="field" id="rpFYWrap">
+            <label for="rpFY">Financial Year</label>
+            <select id="rpFY"></select>
+          </div>
+        </div>
+        <div class="field" id="rpChequeWrap" style="display:none;">
+          <label for="rpCheque">Cheque number</label>
+          <input type="text" id="rpCheque" placeholder="Cheque no." maxlength="40">
+        </div>
+        <div class="field">
+          <label for="rpNote">Note (optional)</label>
+          <input type="text" id="rpNote" placeholder="e.g. office counter par cash liya" maxlength="120">
+        </div>
+        <div class="callout callout-info" style="font-size:12.5px;">
+          Yeh payment turant <b>verified</b> maani jaayegi aur receipt ban jayega — kyunki paisa aapko physically mil chuka hai.
+        </div>
+        <button class="btn btn-primary btn-block" type="submit" id="rpSubmit">Record &amp; Issue Receipt</button>
+      </form>
+    </div>
   </div>
 </div>
 
@@ -704,7 +769,7 @@ import {
   encryptFile, decryptToBlob, backupToDrive, waLink, waShareText, serializeForExport,
   newPublicToken, publicKeyForMember,
   TOWER_IDS, TOWER_PLAN, flatsForTower, isValidFlat,
-  duesFor, DUES_LABEL, DUES_BADGE,
+  duesFor, DUES_LABEL, DUES_BADGE, membershipDue,
   EXPENSE_CATEGORIES, EXPENSE_MODES, expenseSummary, fundPosition, validateExpense,
   renderPager, skeletonTableRows, emptyState
 } from './app-common.js';
@@ -1147,6 +1212,16 @@ function openMemberModal(id) {
       <div class="vrow"><span class="t-muted">Address</span><span>${escapeHtml(m.address || '—')}</span></div>
       <div class="vrow"><span class="t-muted">Nominee</span><span>${escapeHtml(m.nomineeName || '—')} (${escapeHtml(m.nomineeRelation || '—')})</span></div>
       <div class="vrow"><span class="t-muted">Member ID</span><span class="mono">${escapeHtml(m.memberID || '—')}</span></div>
+      ${(() => {
+        // Membership fee status — helps the committee see who still owes the
+        // one-time joining fee. Computed from this member's verified payments.
+        const mem = membershipDue(m, allPayments.filter(p => p.memberUid === m.uid), maintenanceSettings);
+        return `<div class="vrow"><span class="t-muted">Membership Fee</span><span>${
+          mem.cleared
+            ? `<span class="badge badge-success">Paid · ${formatINR(mem.fee)}</span>`
+            : `<span class="badge badge-warning">Due · ${formatINR(mem.outstanding)}</span>`
+        }</span></div>`;
+      })()}
     </div>
     <div style="margin:16px 0; display:flex; gap:10px; flex-wrap:wrap;">
       ${m.idDocURL ? `<button class="btn btn-outline btn-sm" id="viewDocBtn">${m.idDocEncrypted ? '<svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#a-unlock"/></svg>Decrypt &amp; View ID Doc' : '<svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#a-doc"/></svg>View ID Doc'}</button>` : '<span class="t-muted" style="font-size:12.5px;">No ID document uploaded.</span>'}
@@ -1371,6 +1446,19 @@ function openPaymentDetail(id) {
 }
 document.getElementById('closePaymentDetailModal').addEventListener('click', () => document.getElementById('paymentDetailModalBackdrop').classList.remove('open'));
 
+// Record cash/cheque payment wiring.
+document.getElementById('recordPaymentBtn')?.addEventListener('click', openRecordPaymentModal);
+document.getElementById('closeRecordPaymentModal')?.addEventListener('click', () => document.getElementById('recordPaymentModalBackdrop').classList.remove('open'));
+document.getElementById('recordPaymentForm')?.addEventListener('submit', submitRecordPayment);
+// Cheque number only shows for cheque mode; FY only matters for maintenance.
+document.getElementById('rpMode')?.addEventListener('change', (e) => {
+  document.getElementById('rpChequeWrap').style.display = e.target.value === 'cheque' ? 'block' : 'none';
+});
+document.getElementById('rpType')?.addEventListener('change', (e) => {
+  // Membership is a one-time fee, not tied to a financial year.
+  document.getElementById('rpFYWrap').style.display = e.target.value === 'membership' ? 'none' : 'block';
+});
+
 /* Verification was four independent round trips: bump the counter, update the
    payment, write the public receipt, log it. Lose the connection between any
    two and the society is left with a payment marked verified whose printed QR
@@ -1422,6 +1510,120 @@ async function rejectPayment(id) {
   showToast('Payment reject kar diya gaya.', 'success');
   document.getElementById('paymentDetailModalBackdrop').classList.remove('open');
   await reloadPayments(); renderPendingPayments(); renderAllPayments();
+}
+
+/* ---------------------------------------------------------------------- */
+/*  Treasurer-recorded cash / cheque payments                               */
+/*                                                                          */
+/*  Not every resident pays online. When someone hands cash or a cheque at  */
+/*  the office, the treasurer records it here on the member's behalf. Since  */
+/*  the money is already in hand, the payment is created ALREADY VERIFIED    */
+/*  and a receipt is issued immediately — one step, no separate approval.    */
+/*  Only superadmin/treasurer (canVerifyPayments) can do this.              */
+/* ---------------------------------------------------------------------- */
+let recordPaymentInFlight = false;
+
+function openRecordPaymentModal() {
+  if (!can('verifyPayments')) { showToast('Iske liye aapke paas permission nahi hai.', 'error'); return; }
+  const f = document.getElementById('recordPaymentForm');
+  f.reset();
+  document.getElementById('rpChequeWrap').style.display = 'none';
+
+  // Populate the member picker with approved members only.
+  const dl = document.getElementById('rpMemberList');
+  const approved = allMembers.filter(m => m.status === 'approved');
+  dl.innerHTML = approved.map(m =>
+    `<option value="${escapeHtml(m.name)} — ${escapeHtml(m.tower)}-${escapeHtml(m.flatNumber)}${m.memberID ? ' (' + escapeHtml(m.memberID) + ')' : ''}"></option>`
+  ).join('');
+
+  // FY options for maintenance.
+  const fySel = document.getElementById('rpFY');
+  fySel.innerHTML = financialYearOptions().map(fy =>
+    `<option value="${fy}" ${fy === currentFinancialYear() ? 'selected' : ''}>FY ${fy}</option>`).join('');
+
+  document.getElementById('recordPaymentModalBackdrop').classList.add('open');
+}
+
+// Resolve the typed picker value back to a member. The datalist value ends with
+// "(MemberID)" when available, else we match on "Name — Tower-Flat".
+function resolveRecordMember(raw) {
+  const approved = allMembers.filter(m => m.status === 'approved');
+  const idMatch = raw.match(/\(([^)]+)\)\s*$/);
+  if (idMatch) {
+    const byId = approved.find(m => m.memberID === idMatch[1]);
+    if (byId) return byId;
+  }
+  return approved.find(m => `${m.name} — ${m.tower}-${m.flatNumber}` === raw.replace(/\s*\([^)]*\)\s*$/, '').trim()) || null;
+}
+
+async function submitRecordPayment(e) {
+  e.preventDefault();
+  if (recordPaymentInFlight) return;
+  if (!can('verifyPayments')) { showToast('Permission nahi hai.', 'error'); return; }
+
+  const member = resolveRecordMember(document.getElementById('rpMember').value.trim());
+  if (!member) { showToast('Member list se sahi member chunein.', 'error'); return; }
+
+  const type = document.getElementById('rpType').value;
+  const mode = document.getElementById('rpMode').value;
+  const amount = Number(document.getElementById('rpAmount').value);
+  const fy = type === 'membership' ? currentFinancialYear() : document.getElementById('rpFY').value;
+  const chequeNo = document.getElementById('rpCheque').value.trim();
+  const note = document.getElementById('rpNote').value.trim();
+
+  if (!Number.isFinite(amount) || amount <= 0) { showToast('Sahi amount daalein.', 'error'); return; }
+  if (mode === 'cheque' && !chequeNo) { showToast('Cheque number daalein.', 'error'); return; }
+
+  const btn = document.getElementById('rpSubmit');
+  recordPaymentInFlight = true;
+  btn.disabled = true; btn.textContent = 'Recording…';
+  try {
+    const receiptNumber = await generateReceiptNumber(fy);
+    const publicToken = newPublicToken();
+
+    // One atomic write: the verified payment + its public receipt record.
+    const batch = writeBatch(db);
+    const payRef = doc(collection(db, 'payments'));
+    batch.set(payRef, {
+      memberUid: member.uid,
+      memberID: member.memberID || null,
+      residentName: member.name,
+      flatNumber: member.flatNumber,
+      tower: member.tower,
+      amount,
+      type,                                  // 'maintenance' | 'membership'
+      financialYear: fy,
+      mode,                                  // 'cash' | 'cheque'
+      utrOrChequeNo: mode === 'cheque' ? chequeNo : '',
+      paymentProofURL: '',
+      status: 'verified',                    // money already received at the office
+      receiptNumber,
+      publicToken,
+      recordedByAdmin: true,                 // distinguishes office-entered payments
+      remarks: note || null,
+      submittedAt: serverTimestamp(),
+      verifiedAt: serverTimestamp(),
+      verifiedBy: currentAdmin.email
+    });
+    batch.set(doc(db, 'receiptsPublic', publicToken), {
+      receiptNumber, residentName: member.name, flatNumber: member.flatNumber, tower: member.tower,
+      amount, financialYear: fy, verifiedAt: serverTimestamp(), status: 'Verified'
+    });
+    await batch.commit();
+
+    await logAudit(auth.currentUser, 'record_offline_payment', {
+      paymentId: payRef.id, memberUid: member.uid, amount, mode, type, receiptNumber
+    });
+    showToast(`Payment record ho gaya! Receipt: ${receiptNumber}`, 'success');
+    document.getElementById('recordPaymentModalBackdrop').classList.remove('open');
+    await reloadPayments(); renderPendingPayments(); renderAllPayments(); renderOverview(); renderDefaulters();
+  } catch (err) {
+    console.error(err);
+    showToast('Payment record nahi ho paaya. Dobara try karein.', 'error');
+  } finally {
+    recordPaymentInFlight = false;
+    btn.disabled = false; btn.textContent = 'Record & Issue Receipt';
+  }
 }
 
 /* Anyone with a balance still owing — not just those who paid nothing.
@@ -1843,15 +2045,20 @@ function fillMaintenanceForm() {
     const el = document.getElementById(`rate-${t}`);
     if (el) el.value = r.byTower?.[t] ?? '';
   });
+  // Membership fee is society-wide (not per-FY); show the configured value, or
+  // leave the ₹1100 default as the placeholder.
+  if (f.membershipFee) f.membershipFee.value = maintenanceSettings?.membershipFee ?? '';
 }
 
 function renderMaintSummary() {
   const el = document.getElementById('maintSummary');
   if (!el) return;
   const years = Object.keys(maintenanceSettings?.rates || {}).sort().reverse();
-  el.innerHTML = years.length
+  const fee = maintenanceSettings?.membershipFee ?? 1100;
+  const feeLine = `<div style="margin-top:6px;">One-time membership fee: <b>${formatINR(fee)}</b>${maintenanceSettings?.membershipFee == null ? ' (default)' : ''}</div>`;
+  el.innerHTML = (years.length
     ? 'Set for: ' + years.map(y => `FY ${escapeHtml(y)} (${formatINR(maintenanceSettings.rates[y].default || 0)})`).join(', ')
-    : 'Abhi kisi bhi saal ka rate set nahi hai — isliye Defaulters report khaali dikhegi.';
+    : 'Abhi kisi bhi saal ka rate set nahi hai — isliye Defaulters report khaali dikhegi.') + feeLine;
 }
 
 document.getElementById('maintenanceForm')?.addEventListener('submit', async (e) => {
@@ -1870,9 +2077,21 @@ document.getElementById('maintenanceForm')?.addEventListener('submit', async (e)
   const rates = { ...(maintenanceSettings.rates || {}) };
   rates[fy] = Object.keys(byTower).length ? { default: def, byTower } : { default: def };
 
-  await setDoc(doc(db, 'settings', 'maintenance'), { rates, updatedAt: serverTimestamp() }, { merge: true });
-  await logAudit(auth.currentUser, 'update_maintenance_rate', { fy, default: def, byTower });
-  maintenanceSettings = { ...maintenanceSettings, rates };
+  // One-time membership fee. Blank keeps whatever was set before (or the ₹1100
+  // default the app falls back to). A number of 0 or more is stored as-is.
+  const feeRaw = f.membershipFee.value.trim();
+  const settingsPatch = { rates, updatedAt: serverTimestamp() };
+  let membershipFee = maintenanceSettings.membershipFee;
+  if (feeRaw !== '') {
+    const fee = Number(feeRaw);
+    if (!Number.isFinite(fee) || fee < 0) return showToast('Membership fee sahi number honi chahiye.', 'error');
+    settingsPatch.membershipFee = fee;
+    membershipFee = fee;
+  }
+
+  await setDoc(doc(db, 'settings', 'maintenance'), settingsPatch, { merge: true });
+  await logAudit(auth.currentUser, 'update_maintenance_rate', { fy, default: def, byTower, membershipFee });
+  maintenanceSettings = { ...maintenanceSettings, rates, ...(settingsPatch.membershipFee != null ? { membershipFee: settingsPatch.membershipFee } : {}) };
   renderMaintSummary();
   renderDefaulters();
   renderOverview();

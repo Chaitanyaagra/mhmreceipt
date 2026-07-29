@@ -219,6 +219,45 @@ export function duesFor(member, payments, financialYear, maintenanceSettings) {
   return { expected, paid, outstanding, status };
 }
 
+/* ---------------------------------------------------------------------- */
+/*  One-time membership fee                                                 */
+/*                                                                          */
+/*  Every member owes a single joining fee (default ₹1100), separate from   */
+/*  the yearly maintenance. It is charged once in a member's lifetime, not  */
+/*  per financial year, so it can't live in the per-year rate table. The    */
+/*  amount is configurable in settings/maintenance as `membershipFee`; a    */
+/*  payment counts towards it when its `type` is 'membership'. Older        */
+/*  payments have no `type` field and are treated as maintenance, so this   */
+/*  change is backward-compatible.                                          */
+/* ---------------------------------------------------------------------- */
+export const DEFAULT_MEMBERSHIP_FEE = 1100;
+
+/** The configured one-time membership fee (falls back to the ₹1100 default). */
+export function membershipFeeAmount(maintenanceSettings) {
+  const v = maintenanceSettings?.membershipFee;
+  return Number.isFinite(Number(v)) ? Number(v) : DEFAULT_MEMBERSHIP_FEE;
+}
+
+/** Total verified membership payments a member has made (across all years). */
+export function membershipPaid(payments, memberUid) {
+  return (payments || [])
+    .filter(p => p.memberUid === memberUid
+              && p.status === 'verified'
+              && p.type === 'membership')
+    .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+}
+
+/**
+ * The membership-fee picture for one member.
+ * @returns {{fee:number, paid:number, outstanding:number, cleared:boolean}}
+ */
+export function membershipDue(member, payments, maintenanceSettings) {
+  const fee = membershipFeeAmount(maintenanceSettings);
+  const paid = membershipPaid(payments, member?.uid);
+  const outstanding = Math.max(0, fee - paid);
+  return { fee, paid, outstanding, cleared: outstanding === 0 };
+}
+
 export const DUES_LABEL = {
   no_rate:  'Rate not set',
   unpaid:   'Unpaid',
@@ -1008,7 +1047,11 @@ export function memberVerifyUrl(member) {
 function loadImage(src) {
   return new Promise((resolve) => {
     const img = new Image();
-    img.crossOrigin = 'anonymous';
+    // crossOrigin only matters for genuinely remote images (e.g. a photo in
+    // Firebase Storage). For a data: URI or a same-origin file it can cause a
+    // needless load failure or a tainted canvas on some hosts, which is exactly
+    // what broke membership-card generation. So set it only for http(s) sources.
+    if (/^https?:/i.test(src)) img.crossOrigin = 'anonymous';
     img.onload = () => resolve(img);
     img.onerror = () => resolve(null);   // a missing backdrop must not break the card
     img.src = src;

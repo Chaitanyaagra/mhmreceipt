@@ -735,8 +735,14 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
   .stat-strip{ margin-top:20px; padding-top:14px; }
   .trust-strip{ margin-top:16px; padding-top:12px; }
 }
+@media (max-width: 560px){
+  /* On phones the primary action is Resident Login; keep the Admin link but
+     make it visually secondary and compact so the header doesn't crowd. */
+  .header-admin-btn{ padding-left:10px; padding-right:10px; }
+}
 @media (max-width: 348px){
   .site-header .brand-text{ display:none; }  /* seal alone is enough at this width */
+  .header-admin-btn{ display:none; }         /* Admin still reachable from the footer link */
 }
 </style>
 </head>
@@ -803,6 +809,7 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
         <button data-lang-btn="en" class="active">EN</button>
         <button data-lang-btn="hi">हिं</button>
       </div>
+      <a href="admin.html" class="btn btn-outline btn-sm on-dark header-admin-btn">Admin</a>
       <button class="btn btn-primary btn-sm" id="navAuthBtn">Resident Login</button>
     </div>
   </div>
@@ -1410,7 +1417,7 @@ window.__animateCount = (el) => {
 import { auth, db, storage, SOCIETY } from './firebase-config.js';
 import {
   createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged,
-  signOut, sendPasswordResetEmail, sendEmailVerification, deleteUser, reload as reloadUser
+  signOut, sendPasswordResetEmail, deleteUser
 } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
 import {
   doc, getDoc, setDoc, addDoc, collection, query, where, orderBy, getDocs, serverTimestamp, limit
@@ -1424,6 +1431,7 @@ import {
   generateMembershipCard, duesFor, DUES_LABEL, DUES_BADGE,
   expenseSummary, fundPosition,
   generateStatementPDF, skeletonList, emptyState, showFieldError, clearFieldErrors,
+  membershipDue, membershipFeeAmount,
   waShareText
 } from './app-common.js';
 
@@ -1665,24 +1673,10 @@ registerForm.addEventListener('submit', async (e) => {
 
     // Proof the person owns the address they registered with. Without this,
     // anyone could sign up in a neighbour's name using their email — and the
-    // committee would have no way to tell the difference at approval time.
-    // A mail that fails to send must not undo a valid registration — the
-    // resident can resend from the dashboard — but we must NOT claim the mail
-    // was sent when it was not, so the send result decides the message.
-    let verifySent = false, verifyErr = null;
-    try { await sendEmailVerification(cred.user); verifySent = true; }
-    catch (e) { verifyErr = e; console.warn('Verification mail failed:', e?.code, e?.message); }
-
     if (f.photo.files[0] && !photoURL) {
       showToast('Registration jama ho gaya, lekin photo upload nahi ho payi. Office se photo add karwa lein.', 'error');
-    } else if (verifySent) {
-      showToast('Registration jama ho gaya! Apne email par verification link check karein (spam bhi dekh lein).', 'success');
     } else {
-      // The account exists; only the mail failed. Tell them plainly, and log
-      // the Firebase error code so the cause is diagnosable from the console.
-      showToast('Registration ho gaya, par verification email abhi nahi bhej paaye' +
-                (verifyErr?.code ? ' (' + verifyErr.code + ')' : '') +
-                '. Login karke dashboard se "Link dobara bhejein" try karein.', 'error');
+      showToast('Registration jama ho gaya! Admin approval ke baad aapki Member ID banegi.', 'success');
     }
     f.reset();
     showTab('login');
@@ -1763,31 +1757,12 @@ async function loadDashboard(uid) {
     inactive: '<span class="badge badge-neutral"><span class="badge-dot"></span>Deactivated</span>'
   };
 
-  /* The security rules require a verified email before a payment can be
-     filed. Without this banner that arrives as an unexplained permission
-     error at the worst possible moment — after the resident has already
-     transferred the money. Say it up front instead, and give them the button. */
-  const emailUnverified = !!currentUser && !currentUser.emailVerified;
-  const verifyBanner = emailUnverified ? `
-    <div class="card card-pad" style="border-left:4px solid var(--warning); margin-bottom:16px;">
-      <div style="font-weight:600; margin-bottom:5px;">Email verify karna baaki hai</div>
-      <p class="t-sub" style="font-size:13.5px; margin-bottom:12px;">
-        Payment submit karne se pehle apna email verify karein. Humne
-        <b>${escapeHtml(currentMember.email || '')}</b> par link bheja tha — inbox aur spam dono dekh lein.
-      </p>
-      <div style="display:flex; gap:8px; flex-wrap:wrap;">
-        <button class="btn btn-outline btn-sm" id="resendVerifyBtn">Link dobara bhejein</button>
-        <button class="btn btn-ghost btn-sm" id="recheckVerifyBtn">Ho gaya — dobara check karein</button>
-      </div>
-    </div>` : '';
-
   let statusExtra = '';
   if (currentMember.status === 'pending') statusExtra = '<p class="t-sub" style="margin-top:12px; font-size:13.5px;">Aapka registration committee ke review mein hai. Approve hone par yahan Member ID dikhega.</p>';
   if (currentMember.status === 'rejected') statusExtra = `<p class="t-danger" style="margin-top:12px; font-size:13.5px;">Reason: ${escapeHtml(currentMember.rejectionReason || 'Office se contact karein.')}</p>`;
   if (currentMember.status === 'inactive') statusExtra = '<p class="t-sub" style="margin-top:12px; font-size:13.5px;">Aapki membership deactivate ki gayi hai. Query ke liye office se contact karein.</p>';
 
   content.innerHTML = `
-    ${verifyBanner}
     <div class="card status-card">
       <div class="status-head">
         <img src="${currentMember.photoURL || LOGO_DATA_URI}" alt="">
@@ -1812,7 +1787,7 @@ async function loadDashboard(uid) {
           <h3 style="font-size:16px;">Payment History</h3>
           <div style="display:flex; gap:8px; flex-wrap:wrap;">
             <button class="btn btn-outline btn-sm" id="downloadStatementBtn" title="Poore financial year ki receipts ek PDF mein">FY Statement</button>
-            <button class="btn btn-primary btn-sm" id="openPaymentBtn"${emailUnverified ? ' disabled title="Pehle apna email verify karein"' : ''}>Make a Payment</button>
+            <button class="btn btn-primary btn-sm" id="openPaymentBtn">Make a Payment</button>
           </div>
         </div>
         <div id="paymentList"></div>
@@ -1829,36 +1804,6 @@ async function loadDashboard(uid) {
   `;
 
   window.__translate(content);
-
-  document.getElementById('resendVerifyBtn')?.addEventListener('click', async (e) => {
-    const b = e.currentTarget;
-    b.disabled = true;
-    try {
-      await sendEmailVerification(currentUser);
-      showToast('Verification link bhej diya. Inbox aur spam folder dono dekh lein.', 'success');
-      // Re-enable after a cooldown so a resident can retry, but not spam it.
-      setTimeout(() => { b.disabled = false; }, 30000);
-    } catch (err) {
-      console.warn('Resend failed:', err?.code, err?.message);
-      const msg = err?.code === 'auth/too-many-requests'
-        ? 'Bahut baar bhej diya — thodi der (5-10 min) baad try karein.'
-        : 'Link nahi bhej paaye' + (err?.code ? ' (' + err.code + ')' : '') + '. Thodi der baad try karein.';
-      showToast(msg, 'error');
-      b.disabled = false;
-    }
-  });
-
-  document.getElementById('recheckVerifyBtn')?.addEventListener('click', async () => {
-    // emailVerified is baked into the cached token, so it does not change on
-    // its own — the user object has to be reloaded from the server.
-    await reloadUser(currentUser);
-    if (currentUser.emailVerified) {
-      showToast('Email verify ho gaya. Ab aap payment kar sakte hain.', 'success');
-      await loadDashboard(uid);
-    } else {
-      showToast('Abhi tak verify nahi hua. Email mein diye link par click karein.', 'error');
-    }
-  });
 
   if (currentMember.status === 'approved') {
     document.getElementById('openPaymentBtn').addEventListener('click', openPaymentModal);
@@ -1910,10 +1855,17 @@ async function downloadCard() {
       try { photoDataUrl = await toDataUrl(currentMember.photoURL); } catch (e) {}
     }
 
+    // jsPDF's seal compositing needs actual image bytes, not a URL. Since the
+    // logo optimisation, LOGO_DATA_URI is a URL — fetch the real data URI here
+    // (cached), exactly as the receipt path does, so the seal renders reliably
+    // instead of tainting the canvas.
+    let logoDataUrl = null;
+    try { logoDataUrl = await window.__MHM_LOGO_DATAURI(); } catch (e) {}
+
     await generateMembershipCard({
       member: { ...currentMember, photoDataUrl },
       society,
-      logoDataUrl: LOGO_DATA_URI,
+      logoDataUrl,
       financialYear: currentFinancialYear()
     });
   } catch (e) {
@@ -1927,6 +1879,8 @@ async function downloadCard() {
 
 /* ---- Payments ---- */
 let currentDues = null;   // recomputed whenever payments are loaded
+let currentMembership = null;   // one-time membership fee status for this member
+let currentMaintenance = null;  // cached maintenance settings for the payment modal
 let allPaymentRows = [];  // full payment history for the signed-in member
 
 async function loadMaintenanceSettings() {
@@ -2005,6 +1959,8 @@ async function loadPayments(uid) {
   // and the list can never disagree with each other.
   const maintenance = await loadMaintenanceSettings();
   currentDues = duesFor(currentMember, rows, currentFinancialYear(), maintenance);
+  currentMaintenance = maintenance;                       // reused by the payment modal
+  currentMembership = membershipDue(currentMember, rows, maintenance);
   renderDues(currentDues, currentFinancialYear());
 
   if (!rows.length) {
@@ -2085,12 +2041,6 @@ async function loadPayments(uid) {
 }
 
 async function openPaymentModal() {
-  // Belt and braces: the button is disabled when the email is unverified, but
-  // this is the function the rules will reject, so it should say why itself.
-  if (currentUser && !currentUser.emailVerified) {
-    showToast('Payment se pehle apna email verify karein — dashboard par "Link dobara bhejein" dabayein.', 'error');
-    return;
-  }
   const q = query(collection(db, 'payments'), where('memberUid', '==', currentUser.uid), where('status', 'in', ['pending_approval', 'pending_verification']));
   const existing = await getDocs(q);
   if (!existing.empty) { showToast('Aapka ek payment pehle se pending hai — nayi entry ki zaroorat nahi.', 'error'); return; }
@@ -2104,6 +2054,26 @@ async function openPaymentModal() {
   const fy = currentFinancialYear();
   const dues = currentDues || { expected: 0, paid: 0, outstanding: 0, status: 'no_rate' };
   const hasRate = dues.expected > 0;
+
+  // One-time membership fee (₹1100 by default). Shown as its own line and, when
+  // still due, offered as a separate payment type so a new member clears it
+  // before (or alongside) their maintenance.
+  const membership = currentMembership || membershipDue(currentMember, allPaymentRows, currentMaintenance);
+  const membershipPending = membership.outstanding > 0;
+
+  const membershipHtml = `
+    <div class="invoice-card">
+      <div class="invoice-head"><span class="lbl">One-Time Membership Fee</span><span class="fy">Ek baar</span></div>
+      <div class="invoice-rows">
+        ${membership.paid > 0
+          ? `<div class="r"><span class="muted">Membership fee</span><span>${formatINR(membership.fee)}</span></div>
+             <div class="r"><span class="muted">Ab tak jama (verified)</span><span class="paid">− ${formatINR(membership.paid)}</span></div>` : ''}
+        ${membershipPending
+          ? `<div class="r total"><span>Membership fee ${membership.paid > 0 ? 'bakaya' : 'dena hai'}</span><span class="owe">${formatINR(membership.outstanding)}</span></div>`
+          : `<div class="invoice-clear"><span class="tick">✓ Membership fee (${formatINR(membership.fee)}) clear hai</span></div>`}
+      </div>
+    </div>`;
+
   const invoiceHtml = hasRate ? `
     <div class="invoice-card">
       <div class="invoice-head"><span class="lbl">Maintenance Invoice</span><span class="fy">FY ${escapeHtml(fy)}</span></div>
@@ -2120,9 +2090,23 @@ async function openPaymentModal() {
       <div class="invoice-rows"><div class="r"><span class="muted">Is saal ke liye rate abhi set nahi hua — koi bhi rakam de sakte hain.</span></div></div>
     </div>`;
 
+  // When membership is still due, let the resident choose which one they are
+  // paying now. Membership is pre-selected since it should be cleared first.
+  const typeToggle = membershipPending ? `
+    <div class="paytype-toggle">
+      <button type="button" class="paytype selected" data-type="membership" data-amt="${membership.outstanding}">
+        <div class="pt-top">Membership Fee</div><div class="pt-amt">${formatINR(membership.outstanding)}</div>
+      </button>
+      <button type="button" class="paytype" data-type="maintenance" data-amt="${dues.outstanding}">
+        <div class="pt-top">Maintenance</div><div class="pt-amt">${dues.outstanding > 0 ? formatINR(dues.outstanding) : (hasRate ? '✓ Clear' : '—')}</div>
+      </button>
+    </div>` : '';
+
   const body = document.getElementById('paymentModalBody');
   body.innerHTML = `
+    ${membershipHtml}
     ${invoiceHtml}
+    ${typeToggle}
     <div class="pay-option" data-mode="cash"><svg viewBox="0 0 24 24"><use href="#i-cash"/></svg><div><b>Cash</b><div class="t-muted" style="font-size:12.5px;">Visit the RWA office</div></div></div>
     <div class="pay-option" data-mode="cheque"><svg viewBox="0 0 24 24"><use href="#i-cheque"/></svg><div><b>Cheque</b><div class="t-muted" style="font-size:12.5px;">Visit the RWA office</div></div></div>
     <div class="pay-option" data-mode="upi"><svg viewBox="0 0 24 24"><use href="#i-qr"/></svg><div><b>UPI / QR Scan</b><div class="t-muted" style="font-size:12.5px;">Pay instantly from your phone</div></div></div>
@@ -2132,18 +2116,44 @@ async function openPaymentModal() {
   window.__translate(body);
   document.getElementById('paymentModalBackdrop').classList.add('open');
 
+  // Tracks what the resident is paying: 'membership' or 'maintenance', and the
+  // outstanding amount for that type. The maintenance modal defaults to
+  // maintenance; when membership is pending it starts on membership.
+  const payContext = {
+    type: membershipPending ? 'membership' : 'maintenance',
+    outstanding: membershipPending ? membership.outstanding : dues.outstanding,
+    hasRate: membershipPending ? true : hasRate,
+  };
+
+  body.querySelectorAll('.paytype').forEach(tbtn => {
+    tbtn.addEventListener('click', () => {
+      body.querySelectorAll('.paytype').forEach(t => t.classList.remove('selected'));
+      tbtn.classList.add('selected');
+      payContext.type = tbtn.dataset.type;
+      payContext.outstanding = Number(tbtn.dataset.amt) || 0;
+      payContext.hasRate = payContext.type === 'membership' ? true : hasRate;
+      // If a mode was already chosen, re-render the amount block for the new type.
+      const sel = body.querySelector('.pay-option.selected');
+      if (sel) renderPayDetailForm(sel.dataset.mode, paySettings, payContext);
+    });
+  });
+
   body.querySelectorAll('.pay-option').forEach(opt => {
     opt.addEventListener('click', () => {
       body.querySelectorAll('.pay-option').forEach(o => o.classList.remove('selected'));
       opt.classList.add('selected');
-      renderPayDetailForm(opt.dataset.mode, paySettings, dues, hasRate);
+      renderPayDetailForm(opt.dataset.mode, paySettings, payContext);
     });
   });
 }
 
-function renderPayDetailForm(mode, paySettings, dues, hasRate) {
+function renderPayDetailForm(mode, paySettings, payContext) {
   const holder = document.getElementById('payDetailForm');
   const isOffline = mode === 'cash' || mode === 'cheque';
+  // payContext carries the type ('membership'|'maintenance') and its outstanding.
+  const dues = { outstanding: payContext.outstanding };
+  const hasRate = payContext.hasRate;
+  window.__payType = payContext.type;   // read by submitPayment
   holder.innerHTML = `
     <div style="margin-top:18px; border-top:1px solid var(--line); padding-top:18px;">
       ${isOffline ? `
@@ -2248,6 +2258,9 @@ async function submitPayment(mode) {
       tower: currentMember.tower,
       residentName: currentMember.name,
       amount,
+      // 'membership' (one-time joining fee) or 'maintenance' (yearly). Older
+      // records have no type and are treated as maintenance.
+      type: (window.__payType === 'membership') ? 'membership' : 'maintenance',
       financialYear: currentFinancialYear(),
       mode,
       utrOrChequeNo: utr,

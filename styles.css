@@ -398,6 +398,19 @@ tbody tr:hover{ background:#FAFBFD; }
 .field-error{ display:none; color:var(--danger); font-size:12px; margin-top:5px; font-weight:500; }
 .field.has-error .field-error{ display:block; }
 
+/* --- Callout (inline info box) ------------------------------------------------- */
+.callout{ border-radius:var(--radius-md); padding:12px 14px; margin:4px 0 16px; line-height:1.5; }
+.callout-info{ background:rgba(37,99,235,.07); border:1px solid rgba(37,99,235,.2); color:var(--ink-700); }
+.callout-info b{ color:var(--navy-950); }
+
+/* --- Payment type toggle (membership vs maintenance) -------------------------- */
+.paytype-toggle{ display:flex; gap:8px; margin-bottom:16px; }
+.paytype{ flex:1; padding:12px; border:1.5px solid var(--line); border-radius:var(--radius-md);
+  background:var(--white); cursor:pointer; text-align:left; transition:border-color .15s ease, background .15s ease; }
+.paytype.selected{ border-color:var(--saffron-500); background:var(--paper); }
+.paytype .pt-top{ font-size:11px; color:var(--ink-400); font-family:var(--font-mono); letter-spacing:.04em; text-transform:uppercase; }
+.paytype .pt-amt{ font-size:15px; font-weight:700; color:var(--navy-950); font-variant-numeric:tabular-nums; margin-top:2px; }
+
 /* --- Maintenance invoice (payment modal) -------------------------------------- */
 /* Turns "type an amount" into "here is exactly what you owe, tap to pay it".
    The committee's per-tower rate already produces expected/paid/outstanding

@@ -161,7 +161,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
 +the page. Check all three pages: `index.html`, `admin.html`, `verify.html`.
 diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal/SETUP-GUIDE.md MHMRWS-Portal/SETUP-GUIDE.md
 --- a/MHMRWS-Portal/SETUP-GUIDE.md	2026-07-23 11:28:38.000000000 +0000
-+++ MHMRWS-Portal/SETUP-GUIDE.md	2026-07-28 08:25:12.019655655 +0000
++++ MHMRWS-Portal/SETUP-GUIDE.md	2026-07-29 07:20:42.106014071 +0000
 @@ -114,6 +114,22 @@
  
  ---
@@ -185,7 +185,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  ## Step 3 — Security Rules Deploy Karein
  
  **Option A — Firebase Console se (sabse aasaan):**
-@@ -235,9 +251,22 @@
+@@ -235,9 +251,44 @@
  ## 🎨 Customization
  
  - Colors: `styles.css` ke top mein `:root { --navy-950: ...; --saffron-500: ...; }` — yahin se poori site ka theme change ho jaata hai.
@@ -193,6 +193,28 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
 +- Logo: seal ab `logo.webp` file mein hai (pehle 66 KB base64 JS mein tha — woh har page load par bhaari padta tha). Badalna ho toh usi naam se naya `logo.webp` daal dein. PDF/card ke liye woh apne aap data-URI bana leta hai. `icon-192.png` / `icon-512.png` PWA ke liye alag files hain.
  - Society details (address, phone, bank details): yeh sab database mein hain, code mein nahi — Admin Panel → Settings se hi update karein.
  
++## 💳 Membership fee aur Maintenance
++
++- **One-time membership fee** (default **₹1100**) har naye member se ek baar li jaati hai. Resident ke payment screen par yeh alag "Membership Fee" card mein dikhti hai aur pehle se selected hoti hai.
++- Fee badalni ho to: **Admin Panel → Settings → Maintenance → "One-Time Membership Fee"** field. Khaali chhodne par default ₹1100 lagta hai.
++- **Yearly maintenance** alag hai — har financial year ka rate wahin set hota hai (tower-wise bhi ho sakta hai).
++- Kaun-se member ne membership fee di ya nahi, yeh **member ke details modal** mein "Membership Fee: Paid/Due" badge se dikhta hai.
++
++## ✉️ Email verification hata diya gaya hai
++
++Register karne par ab email verification link nahi bheja jaata — member seedha register hota hai aur admin approval ka intezaar karta hai. Payment ke liye bhi email verify karne ki zaroorat nahi.
++
++## 💵 Cash / Cheque payment (treasurer)
++
++Har koi online pay nahi karta. Jab koi office par **cash ya cheque** de, treasurer khud record kar sakta hai:
++
++- **Admin Panel → Payments → "+ Record Cash/Cheque"**
++- Member chunein (sirf approved), type (Maintenance/Membership), mode (Cash/Cheque), amount daalein — cheque ho to cheque number bhi
++- Yeh payment **turant verified** ho jaati hai aur receipt ban jaata hai (paisa aapko mil chuka hai, isliye alag approval ki zaroorat nahi)
++- Sirf **Treasurer / Super Admin** yeh kar sakte hain, aur har entry Audit Log mein darj hoti hai
++
++Yeh feature naye `firestore.rules` par nirbhar hai — deploy ke waqt rules zaroor publish karein.
++
 +## 🧪 Code test karna (optional, developer ke liye)
 +
 +Agar aap code badalte hain, to changes ke baad yeh chalayein taaki kuch toota to nahi:
@@ -211,7 +233,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  | Error | Wajah |
 diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal/admin.html MHMRWS-Portal/admin.html
 --- a/MHMRWS-Portal/admin.html	2026-07-23 11:26:32.000000000 +0000
-+++ MHMRWS-Portal/admin.html	2026-07-28 08:39:57.603745800 +0000
++++ MHMRWS-Portal/admin.html	2026-07-29 07:12:28.883346860 +0000
 @@ -2,16 +2,67 @@
  <html lang="en">
  <head>
@@ -320,7 +342,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
      </nav>
      <div class="sidebar-foot">
        <div class="admin-chip"><b id="adminName">—</b><span id="adminRole">—</span></div>
-@@ -225,6 +293,7 @@
+@@ -225,12 +293,16 @@
            <tbody id="membersTableBody"><tr><td colspan="6" class="t-muted">Loading…</td></tr></tbody>
          </table>
        </div>
@@ -328,7 +350,17 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
      </div>
  
      <!-- ---------------- PAYMENTS ---------------- -->
-@@ -248,6 +317,7 @@
+     <div class="view-panel" id="view-payments">
+       <div class="topbar"><h2 class="view-title">Payments</h2>
+-        <div class="action-row"><button class="btn btn-outline btn-sm" id="exportPaymentsBtn">⬇ Export Excel</button></div>
++        <div class="action-row">
++          <button class="btn btn-primary btn-sm" id="recordPaymentBtn">+ Record Cash/Cheque</button>
++          <button class="btn btn-outline btn-sm" id="exportPaymentsBtn">⬇ Export Excel</button>
++        </div>
+       </div>
+       <div class="tab-strip">
+         <button data-ptab="pending" class="active">Pending Verification</button>
+@@ -248,6 +320,7 @@
            <table><thead><tr><th>Resident</th><th>Flat</th><th>Amount</th><th>Mode</th><th>Status</th><th>Receipt No.</th><th>Date</th></tr></thead>
            <tbody id="allPaymentsBody"><tr><td colspan="7" class="t-muted">Loading…</td></tr></tbody></table>
          </div>
@@ -336,7 +368,19 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
        </div>
        <div id="paymentsDefaultersPanel" style="display:none;">
          <div class="toolbar"><span id="defaultersTotal" class="mono" style="font-size:12.5px; color:var(--ink-600);"></span></div>
-@@ -467,12 +537,16 @@
+@@ -387,6 +460,11 @@
+               </summary>
+               <div class="form-2col" style="margin-top:12px;" id="towerRateFields"></div>
+             </details>
++            <div class="field" style="border-top:1px solid var(--line); padding-top:14px;">
++              <label>One-Time Membership Fee (₹)</label>
++              <input name="membershipFee" type="number" min="0" step="1" placeholder="1100">
++              <div class="hint">Har naye member se ek baar li jaane wali joining fee. Khaali chhodne par default ₹1100.</div>
++            </div>
+             <button class="btn btn-primary btn-block" type="submit">Save Maintenance Rate</button>
+           </form>
+           <div id="maintSummary" class="t-sub" style="font-size:12.5px; margin-top:12px;"></div>
+@@ -467,12 +545,16 @@
        </div>
      </div>
  
@@ -357,7 +401,71 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
        </div>
      </div>
  
-@@ -596,11 +670,17 @@
+@@ -494,6 +576,63 @@
+   </div>
+ </div>
+ 
++<!-- Treasurer records a cash / cheque payment on a member's behalf. The money
++     was physically received at the office, so this creates the payment already
++     verified and issues a receipt in one step. -->
++<div class="modal-backdrop" id="recordPaymentModalBackdrop">
++  <div class="modal">
++    <div class="modal-head"><h3 style="font-size:16.5px;">Record Cash / Cheque Payment</h3><button class="icon-btn" id="closeRecordPaymentModal">✕</button></div>
++    <div class="modal-body">
++      <form id="recordPaymentForm">
++        <div class="field">
++          <label for="rpMember">Member</label>
++          <input list="rpMemberList" id="rpMember" placeholder="Naam, flat ya Member ID se dhoondhein" autocomplete="off" required>
++          <datalist id="rpMemberList"></datalist>
++          <div class="hint" id="rpMemberHint">Sirf approved members hi list mein hain.</div>
++        </div>
++        <div class="form-2col">
++          <div class="field">
++            <label for="rpType">Payment type</label>
++            <select id="rpType" required>
++              <option value="maintenance">Maintenance</option>
++              <option value="membership">Membership Fee (one-time)</option>
++            </select>
++          </div>
++          <div class="field">
++            <label for="rpMode">Mode</label>
++            <select id="rpMode" required>
++              <option value="cash">Cash</option>
++              <option value="cheque">Cheque</option>
++            </select>
++          </div>
++        </div>
++        <div class="form-2col">
++          <div class="field">
++            <label for="rpAmount">Amount (₹)</label>
++            <input type="number" id="rpAmount" min="1" step="1" inputmode="numeric" required>
++          </div>
++          <div class="field" id="rpFYWrap">
++            <label for="rpFY">Financial Year</label>
++            <select id="rpFY"></select>
++          </div>
++        </div>
++        <div class="field" id="rpChequeWrap" style="display:none;">
++          <label for="rpCheque">Cheque number</label>
++          <input type="text" id="rpCheque" placeholder="Cheque no." maxlength="40">
++        </div>
++        <div class="field">
++          <label for="rpNote">Note (optional)</label>
++          <input type="text" id="rpNote" placeholder="e.g. office counter par cash liya" maxlength="120">
++        </div>
++        <div class="callout callout-info" style="font-size:12.5px;">
++          Yeh payment turant <b>verified</b> maani jaayegi aur receipt ban jayega — kyunki paisa aapko physically mil chuka hai.
++        </div>
++        <button class="btn btn-primary btn-block" type="submit" id="rpSubmit">Record &amp; Issue Receipt</button>
++      </form>
++    </div>
++  </div>
++</div>
++
+ <div class="modal-backdrop" id="noticeModalBackdrop">
+   <div class="modal">
+     <div class="modal-head"><h3 style="font-size:16.5px;" id="noticeModalTitle">Add Notice</h3><button class="icon-btn" id="closeNoticeModal">✕</button></div>
+@@ -596,11 +735,17 @@
       renders even if the SDK or a CDN fails to load. -->
  <script type="module">
  import { LOGO_DATA_URI } from './logo-data.js';
@@ -375,7 +483,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  </script>
  
  <script type="module">
-@@ -612,7 +692,8 @@
+@@ -612,7 +757,8 @@
    getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, createUserWithEmailAndPassword
  } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
  import {
@@ -385,7 +493,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
  import {
    ref as storageRef, uploadBytes, getDownloadURL
-@@ -620,10 +701,12 @@
+@@ -620,10 +766,12 @@
  import {
    showToast, escapeHtml, fmtDate, fmtDateTime, formatINR, currentFinancialYear, financialYearOptions,
    generateMemberId, generateReceiptNumber, logAudit, generateReceiptPDF, exportToExcel, parseExcelFile,
@@ -393,14 +501,15 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
 +  encryptFile, decryptToBlob, backupToDrive, waLink, waShareText, serializeForExport,
 +  newPublicToken, publicKeyForMember,
    TOWER_IDS, TOWER_PLAN, flatsForTower, isValidFlat,
-   duesFor, DUES_LABEL, DUES_BADGE,
+-  duesFor, DUES_LABEL, DUES_BADGE,
 -  EXPENSE_CATEGORIES, EXPENSE_MODES, expenseSummary, fundPosition, validateExpense
++  duesFor, DUES_LABEL, DUES_BADGE, membershipDue,
 +  EXPENSE_CATEGORIES, EXPENSE_MODES, expenseSummary, fundPosition, validateExpense,
 +  renderPager, skeletonTableRows, emptyState
  } from './app-common.js';
  
  /* ---------------------------------------------------------------------- */
-@@ -998,9 +1081,25 @@
+@@ -998,9 +1146,25 @@
    inactive: '<span class="badge badge-neutral">Inactive</span>'
  };
  
@@ -427,7 +536,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
      <tr>
        <td data-label="Resident">${escapeHtml(m.name)}</td>
        <td data-label="Flat / Tower">${escapeHtml(m.flatNumber)} / ${escapeHtml(m.tower)}</td>
-@@ -1009,10 +1108,18 @@
+@@ -1009,10 +1173,18 @@
        <td data-label="Member ID" class="mono">${escapeHtml(m.memberID || '—')}</td>
        <td data-label="Actions"><button class="btn btn-outline btn-sm" data-view-member="${m.id}">View Details</button></td>
      </tr>
@@ -448,7 +557,24 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  
  document.getElementById('exportMembersBtn').addEventListener('click', () => {
    exportToExcel(serializeForExport(filteredMembers()).map(m => ({
-@@ -1070,16 +1177,64 @@
+@@ -1040,6 +1212,16 @@
+       <div class="vrow"><span class="t-muted">Address</span><span>${escapeHtml(m.address || '—')}</span></div>
+       <div class="vrow"><span class="t-muted">Nominee</span><span>${escapeHtml(m.nomineeName || '—')} (${escapeHtml(m.nomineeRelation || '—')})</span></div>
+       <div class="vrow"><span class="t-muted">Member ID</span><span class="mono">${escapeHtml(m.memberID || '—')}</span></div>
++      ${(() => {
++        // Membership fee status — helps the committee see who still owes the
++        // one-time joining fee. Computed from this member's verified payments.
++        const mem = membershipDue(m, allPayments.filter(p => p.memberUid === m.uid), maintenanceSettings);
++        return `<div class="vrow"><span class="t-muted">Membership Fee</span><span>${
++          mem.cleared
++            ? `<span class="badge badge-success">Paid · ${formatINR(mem.fee)}</span>`
++            : `<span class="badge badge-warning">Due · ${formatINR(mem.outstanding)}</span>`
++        }</span></div>`;
++      })()}
+     </div>
+     <div style="margin:16px 0; display:flex; gap:10px; flex-wrap:wrap;">
+       ${m.idDocURL ? `<button class="btn btn-outline btn-sm" id="viewDocBtn">${m.idDocEncrypted ? '<svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#a-unlock"/></svg>Decrypt &amp; View ID Doc' : '<svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#a-doc"/></svg>View ID Doc'}</button>` : '<span class="t-muted" style="font-size:12.5px;">No ID document uploaded.</span>'}
+@@ -1070,16 +1252,64 @@
    } catch (e) { showToast('Decrypt fail — passphrase galat ho sakta hai.', 'error'); }
  }
  
@@ -520,7 +646,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
    await logAudit(auth.currentUser, 'approve_member', { id, memberID });
    showToast(`Approved! Member ID: ${memberID}`, 'success');
    document.getElementById('memberModalBackdrop').classList.remove('open');
-@@ -1089,10 +1244,13 @@
+@@ -1089,10 +1319,13 @@
    const reason = prompt('Reject karne ki wajah:');
    if (reason === null) return;
    const m = allMembers.find(x => x.id === id) || {};
@@ -538,7 +664,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
    await logAudit(auth.currentUser, 'reject_member', { id, reason });
    showToast('Registration reject kar diya gaya.', 'success');
    document.getElementById('memberModalBackdrop').classList.remove('open');
-@@ -1102,12 +1260,16 @@
+@@ -1102,12 +1335,16 @@
    const reason = prompt('Deactivate karne ki wajah (history surakshit rahegi):');
    if (reason === null) return;
    const m = allMembers.find(x => x.id === id) || {};
@@ -560,7 +686,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
    await logAudit(auth.currentUser, 'deactivate_member', { id, reason });
    showToast('Member deactivate ho gaya.', 'success');
    document.getElementById('memberModalBackdrop').classList.remove('open');
-@@ -1141,17 +1303,38 @@
+@@ -1141,17 +1378,38 @@
    document.querySelectorAll('[data-pay-detail]').forEach(b => b.addEventListener('click', () => openPaymentDetail(b.dataset.payDetail)));
  }
  
@@ -601,10 +727,23 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  }
  
  document.getElementById('exportPaymentsBtn').addEventListener('click', () => {
-@@ -1188,18 +1371,48 @@
+@@ -1188,18 +1446,61 @@
  }
  document.getElementById('closePaymentDetailModal').addEventListener('click', () => document.getElementById('paymentDetailModalBackdrop').classList.remove('open'));
  
++// Record cash/cheque payment wiring.
++document.getElementById('recordPaymentBtn')?.addEventListener('click', openRecordPaymentModal);
++document.getElementById('closeRecordPaymentModal')?.addEventListener('click', () => document.getElementById('recordPaymentModalBackdrop').classList.remove('open'));
++document.getElementById('recordPaymentForm')?.addEventListener('submit', submitRecordPayment);
++// Cheque number only shows for cheque mode; FY only matters for maintenance.
++document.getElementById('rpMode')?.addEventListener('change', (e) => {
++  document.getElementById('rpChequeWrap').style.display = e.target.value === 'cheque' ? 'block' : 'none';
++});
++document.getElementById('rpType')?.addEventListener('change', (e) => {
++  // Membership is a one-time fee, not tied to a financial year.
++  document.getElementById('rpFYWrap').style.display = e.target.value === 'membership' ? 'none' : 'block';
++});
++
 +/* Verification was four independent round trips: bump the counter, update the
 +   payment, write the public receipt, log it. Lose the connection between any
 +   two and the society is left with a payment marked verified whose printed QR
@@ -660,7 +799,128 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  }
  async function rejectPayment(id) {
    const reason = prompt('Reject karne ki wajah:');
-@@ -1224,6 +1437,27 @@
+@@ -1211,6 +1512,120 @@
+   await reloadPayments(); renderPendingPayments(); renderAllPayments();
+ }
+ 
++/* ---------------------------------------------------------------------- */
++/*  Treasurer-recorded cash / cheque payments                               */
++/*                                                                          */
++/*  Not every resident pays online. When someone hands cash or a cheque at  */
++/*  the office, the treasurer records it here on the member's behalf. Since  */
++/*  the money is already in hand, the payment is created ALREADY VERIFIED    */
++/*  and a receipt is issued immediately — one step, no separate approval.    */
++/*  Only superadmin/treasurer (canVerifyPayments) can do this.              */
++/* ---------------------------------------------------------------------- */
++let recordPaymentInFlight = false;
++
++function openRecordPaymentModal() {
++  if (!can('verifyPayments')) { showToast('Iske liye aapke paas permission nahi hai.', 'error'); return; }
++  const f = document.getElementById('recordPaymentForm');
++  f.reset();
++  document.getElementById('rpChequeWrap').style.display = 'none';
++
++  // Populate the member picker with approved members only.
++  const dl = document.getElementById('rpMemberList');
++  const approved = allMembers.filter(m => m.status === 'approved');
++  dl.innerHTML = approved.map(m =>
++    `<option value="${escapeHtml(m.name)} — ${escapeHtml(m.tower)}-${escapeHtml(m.flatNumber)}${m.memberID ? ' (' + escapeHtml(m.memberID) + ')' : ''}"></option>`
++  ).join('');
++
++  // FY options for maintenance.
++  const fySel = document.getElementById('rpFY');
++  fySel.innerHTML = financialYearOptions().map(fy =>
++    `<option value="${fy}" ${fy === currentFinancialYear() ? 'selected' : ''}>FY ${fy}</option>`).join('');
++
++  document.getElementById('recordPaymentModalBackdrop').classList.add('open');
++}
++
++// Resolve the typed picker value back to a member. The datalist value ends with
++// "(MemberID)" when available, else we match on "Name — Tower-Flat".
++function resolveRecordMember(raw) {
++  const approved = allMembers.filter(m => m.status === 'approved');
++  const idMatch = raw.match(/\(([^)]+)\)\s*$/);
++  if (idMatch) {
++    const byId = approved.find(m => m.memberID === idMatch[1]);
++    if (byId) return byId;
++  }
++  return approved.find(m => `${m.name} — ${m.tower}-${m.flatNumber}` === raw.replace(/\s*\([^)]*\)\s*$/, '').trim()) || null;
++}
++
++async function submitRecordPayment(e) {
++  e.preventDefault();
++  if (recordPaymentInFlight) return;
++  if (!can('verifyPayments')) { showToast('Permission nahi hai.', 'error'); return; }
++
++  const member = resolveRecordMember(document.getElementById('rpMember').value.trim());
++  if (!member) { showToast('Member list se sahi member chunein.', 'error'); return; }
++
++  const type = document.getElementById('rpType').value;
++  const mode = document.getElementById('rpMode').value;
++  const amount = Number(document.getElementById('rpAmount').value);
++  const fy = type === 'membership' ? currentFinancialYear() : document.getElementById('rpFY').value;
++  const chequeNo = document.getElementById('rpCheque').value.trim();
++  const note = document.getElementById('rpNote').value.trim();
++
++  if (!Number.isFinite(amount) || amount <= 0) { showToast('Sahi amount daalein.', 'error'); return; }
++  if (mode === 'cheque' && !chequeNo) { showToast('Cheque number daalein.', 'error'); return; }
++
++  const btn = document.getElementById('rpSubmit');
++  recordPaymentInFlight = true;
++  btn.disabled = true; btn.textContent = 'Recording…';
++  try {
++    const receiptNumber = await generateReceiptNumber(fy);
++    const publicToken = newPublicToken();
++
++    // One atomic write: the verified payment + its public receipt record.
++    const batch = writeBatch(db);
++    const payRef = doc(collection(db, 'payments'));
++    batch.set(payRef, {
++      memberUid: member.uid,
++      memberID: member.memberID || null,
++      residentName: member.name,
++      flatNumber: member.flatNumber,
++      tower: member.tower,
++      amount,
++      type,                                  // 'maintenance' | 'membership'
++      financialYear: fy,
++      mode,                                  // 'cash' | 'cheque'
++      utrOrChequeNo: mode === 'cheque' ? chequeNo : '',
++      paymentProofURL: '',
++      status: 'verified',                    // money already received at the office
++      receiptNumber,
++      publicToken,
++      recordedByAdmin: true,                 // distinguishes office-entered payments
++      remarks: note || null,
++      submittedAt: serverTimestamp(),
++      verifiedAt: serverTimestamp(),
++      verifiedBy: currentAdmin.email
++    });
++    batch.set(doc(db, 'receiptsPublic', publicToken), {
++      receiptNumber, residentName: member.name, flatNumber: member.flatNumber, tower: member.tower,
++      amount, financialYear: fy, verifiedAt: serverTimestamp(), status: 'Verified'
++    });
++    await batch.commit();
++
++    await logAudit(auth.currentUser, 'record_offline_payment', {
++      paymentId: payRef.id, memberUid: member.uid, amount, mode, type, receiptNumber
++    });
++    showToast(`Payment record ho gaya! Receipt: ${receiptNumber}`, 'success');
++    document.getElementById('recordPaymentModalBackdrop').classList.remove('open');
++    await reloadPayments(); renderPendingPayments(); renderAllPayments(); renderOverview(); renderDefaulters();
++  } catch (err) {
++    console.error(err);
++    showToast('Payment record nahi ho paaya. Dobara try karein.', 'error');
++  } finally {
++    recordPaymentInFlight = false;
++    btn.disabled = false; btn.textContent = 'Record & Issue Receipt';
++  }
++}
++
+ /* Anyone with a balance still owing — not just those who paid nothing.
+    The previous version treated any single verified payment as "paid", so a
+    resident who paid Rs 100 against a Rs 2,400 charge disappeared from this
+@@ -1224,6 +1639,27 @@
      .sort((a, b) => b.d.outstanding - a.d.outstanding);   // biggest debts first
  }
  
@@ -688,7 +948,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  function renderDefaulters() {
    const rows = outstandingMembers();
    const body = document.getElementById('defaultersBody');
-@@ -1253,7 +1487,7 @@
+@@ -1253,7 +1689,7 @@
          <span class="t-muted" style="font-size:11.5px;"> of ${formatINR(d.expected)}</span></td>
        <td data-label="Status"><span class="badge ${DUES_BADGE[d.status]}">${escapeHtml(DUES_LABEL[d.status])}</span></td>
        <td data-label="Remind"><a class="btn btn-outline btn-sm" target="_blank" rel="noopener"
@@ -697,7 +957,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
      </tr>
    `).join('') || '<tr><td colspan="5" class="t-muted">No outstanding dues for this FY</td></tr>';
  }
-@@ -1392,6 +1626,17 @@
+@@ -1392,6 +1828,17 @@
    await logAudit(auth.currentUser, 'add_notice', { title: f.titleEn.value });
    showToast('Notice post ho gaya.', 'success');
    document.getElementById('noticeModalBackdrop').classList.remove('open');
@@ -715,7 +975,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
    f.reset(); loadContentPanels();
  });
  document.getElementById('addCommitteeBtn').addEventListener('click', () => document.getElementById('committeeModalBackdrop').classList.add('open'));
-@@ -1497,22 +1742,32 @@
+@@ -1497,22 +1944,32 @@
      }
    });
    const verifiedThisMonth = allPayments.filter(p => p.status === 'verified' && inMonth(p.verifiedAt));
@@ -752,7 +1012,55 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
    const zipBlob = await zip.generateAsync({ type: 'blob' });
    const a = document.createElement('a');
    a.href = URL.createObjectURL(zipBlob); a.download = `MHMRWS-${monthVal}.zip`; a.click();
-@@ -1811,15 +2066,38 @@
+@@ -1588,15 +2045,20 @@
+     const el = document.getElementById(`rate-${t}`);
+     if (el) el.value = r.byTower?.[t] ?? '';
+   });
++  // Membership fee is society-wide (not per-FY); show the configured value, or
++  // leave the ₹1100 default as the placeholder.
++  if (f.membershipFee) f.membershipFee.value = maintenanceSettings?.membershipFee ?? '';
+ }
+ 
+ function renderMaintSummary() {
+   const el = document.getElementById('maintSummary');
+   if (!el) return;
+   const years = Object.keys(maintenanceSettings?.rates || {}).sort().reverse();
+-  el.innerHTML = years.length
++  const fee = maintenanceSettings?.membershipFee ?? 1100;
++  const feeLine = `<div style="margin-top:6px;">One-time membership fee: <b>${formatINR(fee)}</b>${maintenanceSettings?.membershipFee == null ? ' (default)' : ''}</div>`;
++  el.innerHTML = (years.length
+     ? 'Set for: ' + years.map(y => `FY ${escapeHtml(y)} (${formatINR(maintenanceSettings.rates[y].default || 0)})`).join(', ')
+-    : 'Abhi kisi bhi saal ka rate set nahi hai — isliye Defaulters report khaali dikhegi.';
++    : 'Abhi kisi bhi saal ka rate set nahi hai — isliye Defaulters report khaali dikhegi.') + feeLine;
+ }
+ 
+ document.getElementById('maintenanceForm')?.addEventListener('submit', async (e) => {
+@@ -1615,9 +2077,21 @@
+   const rates = { ...(maintenanceSettings.rates || {}) };
+   rates[fy] = Object.keys(byTower).length ? { default: def, byTower } : { default: def };
+ 
+-  await setDoc(doc(db, 'settings', 'maintenance'), { rates, updatedAt: serverTimestamp() }, { merge: true });
+-  await logAudit(auth.currentUser, 'update_maintenance_rate', { fy, default: def, byTower });
+-  maintenanceSettings = { ...maintenanceSettings, rates };
++  // One-time membership fee. Blank keeps whatever was set before (or the ₹1100
++  // default the app falls back to). A number of 0 or more is stored as-is.
++  const feeRaw = f.membershipFee.value.trim();
++  const settingsPatch = { rates, updatedAt: serverTimestamp() };
++  let membershipFee = maintenanceSettings.membershipFee;
++  if (feeRaw !== '') {
++    const fee = Number(feeRaw);
++    if (!Number.isFinite(fee) || fee < 0) return showToast('Membership fee sahi number honi chahiye.', 'error');
++    settingsPatch.membershipFee = fee;
++    membershipFee = fee;
++  }
++
++  await setDoc(doc(db, 'settings', 'maintenance'), settingsPatch, { merge: true });
++  await logAudit(auth.currentUser, 'update_maintenance_rate', { fy, default: def, byTower, membershipFee });
++  maintenanceSettings = { ...maintenanceSettings, rates, ...(settingsPatch.membershipFee != null ? { membershipFee: settingsPatch.membershipFee } : {}) };
+   renderMaintSummary();
+   renderDefaulters();
+   renderOverview();
+@@ -1811,15 +2285,38 @@
  
      let memberID = null;
      if (f.alsoResident.checked) {
@@ -795,7 +1103,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
        await reloadMembers(); renderMembersTable(); renderOverview(); populateTowerFilter();
      }
  
-@@ -1832,16 +2110,16 @@
+@@ -1832,16 +2329,16 @@
  });
  
  /* ---------------------------------------------------------------------- */
@@ -818,7 +1126,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  <style>.vrow{ display:flex; justify-content:space-between; padding:9px 0; border-bottom:1px solid var(--line); } .vrow:last-child{ border-bottom:none; } .vrow span:first-child{ color:var(--ink-400); }</style>
 diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal/app-common.js MHMRWS-Portal/app-common.js
 --- a/MHMRWS-Portal/app-common.js	2026-07-23 11:23:40.000000000 +0000
-+++ MHMRWS-Portal/app-common.js	2026-07-28 08:33:24.351079166 +0000
++++ MHMRWS-Portal/app-common.js	2026-07-28 15:15:59.592531914 +0000
 @@ -14,22 +14,46 @@
  /* ---------------------------------------------------------------------- */
  /*  Toasts                                                                 */
@@ -951,7 +1259,53 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
    return null;
  }
  
-@@ -330,10 +354,21 @@
+@@ -195,6 +219,45 @@
+   return { expected, paid, outstanding, status };
+ }
+ 
++/* ---------------------------------------------------------------------- */
++/*  One-time membership fee                                                 */
++/*                                                                          */
++/*  Every member owes a single joining fee (default ₹1100), separate from   */
++/*  the yearly maintenance. It is charged once in a member's lifetime, not  */
++/*  per financial year, so it can't live in the per-year rate table. The    */
++/*  amount is configurable in settings/maintenance as `membershipFee`; a    */
++/*  payment counts towards it when its `type` is 'membership'. Older        */
++/*  payments have no `type` field and are treated as maintenance, so this   */
++/*  change is backward-compatible.                                          */
++/* ---------------------------------------------------------------------- */
++export const DEFAULT_MEMBERSHIP_FEE = 1100;
++
++/** The configured one-time membership fee (falls back to the ₹1100 default). */
++export function membershipFeeAmount(maintenanceSettings) {
++  const v = maintenanceSettings?.membershipFee;
++  return Number.isFinite(Number(v)) ? Number(v) : DEFAULT_MEMBERSHIP_FEE;
++}
++
++/** Total verified membership payments a member has made (across all years). */
++export function membershipPaid(payments, memberUid) {
++  return (payments || [])
++    .filter(p => p.memberUid === memberUid
++              && p.status === 'verified'
++              && p.type === 'membership')
++    .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
++}
++
++/**
++ * The membership-fee picture for one member.
++ * @returns {{fee:number, paid:number, outstanding:number, cleared:boolean}}
++ */
++export function membershipDue(member, payments, maintenanceSettings) {
++  const fee = membershipFeeAmount(maintenanceSettings);
++  const paid = membershipPaid(payments, member?.uid);
++  const outstanding = Math.max(0, fee - paid);
++  return { fee, paid, outstanding, cleared: outstanding === 0 };
++}
++
+ export const DUES_LABEL = {
+   no_rate:  'Rate not set',
+   unpaid:   'Unpaid',
+@@ -330,10 +393,21 @@
    return d.toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
  }
  
@@ -976,7 +1330,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  }
  
  export function debounce(fn, delay = 300) {
-@@ -389,34 +424,63 @@
+@@ -389,34 +463,63 @@
  }
  
  /* ---------------------------------------------------------------------- */
@@ -1008,8 +1362,8 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
 +export function newPublicToken() {
 +  const bytes = crypto.getRandomValues(new Uint8Array(16));
 +  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
-+}
-+
+ }
+ 
 +/* Records issued before the token change are still keyed by their sequential
 +   number, so receipts and cards already in residents' hands keep verifying.
 +   Everything issued from now on uses the token. */
@@ -1018,8 +1372,8 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
 +}
 +export function publicKeyForMember(member) {
 +  return member?.publicToken || member?.memberID || '';
- }
- 
++}
++
 +/* ---------------------------------------------------------------------- */
 +/*  Activity log — append-only record of committee actions                 */
 +/*                                                                          */
@@ -1055,7 +1409,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
    }
  }
  
-@@ -432,9 +496,14 @@
+@@ -432,9 +535,14 @@
    });
  }
  
@@ -1072,7 +1426,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  }
  
  /* ---------------------------------------------------------------------- */
-@@ -519,7 +588,7 @@
+@@ -519,7 +627,7 @@
  
    // QR code
    try {
@@ -1081,7 +1435,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
      const qrData = await generateQR(qrUrl, 260);
      pdf.addImage(qrData, 'PNG', W - marginX - 74, y - 4, 74, 74);
      pdf.setFont('helvetica', 'normal'); pdf.setFontSize(7); pdf.setTextColor(124, 135, 156);
-@@ -532,7 +601,7 @@
+@@ -532,7 +640,7 @@
    y += 22;
    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8.5); pdf.setTextColor(124, 135, 156);
    pdf.text('This is a system-generated receipt from the MHMRWS Digital Portal.', marginX, y);
@@ -1090,7 +1444,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  
    if (save) {
      pdf.save(`Receipt-${payment.receiptNumber}.pdf`);
-@@ -541,6 +610,317 @@
+@@ -541,6 +649,317 @@
    return pdf.output('blob');
  }
  
@@ -1408,7 +1762,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  export function serializeForExport(rows) {
    return (rows || []).map(row => {
      const clean = {};
-@@ -558,7 +938,7 @@
+@@ -558,7 +977,7 @@
  /* ---------------------------------------------------------------------- */
  export async function printReceipt({ payment, member, society, logoDataUrl }) {
    let qrImg = '';
@@ -1417,7 +1771,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  
    const area = document.getElementById('printReceiptArea');
    if (!area) { showToast('Print area is missing from this page.', 'error'); return; }
-@@ -593,7 +973,7 @@
+@@ -593,7 +1012,7 @@
        </div>
        <div class="pr-foot">
          This is a system-generated receipt from the MHMRWS Digital Portal.<br>
@@ -1426,7 +1780,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
        </div>
      </div>
    `;
-@@ -617,9 +997,12 @@
+@@ -617,15 +1036,22 @@
  /* ---------------------------------------------------------------------- */
  const CARD_W = 85.6, CARD_H = 54;   // mm — ISO/IEC 7810 ID-1, the usual card size
  
@@ -1441,7 +1795,18 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  }
  
  function loadImage(src) {
-@@ -761,7 +1144,7 @@
+   return new Promise((resolve) => {
+     const img = new Image();
+-    img.crossOrigin = 'anonymous';
++    // crossOrigin only matters for genuinely remote images (e.g. a photo in
++    // Firebase Storage). For a data: URI or a same-origin file it can cause a
++    // needless load failure or a tainted canvas on some hosts, which is exactly
++    // what broke membership-card generation. So set it only for http(s) sources.
++    if (/^https?:/i.test(src)) img.crossOrigin = 'anonymous';
+     img.onload = () => resolve(img);
+     img.onerror = () => resolve(null);   // a missing backdrop must not break the card
+     img.src = src;
+@@ -761,7 +1187,7 @@
  
    // --- QR ----------------------------------------------------------------
    try {
@@ -1450,7 +1815,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
      const qs = 15.5, qx = CARD_W - M - qs, qy = 15.5;
      pdf.setFillColor(255, 255, 255);
      pdf.roundedRect(qx - 0.8, qy - 0.8, qs + 1.6, qs + 1.6, 0.8, 0.8, 'F');
-@@ -939,22 +1322,15 @@
+@@ -939,22 +1365,15 @@
    return `https://wa.me/${withCountry}?text=${encodeURIComponent(message)}`;
  }
  
@@ -1561,7 +1926,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  export const storage = getStorage(app);
 diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal/firestore.rules MHMRWS-Portal/firestore.rules
 --- a/MHMRWS-Portal/firestore.rules	2026-07-23 11:26:50.000000000 +0000
-+++ MHMRWS-Portal/firestore.rules	2026-07-24 11:51:52.582942958 +0000
++++ MHMRWS-Portal/firestore.rules	2026-07-29 07:12:57.807421399 +0000
 @@ -14,6 +14,12 @@
  //     good user experience; these rules are what actually protect the ledger.
  //   * Nothing in members/payments is ever hard-deleted — the app soft-deletes
@@ -1585,17 +1950,11 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
      function isAdmin() {
        return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
      }
-@@ -43,15 +52,33 @@
+@@ -43,15 +52,26 @@
      function canApproveMembers() {
        return isAdmin() && adminRole() in ['superadmin', 'president', 'vicepresident', 'secretary', 'jointsecretary'];
      }
-+    // Proof the caller clicked the link in their own inbox. Enforced on the
-+    // money path, not on registration, because the account has to exist before
-+    // Firebase can send the verification mail.
-+    function emailVerified() {
-+      return isSignedIn() && request.auth.token.email_verified == true;
-+    }
- 
+-
      /* ---------- validation helpers ---------- */
 +    //
 +    // ABSENCE vs NULL — read this before editing anything below.
@@ -1622,7 +1981,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
      function isValidMobile(v) {
        return v is string && v.matches('^[0-9]{10}$');
      }
-@@ -72,8 +99,16 @@
+@@ -72,8 +92,16 @@
      function isValidFY(v) {
        return v is string && v.matches('^[0-9]{4}-[0-9]{2}$');
      }
@@ -1640,7 +1999,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
      }
  
      // ---- Residents ------------------------------------------------------
-@@ -82,10 +117,10 @@
+@@ -82,10 +110,10 @@
          return isNonEmptyString(request.resource.data.name, 100)
              && isNonEmptyString(request.resource.data.tower, 50)
              && isNonEmptyString(request.resource.data.flatNumber, 30)
@@ -1655,7 +2014,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
              && isValidMemberStatus(request.resource.data.status)
              && request.resource.data.residentType in ['owner', 'tenant'];
        }
-@@ -100,32 +135,57 @@
+@@ -100,32 +128,57 @@
                        && validMemberShape()
                        && request.resource.data.uid == uid
                        && request.resource.data.status == 'pending'
@@ -1716,28 +2075,43 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
      // ---- Admin directory (Super Admin manages roles) --------------------
      match /admins/{uid} {
        allow read: if isAdmin();
-@@ -143,40 +203,66 @@
+@@ -143,40 +196,80 @@
  
        // A resident submitting a payment cannot pre-assign themselves a receipt
        // number, cannot mark it verified, and cannot post an invalid amount.
-+      // A verified email is required here rather than at registration: this is
-+      // the point where a record enters the society's books, and it is the
-+      // cheapest possible defence against someone filing payments in a
-+      // neighbour's name.
-       allow create: if isSignedIn()
-+                    && emailVerified()
+-      allow create: if isSignedIn()
++      allow create: if (isSignedIn()
                      && request.resource.data.memberUid == request.auth.uid
                      && isValidAmount(request.resource.data.amount)
                      && isValidPaymentMode(request.resource.data.mode)
                      && isValidFY(request.resource.data.financialYear)
                      && request.resource.data.status in ['pending_approval', 'pending_verification']
 -                    && request.resource.data.receiptNumber == null
++                    && (absentOrNull(request.resource.data, 'type') || request.resource.data.type in ['membership', 'maintenance'])
 +                    && absentOrNull(request.resource.data, 'receiptNumber')
 +                    && absentOrNull(request.resource.data, 'publicToken')
++                    && isNonEmptyString(request.resource.data.residentName, 100)
++                    && isNonEmptyString(request.resource.data.flatNumber, 30)
++                    && isOptionalString(request.resource.data, 'utrOrChequeNo', 40))
++                    // Treasurer / Super Admin recording a cash or cheque payment
++                    // handed in at the office, on the member's behalf. The money
++                    // is already received, so it is created verified with a
++                    // receipt in one step. memberUid is someone else's here, so
++                    // this path is gated strictly on canVerifyPayments().
++                    || (canVerifyPayments()
++                    && isValidAmount(request.resource.data.amount)
++                    && request.resource.data.mode in ['cash', 'cheque']
++                    && isValidFY(request.resource.data.financialYear)
++                    && request.resource.data.status == 'verified'
++                    && request.resource.data.type in ['membership', 'maintenance']
++                    && request.resource.data.recordedByAdmin == true
++                    && request.resource.data.verifiedBy == request.auth.token.email
++                    && isNonEmptyString(request.resource.data.receiptNumber, 60)
++                    && isPublicToken(request.resource.data.publicToken)
                      && isNonEmptyString(request.resource.data.residentName, 100)
                      && isNonEmptyString(request.resource.data.flatNumber, 30)
 -                    && isOptionalString(request.resource.data.utrOrChequeNo, 40);
-+                    && isOptionalString(request.resource.data, 'utrOrChequeNo', 40);
++                    && isOptionalString(request.resource.data, 'utrOrChequeNo', 40));
  
        // Verifying a payment issues a receipt number and moves money in the
 -      // books, so it is restricted to the Treasurer / Super Admin. The amount
@@ -1795,7 +2169,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
      }
  
      // ---- Notice board — public read, office-bearer write ------------------
-@@ -209,10 +295,18 @@
+@@ -209,10 +302,18 @@
      }
  
      // ---- Public receipt verification (where the receipt QR lands) ---------
@@ -1818,7 +2192,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
        allow read: if true;
        allow create: if canVerifyPayments()
                      && isValidAmount(request.resource.data.amount)
-@@ -251,10 +345,15 @@
+@@ -251,10 +352,15 @@
      }
  
      // ---- Public membership verification (where the card QR lands) ---------
@@ -1838,7 +2212,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
        allow read: if true;
        allow create, update: if canApproveMembers()
                              && isNonEmptyString(request.resource.data.memberID, 40)
-@@ -262,7 +361,14 @@
+@@ -262,7 +368,14 @@
        allow delete: if false;
      }
  
@@ -1856,7 +2230,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
        allow create: if isAdmin() && request.resource.data.userId == request.auth.uid;
 diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal/index.html MHMRWS-Portal/index.html
 --- a/MHMRWS-Portal/index.html	2026-07-23 11:25:48.000000000 +0000
-+++ MHMRWS-Portal/index.html	2026-07-28 08:33:48.313926114 +0000
++++ MHMRWS-Portal/index.html	2026-07-29 07:10:02.992911701 +0000
 @@ -2,6 +2,41 @@
  <html lang="en">
  <head>
@@ -2206,7 +2580,22 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  .tabbar-mobile{
    display:none; position:fixed; bottom:0; left:0; right:0; z-index:70;
    background:rgba(10,27,51,.97); backdrop-filter:blur(14px);
-@@ -584,6 +753,7 @@
+@@ -566,8 +735,14 @@
+   .stat-strip{ margin-top:20px; padding-top:14px; }
+   .trust-strip{ margin-top:16px; padding-top:12px; }
+ }
++@media (max-width: 560px){
++  /* On phones the primary action is Resident Login; keep the Admin link but
++     make it visually secondary and compact so the header doesn't crowd. */
++  .header-admin-btn{ padding-left:10px; padding-right:10px; }
++}
+ @media (max-width: 348px){
+   .site-header .brand-text{ display:none; }  /* seal alone is enough at this width */
++  .header-admin-btn{ display:none; }         /* Admin still reachable from the footer link */
+ }
+ </style>
+ </head>
+@@ -584,6 +759,7 @@
      <g id="i-phone"><rect x="6" y="2.5" width="12" height="19" rx="2.6" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M10.5 18.5h3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></g>
      <g id="i-home"><path d="M3.5 10.5L12 3.5l8.5 7M6 9.5v11h12v-11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></g>
      <g id="i-bell"><path d="M12 3.2a5.6 5.6 0 00-5.6 5.6c0 5-2 6.4-2 6.4h15.2s-2-1.4-2-6.4A5.6 5.6 0 0012 3.2zM10.3 19a2 2 0 003.4 0" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></g>
@@ -2214,7 +2603,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
      <g id="i-rupee"><path d="M7.5 4.5h9M7.5 8.5h9M15.5 4.5c0 3-2 4-5 4h-3l7.5 11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></g>
      <g id="i-user"><circle cx="12" cy="8.2" r="3.9" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M4.6 20.2c.9-3.7 3.9-5.8 7.4-5.8s6.5 2.1 7.4 5.8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></g>
      <g id="i-pin"><path d="M12 21.5s7-6.3 7-11.2A7 7 0 005 10.3c0 4.9 7 11.2 7 11.2z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="12" cy="10" r="2.6" fill="none" stroke="currentColor" stroke-width="1.7"/></g>
-@@ -598,7 +768,6 @@
+@@ -598,7 +774,6 @@
           under one pixel, which anti-aliasing then washed away almost entirely. -->
      <g id="i-file"><path d="M6 3.5h8l4 4v13H6z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M13.8 3.5V8h4.2M9 12.5h6M9 16h6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></g>
      <g id="i-download"><path d="M12 3.5v11M8 11l4 4 4-4M4.5 19.5h15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></g>
@@ -2222,7 +2611,15 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
      <g id="i-shield"><path d="M12 2.8l7.5 3v6c0 4.6-3.1 8.4-7.5 9.4-4.4-1-7.5-4.8-7.5-9.4v-6z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M9 12l2.2 2.2L15.4 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></g>
      <g id="i-pool"><path d="M3 17.5c1.6 0 1.6 1.4 3.2 1.4s1.6-1.4 3.2-1.4 1.6 1.4 3.2 1.4 1.6-1.4 3.2-1.4 1.6 1.4 3.2 1.4M7 15.5V6a2.2 2.2 0 014.4 0M13.6 15.5V6A2.2 2.2 0 0118 6M7 9.5h4.4M7 12.6h4.4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></g>
      <g id="i-gym"><path d="M3.5 9.5v5M6.5 7v10M17.5 7v10M20.5 9.5v5M6.5 12h11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></g>
-@@ -642,9 +811,9 @@
+@@ -634,6 +809,7 @@
+         <button data-lang-btn="en" class="active">EN</button>
+         <button data-lang-btn="hi">हिं</button>
+       </div>
++      <a href="admin.html" class="btn btn-outline btn-sm on-dark header-admin-btn">Admin</a>
+       <button class="btn btn-primary btn-sm" id="navAuthBtn">Resident Login</button>
+     </div>
+   </div>
+@@ -642,9 +818,9 @@
  <section class="hero engrave" id="top" style="padding-top:70px;">
    <div class="hero-photo" aria-hidden="true"></div>
    <div class="birds" aria-hidden="true">
@@ -2235,7 +2632,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
    </div>
    <div class="wrap hero-grid">
      <div>
-@@ -879,6 +1048,13 @@
+@@ -879,6 +1055,13 @@
        </form>
  
        <form id="registerForm" style="display:none;">
@@ -2249,7 +2646,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
          <fieldset>
            <legend>Resident Details</legend>
            <div class="form-2col">
-@@ -940,12 +1116,20 @@
+@@ -940,12 +1123,20 @@
            </div>
          </fieldset>
  
@@ -2262,11 +2659,11 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
 +            <input type="checkbox" name="declaration" required>
 +            <span>I declare that the information provided above is true to the best of my knowledge, and I authorize MHMRWS to verify these details.</span>
 +          </label>
- 
--        <button class="btn btn-primary btn-block" type="submit">Submit Registration</button>
++
 +          <button class="btn btn-primary btn-block" type="submit">Submit Registration</button>
 +        </div>
-+
+ 
+-        <button class="btn btn-primary btn-block" type="submit">Submit Registration</button>
 +        <!-- Back / Next; shown only when JS enables stepped mode. -->
 +        <div class="step-nav" id="stepNav" style="display:none;">
 +          <button type="button" class="btn btn-ghost" id="stepBack">Back</button>
@@ -2275,7 +2672,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
        </form>
      </div>
    </div>
-@@ -1042,10 +1226,19 @@
+@@ -1042,10 +1233,19 @@
       failed import blanks out the entire page's branding.
       ===================================================================== -->
  <script type="module">
@@ -2297,7 +2694,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  window.__translate = translateSubtree;
  window.__HI = HI;
  
-@@ -1109,7 +1302,10 @@
+@@ -1109,7 +1309,10 @@
    // Fade the real photo in over its blurred placeholder once it has decoded.
    // Images already complete (from cache) are marked immediately, otherwise
    // a cached image would stay invisible because 'load' never fires.
@@ -2309,27 +2706,28 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
    if (img.complete && img.naturalWidth > 0) reveal();
    else img.addEventListener('load', reveal);
  
-@@ -1214,7 +1410,7 @@
+@@ -1214,7 +1417,7 @@
  import { auth, db, storage, SOCIETY } from './firebase-config.js';
  import {
    createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged,
 -  signOut, sendPasswordResetEmail
-+  signOut, sendPasswordResetEmail, sendEmailVerification, deleteUser, reload as reloadUser
++  signOut, sendPasswordResetEmail, deleteUser
  } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
  import {
    doc, getDoc, setDoc, addDoc, collection, query, where, orderBy, getDocs, serverTimestamp, limit
-@@ -1226,7 +1422,9 @@
+@@ -1226,7 +1429,10 @@
    showToast, escapeHtml, fmtDate, formatINR, currentFinancialYear,
    generateReceiptPDF, printReceipt, validatePayment, validateRegistration,
    generateMembershipCard, duesFor, DUES_LABEL, DUES_BADGE,
 -  expenseSummary, fundPosition
 +  expenseSummary, fundPosition,
 +  generateStatementPDF, skeletonList, emptyState, showFieldError, clearFieldErrors,
++  membershipDue, membershipFeeAmount,
 +  waShareText
  } from './app-common.js';
  
  /* Branding, the year stamp and the committee fallback are handled by the
-@@ -1264,6 +1462,82 @@
+@@ -1264,6 +1470,82 @@
  }
  tabLogin.addEventListener('click', () => showTab('login'));
  tabRegister.addEventListener('click', () => showTab('register'));
@@ -2412,7 +2810,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  window.__goToPortal = (tab) => {
    if (currentUser) { document.getElementById('dashboard').scrollIntoView({ behavior: 'smooth' }); return; }
    showTab(tab);
-@@ -1338,12 +1612,29 @@
+@@ -1338,12 +1620,29 @@
    e.preventDefault();
    const f = e.target;
    const btn = f.querySelector('button[type="submit"]');
@@ -2444,32 +2842,18 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
      const uid = cred.user.uid;
  
      let photoURL = '', idDocURL = '';
-@@ -1372,15 +1663,38 @@
+@@ -1372,15 +1671,24 @@
        updatedAt: serverTimestamp()
      });
  
 +    // Proof the person owns the address they registered with. Without this,
 +    // anyone could sign up in a neighbour's name using their email — and the
-+    // committee would have no way to tell the difference at approval time.
-+    // A mail that fails to send must not undo a valid registration — the
-+    // resident can resend from the dashboard — but we must NOT claim the mail
-+    // was sent when it was not, so the send result decides the message.
-+    let verifySent = false, verifyErr = null;
-+    try { await sendEmailVerification(cred.user); verifySent = true; }
-+    catch (e) { verifyErr = e; console.warn('Verification mail failed:', e?.code, e?.message); }
-+
      if (f.photo.files[0] && !photoURL) {
 -      // The registration itself succeeded; only the file could not be stored.
        showToast('Registration jama ho gaya, lekin photo upload nahi ho payi. Office se photo add karwa lein.', 'error');
-+    } else if (verifySent) {
-+      showToast('Registration jama ho gaya! Apne email par verification link check karein (spam bhi dekh lein).', 'success');
      } else {
 -      showToast('Registration jama ho gaya! Admin approval ke baad Member ID milegi.', 'success');
-+      // The account exists; only the mail failed. Tell them plainly, and log
-+      // the Firebase error code so the cause is diagnosable from the console.
-+      showToast('Registration ho gaya, par verification email abhi nahi bhej paaye' +
-+                (verifyErr?.code ? ' (' + verifyErr.code + ')' : '') +
-+                '. Login karke dashboard se "Link dobara bhejein" try karein.', 'error');
++      showToast('Registration jama ho gaya! Admin approval ke baad aapki Member ID banegi.', 'success');
      }
      f.reset();
      showTab('login');
@@ -2485,39 +2869,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
      showToast(friendlyAuthError(err), 'error');
    } finally {
      setLoading(btn, false);
-@@ -1449,12 +1763,31 @@
-     inactive: '<span class="badge badge-neutral"><span class="badge-dot"></span>Deactivated</span>'
-   };
- 
-+  /* The security rules require a verified email before a payment can be
-+     filed. Without this banner that arrives as an unexplained permission
-+     error at the worst possible moment — after the resident has already
-+     transferred the money. Say it up front instead, and give them the button. */
-+  const emailUnverified = !!currentUser && !currentUser.emailVerified;
-+  const verifyBanner = emailUnverified ? `
-+    <div class="card card-pad" style="border-left:4px solid var(--warning); margin-bottom:16px;">
-+      <div style="font-weight:600; margin-bottom:5px;">Email verify karna baaki hai</div>
-+      <p class="t-sub" style="font-size:13.5px; margin-bottom:12px;">
-+        Payment submit karne se pehle apna email verify karein. Humne
-+        <b>${escapeHtml(currentMember.email || '')}</b> par link bheja tha — inbox aur spam dono dekh lein.
-+      </p>
-+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
-+        <button class="btn btn-outline btn-sm" id="resendVerifyBtn">Link dobara bhejein</button>
-+        <button class="btn btn-ghost btn-sm" id="recheckVerifyBtn">Ho gaya — dobara check karein</button>
-+      </div>
-+    </div>` : '';
-+
-   let statusExtra = '';
-   if (currentMember.status === 'pending') statusExtra = '<p class="t-sub" style="margin-top:12px; font-size:13.5px;">Aapka registration committee ke review mein hai. Approve hone par yahan Member ID dikhega.</p>';
-   if (currentMember.status === 'rejected') statusExtra = `<p class="t-danger" style="margin-top:12px; font-size:13.5px;">Reason: ${escapeHtml(currentMember.rejectionReason || 'Office se contact karein.')}</p>`;
-   if (currentMember.status === 'inactive') statusExtra = '<p class="t-sub" style="margin-top:12px; font-size:13.5px;">Aapki membership deactivate ki gayi hai. Query ke liye office se contact karein.</p>';
- 
-   content.innerHTML = `
-+    ${verifyBanner}
-     <div class="card status-card">
-       <div class="status-head">
-         <img src="${currentMember.photoURL || LOGO_DATA_URI}" alt="">
-@@ -1474,12 +1807,15 @@
+@@ -1474,12 +1782,15 @@
      ${currentMember.status === 'approved' ? `
      <div class="dash-grid">
        <div class="card card-pad">
@@ -2528,7 +2880,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
 -          <button class="btn btn-primary btn-sm" id="openPaymentBtn">Make a Payment</button>
 +          <div style="display:flex; gap:8px; flex-wrap:wrap;">
 +            <button class="btn btn-outline btn-sm" id="downloadStatementBtn" title="Poore financial year ki receipts ek PDF mein">FY Statement</button>
-+            <button class="btn btn-primary btn-sm" id="openPaymentBtn"${emailUnverified ? ' disabled title="Pehle apna email verify karein"' : ''}>Make a Payment</button>
++            <button class="btn btn-primary btn-sm" id="openPaymentBtn">Make a Payment</button>
 +          </div>
          </div>
 -        <div id="paymentList"><div class="skeleton" style="height:70px;"></div></div>
@@ -2536,40 +2888,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
        </div>
        <div class="card card-pad">
          <h3 style="font-size:16px; margin-bottom:12px;">Your Details</h3>
-@@ -1494,13 +1830,70 @@
- 
-   window.__translate(content);
- 
-+  document.getElementById('resendVerifyBtn')?.addEventListener('click', async (e) => {
-+    const b = e.currentTarget;
-+    b.disabled = true;
-+    try {
-+      await sendEmailVerification(currentUser);
-+      showToast('Verification link bhej diya. Inbox aur spam folder dono dekh lein.', 'success');
-+      // Re-enable after a cooldown so a resident can retry, but not spam it.
-+      setTimeout(() => { b.disabled = false; }, 30000);
-+    } catch (err) {
-+      console.warn('Resend failed:', err?.code, err?.message);
-+      const msg = err?.code === 'auth/too-many-requests'
-+        ? 'Bahut baar bhej diya — thodi der (5-10 min) baad try karein.'
-+        : 'Link nahi bhej paaye' + (err?.code ? ' (' + err.code + ')' : '') + '. Thodi der baad try karein.';
-+      showToast(msg, 'error');
-+      b.disabled = false;
-+    }
-+  });
-+
-+  document.getElementById('recheckVerifyBtn')?.addEventListener('click', async () => {
-+    // emailVerified is baked into the cached token, so it does not change on
-+    // its own — the user object has to be reloaded from the server.
-+    await reloadUser(currentUser);
-+    if (currentUser.emailVerified) {
-+      showToast('Email verify ho gaya. Ab aap payment kar sakte hain.', 'success');
-+      await loadDashboard(uid);
-+    } else {
-+      showToast('Abhi tak verify nahi hua. Email mein diye link par click karein.', 'error');
-+    }
-+  });
-+
+@@ -1497,10 +1808,37 @@
    if (currentMember.status === 'approved') {
      document.getElementById('openPaymentBtn').addEventListener('click', openPaymentModal);
      document.getElementById('downloadCardBtn')?.addEventListener('click', downloadCard);
@@ -2607,15 +2926,36 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  /* ---- Membership card ---- */
  async function downloadCard() {
    const btn = document.getElementById('downloadCardBtn');
-@@ -1534,6 +1927,7 @@
+@@ -1517,10 +1855,17 @@
+       try { photoDataUrl = await toDataUrl(currentMember.photoURL); } catch (e) {}
+     }
+ 
++    // jsPDF's seal compositing needs actual image bytes, not a URL. Since the
++    // logo optimisation, LOGO_DATA_URI is a URL — fetch the real data URI here
++    // (cached), exactly as the receipt path does, so the seal renders reliably
++    // instead of tainting the canvas.
++    let logoDataUrl = null;
++    try { logoDataUrl = await window.__MHM_LOGO_DATAURI(); } catch (e) {}
++
+     await generateMembershipCard({
+       member: { ...currentMember, photoDataUrl },
+       society,
+-      logoDataUrl: LOGO_DATA_URI,
++      logoDataUrl,
+       financialYear: currentFinancialYear()
+     });
+   } catch (e) {
+@@ -1534,6 +1879,9 @@
  
  /* ---- Payments ---- */
  let currentDues = null;   // recomputed whenever payments are loaded
++let currentMembership = null;   // one-time membership fee status for this member
++let currentMaintenance = null;  // cached maintenance settings for the payment modal
 +let allPaymentRows = [];  // full payment history for the signed-in member
  
  async function loadMaintenanceSettings() {
    try {
-@@ -1560,16 +1954,32 @@
+@@ -1560,16 +1908,32 @@
    const headline = dues.outstanding > 0 ? dues.outstanding : dues.paid;
    const headlineLabel = dues.outstanding > 0 ? 'Outstanding' : 'Paid in full';
  
@@ -2651,7 +2991,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
        <div class="dues-split">
          <div><span class="lbl">Total Due</span><b>${formatINR(dues.expected)}</b></div>
          <div><span class="lbl">Paid</span><b>${formatINR(dues.paid)}</b></div>
-@@ -1581,10 +1991,15 @@
+@@ -1581,18 +1945,32 @@
  
  async function loadPayments(uid) {
    const list = document.getElementById('paymentList');
@@ -2668,8 +3008,10 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  
    // Dues are computed from the same rows the history renders, so the panel
    // and the list can never disagree with each other.
-@@ -1592,7 +2007,14 @@
+   const maintenance = await loadMaintenanceSettings();
    currentDues = duesFor(currentMember, rows, currentFinancialYear(), maintenance);
++  currentMaintenance = maintenance;                       // reused by the payment modal
++  currentMembership = membershipDue(currentMember, rows, maintenance);
    renderDues(currentDues, currentFinancialYear());
  
 -  if (!rows.length) { list.innerHTML = '<div class="empty" style="padding:28px 12px;"><p>No payment records yet.</p></div>'; window.__translate(list); return; }
@@ -2684,7 +3026,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  
    const statusBadge = {
      pending_approval: '<span class="badge badge-warning">Pending Approval</span>',
-@@ -1601,7 +2023,7 @@
+@@ -1601,7 +1979,7 @@
      rejected: '<span class="badge badge-danger">Rejected</span>'
    };
  
@@ -2693,7 +3035,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
      <div class="pay-history-item">
        <div>
          <div style="font-weight:600; font-size:14.5px;">${formatINR(p.amount)} <span class="t-muted" style="font-weight:400;">· ${escapeHtml((p.mode||'').toUpperCase())}</span></div>
-@@ -1618,12 +2040,23 @@
+@@ -1618,12 +1996,23 @@
      </div>
    `).join('');
  
@@ -2718,20 +3060,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
    }
  
    list.querySelectorAll('[data-receipt-id]').forEach(btn => {
-@@ -1652,6 +2085,12 @@
- }
- 
- async function openPaymentModal() {
-+  // Belt and braces: the button is disabled when the email is unverified, but
-+  // this is the function the rules will reject, so it should say why itself.
-+  if (currentUser && !currentUser.emailVerified) {
-+    showToast('Payment se pehle apna email verify karein — dashboard par "Link dobara bhejein" dabayein.', 'error');
-+    return;
-+  }
-   const q = query(collection(db, 'payments'), where('memberUid', '==', currentUser.uid), where('status', 'in', ['pending_approval', 'pending_verification']));
-   const existing = await getDocs(q);
-   if (!existing.empty) { showToast('Aapka ek payment pehle se pending hai — nayi entry ki zaroorat nahi.', 'error'); return; }
-@@ -1659,8 +2098,31 @@
+@@ -1659,8 +2048,65 @@
    const paySettingsSnap = await getDoc(doc(db, 'settings', 'payment'));
    const paySettings = paySettingsSnap.exists() ? paySettingsSnap.data() : {};
  
@@ -2741,6 +3070,26 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
 +  const fy = currentFinancialYear();
 +  const dues = currentDues || { expected: 0, paid: 0, outstanding: 0, status: 'no_rate' };
 +  const hasRate = dues.expected > 0;
++
++  // One-time membership fee (₹1100 by default). Shown as its own line and, when
++  // still due, offered as a separate payment type so a new member clears it
++  // before (or alongside) their maintenance.
++  const membership = currentMembership || membershipDue(currentMember, allPaymentRows, currentMaintenance);
++  const membershipPending = membership.outstanding > 0;
++
++  const membershipHtml = `
++    <div class="invoice-card">
++      <div class="invoice-head"><span class="lbl">One-Time Membership Fee</span><span class="fy">Ek baar</span></div>
++      <div class="invoice-rows">
++        ${membership.paid > 0
++          ? `<div class="r"><span class="muted">Membership fee</span><span>${formatINR(membership.fee)}</span></div>
++             <div class="r"><span class="muted">Ab tak jama (verified)</span><span class="paid">− ${formatINR(membership.paid)}</span></div>` : ''}
++        ${membershipPending
++          ? `<div class="r total"><span>Membership fee ${membership.paid > 0 ? 'bakaya' : 'dena hai'}</span><span class="owe">${formatINR(membership.outstanding)}</span></div>`
++          : `<div class="invoice-clear"><span class="tick">✓ Membership fee (${formatINR(membership.fee)}) clear hai</span></div>`}
++      </div>
++    </div>`;
++
 +  const invoiceHtml = hasRate ? `
 +    <div class="invoice-card">
 +      <div class="invoice-head"><span class="lbl">Maintenance Invoice</span><span class="fy">FY ${escapeHtml(fy)}</span></div>
@@ -2757,28 +3106,74 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
 +      <div class="invoice-rows"><div class="r"><span class="muted">Is saal ke liye rate abhi set nahi hua — koi bhi rakam de sakte hain.</span></div></div>
 +    </div>`;
 +
++  // When membership is still due, let the resident choose which one they are
++  // paying now. Membership is pre-selected since it should be cleared first.
++  const typeToggle = membershipPending ? `
++    <div class="paytype-toggle">
++      <button type="button" class="paytype selected" data-type="membership" data-amt="${membership.outstanding}">
++        <div class="pt-top">Membership Fee</div><div class="pt-amt">${formatINR(membership.outstanding)}</div>
++      </button>
++      <button type="button" class="paytype" data-type="maintenance" data-amt="${dues.outstanding}">
++        <div class="pt-top">Maintenance</div><div class="pt-amt">${dues.outstanding > 0 ? formatINR(dues.outstanding) : (hasRate ? '✓ Clear' : '—')}</div>
++      </button>
++    </div>` : '';
++
    const body = document.getElementById('paymentModalBody');
    body.innerHTML = `
++    ${membershipHtml}
 +    ${invoiceHtml}
++    ${typeToggle}
      <div class="pay-option" data-mode="cash"><svg viewBox="0 0 24 24"><use href="#i-cash"/></svg><div><b>Cash</b><div class="t-muted" style="font-size:12.5px;">Visit the RWA office</div></div></div>
      <div class="pay-option" data-mode="cheque"><svg viewBox="0 0 24 24"><use href="#i-cheque"/></svg><div><b>Cheque</b><div class="t-muted" style="font-size:12.5px;">Visit the RWA office</div></div></div>
      <div class="pay-option" data-mode="upi"><svg viewBox="0 0 24 24"><use href="#i-qr"/></svg><div><b>UPI / QR Scan</b><div class="t-muted" style="font-size:12.5px;">Pay instantly from your phone</div></div></div>
-@@ -1674,12 +2136,12 @@
+@@ -1670,18 +2116,44 @@
+   window.__translate(body);
+   document.getElementById('paymentModalBackdrop').classList.add('open');
+ 
++  // Tracks what the resident is paying: 'membership' or 'maintenance', and the
++  // outstanding amount for that type. The maintenance modal defaults to
++  // maintenance; when membership is pending it starts on membership.
++  const payContext = {
++    type: membershipPending ? 'membership' : 'maintenance',
++    outstanding: membershipPending ? membership.outstanding : dues.outstanding,
++    hasRate: membershipPending ? true : hasRate,
++  };
++
++  body.querySelectorAll('.paytype').forEach(tbtn => {
++    tbtn.addEventListener('click', () => {
++      body.querySelectorAll('.paytype').forEach(t => t.classList.remove('selected'));
++      tbtn.classList.add('selected');
++      payContext.type = tbtn.dataset.type;
++      payContext.outstanding = Number(tbtn.dataset.amt) || 0;
++      payContext.hasRate = payContext.type === 'membership' ? true : hasRate;
++      // If a mode was already chosen, re-render the amount block for the new type.
++      const sel = body.querySelector('.pay-option.selected');
++      if (sel) renderPayDetailForm(sel.dataset.mode, paySettings, payContext);
++    });
++  });
++
+   body.querySelectorAll('.pay-option').forEach(opt => {
      opt.addEventListener('click', () => {
        body.querySelectorAll('.pay-option').forEach(o => o.classList.remove('selected'));
        opt.classList.add('selected');
 -      renderPayDetailForm(opt.dataset.mode, paySettings);
-+      renderPayDetailForm(opt.dataset.mode, paySettings, dues, hasRate);
++      renderPayDetailForm(opt.dataset.mode, paySettings, payContext);
      });
    });
  }
  
 -function renderPayDetailForm(mode, paySettings) {
-+function renderPayDetailForm(mode, paySettings, dues, hasRate) {
++function renderPayDetailForm(mode, paySettings, payContext) {
    const holder = document.getElementById('payDetailForm');
    const isOffline = mode === 'cash' || mode === 'cheque';
++  // payContext carries the type ('membership'|'maintenance') and its outstanding.
++  const dues = { outstanding: payContext.outstanding };
++  const hasRate = payContext.hasRate;
++  window.__payType = payContext.type;   // read by submitPayment
    holder.innerHTML = `
-@@ -1693,22 +2155,58 @@
+     <div style="margin-top:18px; border-top:1px solid var(--line); padding-top:18px;">
+       ${isOffline ? `
+@@ -1693,22 +2165,58 @@
            <div style="font-size:12.4px;" class="t-muted">${escapeHtml(paySettings.bankName || '')} · A/C ${escapeHtml(paySettings.accountNumber || '—')} · IFSC ${escapeHtml(paySettings.ifsc || '—')}</div>
          </div>
        `}
@@ -2843,7 +3238,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  async function submitPayment(mode) {
    const btn = document.getElementById('submitPaymentBtn');
    const amount = Number(document.getElementById('payAmount').value);
-@@ -1716,9 +2214,22 @@
+@@ -1716,9 +2224,22 @@
    let utr = isOffline ? '' : document.getElementById('payUtr').value.trim();
    let proofURL = '';
  
@@ -2866,7 +3261,17 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
    setLoading(btn, true);
    try {
      if (!isOffline) {
-@@ -1751,12 +2262,14 @@
+@@ -1737,6 +2258,9 @@
+       tower: currentMember.tower,
+       residentName: currentMember.name,
+       amount,
++      // 'membership' (one-time joining fee) or 'maintenance' (yearly). Older
++      // records have no type and are treated as maintenance.
++      type: (window.__payType === 'membership') ? 'membership' : 'maintenance',
+       financialYear: currentFinancialYear(),
+       mode,
+       utrOrChequeNo: utr,
+@@ -1751,12 +2275,14 @@
      await loadPayments(currentUser.uid);
    } catch (e) {
      showToast('Kuch galat ho gaya, dobara try karein.', 'error');
@@ -2882,7 +3287,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
    const listEl = document.getElementById('noticeList');
    try {
      const q = query(collection(db, 'notices'), orderBy('postedAt', 'desc'), limit(5));
-@@ -1764,18 +2277,19 @@
+@@ -1764,18 +2290,19 @@
      renderNotices();
    } catch (e) {
      window.__notices = null;
@@ -2904,7 +3309,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
      window.__translate(listEl);
      return;
    }
-@@ -1792,12 +2306,31 @@
+@@ -1792,12 +2319,31 @@
            <h4 data-no-translate>${escapeHtml(lang === 'hi' ? (n.titleHi || n.titleEn) : n.titleEn)}</h4>
            <p data-no-translate>${escapeHtml(lang === 'hi' ? (n.bodyHi || n.bodyEn) : n.bodyEn)}</p>
            ${n.attachmentURL ? `<a href="${n.attachmentURL}" target="_blank" rel="noopener" style="font-size:12.5px; text-decoration:underline; display:inline-block; margin-top:7px;" class="t-sub">Download attachment</a>` : ''}
@@ -2936,7 +3341,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  // Re-render notices (and re-translate the page) whenever the language changes.
  window.addEventListener('mhm:langchange', () => {
    if (document.getElementById('noticeList')) renderNotices();
-@@ -1844,7 +2377,7 @@
+@@ -1844,7 +2390,7 @@
      `;
      window.__translate(el);
    } catch (e) {
@@ -2945,7 +3350,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
      window.__translate(el);
    }
  }
-@@ -1855,7 +2388,7 @@
+@@ -1855,7 +2401,7 @@
      const rows = (await getDocs(query(collection(db, 'documents'), orderBy('addedAt', 'desc'))))
        .docs.map(d => d.data());
      if (!rows.length) {
@@ -2954,7 +3359,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
        window.__translate(el); return;
      }
      el.innerHTML = '<div class="doc-grid">' + rows.map(d => `
-@@ -1869,7 +2402,7 @@
+@@ -1869,7 +2415,7 @@
        </a>`).join('') + '</div>';
      window.__translate(el);
    } catch (e) {
@@ -3152,7 +3557,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  // ----------------------------------------------------------------------------
 diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal/styles.css MHMRWS-Portal/styles.css
 --- a/MHMRWS-Portal/styles.css	2026-07-23 03:47:54.000000000 +0000
-+++ MHMRWS-Portal/styles.css	2026-07-28 08:19:29.930120414 +0000
++++ MHMRWS-Portal/styles.css	2026-07-29 07:19:42.647165302 +0000
 @@ -233,10 +233,20 @@
    text-align:left; font-family:var(--font-mono); font-size:11px; letter-spacing:.08em; text-transform:uppercase;
    color:var(--ink-400); padding:12px 14px; border-bottom:1px solid var(--line); background:var(--paper); white-space:nowrap;
@@ -3248,7 +3653,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  
  /* --- Loader ------------------------------------------------------------------ */
  .spinner{ width:20px; height:20px; border-radius:50%; border:2.5px solid rgba(255,255,255,.35); border-top-color:currentColor; animation:spin .7s linear infinite; }
-@@ -308,9 +368,136 @@
+@@ -308,9 +368,149 @@
  .skeleton{ background:linear-gradient(90deg, var(--line) 25%, #EDF0F6 37%, var(--line) 63%); background-size:400% 100%; animation:sk 1.4s ease infinite; border-radius:6px; }
  @keyframes sk{ 0%{background-position:100% 50%;} 100%{background-position:0 50%;} }
  
@@ -3281,6 +3686,19 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
 +}
 +.field-error{ display:none; color:var(--danger); font-size:12px; margin-top:5px; font-weight:500; }
 +.field.has-error .field-error{ display:block; }
++
++/* --- Callout (inline info box) ------------------------------------------------- */
++.callout{ border-radius:var(--radius-md); padding:12px 14px; margin:4px 0 16px; line-height:1.5; }
++.callout-info{ background:rgba(37,99,235,.07); border:1px solid rgba(37,99,235,.2); color:var(--ink-700); }
++.callout-info b{ color:var(--navy-950); }
++
++/* --- Payment type toggle (membership vs maintenance) -------------------------- */
++.paytype-toggle{ display:flex; gap:8px; margin-bottom:16px; }
++.paytype{ flex:1; padding:12px; border:1.5px solid var(--line); border-radius:var(--radius-md);
++  background:var(--white); cursor:pointer; text-align:left; transition:border-color .15s ease, background .15s ease; }
++.paytype.selected{ border-color:var(--saffron-500); background:var(--paper); }
++.paytype .pt-top{ font-size:11px; color:var(--ink-400); font-family:var(--font-mono); letter-spacing:.04em; text-transform:uppercase; }
++.paytype .pt-amt{ font-size:15px; font-weight:700; color:var(--navy-950); font-variant-numeric:tabular-nums; margin-top:2px; }
 +
 +/* --- Maintenance invoice (payment modal) -------------------------------------- */
 +/* Turns "type an amount" into "here is exactly what you owe, tap to pay it".
@@ -3526,8 +3944,8 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
 +export const serverTimestamp = () => new Date();
 diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal/tests/run.mjs MHMRWS-Portal/tests/run.mjs
 --- a/MHMRWS-Portal/tests/run.mjs	1970-01-01 00:00:00.000000000 +0000
-+++ MHMRWS-Portal/tests/run.mjs	2026-07-28 08:36:36.412854481 +0000
-@@ -0,0 +1,191 @@
++++ MHMRWS-Portal/tests/run.mjs	2026-07-28 15:08:17.367473254 +0000
+@@ -0,0 +1,228 @@
 +/* MHMRWS Portal — test suite.  Run with:  node tests/run.mjs   (or: npm test)
 +
 +   Covers the parts where a bug means wrong money or a broken record: the dues
@@ -3716,6 +4134,43 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
 +  // Amount precision + bounds in validation.
 +  ok(A.validatePayment({ amount: 100.999, mode: 'cash', utr: '', isOffline: true }) !== null, 'more than 2 decimals rejected');
 +  ok(A.validatePayment({ amount: 99999999, mode: 'upi', utr: 'X1', isOffline: false }) !== null, 'absurdly large amount rejected');
++}
++
++/* ---- One-time membership fee -------------------------------------------- */
++section('Membership fee');
++{
++  const m = { uid: 'u1', tower: 'A', flatNumber: 'A-101' };
++  // Default fee is ₹1100 when nothing configured.
++  eq(A.membershipFeeAmount({}), 1100, 'membership fee defaults to ₹1100');
++  eq(A.membershipFeeAmount({ membershipFee: 500 }), 500, 'configured membership fee overrides default');
++  eq(A.membershipFeeAmount(null), 1100, 'null settings → default fee');
++
++  // Only verified membership-type payments count.
++  const pays = [
++    { memberUid: 'u1', status: 'verified', type: 'membership', amount: 1100 },
++    { memberUid: 'u1', status: 'verified', type: 'maintenance', amount: 2400 }, // not membership
++    { memberUid: 'u1', status: 'pending_verification', type: 'membership', amount: 999 }, // not verified
++    { memberUid: 'u2', status: 'verified', type: 'membership', amount: 1100 }, // other member
++  ];
++  eq(A.membershipPaid(pays, 'u1'), 1100, 'only verified membership payments by this member count');
++
++  const cleared = A.membershipDue(m, pays, {});
++  eq(cleared.fee, 1100, 'membershipDue: fee');
++  eq(cleared.paid, 1100, 'membershipDue: paid');
++  eq(cleared.outstanding, 0, 'membershipDue: outstanding 0 when fully paid');
++  ok(cleared.cleared === true, 'membershipDue: cleared flag true');
++
++  const unpaid = A.membershipDue(m, [], {});
++  eq(unpaid.outstanding, 1100, 'new member owes the full ₹1100');
++  ok(unpaid.cleared === false, 'membershipDue: cleared flag false when unpaid');
++
++  // Partial membership payment.
++  const partial = A.membershipDue(m, [{ memberUid: 'u1', status: 'verified', type: 'membership', amount: 600 }], {});
++  eq(partial.outstanding, 500, 'partial membership payment leaves the remainder');
++
++  // Backward-compat: old payments with no type must NOT count as membership.
++  const legacy = A.membershipDue(m, [{ memberUid: 'u1', status: 'verified', amount: 1100 }], {});
++  eq(legacy.outstanding, 1100, 'untyped legacy payments do not clear membership');
 +}
 +
 +report();
@@ -3919,114 +4374,6 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
 +console.log('\nDone.');
 +if (DRY_RUN) console.log('That was a dry run — re-run without --dry-run to apply.');
 +process.exit(0);
-diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal/tools/verify-email-test.html MHMRWS-Portal/tools/verify-email-test.html
---- a/MHMRWS-Portal/tools/verify-email-test.html	1970-01-01 00:00:00.000000000 +0000
-+++ MHMRWS-Portal/tools/verify-email-test.html	2026-07-25 11:44:33.536739649 +0000
-@@ -0,0 +1,104 @@
-+<!DOCTYPE html>
-+<html lang="en">
-+<head>
-+<meta charset="UTF-8">
-+<meta name="viewport" content="width=device-width, initial-scale=1">
-+<title>Email Verification — Diagnostic</title>
-+<!--
-+  EMAIL VERIFICATION DIAGNOSTIC
-+  =============================
-+  Verification mail nahi aa raha? Yeh page asli Firebase error screen par dikha
-+  deta hai, taaki guess na karna pade.
-+
-+  ISTEMAL KAISE KAREIN:
-+    1. Is file ko project root mein rakhein (firebase-config.js ke saath), ya
-+       path theek kar dein neeche import mein.
-+    2. Live site par kholein — https://<your-domain>/tools/verify-email-test.html
-+       (localhost par nahi; asli domain ka behaviour test karna hai).
-+    3. Ek TEST email + password daalein (naya ya maujooda test account).
-+    4. "Register + send" ya "Sign in + send" dabaayein.
-+    5. Screen par jo result/error code aaye, woh neeche table se match karein.
-+
-+  Kaam ho jaane par is file ko site se HATA dein — yeh sirf diagnosis ke liye hai.
-+-->
-+<style>
-+  body{font-family:system-ui,-apple-system,sans-serif;max-width:560px;margin:40px auto;padding:0 20px;color:#0A1B33;line-height:1.5}
-+  h1{font-size:20px} h2{font-size:15px;margin-top:28px}
-+  input,button{font-size:15px;padding:10px 12px;border-radius:8px;border:1px solid #ccc;width:100%;box-sizing:border-box;margin:6px 0}
-+  button{background:#0A1B33;color:#fff;border:none;cursor:pointer;font-weight:600}
-+  button.alt{background:#fff;color:#0A1B33;border:1px solid #0A1B33}
-+  #out{white-space:pre-wrap;background:#f5f6fa;border:1px solid #e2e6ef;border-radius:8px;padding:14px;font-family:ui-monospace,monospace;font-size:13px;margin-top:16px;min-height:60px}
-+  .ok{color:#1B7A4D;font-weight:700} .err{color:#B3261E;font-weight:700}
-+  table{border-collapse:collapse;width:100%;font-size:13px;margin-top:8px}
-+  td{border:1px solid #e2e6ef;padding:7px 9px;vertical-align:top}
-+  code{background:#eef;padding:1px 5px;border-radius:4px}
-+</style>
-+</head>
-+<body>
-+<h1>Email verification — diagnostic</h1>
-+<p>Yeh asli Firebase se verification mail bhejne ki koshish karta hai aur exact
-+error code dikhata hai. Test account use karein.</p>
-+
-+<input id="email" type="email" placeholder="test email — e.g. yourname+test@gmail.com" autocomplete="off">
-+<input id="pass" type="password" placeholder="password (min 6 chars)" autocomplete="new-password">
-+
-+<button id="reg">Register + send verification</button>
-+<button id="signin" class="alt">Sign in + send verification (existing account)</button>
-+
-+<div id="out">Result yahan dikhega…</div>
-+
-+<h2>Error code → matlab</h2>
-+<table>
-+  <tr><td><code>(no error, success)</code></td><td>Mail bhej diya gaya. Ab <b>Spam / Promotions</b> folder dekhein — Gmail aksar wahin daalta hai. <code>firebaseapp</code> search karein.</td></tr>
-+  <tr><td><code>auth/operation-not-allowed</code></td><td>Email/Password sign-in <b>disabled</b> hai. Console → Authentication → Sign-in method → enable karein.</td></tr>
-+  <tr><td><code>auth/unauthorized-domain</code></td><td>Yeh domain <b>Authorized domains</b> mein nahi hai. Console → Authentication → Settings → Authorized domains → apna domain add karein.</td></tr>
-+  <tr><td><code>auth/too-many-requests</code></td><td>Bahut baar bheja gaya, ya daily limit. 10–15 min rukein, phir try karein.</td></tr>
-+  <tr><td><code>auth/invalid-email</code></td><td>Email ka format galat hai.</td></tr>
-+  <tr><td><code>auth/email-already-in-use</code></td><td>Account pehle se hai — "Sign in + send" wala button use karein.</td></tr>
-+  <tr><td><code>auth/api-key-not-valid</code></td><td>firebase-config.js mein API key galat hai ya restrict ki hui hai.</td></tr>
-+</table>
-+
-+<script type="module">
-+  // Path project root ke config par point karta hai. Agar aap ise root mein
-+  // rakhein to './firebase-config.js' kar lein.
-+  import { app } from '../firebase-config.js';
-+  import {
-+    getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
-+    sendEmailVerification
-+  } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
-+
-+  const auth = getAuth(app);
-+  const out = document.getElementById('out');
-+  const log = (msg, cls='') => { out.innerHTML = cls ? `<span class="${cls}">${msg}</span>` : msg; };
-+
-+  async function trySend(makeUser) {
-+    const email = document.getElementById('email').value.trim();
-+    const pass = document.getElementById('pass').value;
-+    if (!email || pass.length < 6) { log('Email daalein aur password kam se kam 6 characters.', 'err'); return; }
-+    log('Chal raha hai…');
-+    try {
-+      const cred = await makeUser(email, pass);
-+      log('Account OK — ab verification mail bhej rahe hain…');
-+      await sendEmailVerification(cred.user);
-+      log(
-+        'SUCCESS ✓ Firebase ne mail accept kar liya.\n\n' +
-+        'Ab is inbox ka SPAM / PROMOTIONS folder dekhein — "firebaseapp" search karein.\n' +
-+        'Agar 5 min mein bhi nahi aaya: sender ' + (auth.app.options.projectId || '<project>') +
-+        '.firebaseapp.com blocked to nahi, ya Spark plan ki daily limit poori to nahi.',
-+        'ok'
-+      );
-+    } catch (e) {
-+      log('FAILED ✗\n\nerror.code:  ' + (e.code || '(none)') +
-+          '\nerror.message: ' + (e.message || e) +
-+          '\n\nUpar table se yeh code match karein.', 'err');
-+      console.error(e);
-+    }
-+  }
-+
-+  document.getElementById('reg').onclick =
-+    () => trySend((e,p) => createUserWithEmailAndPassword(auth, e, p));
-+  document.getElementById('signin').onclick =
-+    () => trySend((e,p) => signInWithEmailAndPassword(auth, e, p));
-+</script>
-+</body>
-+</html>
 diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal/ui-a11y.js MHMRWS-Portal/ui-a11y.js
 --- a/MHMRWS-Portal/ui-a11y.js	1970-01-01 00:00:00.000000000 +0000
 +++ MHMRWS-Portal/ui-a11y.js	2026-07-28 08:33:24.350633051 +0000

@@ -254,6 +254,28 @@ Is setup mein **sach mein apne aap chalne wala backup nahi ho sakta** — uske l
 - Logo: seal ab `logo.webp` file mein hai (pehle 66 KB base64 JS mein tha — woh har page load par bhaari padta tha). Badalna ho toh usi naam se naya `logo.webp` daal dein. PDF/card ke liye woh apne aap data-URI bana leta hai. `icon-192.png` / `icon-512.png` PWA ke liye alag files hain.
 - Society details (address, phone, bank details): yeh sab database mein hain, code mein nahi — Admin Panel → Settings se hi update karein.
 
+## 💳 Membership fee aur Maintenance
+
+- **One-time membership fee** (default **₹1100**) har naye member se ek baar li jaati hai. Resident ke payment screen par yeh alag "Membership Fee" card mein dikhti hai aur pehle se selected hoti hai.
+- Fee badalni ho to: **Admin Panel → Settings → Maintenance → "One-Time Membership Fee"** field. Khaali chhodne par default ₹1100 lagta hai.
+- **Yearly maintenance** alag hai — har financial year ka rate wahin set hota hai (tower-wise bhi ho sakta hai).
+- Kaun-se member ne membership fee di ya nahi, yeh **member ke details modal** mein "Membership Fee: Paid/Due" badge se dikhta hai.
+
+## ✉️ Email verification hata diya gaya hai
+
+Register karne par ab email verification link nahi bheja jaata — member seedha register hota hai aur admin approval ka intezaar karta hai. Payment ke liye bhi email verify karne ki zaroorat nahi.
+
+## 💵 Cash / Cheque payment (treasurer)
+
+Har koi online pay nahi karta. Jab koi office par **cash ya cheque** de, treasurer khud record kar sakta hai:
+
+- **Admin Panel → Payments → "+ Record Cash/Cheque"**
+- Member chunein (sirf approved), type (Maintenance/Membership), mode (Cash/Cheque), amount daalein — cheque ho to cheque number bhi
+- Yeh payment **turant verified** ho jaati hai aur receipt ban jaata hai (paisa aapko mil chuka hai, isliye alag approval ki zaroorat nahi)
+- Sirf **Treasurer / Super Admin** yeh kar sakte hain, aur har entry Audit Log mein darj hoti hai
+
+Yeh feature naye `firestore.rules` par nirbhar hai — deploy ke waqt rules zaroor publish karein.
+
 ## 🧪 Code test karna (optional, developer ke liye)
 
 Agar aap code badalte hain, to changes ke baad yeh chalayein taaki kuch toota to nahi:
