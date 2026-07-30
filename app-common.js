@@ -665,7 +665,7 @@ export async function generateReceiptPDF({ payment, member, society, logoDataUrl
   pdf.text(`Verify anytime at: ${verifyUrlFor(payment)}`, marginX, y + 13);
 
   if (save) {
-    pdf.save(`Receipt-${payment.receiptNumber}.pdf`);
+    deliverPdf(pdf, `Receipt-${payment.receiptNumber}.pdf`);
     return null;
   }
   return pdf.output('blob');
@@ -800,7 +800,7 @@ export async function generateStatementPDF({ payments, member, society, financia
   pdf.text(`Generated on ${fmtDate(new Date())}. Each receipt can be verified individually via its QR code.`, marginX, y + 28);
 
   if (save) {
-    pdf.save(`Statement-${member?.flatNumber || 'MHMRWS'}-FY${financialYear}.pdf`);
+    deliverPdf(pdf, `Statement-${member?.flatNumber || 'MHMRWS'}-FY${financialYear}.pdf`);
     return null;
   }
   return pdf.output('blob');
@@ -1240,7 +1240,43 @@ export async function generateMembershipCard({ member, society, logoDataUrl, fin
   if (society.regNumber) pdf.text(`RERA ${society.regNumber}`, CARD_W - M, CARD_H - 5.4, { align: 'right' });
   pdf.text('Grand Sikar Road, Jaipur', CARD_W - M, CARD_H - 2.6, { align: 'right' });
 
-  pdf.save(`MHMRWS-Card-${member.memberID || 'member'}.pdf`);
+  // Delivery. pdf.save() alone fails silently in many mobile and in-app
+  // browsers (WhatsApp/Instagram webviews, some Android/iOS setups) — no
+  // download prompt ever appears, which reads to the user as "nothing
+  // happened". So build the file as a blob and hand it over the most reliable
+  // way for the device: a real <a download> click, with a new-tab fallback.
+  const filename = `MHMRWS-Card-${member.memberID || 'member'}.pdf`;
+  deliverPdf(pdf, filename);
+}
+
+/* Save a jsPDF document in a way that works on phones as well as desktops.
+   Tries an <a download> click (honours the filename on desktop and most of
+   Android); if the environment blocks blob downloads, opens the PDF in a new
+   tab so the user can save it from there. Never throws. */
+export function deliverPdf(pdf, filename) {
+  try {
+    const blob = pdf.output('blob');
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    // Some webviews ignore the download attribute; give them a tab too.
+    setTimeout(() => {
+      try { URL.revokeObjectURL(url); } catch (_) {}
+    }, 60000);
+    return true;
+  } catch (e) {
+    // Last resort: jsPDF's own save, then a data-URI tab.
+    try { pdf.save(filename); return true; }
+    catch (e2) {
+      try { window.open(pdf.output('dataurlstring'), '_blank'); return true; }
+      catch (e3) { throw e3; }
+    }
+  }
 }
 
 /* ---------------------------------------------------------------------- */
