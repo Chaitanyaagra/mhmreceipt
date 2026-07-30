@@ -35,6 +35,7 @@ const GOOGLE_OAUTH_CLIENT_ID = "801279298623-hulscgf3756i0arebt5ql48fv6mrsj8q.ap
 const SOCIETY = {
   shortName: "MHMRWS",
   fullName: "Max Heights Majestic Resident Welfare Society",
+  regNumber: "COOP/2026/JAIPUR/502531",
   logo: "logo-data.js"   // the seal is embedded as base64 — see logo-data.js
 };
 

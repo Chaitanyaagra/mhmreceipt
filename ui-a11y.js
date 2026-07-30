@@ -129,3 +129,56 @@ export function installOfflineBanner() {
 export function isOffline() {
   return typeof navigator !== 'undefined' && navigator.onLine === false;
 }
+
+/* ---------------------------------------------------------------------- */
+/*  Password show / hide toggle                                            */
+/*                                                                          */
+/*  Adds an eye button to every password field so people can check what    */
+/*  they typed. Runs from the Firebase-free block so it works on the login  */
+/*  screens even if Firebase is slow or unavailable. Safe to call more than */
+/*  once — already-wrapped fields are skipped, so it also covers password   */
+/*  inputs that appear later (e.g. the admin "add user" form).             */
+/* ---------------------------------------------------------------------- */
+const EYE_SVG = `
+  <svg class="pw-eye" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z" stroke="currentColor" stroke-width="1.7"/>
+    <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.7"/>
+  </svg>
+  <svg class="pw-eye-off" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <path d="M2 12s3.6-7 10-7c2 0 3.8.7 5.3 1.6M22 12s-3.6 7-10 7c-2 0-3.8-.7-5.3-1.6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+    <path d="M3 3l18 18" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+  </svg>`;
+
+export function installPasswordToggles(root = document) {
+  const fields = root.querySelectorAll('input[type="password"]');
+  fields.forEach((input) => {
+    if (input.dataset.pwToggle === '1') return;      // already done
+    input.dataset.pwToggle = '1';
+
+    // Wrap the input so the button can sit inside the field.
+    const wrap = document.createElement('span');
+    wrap.className = 'pw-wrap';
+    input.parentNode.insertBefore(wrap, input);
+    wrap.appendChild(input);
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'pw-toggle';
+    btn.setAttribute('aria-label', 'Password dikhayein');
+    btn.setAttribute('title', 'Password dikhayein');
+    btn.innerHTML = EYE_SVG;
+    wrap.appendChild(btn);
+
+    btn.addEventListener('click', () => {
+      const show = input.type === 'password';
+      input.type = show ? 'text' : 'password';
+      btn.classList.toggle('is-on', show);
+      const label = show ? 'Password chhupayein' : 'Password dikhayein';
+      btn.setAttribute('aria-label', label);
+      btn.setAttribute('title', label);
+      // Keep the caret where the user was typing.
+      const pos = input.value.length;
+      try { input.focus(); input.setSelectionRange(pos, pos); } catch (e) {}
+    });
+  });
+}

@@ -837,7 +837,7 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
         <div class="stat"><b>100%</b><span>QR-Verifiable</span></div>
       </div>
       <div class="trust-strip">
-        <span class="t-item"><svg viewBox="0 0 24 24"><use href="#i-shield"/></svg>RERA <b>RAJ/P/2017/150</b></span>
+        <span class="t-item"><svg viewBox="0 0 24 24"><use href="#i-shield"/></svg>Reg. <b>COOP/2026/JAIPUR/502531</b></span>
         <span class="t-item"><svg viewBox="0 0 24 24"><use href="#i-seal"/></svg><b>JDA</b> Approved</span>
         <span class="t-item"><svg viewBox="0 0 24 24"><use href="#i-bank"/></svg>Registered Welfare Society</span>
       </div>
@@ -1194,7 +1194,7 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
       </div>
     </div>
     <div class="foot-credentials">
-      <span class="cred"><b>RERA</b> RAJ/P/2017/150</span>
+      <span class="cred"><b>Reg.</b> COOP/2026/JAIPUR/502531</span>
       <span class="cred"><b>JDA</b> Approved</span>
       <span class="cred">GH-3, Suncity Township, Grand Sikar Road, Jaipur&nbsp;302013</span>
     </div>
@@ -1236,13 +1236,14 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
 import { LOGO_DATA_URI, getLogoDataUri } from './logo-data.js';
 import { initLang, setLang, translateSubtree, setDynamicLabel, HI } from './i18n.js';
 import { TOWER_IDS, flatsForTower } from './tower-plan.js';
-import { installModalA11y, installOfflineBanner, isOffline } from './ui-a11y.js';
+import { installModalA11y, installOfflineBanner, isOffline, installPasswordToggles } from './ui-a11y.js';
 
 /* Accessibility + offline live in a Firebase-free module and are installed
    here, in the Firebase-free block, so a slow or failed SDK load never strips
    the page of focus-trapping, Esc-to-close, or the offline banner. */
 installModalA11y();
 installOfflineBanner();
+installPasswordToggles();
 window.__isOffline = isOffline;
 window.__MHM_LOGO = LOGO_DATA_URI;          // image URL, fine for <img src>
 window.__MHM_LOGO_DATAURI = getLogoDataUri;  // call to get a data: URI for PDFs
@@ -1865,7 +1866,7 @@ async function downloadStatement(e) {
   setLoading(btn, true);
   try {
     const societySnap = await getDoc(doc(db, 'settings', 'society'));
-    const society = societySnap.exists() ? societySnap.data() : { fullName: SOCIETY.fullName };
+    const society = societySnap.exists() ? societySnap.data() : { fullName: SOCIETY.fullName, regNumber: SOCIETY.regNumber };
     let logoDataUrl = null;
     try { logoDataUrl = await window.__MHM_LOGO_DATAURI(); } catch (_) {}
     await generateStatementPDF({ payments: allPaymentRows, member: currentMember, society, financialYear: fy, logoDataUrl });
@@ -1891,7 +1892,7 @@ async function downloadCard() {
 
   setLoading(btn, true);
   try {
-    let society = { name: SOCIETY.fullName };
+    let society = { name: SOCIETY.fullName, regNumber: SOCIETY.regNumber };
     try {
       const societySnap = await getDoc(doc(db, 'settings', 'society'));
       if (societySnap.exists()) society = societySnap.data();
@@ -2069,7 +2070,7 @@ async function loadPayments(uid) {
 
   async function loadReceiptContext() {
     const societySnap = await getDoc(doc(db, 'settings', 'society'));
-    const society = societySnap.exists() ? societySnap.data() : { fullName: SOCIETY.fullName };
+    const society = societySnap.exists() ? societySnap.data() : { fullName: SOCIETY.fullName, regNumber: SOCIETY.regNumber };
     // jsPDF needs actual bytes, not a URL — fetch-and-cache the data URI.
     let logoDataUrl = null;
     try { logoDataUrl = await window.__MHM_LOGO_DATAURI(); } catch (e) { /* PDF still renders sans seal */ }

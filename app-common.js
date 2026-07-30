@@ -1244,7 +1244,7 @@ export async function generateMembershipCard({ member, society, logoDataUrl, fin
   const addr = (officeAddress || 'Grand Sikar Road, Jaipur').trim();
   const addrLines = pdf.splitTextToSize(addr, 62).slice(0, 3);
   let ay = CARD_H - 2.6 - (addrLines.length - 1) * 3.0;
-  if (society.regNumber) { pdf.text(`RERA ${society.regNumber}`, CARD_W - M, ay - 3.2, { align: 'right' }); }
+  if (society.regNumber) { pdf.text(`Reg. ${society.regNumber}`, CARD_W - M, ay - 3.2, { align: 'right' }); }
   addrLines.forEach((ln) => { pdf.text(ln, CARD_W - M, ay, { align: 'right' }); ay += 3.0; });
 
   // Delivery. pdf.save() alone fails silently in many mobile and in-app

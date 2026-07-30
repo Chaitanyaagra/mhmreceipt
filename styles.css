@@ -221,6 +221,22 @@ input:focus, select:focus, textarea:focus{
   outline:none; border-color:var(--navy-600); box-shadow:0 0 0 4px rgba(43,90,166,.12);
 }
 input[type="file"]{ padding:9px; font-size:13px; }
+
+/* --- Password show/hide toggle ------------------------------------------------ */
+.pw-wrap{ position:relative; display:block; }
+.pw-wrap input{ padding-right:44px; }          /* room for the eye button */
+.pw-toggle{
+  position:absolute; top:0; right:0; height:100%; width:42px;
+  display:flex; align-items:center; justify-content:center;
+  background:none; border:none; padding:0; cursor:pointer;
+  color:var(--ink-400); border-radius:0 var(--radius-sm) var(--radius-sm) 0;
+}
+.pw-toggle:hover{ color:var(--navy-700); }
+.pw-toggle:focus-visible{ outline:2px solid var(--navy-600); outline-offset:-2px; }
+.pw-toggle svg{ width:20px; height:20px; display:block; }
+.pw-toggle .pw-eye-off{ display:none; }
+.pw-toggle.is-on .pw-eye{ display:none; }
+.pw-toggle.is-on .pw-eye-off{ display:block; }
 .checkbox-row{ display:flex; align-items:flex-start; gap:10px; font-size:13.5px; color:var(--ink-700); }
 .checkbox-row input{ width:auto; margin-top:3px; accent-color:var(--navy-800); }
 fieldset{ border:1px solid var(--line); border-radius:var(--radius-md); padding:18px; margin:0 0 18px; }

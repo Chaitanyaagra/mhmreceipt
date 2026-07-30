@@ -201,6 +201,7 @@
       <div class="field"><label for="fld-password-2">Password</label><input type="password" name="password" required autocomplete="current-password" id="fld-password-2"></div>
       <button class="btn btn-primary btn-block" type="submit">Log In</button>
     </form>
+    <p style="text-align:center; margin-top:12px;"><a href="#" id="adminForgotPassword" class="t-sub" style="font-size:12.5px; text-decoration:underline;">Password bhool gaye?</a></p>
     <p id="loginError" class="t-danger" style="text-align:center; font-size:13px; margin-top:14px; display:none;"></p>
     <p style="text-align:center; margin-top:20px;"><a href="index.html" class="t-sub" style="font-size:12.5px; text-decoration:underline;">← Back to Resident Portal</a></p>
   </div>
@@ -277,7 +278,7 @@
         </div>
       </div>
       <div class="toolbar card card-pad">
-        <input class="grow" id="memberSearch" placeholder="Search name, flat or mobile…">
+        <input class="grow" id="memberSearch" type="search" name="member-search-field" placeholder="Search name, flat or mobile…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
         <select id="filterTower"><option value="">All Towers</option></select>
         <select id="filterStatus">
           <option value="">All Statuses</option>
@@ -741,7 +742,7 @@
      renders even if the SDK or a CDN fails to load. -->
 <script type="module">
 import { LOGO_DATA_URI } from './logo-data.js';
-import { installModalA11y, installOfflineBanner } from './ui-a11y.js';
+import { installModalA11y, installOfflineBanner, installPasswordToggles } from './ui-a11y.js';
 window.__MHM_LOGO = LOGO_DATA_URI;
 ['loginLogo','sidebarLogo'].forEach(id => {
   const el = document.getElementById(id);
@@ -752,6 +753,7 @@ window.__MHM_LOGO = LOGO_DATA_URI;
    so they work even if the Firebase SDK is slow or fails to load. */
 installModalA11y();
 installOfflineBanner();
+installPasswordToggles();
 </script>
 
 <script type="module">
@@ -760,7 +762,7 @@ import {
   initializeApp
 } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
 import {
-  getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, createUserWithEmailAndPassword
+  getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, createUserWithEmailAndPassword, sendPasswordResetEmail
 } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
 import {
   doc, getDoc, setDoc, updateDoc, deleteDoc, addDoc, collection, getDocs, query, where, orderBy, serverTimestamp, limit,
@@ -831,6 +833,31 @@ document.getElementById('adminLoginForm').addEventListener('submit', async (e) =
 });
 
 document.getElementById('logoutBtn').addEventListener('click', async () => { await signOut(auth); location.reload(); });
+
+// Password reset: sends a Firebase reset link to the admin's email. The role
+// (superadmin/treasurer/etc.) is stored separately in Firestore and is not
+// affected — only the login password changes.
+document.getElementById('adminForgotPassword')?.addEventListener('click', async (e) => {
+  e.preventDefault();
+  const errEl = document.getElementById('loginError');
+  const typed = document.querySelector('#adminLoginForm [name="email"]').value.trim();
+  const email = typed || prompt('Apni admin email daalein — reset link us par bheja jayega:');
+  if (!email) return;
+  errEl.style.display = 'none';
+  try {
+    await sendPasswordResetEmail(auth, email.trim());
+    errEl.style.color = '';
+    errEl.classList.remove('t-danger');
+    errEl.textContent = `Reset link ${email.trim()} par bhej diya gaya — apna inbox (aur spam) check karein.`;
+    errEl.style.color = '#137a4b';
+    errEl.style.display = 'block';
+  } catch (err) {
+    errEl.classList.add('t-danger');
+    errEl.style.color = '';
+    errEl.textContent = 'Reset link nahi bhej paaye — email sahi hai ya nahi jaanch lein.';
+    errEl.style.display = 'block';
+  }
+});
 
 /* ---------------------------------------------------------------------- */
 /*  Idle session timeout                                                   */
@@ -1189,6 +1216,16 @@ function renderMembersTable() {
   });
 }
 // A filter change should always return to page 1, else you can land on an empty page.
+// Some browsers autofill the search box with a saved email/username despite
+// autocomplete="off", which then filters every member out ("Koi member nahi
+// mila"). Clear it once on load so the list always starts unfiltered.
+(() => {
+  const ms = document.getElementById('memberSearch');
+  if (ms && ms.value) ms.value = '';
+  // A late autofill can happen just after load; wipe it once more shortly after.
+  setTimeout(() => { if (ms && /@/.test(ms.value)) { ms.value = ''; if (typeof renderMembersTable === 'function') renderMembersTable(); } }, 400);
+})();
+
 ['memberSearch', 'filterTower', 'filterStatus'].forEach(id =>
   document.getElementById(id).addEventListener('input', () => { membersPage = 1; renderMembersTable(); }));
 
@@ -1988,10 +2025,10 @@ document.getElementById('zipExportBtn').addEventListener('click', async () => {
 /*  Settings                                                               */
 /* ---------------------------------------------------------------------- */
 /* Sensible starting values so a fresh install isn't blank — the committee
-   can overwrite any of these. Taken from the project's own RERA listing. */
+   can overwrite any of these. Taken from the society's registration records. */
 const SOCIETY_DEFAULTS = {
   name: 'Max Heights Majestic Resident Welfare Society',
-  regNumber: 'RAJ/P/2017/150',
+  regNumber: 'COOP/2026/JAIPUR/502531',
   address: 'GH-3, Suncity Township, Grand Sikar Road, Jaipur - 302013, Rajasthan'
 };
 
