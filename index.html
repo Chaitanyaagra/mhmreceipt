@@ -1412,6 +1412,55 @@ window.__animateCount = (el) => {
   };
   requestAnimationFrame(step);
 };
+
+/* ---------------------------------------------------------------------- */
+/*  Portal navigation — Firebase-free                                       */
+/*                                                                          */
+/*  These handle "Resident Login" scrolling and the Login/Register tab      */
+/*  switch. They MUST live in this Firebase-free block: if the Firebase SDK */
+/*  is slow or blocked, the auth block below never runs, and if navigation  */
+/*  lived there too the login section would become unreachable — the button */
+/*  would do nothing at all. Auth (block below) only flips window.__loggedIn */
+/*  and re-points these at the dashboard once a user is known.              */
+/* ---------------------------------------------------------------------- */
+(function initPortalNav() {
+  const tabLogin = document.getElementById('tabLogin');
+  const tabRegister = document.getElementById('tabRegister');
+  const loginForm = document.getElementById('loginForm');
+  const registerForm = document.getElementById('registerForm');
+
+  window.__showTab = (which) => {
+    const isLogin = which === 'login';
+    if (tabLogin) tabLogin.classList.toggle('active', isLogin);
+    if (tabRegister) tabRegister.classList.toggle('active', !isLogin);
+    if (loginForm) loginForm.style.display = isLogin ? 'block' : 'none';
+    if (registerForm) registerForm.style.display = isLogin ? 'none' : 'block';
+  };
+  tabLogin && tabLogin.addEventListener('click', () => window.__showTab('login'));
+  tabRegister && tabRegister.addEventListener('click', () => window.__showTab('register'));
+
+  window.__goToPortal = (tab) => {
+    // Once logged in, the auth block sets window.__loggedIn and these buttons
+    // jump to the dashboard instead.
+    if (window.__loggedIn) { const d = document.getElementById('dashboard'); if (d) d.scrollIntoView({ behavior: 'smooth' }); return; }
+    window.__showTab(tab || 'login');
+    const portal = document.getElementById('portal');
+    if (portal) portal.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const navBtn = document.getElementById('navAuthBtn');
+  navBtn && navBtn.addEventListener('click', () => {
+    // After login the auth block sets navBtn.onclick to sign out; don't also
+    // run the scroll-to-login navigation in that state.
+    if (window.__loggedIn) return;
+    window.__goToPortal('login');
+  });
+
+  const acct = document.getElementById('tabAccountBtn');
+  acct && acct.addEventListener('click', (e) => {
+    if (window.__loggedIn) { e.preventDefault(); const d = document.getElementById('dashboard'); if (d) d.scrollIntoView({ behavior: 'smooth' }); }
+  });
+})();
 </script>
 
 <script type="module">
@@ -1462,15 +1511,9 @@ const tabLogin = document.getElementById('tabLogin');
 const tabRegister = document.getElementById('tabRegister');
 const loginForm = document.getElementById('loginForm');
 const registerForm = document.getElementById('registerForm');
-function showTab(which) {
-  const isLogin = which === 'login';
-  tabLogin.classList.toggle('active', isLogin);
-  tabRegister.classList.toggle('active', !isLogin);
-  loginForm.style.display = isLogin ? 'block' : 'none';
-  registerForm.style.display = isLogin ? 'none' : 'block';
-}
-tabLogin.addEventListener('click', () => showTab('login'));
-tabRegister.addEventListener('click', () => showTab('register'));
+// showTab lives in the Firebase-free block (window.__showTab) so tab switching
+// works even if Firebase is unavailable. Alias it here for the auth code.
+const showTab = (which) => window.__showTab(which);
 
 /* ---- Stepped registration (progressive enhancement) ----------------------
    The three fieldsets become three steps. If anything here throws, the form is
@@ -1547,15 +1590,9 @@ tabRegister.addEventListener('click', () => showTab('register'));
 if (!window.__goToStepForField) window.__goToStepForField = () => {};
 function goToStepForField(form, field) { window.__goToStepForField(field); }
 
-window.__goToPortal = (tab) => {
-  if (currentUser) { document.getElementById('dashboard').scrollIntoView({ behavior: 'smooth' }); return; }
-  showTab(tab);
-  document.getElementById('portal').scrollIntoView({ behavior: 'smooth' });
-};
-document.getElementById('navAuthBtn').addEventListener('click', () => window.__goToPortal('login'));
-document.getElementById('tabAccountBtn').addEventListener('click', (e) => {
-  if (currentUser) { e.preventDefault(); document.getElementById('dashboard').scrollIntoView({ behavior: 'smooth' }); }
-});
+// __goToPortal, navAuthBtn and tabAccountBtn are wired in the Firebase-free
+// block so they work even if Firebase is down. Only the payment button needs
+// auth, so it stays here.
 document.getElementById('tabPayBtn').addEventListener('click', (e) => {
   e.preventDefault();
   if (!currentUser) { showToast('Payment ke liye pehle login karein.', 'error'); window.__goToPortal('login'); return; }
@@ -1727,12 +1764,14 @@ onAuthStateChanged(auth, async (user) => {
   const portal = document.getElementById('portal');
   const navBtn = document.getElementById('navAuthBtn');
   if (user) {
+    window.__loggedIn = true;
     window.__setDynamicLabel(navBtn, 'Logout');
     navBtn.onclick = async () => { await signOut(auth); location.reload(); };
     portal.style.display = 'none';
     dash.style.display = 'block';
     await loadDashboard(user.uid);
   } else {
+    window.__loggedIn = false;
     currentMember = null;
     window.__setDynamicLabel(navBtn, 'Resident Login');
     navBtn.onclick = () => window.__goToPortal('login');
