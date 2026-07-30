@@ -7,6 +7,7 @@
 
 import { db } from './firebase-config.js';
 import { TOWER_PLAN, isValidFlat } from './tower-plan.js';
+import { AVATAR_PLACEHOLDER } from './avatar-placeholder.js';
 import {
   doc, getDoc, setDoc, addDoc, collection, runTransaction, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
@@ -1121,7 +1122,7 @@ export async function sealOnWhiteDisc(logoDataUrl, size = 256) {
   }
 }
 
-export async function generateMembershipCard({ member, society, logoDataUrl, financialYear }) {
+export async function generateMembershipCard({ member, society, logoDataUrl, financialYear, officeAddress }) {
   const { jsPDF } = window.jspdf;
   const pdf = new jsPDF({ unit: 'mm', format: [CARD_W, CARD_H], orientation: 'landscape' });
 
@@ -1195,10 +1196,11 @@ export async function generateMembershipCard({ member, society, logoDataUrl, fin
   pdf.setFillColor(255, 255, 255);
   pdf.setDrawColor(228, 199, 101); pdf.setLineWidth(0.25);
   pdf.roundedRect(photoX, photoY, photoW, photoH, 1, 1, 'FD');
-  if (member.photoDataUrl) {
-    try { pdf.addImage(member.photoDataUrl, 'JPEG', photoX + 0.4, photoY + 0.4, photoW - 0.8, photoH - 0.8); }
-    catch (e) {}
-  }
+  // Use the resident's photo if we have one, otherwise a neutral silhouette so
+  // the frame never looks broken or empty.
+  const photoImg = member.photoDataUrl || AVATAR_PLACEHOLDER;
+  try { pdf.addImage(photoImg, 'JPEG', photoX + 0.4, photoY + 0.4, photoW - 0.8, photoH - 0.8); }
+  catch (e) {}
 
   // --- details -----------------------------------------------------------
   const dx = photoX + photoW + 4;
@@ -1237,8 +1239,13 @@ export async function generateMembershipCard({ member, society, logoDataUrl, fin
   pdf.text(String(member.memberID || '—'), M, CARD_H - 2.6);
 
   pdf.setFont('courier','normal'); pdf.setFontSize(3.3); pdf.setTextColor(165,178,196);
-  if (society.regNumber) pdf.text(`RERA ${society.regNumber}`, CARD_W - M, CARD_H - 5.4, { align: 'right' });
-  pdf.text('Grand Sikar Road, Jaipur', CARD_W - M, CARD_H - 2.6, { align: 'right' });
+  // Office address (or a short fallback) shown bottom-right so residents know
+  // where to visit or contact. Wrapped to two short lines to fit the footer.
+  const addr = (officeAddress || 'Grand Sikar Road, Jaipur').trim();
+  const addrLines = pdf.splitTextToSize(addr, 62).slice(0, 3);
+  let ay = CARD_H - 2.6 - (addrLines.length - 1) * 3.0;
+  if (society.regNumber) { pdf.text(`RERA ${society.regNumber}`, CARD_W - M, ay - 3.2, { align: 'right' }); }
+  addrLines.forEach((ln) => { pdf.text(ln, CARD_W - M, ay, { align: 'right' }); ay += 3.0; });
 
   // Delivery. pdf.save() alone fails silently in many mobile and in-app
   // browsers (WhatsApp/Instagram webviews, some Android/iOS setups) — no

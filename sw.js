@@ -15,6 +15,7 @@ const SHELL_FILES = [
   './styles.css',
   './firebase-config.js',
   './app-common.js',
+  './avatar-placeholder.js',
   './jspdf.umd.min.js',
   './qrcode.local.js',
   './ui-a11y.js',

@@ -1897,6 +1897,14 @@ async function downloadCard() {
       if (societySnap.exists()) society = societySnap.data();
     } catch (e) { /* settings read is optional; the card still works */ }
 
+    // Office address for the card footer — from saved payment settings, falling
+    // back to the society defaults so it is always present.
+    let officeAddress = '';
+    try {
+      const paySnap = await getDoc(doc(db, 'settings', 'payment'));
+      officeAddress = paymentDetails(paySnap.exists() ? paySnap.data() : {}).officeAddress || '';
+    } catch (e) { officeAddress = paymentDetails({}).officeAddress || ''; }
+
     // The resident's own photo, converted to a data URL so jsPDF can embed it.
     // A missing or unreadable photo just leaves the frame empty — the card is
     // still valid, so this must never block the download.
@@ -1916,7 +1924,8 @@ async function downloadCard() {
       member: { ...currentMember, photoDataUrl },
       society,
       logoDataUrl,
-      financialYear: currentFinancialYear()
+      financialYear: currentFinancialYear(),
+      officeAddress
     });
   } catch (e) {
     console.error('Membership card error:', e);
