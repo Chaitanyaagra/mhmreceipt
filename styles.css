@@ -403,6 +403,13 @@ tbody tr:hover{ background:#FAFBFD; }
 .callout-info{ background:rgba(37,99,235,.07); border:1px solid rgba(37,99,235,.2); color:var(--ink-700); }
 .callout-info b{ color:var(--navy-950); }
 
+/* --- Payment detail box (bank details in the payment modal) ------------------- */
+.pay-detail-box{ text-align:left; margin-top:4px; border:1px solid var(--line); border-radius:var(--radius-md); overflow:hidden; }
+.pay-detail-box .pdl{ display:flex; justify-content:space-between; gap:14px; padding:7px 12px; font-size:12.8px; border-bottom:1px solid var(--line); }
+.pay-detail-box .pdl:last-child{ border-bottom:none; }
+.pay-detail-box .pdl span:first-child{ color:var(--ink-400); font-family:var(--font-mono); font-size:10.5px; letter-spacing:.04em; text-transform:uppercase; white-space:nowrap; padding-top:2px; }
+.pay-detail-box .pdl span:last-child{ text-align:right; font-weight:600; color:var(--navy-950); font-variant-numeric:tabular-nums; }
+
 /* --- Payment type toggle (membership vs maintenance) -------------------------- */
 .paytype-toggle{ display:flex; gap:8px; margin-bottom:16px; }
 .paytype{ flex:1; padding:12px; border:1.5px solid var(--line); border-radius:var(--radius-md);

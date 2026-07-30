@@ -431,10 +431,16 @@
         <div class="card card-pad">
           <h3 style="font-size:15px; margin-bottom:14px;">Payment Settings (shown to residents)</h3>
           <form id="paymentSettingsForm">
+            <div class="field"><label for="fld-accountName-7">Account Holder Name</label><input name="accountName" placeholder="MAX HEIGHTS MAJESTIC RESIDENT WLFR SOC" id="fld-accountName-7"></div>
             <div class="field"><label for="fld-upiId-8">UPI ID</label><input name="upiId" placeholder="mhmrws@upi" id="fld-upiId-8"></div>
             <div class="field"><label for="fld-bankName-9">Bank Name</label><input name="bankName" id="fld-bankName-9"></div>
             <div class="field"><label for="fld-accountNumber-10">Account Number</label><input name="accountNumber" id="fld-accountNumber-10"></div>
-            <div class="field"><label for="fld-ifsc-11">IFSC</label><input name="ifsc" id="fld-ifsc-11"></div>
+            <div class="form-2col">
+              <div class="field"><label for="fld-accountType-13">Account Type</label><input name="accountType" placeholder="Current Account" id="fld-accountType-13"></div>
+              <div class="field"><label for="fld-ifsc-11">IFSC</label><input name="ifsc" id="fld-ifsc-11"></div>
+            </div>
+            <div class="field"><label for="fld-branch-14">Branch</label><input name="branch" placeholder="VISHWAKARMA INDUSTRIAL AREA" id="fld-branch-14"></div>
+            <div class="field"><label for="fld-officeAddress-15">RWA Office Address</label><textarea name="officeAddress" rows="2" placeholder="Basement, Max Heights Majestic, ..." id="fld-officeAddress-15"></textarea></div>
             <div class="field"><label for="fld-qrImage-12">QR Code Image</label><input type="file" name="qrImage" accept="image/*" id="fld-qrImage-12"></div>
             <button class="btn btn-primary" type="submit">Save Payment Settings</button>
           </form>
@@ -1989,6 +1995,20 @@ const SOCIETY_DEFAULTS = {
   address: 'GH-3, Suncity Township, Grand Sikar Road, Jaipur - 302013, Rajasthan'
 };
 
+// Real society bank + office details, used to pre-fill the payment settings
+// form and as the fallback shown to residents until the committee saves its
+// own values. Kept here so a fresh deployment already shows correct details.
+const PAYMENT_DEFAULTS = {
+  accountName: 'MAX HEIGHTS MAJESTIC RESIDENT WLFR SOC',
+  bankName: 'HDFC Bank',
+  accountNumber: '50200123261579',
+  accountType: 'Current Account',
+  ifsc: 'HDFC0003774',
+  branch: 'VISHWAKARMA INDUSTRIAL AREA',
+  officeAddress: 'Basement, Max Heights Majestic, GH 03 Suncity Township, Sikar Rd, Jaipur, Rajasthan 302048',
+  upiId: ''
+};
+
 async function loadSettingsForms() {
   const societySnap = await getDoc(doc(db, 'settings', 'society'));
   const f = document.getElementById('societySettingsForm');
@@ -2002,10 +2022,18 @@ async function loadSettingsForms() {
     showToast('Society info pre-filled — jaanch kar "Save Society Info" dabayein.', 'info');
   }
   const paySnap = await getDoc(doc(db, 'settings', 'payment'));
-  if (paySnap.exists()) {
-    const p = paySnap.data();
-    const f = document.getElementById('paymentSettingsForm');
-    f.upiId.value = p.upiId || ''; f.bankName.value = p.bankName || ''; f.accountNumber.value = p.accountNumber || ''; f.ifsc.value = p.ifsc || '';
+  const p = paySnap.exists() ? paySnap.data() : {};
+  const pf = document.getElementById('paymentSettingsForm');
+  pf.accountName.value   = p.accountName   || PAYMENT_DEFAULTS.accountName;
+  pf.upiId.value         = p.upiId         || PAYMENT_DEFAULTS.upiId;
+  pf.bankName.value      = p.bankName      || PAYMENT_DEFAULTS.bankName;
+  pf.accountNumber.value = p.accountNumber || PAYMENT_DEFAULTS.accountNumber;
+  pf.accountType.value   = p.accountType   || PAYMENT_DEFAULTS.accountType;
+  pf.ifsc.value          = p.ifsc          || PAYMENT_DEFAULTS.ifsc;
+  pf.branch.value        = p.branch        || PAYMENT_DEFAULTS.branch;
+  pf.officeAddress.value = p.officeAddress || PAYMENT_DEFAULTS.officeAddress;
+  if (!paySnap.exists()) {
+    showToast('Bank details pre-filled — jaanch kar "Save Payment Settings" dabayein.', 'info');
   }
 }
 /* ---- Maintenance rates -------------------------------------------------
@@ -2111,7 +2139,17 @@ document.getElementById('societySettingsForm').addEventListener('submit', async 
 document.getElementById('paymentSettingsForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const f = e.target;
-  const data = { upiId: f.upiId.value, bankName: f.bankName.value, accountNumber: f.accountNumber.value, ifsc: f.ifsc.value, updatedAt: serverTimestamp() };
+  const data = {
+    accountName: f.accountName.value.trim(),
+    upiId: f.upiId.value.trim(),
+    bankName: f.bankName.value.trim(),
+    accountNumber: f.accountNumber.value.trim(),
+    accountType: f.accountType.value.trim(),
+    ifsc: f.ifsc.value.trim(),
+    branch: f.branch.value.trim(),
+    officeAddress: f.officeAddress.value.trim(),
+    updatedAt: serverTimestamp()
+  };
   if (f.qrImage.files[0]) {
     const r = storageRef(storage, `settings/payment-qr-${Date.now()}`);
     await uploadBytes(r, f.qrImage.files[0]);

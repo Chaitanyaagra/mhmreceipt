@@ -232,6 +232,28 @@ export function duesFor(member, payments, financialYear, maintenanceSettings) {
 /* ---------------------------------------------------------------------- */
 export const DEFAULT_MEMBERSHIP_FEE = 1100;
 
+/* The society's real bank + office details. Used as the fallback shown to
+   residents (payment modal and dashboard) until the committee saves its own
+   values in Settings, so a fresh deployment already shows correct information
+   rather than "Not configured". The admin form keeps its own copy for
+   pre-filling; both hold the same values. */
+export const PAYMENT_DEFAULTS = {
+  accountName: 'MAX HEIGHTS MAJESTIC RESIDENT WLFR SOC',
+  bankName: 'HDFC Bank',
+  accountNumber: '50200123261579',
+  accountType: 'Current Account',
+  ifsc: 'HDFC0003774',
+  branch: 'VISHWAKARMA INDUSTRIAL AREA',
+  officeAddress: 'Basement, Max Heights Majestic, GH 03 Suncity Township, Sikar Rd, Jaipur, Rajasthan 302048',
+  upiId: ''
+};
+
+/* Merge saved payment settings over the defaults, so any field the committee
+   hasn't filled falls back to the correct society detail. */
+export function paymentDetails(saved) {
+  return { ...PAYMENT_DEFAULTS, ...(saved || {}) };
+}
+
 /** The configured one-time membership fee (falls back to the ₹1100 default). */
 export function membershipFeeAmount(maintenanceSettings) {
   const v = maintenanceSettings?.membershipFee;

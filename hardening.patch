@@ -233,7 +233,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  | Error | Wajah |
 diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal/admin.html MHMRWS-Portal/admin.html
 --- a/MHMRWS-Portal/admin.html	2026-07-23 11:26:32.000000000 +0000
-+++ MHMRWS-Portal/admin.html	2026-07-29 07:12:28.883346860 +0000
++++ MHMRWS-Portal/admin.html	2026-07-30 06:26:26.272360234 +0000
 @@ -2,16 +2,67 @@
  <html lang="en">
  <head>
@@ -368,7 +368,25 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
        </div>
        <div id="paymentsDefaultersPanel" style="display:none;">
          <div class="toolbar"><span id="defaultersTotal" class="mono" style="font-size:12.5px; color:var(--ink-600);"></span></div>
-@@ -387,6 +460,11 @@
+@@ -358,10 +431,16 @@
+         <div class="card card-pad">
+           <h3 style="font-size:15px; margin-bottom:14px;">Payment Settings (shown to residents)</h3>
+           <form id="paymentSettingsForm">
++            <div class="field"><label for="fld-accountName-7">Account Holder Name</label><input name="accountName" placeholder="MAX HEIGHTS MAJESTIC RESIDENT WLFR SOC" id="fld-accountName-7"></div>
+             <div class="field"><label for="fld-upiId-8">UPI ID</label><input name="upiId" placeholder="mhmrws@upi" id="fld-upiId-8"></div>
+             <div class="field"><label for="fld-bankName-9">Bank Name</label><input name="bankName" id="fld-bankName-9"></div>
+             <div class="field"><label for="fld-accountNumber-10">Account Number</label><input name="accountNumber" id="fld-accountNumber-10"></div>
+-            <div class="field"><label for="fld-ifsc-11">IFSC</label><input name="ifsc" id="fld-ifsc-11"></div>
++            <div class="form-2col">
++              <div class="field"><label for="fld-accountType-13">Account Type</label><input name="accountType" placeholder="Current Account" id="fld-accountType-13"></div>
++              <div class="field"><label for="fld-ifsc-11">IFSC</label><input name="ifsc" id="fld-ifsc-11"></div>
++            </div>
++            <div class="field"><label for="fld-branch-14">Branch</label><input name="branch" placeholder="VISHWAKARMA INDUSTRIAL AREA" id="fld-branch-14"></div>
++            <div class="field"><label for="fld-officeAddress-15">RWA Office Address</label><textarea name="officeAddress" rows="2" placeholder="Basement, Max Heights Majestic, ..." id="fld-officeAddress-15"></textarea></div>
+             <div class="field"><label for="fld-qrImage-12">QR Code Image</label><input type="file" name="qrImage" accept="image/*" id="fld-qrImage-12"></div>
+             <button class="btn btn-primary" type="submit">Save Payment Settings</button>
+           </form>
+@@ -387,6 +466,11 @@
                </summary>
                <div class="form-2col" style="margin-top:12px;" id="towerRateFields"></div>
              </details>
@@ -380,7 +398,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
              <button class="btn btn-primary btn-block" type="submit">Save Maintenance Rate</button>
            </form>
            <div id="maintSummary" class="t-sub" style="font-size:12.5px; margin-top:12px;"></div>
-@@ -467,12 +545,16 @@
+@@ -467,12 +551,16 @@
        </div>
      </div>
  
@@ -401,7 +419,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
        </div>
      </div>
  
-@@ -494,6 +576,63 @@
+@@ -494,6 +582,63 @@
    </div>
  </div>
  
@@ -465,7 +483,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  <div class="modal-backdrop" id="noticeModalBackdrop">
    <div class="modal">
      <div class="modal-head"><h3 style="font-size:16.5px;" id="noticeModalTitle">Add Notice</h3><button class="icon-btn" id="closeNoticeModal">✕</button></div>
-@@ -596,11 +735,17 @@
+@@ -596,11 +741,17 @@
       renders even if the SDK or a CDN fails to load. -->
  <script type="module">
  import { LOGO_DATA_URI } from './logo-data.js';
@@ -483,7 +501,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  </script>
  
  <script type="module">
-@@ -612,7 +757,8 @@
+@@ -612,7 +763,8 @@
    getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, createUserWithEmailAndPassword
  } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
  import {
@@ -493,7 +511,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
  import {
    ref as storageRef, uploadBytes, getDownloadURL
-@@ -620,10 +766,12 @@
+@@ -620,10 +772,12 @@
  import {
    showToast, escapeHtml, fmtDate, fmtDateTime, formatINR, currentFinancialYear, financialYearOptions,
    generateMemberId, generateReceiptNumber, logAudit, generateReceiptPDF, exportToExcel, parseExcelFile,
@@ -509,7 +527,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  } from './app-common.js';
  
  /* ---------------------------------------------------------------------- */
-@@ -998,9 +1146,25 @@
+@@ -998,9 +1152,25 @@
    inactive: '<span class="badge badge-neutral">Inactive</span>'
  };
  
@@ -536,7 +554,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
      <tr>
        <td data-label="Resident">${escapeHtml(m.name)}</td>
        <td data-label="Flat / Tower">${escapeHtml(m.flatNumber)} / ${escapeHtml(m.tower)}</td>
-@@ -1009,10 +1173,18 @@
+@@ -1009,10 +1179,18 @@
        <td data-label="Member ID" class="mono">${escapeHtml(m.memberID || '—')}</td>
        <td data-label="Actions"><button class="btn btn-outline btn-sm" data-view-member="${m.id}">View Details</button></td>
      </tr>
@@ -557,7 +575,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  
  document.getElementById('exportMembersBtn').addEventListener('click', () => {
    exportToExcel(serializeForExport(filteredMembers()).map(m => ({
-@@ -1040,6 +1212,16 @@
+@@ -1040,6 +1218,16 @@
        <div class="vrow"><span class="t-muted">Address</span><span>${escapeHtml(m.address || '—')}</span></div>
        <div class="vrow"><span class="t-muted">Nominee</span><span>${escapeHtml(m.nomineeName || '—')} (${escapeHtml(m.nomineeRelation || '—')})</span></div>
        <div class="vrow"><span class="t-muted">Member ID</span><span class="mono">${escapeHtml(m.memberID || '—')}</span></div>
@@ -574,7 +592,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
      </div>
      <div style="margin:16px 0; display:flex; gap:10px; flex-wrap:wrap;">
        ${m.idDocURL ? `<button class="btn btn-outline btn-sm" id="viewDocBtn">${m.idDocEncrypted ? '<svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#a-unlock"/></svg>Decrypt &amp; View ID Doc' : '<svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#a-doc"/></svg>View ID Doc'}</button>` : '<span class="t-muted" style="font-size:12.5px;">No ID document uploaded.</span>'}
-@@ -1070,16 +1252,64 @@
+@@ -1070,16 +1258,64 @@
    } catch (e) { showToast('Decrypt fail — passphrase galat ho sakta hai.', 'error'); }
  }
  
@@ -646,7 +664,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
    await logAudit(auth.currentUser, 'approve_member', { id, memberID });
    showToast(`Approved! Member ID: ${memberID}`, 'success');
    document.getElementById('memberModalBackdrop').classList.remove('open');
-@@ -1089,10 +1319,13 @@
+@@ -1089,10 +1325,13 @@
    const reason = prompt('Reject karne ki wajah:');
    if (reason === null) return;
    const m = allMembers.find(x => x.id === id) || {};
@@ -664,7 +682,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
    await logAudit(auth.currentUser, 'reject_member', { id, reason });
    showToast('Registration reject kar diya gaya.', 'success');
    document.getElementById('memberModalBackdrop').classList.remove('open');
-@@ -1102,12 +1335,16 @@
+@@ -1102,12 +1341,16 @@
    const reason = prompt('Deactivate karne ki wajah (history surakshit rahegi):');
    if (reason === null) return;
    const m = allMembers.find(x => x.id === id) || {};
@@ -686,7 +704,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
    await logAudit(auth.currentUser, 'deactivate_member', { id, reason });
    showToast('Member deactivate ho gaya.', 'success');
    document.getElementById('memberModalBackdrop').classList.remove('open');
-@@ -1141,17 +1378,38 @@
+@@ -1141,17 +1384,38 @@
    document.querySelectorAll('[data-pay-detail]').forEach(b => b.addEventListener('click', () => openPaymentDetail(b.dataset.payDetail)));
  }
  
@@ -727,7 +745,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  }
  
  document.getElementById('exportPaymentsBtn').addEventListener('click', () => {
-@@ -1188,18 +1446,61 @@
+@@ -1188,18 +1452,61 @@
  }
  document.getElementById('closePaymentDetailModal').addEventListener('click', () => document.getElementById('paymentDetailModalBackdrop').classList.remove('open'));
  
@@ -799,7 +817,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  }
  async function rejectPayment(id) {
    const reason = prompt('Reject karne ki wajah:');
-@@ -1211,6 +1512,120 @@
+@@ -1211,6 +1518,120 @@
    await reloadPayments(); renderPendingPayments(); renderAllPayments();
  }
  
@@ -920,7 +938,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  /* Anyone with a balance still owing — not just those who paid nothing.
     The previous version treated any single verified payment as "paid", so a
     resident who paid Rs 100 against a Rs 2,400 charge disappeared from this
-@@ -1224,6 +1639,27 @@
+@@ -1224,6 +1645,27 @@
      .sort((a, b) => b.d.outstanding - a.d.outstanding);   // biggest debts first
  }
  
@@ -948,7 +966,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  function renderDefaulters() {
    const rows = outstandingMembers();
    const body = document.getElementById('defaultersBody');
-@@ -1253,7 +1689,7 @@
+@@ -1253,7 +1695,7 @@
          <span class="t-muted" style="font-size:11.5px;"> of ${formatINR(d.expected)}</span></td>
        <td data-label="Status"><span class="badge ${DUES_BADGE[d.status]}">${escapeHtml(DUES_LABEL[d.status])}</span></td>
        <td data-label="Remind"><a class="btn btn-outline btn-sm" target="_blank" rel="noopener"
@@ -957,7 +975,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
      </tr>
    `).join('') || '<tr><td colspan="5" class="t-muted">No outstanding dues for this FY</td></tr>';
  }
-@@ -1392,6 +1828,17 @@
+@@ -1392,6 +1834,17 @@
    await logAudit(auth.currentUser, 'add_notice', { title: f.titleEn.value });
    showToast('Notice post ho gaya.', 'success');
    document.getElementById('noticeModalBackdrop').classList.remove('open');
@@ -975,7 +993,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
    f.reset(); loadContentPanels();
  });
  document.getElementById('addCommitteeBtn').addEventListener('click', () => document.getElementById('committeeModalBackdrop').classList.add('open'));
-@@ -1497,22 +1944,32 @@
+@@ -1497,22 +1950,32 @@
      }
    });
    const verifiedThisMonth = allPayments.filter(p => p.status === 'verified' && inMonth(p.verifiedAt));
@@ -1012,7 +1030,51 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
    const zipBlob = await zip.generateAsync({ type: 'blob' });
    const a = document.createElement('a');
    a.href = URL.createObjectURL(zipBlob); a.download = `MHMRWS-${monthVal}.zip`; a.click();
-@@ -1588,15 +2045,20 @@
+@@ -1532,6 +1995,20 @@
+   address: 'GH-3, Suncity Township, Grand Sikar Road, Jaipur - 302013, Rajasthan'
+ };
+ 
++// Real society bank + office details, used to pre-fill the payment settings
++// form and as the fallback shown to residents until the committee saves its
++// own values. Kept here so a fresh deployment already shows correct details.
++const PAYMENT_DEFAULTS = {
++  accountName: 'MAX HEIGHTS MAJESTIC RESIDENT WLFR SOC',
++  bankName: 'HDFC Bank',
++  accountNumber: '50200123261579',
++  accountType: 'Current Account',
++  ifsc: 'HDFC0003774',
++  branch: 'VISHWAKARMA INDUSTRIAL AREA',
++  officeAddress: 'Basement, Max Heights Majestic, GH 03 Suncity Township, Sikar Rd, Jaipur, Rajasthan 302048',
++  upiId: ''
++};
++
+ async function loadSettingsForms() {
+   const societySnap = await getDoc(doc(db, 'settings', 'society'));
+   const f = document.getElementById('societySettingsForm');
+@@ -1545,10 +2022,18 @@
+     showToast('Society info pre-filled — jaanch kar "Save Society Info" dabayein.', 'info');
+   }
+   const paySnap = await getDoc(doc(db, 'settings', 'payment'));
+-  if (paySnap.exists()) {
+-    const p = paySnap.data();
+-    const f = document.getElementById('paymentSettingsForm');
+-    f.upiId.value = p.upiId || ''; f.bankName.value = p.bankName || ''; f.accountNumber.value = p.accountNumber || ''; f.ifsc.value = p.ifsc || '';
++  const p = paySnap.exists() ? paySnap.data() : {};
++  const pf = document.getElementById('paymentSettingsForm');
++  pf.accountName.value   = p.accountName   || PAYMENT_DEFAULTS.accountName;
++  pf.upiId.value         = p.upiId         || PAYMENT_DEFAULTS.upiId;
++  pf.bankName.value      = p.bankName      || PAYMENT_DEFAULTS.bankName;
++  pf.accountNumber.value = p.accountNumber || PAYMENT_DEFAULTS.accountNumber;
++  pf.accountType.value   = p.accountType   || PAYMENT_DEFAULTS.accountType;
++  pf.ifsc.value          = p.ifsc          || PAYMENT_DEFAULTS.ifsc;
++  pf.branch.value        = p.branch        || PAYMENT_DEFAULTS.branch;
++  pf.officeAddress.value = p.officeAddress || PAYMENT_DEFAULTS.officeAddress;
++  if (!paySnap.exists()) {
++    showToast('Bank details pre-filled — jaanch kar "Save Payment Settings" dabayein.', 'info');
+   }
+ }
+ /* ---- Maintenance rates -------------------------------------------------
+@@ -1588,15 +2073,20 @@
      const el = document.getElementById(`rate-${t}`);
      if (el) el.value = r.byTower?.[t] ?? '';
    });
@@ -1035,7 +1097,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  }
  
  document.getElementById('maintenanceForm')?.addEventListener('submit', async (e) => {
-@@ -1615,9 +2077,21 @@
+@@ -1615,9 +2105,21 @@
    const rates = { ...(maintenanceSettings.rates || {}) };
    rates[fy] = Object.keys(byTower).length ? { default: def, byTower } : { default: def };
  
@@ -1060,7 +1122,26 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
    renderMaintSummary();
    renderDefaulters();
    renderOverview();
-@@ -1811,15 +2285,38 @@
+@@ -1637,7 +2139,17 @@
+ document.getElementById('paymentSettingsForm').addEventListener('submit', async (e) => {
+   e.preventDefault();
+   const f = e.target;
+-  const data = { upiId: f.upiId.value, bankName: f.bankName.value, accountNumber: f.accountNumber.value, ifsc: f.ifsc.value, updatedAt: serverTimestamp() };
++  const data = {
++    accountName: f.accountName.value.trim(),
++    upiId: f.upiId.value.trim(),
++    bankName: f.bankName.value.trim(),
++    accountNumber: f.accountNumber.value.trim(),
++    accountType: f.accountType.value.trim(),
++    ifsc: f.ifsc.value.trim(),
++    branch: f.branch.value.trim(),
++    officeAddress: f.officeAddress.value.trim(),
++    updatedAt: serverTimestamp()
++  };
+   if (f.qrImage.files[0]) {
+     const r = storageRef(storage, `settings/payment-qr-${Date.now()}`);
+     await uploadBytes(r, f.qrImage.files[0]);
+@@ -1811,15 +2323,38 @@
  
      let memberID = null;
      if (f.alsoResident.checked) {
@@ -1103,7 +1184,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
        await reloadMembers(); renderMembersTable(); renderOverview(); populateTowerFilter();
      }
  
-@@ -1832,16 +2329,16 @@
+@@ -1832,16 +2367,16 @@
  });
  
  /* ---------------------------------------------------------------------- */
@@ -1126,7 +1207,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  <style>.vrow{ display:flex; justify-content:space-between; padding:9px 0; border-bottom:1px solid var(--line); } .vrow:last-child{ border-bottom:none; } .vrow span:first-child{ color:var(--ink-400); }</style>
 diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal/app-common.js MHMRWS-Portal/app-common.js
 --- a/MHMRWS-Portal/app-common.js	2026-07-23 11:23:40.000000000 +0000
-+++ MHMRWS-Portal/app-common.js	2026-07-29 07:47:51.444067604 +0000
++++ MHMRWS-Portal/app-common.js	2026-07-30 06:26:48.613348715 +0000
 @@ -14,22 +14,46 @@
  /* ---------------------------------------------------------------------- */
  /*  Toasts                                                                 */
@@ -1259,7 +1340,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
    return null;
  }
  
-@@ -195,6 +219,45 @@
+@@ -195,6 +219,67 @@
    return { expected, paid, outstanding, status };
  }
  
@@ -1275,6 +1356,28 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
 +/*  change is backward-compatible.                                          */
 +/* ---------------------------------------------------------------------- */
 +export const DEFAULT_MEMBERSHIP_FEE = 1100;
++
++/* The society's real bank + office details. Used as the fallback shown to
++   residents (payment modal and dashboard) until the committee saves its own
++   values in Settings, so a fresh deployment already shows correct information
++   rather than "Not configured". The admin form keeps its own copy for
++   pre-filling; both hold the same values. */
++export const PAYMENT_DEFAULTS = {
++  accountName: 'MAX HEIGHTS MAJESTIC RESIDENT WLFR SOC',
++  bankName: 'HDFC Bank',
++  accountNumber: '50200123261579',
++  accountType: 'Current Account',
++  ifsc: 'HDFC0003774',
++  branch: 'VISHWAKARMA INDUSTRIAL AREA',
++  officeAddress: 'Basement, Max Heights Majestic, GH 03 Suncity Township, Sikar Rd, Jaipur, Rajasthan 302048',
++  upiId: ''
++};
++
++/* Merge saved payment settings over the defaults, so any field the committee
++   hasn't filled falls back to the correct society detail. */
++export function paymentDetails(saved) {
++  return { ...PAYMENT_DEFAULTS, ...(saved || {}) };
++}
 +
 +/** The configured one-time membership fee (falls back to the ₹1100 default). */
 +export function membershipFeeAmount(maintenanceSettings) {
@@ -1305,7 +1408,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  export const DUES_LABEL = {
    no_rate:  'Rate not set',
    unpaid:   'Unpaid',
-@@ -330,10 +393,21 @@
+@@ -330,10 +415,21 @@
    return d.toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
  }
  
@@ -1330,7 +1433,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  }
  
  export function debounce(fn, delay = 300) {
-@@ -389,34 +463,63 @@
+@@ -389,34 +485,63 @@
  }
  
  /* ---------------------------------------------------------------------- */
@@ -1362,8 +1465,8 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
 +export function newPublicToken() {
 +  const bytes = crypto.getRandomValues(new Uint8Array(16));
 +  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
-+}
-+
+ }
+ 
 +/* Records issued before the token change are still keyed by their sequential
 +   number, so receipts and cards already in residents' hands keep verifying.
 +   Everything issued from now on uses the token. */
@@ -1372,8 +1475,8 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
 +}
 +export function publicKeyForMember(member) {
 +  return member?.publicToken || member?.memberID || '';
- }
- 
++}
++
 +/* ---------------------------------------------------------------------- */
 +/*  Activity log — append-only record of committee actions                 */
 +/*                                                                          */
@@ -1409,7 +1512,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
    }
  }
  
-@@ -432,9 +535,14 @@
+@@ -432,9 +557,14 @@
    });
  }
  
@@ -1426,7 +1529,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  }
  
  /* ---------------------------------------------------------------------- */
-@@ -519,7 +627,7 @@
+@@ -519,7 +649,7 @@
  
    // QR code
    try {
@@ -1435,7 +1538,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
      const qrData = await generateQR(qrUrl, 260);
      pdf.addImage(qrData, 'PNG', W - marginX - 74, y - 4, 74, 74);
      pdf.setFont('helvetica', 'normal'); pdf.setFontSize(7); pdf.setTextColor(124, 135, 156);
-@@ -532,7 +640,7 @@
+@@ -532,7 +662,7 @@
    y += 22;
    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8.5); pdf.setTextColor(124, 135, 156);
    pdf.text('This is a system-generated receipt from the MHMRWS Digital Portal.', marginX, y);
@@ -1444,7 +1547,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  
    if (save) {
      pdf.save(`Receipt-${payment.receiptNumber}.pdf`);
-@@ -541,6 +649,317 @@
+@@ -541,6 +671,317 @@
    return pdf.output('blob');
  }
  
@@ -1762,7 +1865,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  export function serializeForExport(rows) {
    return (rows || []).map(row => {
      const clean = {};
-@@ -558,7 +977,7 @@
+@@ -558,7 +999,7 @@
  /* ---------------------------------------------------------------------- */
  export async function printReceipt({ payment, member, society, logoDataUrl }) {
    let qrImg = '';
@@ -1771,7 +1874,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  
    const area = document.getElementById('printReceiptArea');
    if (!area) { showToast('Print area is missing from this page.', 'error'); return; }
-@@ -593,7 +1012,7 @@
+@@ -593,7 +1034,7 @@
        </div>
        <div class="pr-foot">
          This is a system-generated receipt from the MHMRWS Digital Portal.<br>
@@ -1780,7 +1883,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
        </div>
      </div>
    `;
-@@ -617,15 +1036,22 @@
+@@ -617,15 +1058,22 @@
  /* ---------------------------------------------------------------------- */
  const CARD_W = 85.6, CARD_H = 54;   // mm — ISO/IEC 7810 ID-1, the usual card size
  
@@ -1806,7 +1909,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
      img.onload = () => resolve(img);
      img.onerror = () => resolve(null);   // a missing backdrop must not break the card
      img.src = src;
-@@ -653,18 +1079,24 @@
+@@ -653,18 +1101,24 @@
   */
  export async function sealOnWhiteDisc(logoDataUrl, size = 256) {
    if (!logoDataUrl) return null;
@@ -1843,7 +1946,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  }
  
  export async function generateMembershipCard({ member, society, logoDataUrl, financialYear }) {
-@@ -706,7 +1138,10 @@
+@@ -706,7 +1160,10 @@
    // --- header ------------------------------------------------------------
    // The seal is flattened onto an opaque white disc first — see
    // sealOnWhiteDisc() for why jsPDF cannot be handed the transparent original.
@@ -1855,7 +1958,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
    if (sealImg) {
      try {
        const cx = M + 3.6, cy = 7.4, r = 3.9;
-@@ -761,7 +1196,7 @@
+@@ -761,7 +1218,7 @@
  
    // --- QR ----------------------------------------------------------------
    try {
@@ -1864,7 +1967,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
      const qs = 15.5, qx = CARD_W - M - qs, qy = 15.5;
      pdf.setFillColor(255, 255, 255);
      pdf.roundedRect(qx - 0.8, qy - 0.8, qs + 1.6, qs + 1.6, 0.8, 0.8, 'F');
-@@ -939,22 +1374,15 @@
+@@ -939,22 +1396,15 @@
    return `https://wa.me/${withCountry}?text=${encodeURIComponent(message)}`;
  }
  
@@ -2309,7 +2412,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
    currentLang = lang === 'hi' ? 'hi' : 'en';
 diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal/index.html MHMRWS-Portal/index.html
 --- a/MHMRWS-Portal/index.html	2026-07-23 11:25:48.000000000 +0000
-+++ MHMRWS-Portal/index.html	2026-07-29 09:16:20.004052941 +0000
++++ MHMRWS-Portal/index.html	2026-07-30 06:27:36.481460413 +0000
 @@ -2,6 +2,41 @@
  <html lang="en">
  <head>
@@ -2751,7 +2854,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
        </form>
      </div>
    </div>
-@@ -1042,10 +1233,19 @@
+@@ -1042,11 +1233,21 @@
       failed import blanks out the entire page's branding.
       ===================================================================== -->
  <script type="module">
@@ -2772,9 +2875,11 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
 +window.__MHM_LOGO = LOGO_DATA_URI;          // image URL, fine for <img src>
 +window.__MHM_LOGO_DATAURI = getLogoDataUri;  // call to get a data: URI for PDFs
  window.__translate = translateSubtree;
++window.__setDynamicLabel = setDynamicLabel;   // used by the Firebase block for the auth button
  window.__HI = HI;
  
-@@ -1109,7 +1309,10 @@
+ ['brandLogo','heroLogo','footLogo'].forEach(id => {
+@@ -1109,7 +1310,10 @@
    // Fade the real photo in over its blurred placeholder once it has decoded.
    // Images already complete (from cache) are marked immediately, otherwise
    // a cached image would stay invisible because 'load' never fires.
@@ -2786,7 +2891,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
    if (img.complete && img.naturalWidth > 0) reveal();
    else img.addEventListener('load', reveal);
  
-@@ -1214,7 +1417,7 @@
+@@ -1214,7 +1418,7 @@
  import { auth, db, storage, SOCIETY } from './firebase-config.js';
  import {
    createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged,
@@ -2795,19 +2900,19 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
  import {
    doc, getDoc, setDoc, addDoc, collection, query, where, orderBy, getDocs, serverTimestamp, limit
-@@ -1226,7 +1429,10 @@
+@@ -1226,7 +1430,10 @@
    showToast, escapeHtml, fmtDate, formatINR, currentFinancialYear,
    generateReceiptPDF, printReceipt, validatePayment, validateRegistration,
    generateMembershipCard, duesFor, DUES_LABEL, DUES_BADGE,
 -  expenseSummary, fundPosition
 +  expenseSummary, fundPosition,
 +  generateStatementPDF, skeletonList, emptyState, showFieldError, clearFieldErrors,
-+  membershipDue, membershipFeeAmount,
++  membershipDue, membershipFeeAmount, paymentDetails,
 +  waShareText
  } from './app-common.js';
  
  /* Branding, the year stamp and the committee fallback are handled by the
-@@ -1264,6 +1470,82 @@
+@@ -1264,6 +1471,82 @@
  }
  tabLogin.addEventListener('click', () => showTab('login'));
  tabRegister.addEventListener('click', () => showTab('register'));
@@ -2890,7 +2995,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  window.__goToPortal = (tab) => {
    if (currentUser) { document.getElementById('dashboard').scrollIntoView({ behavior: 'smooth' }); return; }
    showTab(tab);
-@@ -1338,12 +1620,29 @@
+@@ -1338,12 +1621,29 @@
    e.preventDefault();
    const f = e.target;
    const btn = f.querySelector('button[type="submit"]');
@@ -2922,7 +3027,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
      const uid = cred.user.uid;
  
      let photoURL = '', idDocURL = '';
-@@ -1373,14 +1672,21 @@
+@@ -1373,14 +1673,21 @@
      });
  
      if (f.photo.files[0] && !photoURL) {
@@ -2946,12 +3051,12 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
      showToast(friendlyAuthError(err), 'error');
    } finally {
      setLoading(btn, false);
-@@ -1420,14 +1726,14 @@
+@@ -1420,14 +1727,14 @@
    const portal = document.getElementById('portal');
    const navBtn = document.getElementById('navAuthBtn');
    if (user) {
 -    navBtn.textContent = 'Logout';
-+    setDynamicLabel(navBtn, 'Logout');
++    window.__setDynamicLabel(navBtn, 'Logout');
      navBtn.onclick = async () => { await signOut(auth); location.reload(); };
      portal.style.display = 'none';
      dash.style.display = 'block';
@@ -2959,11 +3064,11 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
    } else {
      currentMember = null;
 -    navBtn.textContent = 'Resident Login';
-+    setDynamicLabel(navBtn, 'Resident Login');
++    window.__setDynamicLabel(navBtn, 'Resident Login');
      navBtn.onclick = () => window.__goToPortal('login');
      portal.style.display = 'block';
      dash.style.display = 'none';
-@@ -1474,12 +1780,15 @@
+@@ -1474,12 +1781,15 @@
      ${currentMember.status === 'approved' ? `
      <div class="dash-grid">
        <div class="card card-pad">
@@ -2982,7 +3087,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
        </div>
        <div class="card card-pad">
          <h3 style="font-size:16px; margin-bottom:12px;">Your Details</h3>
-@@ -1497,17 +1806,56 @@
+@@ -1497,17 +1807,56 @@
    if (currentMember.status === 'approved') {
      document.getElementById('openPaymentBtn').addEventListener('click', openPaymentModal);
      document.getElementById('downloadCardBtn')?.addEventListener('click', downloadCard);
@@ -3041,7 +3146,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  
      // The resident's own photo, converted to a data URL so jsPDF can embed it.
      // A missing or unreadable photo just leaves the frame empty — the card is
-@@ -1517,15 +1865,24 @@
+@@ -1517,15 +1866,24 @@
        try { photoDataUrl = await toDataUrl(currentMember.photoURL); } catch (e) {}
      }
  
@@ -3069,7 +3174,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
    } finally {
      setLoading(btn, false);
      btn.textContent = 'Download Membership Card';
-@@ -1534,6 +1891,9 @@
+@@ -1534,6 +1892,9 @@
  
  /* ---- Payments ---- */
  let currentDues = null;   // recomputed whenever payments are loaded
@@ -3079,7 +3184,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  
  async function loadMaintenanceSettings() {
    try {
-@@ -1560,16 +1920,32 @@
+@@ -1560,16 +1921,32 @@
    const headline = dues.outstanding > 0 ? dues.outstanding : dues.paid;
    const headlineLabel = dues.outstanding > 0 ? 'Outstanding' : 'Paid in full';
  
@@ -3115,7 +3220,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
        <div class="dues-split">
          <div><span class="lbl">Total Due</span><b>${formatINR(dues.expected)}</b></div>
          <div><span class="lbl">Paid</span><b>${formatINR(dues.paid)}</b></div>
-@@ -1581,18 +1957,32 @@
+@@ -1581,18 +1958,32 @@
  
  async function loadPayments(uid) {
    const list = document.getElementById('paymentList');
@@ -3150,7 +3255,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  
    const statusBadge = {
      pending_approval: '<span class="badge badge-warning">Pending Approval</span>',
-@@ -1601,7 +1991,7 @@
+@@ -1601,7 +1992,7 @@
      rejected: '<span class="badge badge-danger">Rejected</span>'
    };
  
@@ -3159,7 +3264,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
      <div class="pay-history-item">
        <div>
          <div style="font-weight:600; font-size:14.5px;">${formatINR(p.amount)} <span class="t-muted" style="font-weight:400;">· ${escapeHtml((p.mode||'').toUpperCase())}</span></div>
-@@ -1618,12 +2008,23 @@
+@@ -1618,12 +2009,23 @@
      </div>
    `).join('');
  
@@ -3184,10 +3289,13 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
    }
  
    list.querySelectorAll('[data-receipt-id]').forEach(btn => {
-@@ -1659,8 +2060,65 @@
-   const paySettingsSnap = await getDoc(doc(db, 'settings', 'payment'));
-   const paySettings = paySettingsSnap.exists() ? paySettingsSnap.data() : {};
+@@ -1657,10 +2059,67 @@
+   if (!existing.empty) { showToast('Aapka ek payment pehle se pending hai — nayi entry ki zaroorat nahi.', 'error'); return; }
  
+   const paySettingsSnap = await getDoc(doc(db, 'settings', 'payment'));
+-  const paySettings = paySettingsSnap.exists() ? paySettingsSnap.data() : {};
++  const paySettings = paymentDetails(paySettingsSnap.exists() ? paySettingsSnap.data() : {});
++
 +  // The maintenance invoice — expected / paid / outstanding for this FY,
 +  // straight from the committee's per-tower rate. This is what makes "type an
 +  // amount" unnecessary: the bill is shown and the amount is pre-set to it.
@@ -3241,7 +3349,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
 +        <div class="pt-top">Maintenance</div><div class="pt-amt">${dues.outstanding > 0 ? formatINR(dues.outstanding) : (hasRate ? '✓ Clear' : '—')}</div>
 +      </button>
 +    </div>` : '';
-+
+ 
    const body = document.getElementById('paymentModalBody');
    body.innerHTML = `
 +    ${membershipHtml}
@@ -3250,7 +3358,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
      <div class="pay-option" data-mode="cash"><svg viewBox="0 0 24 24"><use href="#i-cash"/></svg><div><b>Cash</b><div class="t-muted" style="font-size:12.5px;">Visit the RWA office</div></div></div>
      <div class="pay-option" data-mode="cheque"><svg viewBox="0 0 24 24"><use href="#i-cheque"/></svg><div><b>Cheque</b><div class="t-muted" style="font-size:12.5px;">Visit the RWA office</div></div></div>
      <div class="pay-option" data-mode="upi"><svg viewBox="0 0 24 24"><use href="#i-qr"/></svg><div><b>UPI / QR Scan</b><div class="t-muted" style="font-size:12.5px;">Pay instantly from your phone</div></div></div>
-@@ -1670,18 +2128,44 @@
+@@ -1670,45 +2129,115 @@
    window.__translate(body);
    document.getElementById('paymentModalBackdrop').classList.add('open');
  
@@ -3297,8 +3405,23 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
    holder.innerHTML = `
      <div style="margin-top:18px; border-top:1px solid var(--line); padding-top:18px;">
        ${isOffline ? `
-@@ -1693,22 +2177,58 @@
-           <div style="font-size:12.4px;" class="t-muted">${escapeHtml(paySettings.bankName || '')} · A/C ${escapeHtml(paySettings.accountNumber || '—')} · IFSC ${escapeHtml(paySettings.ifsc || '—')}</div>
+-        <p class="t-sub" style="font-size:13.5px; margin-bottom:14px;">Please visit the RWA office with your ${mode}. Your payment will show as <b>Pending Approval</b> until the office confirms receipt.</p>
++        <p class="t-sub" style="font-size:13.5px; margin-bottom:10px;">Please visit the RWA office with your ${mode}. Your payment will show as <b>Pending Approval</b> until the office confirms receipt.</p>
++        ${paySettings.officeAddress ? `<div class="pay-detail-box"><div class="pdl"><span>Office</span><span>${escapeHtml(paySettings.officeAddress)}</span></div></div>` : ''}
+       ` : `
+         <div class="qr-box" style="margin-bottom:14px;">
+           ${paySettings.qrCodeImageURL ? `<img src="${paySettings.qrCodeImageURL}" alt="Payment QR">` : '<p class="t-muted" style="font-size:12.5px; margin-bottom:8px;">QR not configured yet — use the details below.</p>'}
+-          <div style="font-size:13.4px;"><b>UPI ID:</b> ${escapeHtml(paySettings.upiId || 'Not configured')}</div>
+-          <div style="font-size:12.4px;" class="t-muted">${escapeHtml(paySettings.bankName || '')} · A/C ${escapeHtml(paySettings.accountNumber || '—')} · IFSC ${escapeHtml(paySettings.ifsc || '—')}</div>
++          ${paySettings.upiId ? `<div style="font-size:13.4px; margin-bottom:6px;"><b>UPI ID:</b> ${escapeHtml(paySettings.upiId)}</div>` : ''}
++          <div class="pay-detail-box">
++            <div class="pdl"><span>A/C Holder</span><span>${escapeHtml(paySettings.accountName || '—')}</span></div>
++            <div class="pdl"><span>Bank</span><span>${escapeHtml(paySettings.bankName || '—')}</span></div>
++            <div class="pdl"><span>A/C No.</span><span>${escapeHtml(paySettings.accountNumber || '—')}</span></div>
++            <div class="pdl"><span>Type</span><span>${escapeHtml(paySettings.accountType || '—')}</span></div>
++            <div class="pdl"><span>IFSC</span><span>${escapeHtml(paySettings.ifsc || '—')}</span></div>
++            <div class="pdl"><span>Branch</span><span>${escapeHtml(paySettings.branch || '—')}</span></div>
++          </div>
          </div>
        `}
 -      <div class="field"><label for="payAmount">Amount (₹)</label>
@@ -3362,7 +3485,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  async function submitPayment(mode) {
    const btn = document.getElementById('submitPaymentBtn');
    const amount = Number(document.getElementById('payAmount').value);
-@@ -1716,9 +2236,22 @@
+@@ -1716,9 +2245,22 @@
    let utr = isOffline ? '' : document.getElementById('payUtr').value.trim();
    let proofURL = '';
  
@@ -3385,7 +3508,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
    setLoading(btn, true);
    try {
      if (!isOffline) {
-@@ -1737,6 +2270,9 @@
+@@ -1737,6 +2279,9 @@
        tower: currentMember.tower,
        residentName: currentMember.name,
        amount,
@@ -3395,7 +3518,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
        financialYear: currentFinancialYear(),
        mode,
        utrOrChequeNo: utr,
-@@ -1751,12 +2287,14 @@
+@@ -1751,12 +2296,14 @@
      await loadPayments(currentUser.uid);
    } catch (e) {
      showToast('Kuch galat ho gaya, dobara try karein.', 'error');
@@ -3411,7 +3534,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
    const listEl = document.getElementById('noticeList');
    try {
      const q = query(collection(db, 'notices'), orderBy('postedAt', 'desc'), limit(5));
-@@ -1764,18 +2302,19 @@
+@@ -1764,18 +2311,19 @@
      renderNotices();
    } catch (e) {
      window.__notices = null;
@@ -3433,7 +3556,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
      window.__translate(listEl);
      return;
    }
-@@ -1792,12 +2331,31 @@
+@@ -1792,12 +2340,31 @@
            <h4 data-no-translate>${escapeHtml(lang === 'hi' ? (n.titleHi || n.titleEn) : n.titleEn)}</h4>
            <p data-no-translate>${escapeHtml(lang === 'hi' ? (n.bodyHi || n.bodyEn) : n.bodyEn)}</p>
            ${n.attachmentURL ? `<a href="${n.attachmentURL}" target="_blank" rel="noopener" style="font-size:12.5px; text-decoration:underline; display:inline-block; margin-top:7px;" class="t-sub">Download attachment</a>` : ''}
@@ -3465,7 +3588,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  // Re-render notices (and re-translate the page) whenever the language changes.
  window.addEventListener('mhm:langchange', () => {
    if (document.getElementById('noticeList')) renderNotices();
-@@ -1844,7 +2402,7 @@
+@@ -1844,7 +2411,7 @@
      `;
      window.__translate(el);
    } catch (e) {
@@ -3474,7 +3597,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
      window.__translate(el);
    }
  }
-@@ -1855,7 +2413,7 @@
+@@ -1855,7 +2422,7 @@
      const rows = (await getDocs(query(collection(db, 'documents'), orderBy('addedAt', 'desc'))))
        .docs.map(d => d.data());
      if (!rows.length) {
@@ -3483,7 +3606,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
        window.__translate(el); return;
      }
      el.innerHTML = '<div class="doc-grid">' + rows.map(d => `
-@@ -1869,7 +2427,7 @@
+@@ -1869,7 +2436,7 @@
        </a>`).join('') + '</div>';
      window.__translate(el);
    } catch (e) {
@@ -3491,6 +3614,28 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
 +    el.innerHTML = emptyState('Documents load nahi ho paaye', 'Thodi der baad dobara try karein.', { compact: true });
      window.__translate(el);
    }
+ }
+@@ -1900,13 +2467,17 @@
+ 
+   try {
+     const paySnap = await getDoc(doc(db, 'settings', 'payment'));
+-    const p = paySnap.exists() ? paySnap.data() : {};
+-    document.getElementById('miniPaySettings').innerHTML = p.upiId || p.accountNumber ? `
+-      <div class="pay-line"><span>UPI ID</span><span>${escapeHtml(p.upiId || '—')}</span></div>
++    const p = paymentDetails(paySnap.exists() ? paySnap.data() : {});
++    document.getElementById('miniPaySettings').innerHTML = `
++      ${p.upiId ? `<div class="pay-line"><span>UPI ID</span><span>${escapeHtml(p.upiId)}</span></div>` : ''}
++      <div class="pay-line"><span>A/C Holder</span><span>${escapeHtml(p.accountName || '—')}</span></div>
+       <div class="pay-line"><span>Bank</span><span>${escapeHtml(p.bankName || '—')}</span></div>
+       <div class="pay-line"><span>A/C No.</span><span>${escapeHtml(p.accountNumber || '—')}</span></div>
++      <div class="pay-line"><span>Type</span><span>${escapeHtml(p.accountType || '—')}</span></div>
+       <div class="pay-line"><span>IFSC</span><span>${escapeHtml(p.ifsc || '—')}</span></div>
+-    ` : '<p style="font-size:13px; color:rgba(255,255,255,.6);">Not configured yet — the committee can set these from the Admin Panel.</p>';
++      <div class="pay-line"><span>Branch</span><span>${escapeHtml(p.branch || '—')}</span></div>
++      ${p.officeAddress ? `<div class="pay-line"><span>Office</span><span>${escapeHtml(p.officeAddress)}</span></div>` : ''}
++    `;
+     window.__translate(document.getElementById('miniPaySettings'));
+   } catch (e) {}
  }
 diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal/logo-data.js MHMRWS-Portal/logo-data.js
 --- a/MHMRWS-Portal/logo-data.js	2026-07-23 04:00:32.000000000 +0000
@@ -3681,7 +3826,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  // ----------------------------------------------------------------------------
 diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal/styles.css MHMRWS-Portal/styles.css
 --- a/MHMRWS-Portal/styles.css	2026-07-23 03:47:54.000000000 +0000
-+++ MHMRWS-Portal/styles.css	2026-07-29 07:19:42.647165302 +0000
++++ MHMRWS-Portal/styles.css	2026-07-30 06:27:45.679589611 +0000
 @@ -233,10 +233,20 @@
    text-align:left; font-family:var(--font-mono); font-size:11px; letter-spacing:.08em; text-transform:uppercase;
    color:var(--ink-400); padding:12px 14px; border-bottom:1px solid var(--line); background:var(--paper); white-space:nowrap;
@@ -3777,7 +3922,7 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
  
  /* --- Loader ------------------------------------------------------------------ */
  .spinner{ width:20px; height:20px; border-radius:50%; border:2.5px solid rgba(255,255,255,.35); border-top-color:currentColor; animation:spin .7s linear infinite; }
-@@ -308,9 +368,149 @@
+@@ -308,9 +368,156 @@
  .skeleton{ background:linear-gradient(90deg, var(--line) 25%, #EDF0F6 37%, var(--line) 63%); background-size:400% 100%; animation:sk 1.4s ease infinite; border-radius:6px; }
  @keyframes sk{ 0%{background-position:100% 50%;} 100%{background-position:0 50%;} }
  
@@ -3815,6 +3960,13 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
 +.callout{ border-radius:var(--radius-md); padding:12px 14px; margin:4px 0 16px; line-height:1.5; }
 +.callout-info{ background:rgba(37,99,235,.07); border:1px solid rgba(37,99,235,.2); color:var(--ink-700); }
 +.callout-info b{ color:var(--navy-950); }
++
++/* --- Payment detail box (bank details in the payment modal) ------------------- */
++.pay-detail-box{ text-align:left; margin-top:4px; border:1px solid var(--line); border-radius:var(--radius-md); overflow:hidden; }
++.pay-detail-box .pdl{ display:flex; justify-content:space-between; gap:14px; padding:7px 12px; font-size:12.8px; border-bottom:1px solid var(--line); }
++.pay-detail-box .pdl:last-child{ border-bottom:none; }
++.pay-detail-box .pdl span:first-child{ color:var(--ink-400); font-family:var(--font-mono); font-size:10.5px; letter-spacing:.04em; text-transform:uppercase; white-space:nowrap; padding-top:2px; }
++.pay-detail-box .pdl span:last-child{ text-align:right; font-weight:600; color:var(--navy-950); font-variant-numeric:tabular-nums; }
 +
 +/* --- Payment type toggle (membership vs maintenance) -------------------------- */
 +.paytype-toggle{ display:flex; gap:8px; margin-bottom:16px; }
@@ -4068,8 +4220,8 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
 +export const serverTimestamp = () => new Date();
 diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal/tests/run.mjs MHMRWS-Portal/tests/run.mjs
 --- a/MHMRWS-Portal/tests/run.mjs	1970-01-01 00:00:00.000000000 +0000
-+++ MHMRWS-Portal/tests/run.mjs	2026-07-28 15:08:17.367473254 +0000
-@@ -0,0 +1,228 @@
++++ MHMRWS-Portal/tests/run.mjs	2026-07-30 06:28:12.813857055 +0000
+@@ -0,0 +1,245 @@
 +/* MHMRWS Portal — test suite.  Run with:  node tests/run.mjs   (or: npm test)
 +
 +   Covers the parts where a bug means wrong money or a broken record: the dues
@@ -4295,6 +4447,23 @@ diff -ruN '--exclude=*.png' '--exclude=*.webp' '--exclude=*.jpg' a/MHMRWS-Portal
 +  // Backward-compat: old payments with no type must NOT count as membership.
 +  const legacy = A.membershipDue(m, [{ memberUid: 'u1', status: 'verified', amount: 1100 }], {});
 +  eq(legacy.outstanding, 1100, 'untyped legacy payments do not clear membership');
++}
++
++/* ---- Payment details defaults ------------------------------------------ */
++section('Payment details defaults');
++{
++  const d = A.paymentDetails({});
++  eq(d.bankName, 'HDFC Bank', 'default bank name present');
++  eq(d.ifsc, 'HDFC0003774', 'default IFSC present');
++  eq(d.accountNumber, '50200123261579', 'default account number present');
++  ok(d.officeAddress.includes('Suncity'), 'default office address present');
++  // Saved values override defaults; unset fields fall back.
++  const merged = A.paymentDetails({ upiId: 'mhm@upi', bankName: 'SBI' });
++  eq(merged.upiId, 'mhm@upi', 'saved UPI overrides');
++  eq(merged.bankName, 'SBI', 'saved bank overrides');
++  eq(merged.ifsc, 'HDFC0003774', 'unset field falls back to default');
++  // null/undefined saved settings must not throw.
++  ok(A.paymentDetails(null).bankName === 'HDFC Bank', 'null saved settings → defaults');
 +}
 +
 +report();

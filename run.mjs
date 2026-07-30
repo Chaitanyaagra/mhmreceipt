@@ -225,4 +225,21 @@ section('Membership fee');
   eq(legacy.outstanding, 1100, 'untyped legacy payments do not clear membership');
 }
 
+/* ---- Payment details defaults ------------------------------------------ */
+section('Payment details defaults');
+{
+  const d = A.paymentDetails({});
+  eq(d.bankName, 'HDFC Bank', 'default bank name present');
+  eq(d.ifsc, 'HDFC0003774', 'default IFSC present');
+  eq(d.accountNumber, '50200123261579', 'default account number present');
+  ok(d.officeAddress.includes('Suncity'), 'default office address present');
+  // Saved values override defaults; unset fields fall back.
+  const merged = A.paymentDetails({ upiId: 'mhm@upi', bankName: 'SBI' });
+  eq(merged.upiId, 'mhm@upi', 'saved UPI overrides');
+  eq(merged.bankName, 'SBI', 'saved bank overrides');
+  eq(merged.ifsc, 'HDFC0003774', 'unset field falls back to default');
+  // null/undefined saved settings must not throw.
+  ok(A.paymentDetails(null).bankName === 'HDFC Bank', 'null saved settings → defaults');
+}
+
 report();

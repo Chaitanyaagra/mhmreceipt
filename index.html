@@ -1247,6 +1247,7 @@ window.__isOffline = isOffline;
 window.__MHM_LOGO = LOGO_DATA_URI;          // image URL, fine for <img src>
 window.__MHM_LOGO_DATAURI = getLogoDataUri;  // call to get a data: URI for PDFs
 window.__translate = translateSubtree;
+window.__setDynamicLabel = setDynamicLabel;   // used by the Firebase block for the auth button
 window.__HI = HI;
 
 ['brandLogo','heroLogo','footLogo'].forEach(id => {
@@ -1431,7 +1432,7 @@ import {
   generateMembershipCard, duesFor, DUES_LABEL, DUES_BADGE,
   expenseSummary, fundPosition,
   generateStatementPDF, skeletonList, emptyState, showFieldError, clearFieldErrors,
-  membershipDue, membershipFeeAmount,
+  membershipDue, membershipFeeAmount, paymentDetails,
   waShareText
 } from './app-common.js';
 
@@ -1726,14 +1727,14 @@ onAuthStateChanged(auth, async (user) => {
   const portal = document.getElementById('portal');
   const navBtn = document.getElementById('navAuthBtn');
   if (user) {
-    setDynamicLabel(navBtn, 'Logout');
+    window.__setDynamicLabel(navBtn, 'Logout');
     navBtn.onclick = async () => { await signOut(auth); location.reload(); };
     portal.style.display = 'none';
     dash.style.display = 'block';
     await loadDashboard(user.uid);
   } else {
     currentMember = null;
-    setDynamicLabel(navBtn, 'Resident Login');
+    window.__setDynamicLabel(navBtn, 'Resident Login');
     navBtn.onclick = () => window.__goToPortal('login');
     portal.style.display = 'block';
     dash.style.display = 'none';
@@ -2058,7 +2059,7 @@ async function openPaymentModal() {
   if (!existing.empty) { showToast('Aapka ek payment pehle se pending hai — nayi entry ki zaroorat nahi.', 'error'); return; }
 
   const paySettingsSnap = await getDoc(doc(db, 'settings', 'payment'));
-  const paySettings = paySettingsSnap.exists() ? paySettingsSnap.data() : {};
+  const paySettings = paymentDetails(paySettingsSnap.exists() ? paySettingsSnap.data() : {});
 
   // The maintenance invoice — expected / paid / outstanding for this FY,
   // straight from the committee's per-tower rate. This is what makes "type an
@@ -2169,12 +2170,20 @@ function renderPayDetailForm(mode, paySettings, payContext) {
   holder.innerHTML = `
     <div style="margin-top:18px; border-top:1px solid var(--line); padding-top:18px;">
       ${isOffline ? `
-        <p class="t-sub" style="font-size:13.5px; margin-bottom:14px;">Please visit the RWA office with your ${mode}. Your payment will show as <b>Pending Approval</b> until the office confirms receipt.</p>
+        <p class="t-sub" style="font-size:13.5px; margin-bottom:10px;">Please visit the RWA office with your ${mode}. Your payment will show as <b>Pending Approval</b> until the office confirms receipt.</p>
+        ${paySettings.officeAddress ? `<div class="pay-detail-box"><div class="pdl"><span>Office</span><span>${escapeHtml(paySettings.officeAddress)}</span></div></div>` : ''}
       ` : `
         <div class="qr-box" style="margin-bottom:14px;">
           ${paySettings.qrCodeImageURL ? `<img src="${paySettings.qrCodeImageURL}" alt="Payment QR">` : '<p class="t-muted" style="font-size:12.5px; margin-bottom:8px;">QR not configured yet — use the details below.</p>'}
-          <div style="font-size:13.4px;"><b>UPI ID:</b> ${escapeHtml(paySettings.upiId || 'Not configured')}</div>
-          <div style="font-size:12.4px;" class="t-muted">${escapeHtml(paySettings.bankName || '')} · A/C ${escapeHtml(paySettings.accountNumber || '—')} · IFSC ${escapeHtml(paySettings.ifsc || '—')}</div>
+          ${paySettings.upiId ? `<div style="font-size:13.4px; margin-bottom:6px;"><b>UPI ID:</b> ${escapeHtml(paySettings.upiId)}</div>` : ''}
+          <div class="pay-detail-box">
+            <div class="pdl"><span>A/C Holder</span><span>${escapeHtml(paySettings.accountName || '—')}</span></div>
+            <div class="pdl"><span>Bank</span><span>${escapeHtml(paySettings.bankName || '—')}</span></div>
+            <div class="pdl"><span>A/C No.</span><span>${escapeHtml(paySettings.accountNumber || '—')}</span></div>
+            <div class="pdl"><span>Type</span><span>${escapeHtml(paySettings.accountType || '—')}</span></div>
+            <div class="pdl"><span>IFSC</span><span>${escapeHtml(paySettings.ifsc || '—')}</span></div>
+            <div class="pdl"><span>Branch</span><span>${escapeHtml(paySettings.branch || '—')}</span></div>
+          </div>
         </div>
       `}
       <div class="amount-block">
@@ -2458,13 +2467,17 @@ async function loadSettingsPublic() {
 
   try {
     const paySnap = await getDoc(doc(db, 'settings', 'payment'));
-    const p = paySnap.exists() ? paySnap.data() : {};
-    document.getElementById('miniPaySettings').innerHTML = p.upiId || p.accountNumber ? `
-      <div class="pay-line"><span>UPI ID</span><span>${escapeHtml(p.upiId || '—')}</span></div>
+    const p = paymentDetails(paySnap.exists() ? paySnap.data() : {});
+    document.getElementById('miniPaySettings').innerHTML = `
+      ${p.upiId ? `<div class="pay-line"><span>UPI ID</span><span>${escapeHtml(p.upiId)}</span></div>` : ''}
+      <div class="pay-line"><span>A/C Holder</span><span>${escapeHtml(p.accountName || '—')}</span></div>
       <div class="pay-line"><span>Bank</span><span>${escapeHtml(p.bankName || '—')}</span></div>
       <div class="pay-line"><span>A/C No.</span><span>${escapeHtml(p.accountNumber || '—')}</span></div>
+      <div class="pay-line"><span>Type</span><span>${escapeHtml(p.accountType || '—')}</span></div>
       <div class="pay-line"><span>IFSC</span><span>${escapeHtml(p.ifsc || '—')}</span></div>
-    ` : '<p style="font-size:13px; color:rgba(255,255,255,.6);">Not configured yet — the committee can set these from the Admin Panel.</p>';
+      <div class="pay-line"><span>Branch</span><span>${escapeHtml(p.branch || '—')}</span></div>
+      ${p.officeAddress ? `<div class="pay-line"><span>Office</span><span>${escapeHtml(p.officeAddress)}</span></div>` : ''}
+    `;
     window.__translate(document.getElementById('miniPaySettings'));
   } catch (e) {}
 }
