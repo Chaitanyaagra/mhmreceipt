@@ -768,7 +768,7 @@ installPasswordToggles();
 <script type="module">
 import { auth, db, storage, firebaseConfig, GOOGLE_OAUTH_CLIENT_ID, SOCIETY } from './firebase-config.js';
 import {
-  initializeApp
+  initializeApp, deleteApp
 } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
 import {
   getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, createUserWithEmailAndPassword, sendPasswordResetEmail
@@ -954,17 +954,35 @@ function applyRoleNav() {
   });
 })();
 
-/* Probe Storage with a tiny throwaway upload. Cheaper and far more reliable
-   than guessing from config: it tells us whether uploads will actually work
-   for residents, which is what the committee needs to know. */
+/* Check that Storage is reachable and configured — WITHOUT writing anything.
+   The old version uploaded a tiny probe file on every page load and never
+   deleted it, so the bucket slowly filled with junk. Instead we attempt to
+   read a well-known path that doesn't exist:
+     - "storage/object-not-found"  → Storage works, the file just isn't there
+       (this is the SUCCESS case for us).
+     - "storage/unauthorized" / config errors → rules or setup problem; warn.
+     - network/other → treat as reachable-but-unknown and stay quiet rather
+       than nagging the committee over a transient blip.
+   Reads create no objects, so nothing accumulates. */
 async function checkStorageAvailable() {
+  const warn = document.getElementById('storageWarning');
   try {
-    const probe = storageRef(storage, `settings/_probe_${Date.now()}.txt`);
-    await uploadBytes(probe, new Blob(['ok'], { type: 'text/plain' }));
-    document.getElementById('storageWarning').style.display = 'none';
+    await getDownloadURL(storageRef(storage, 'settings/__healthcheck__'));
+    // Unexpected: the path resolved. Storage clearly works.
+    if (warn) warn.style.display = 'none';
   } catch (e) {
-    console.warn('Storage probe failed:', e?.code || e);
-    document.getElementById('storageWarning').style.display = 'flex';
+    const code = (e && e.code) || '';
+    if (code === 'storage/object-not-found') {
+      // Expected — Storage is up, the probe path simply has no file.
+      if (warn) warn.style.display = 'none';
+    } else if (code === 'storage/unauthorized' || code === 'storage/unknown' || code === 'storage/invalid-argument') {
+      console.warn('Storage check failed:', code);
+      if (warn) warn.style.display = 'flex';
+    } else {
+      // Network hiccup or an unrecognised state — don't cry wolf.
+      console.warn('Storage check inconclusive:', code || e);
+      if (warn) warn.style.display = 'none';
+    }
   }
 }
 
@@ -2363,12 +2381,22 @@ document.getElementById('addAdminForm').addEventListener('submit', async (e) => 
   const btn = f.querySelector('button[type="submit"]');
   btn.disabled = true;
   try {
-    // Secondary app instance so creating this account doesn't sign the current admin out.
+    // Create the new account on a throwaway secondary Firebase app so the
+    // current admin's own session is not replaced. The instance is always torn
+    // down in the finally below — otherwise each add-admin would leak an app
+    // instance (memory + Firebase "duplicate app" console noise) until the
+    // page is refreshed.
     const secondaryApp = initializeApp(firebaseConfig, 'Secondary_' + Date.now());
-    const secondaryAuth = getAuth(secondaryApp);
-    const cred = await createUserWithEmailAndPassword(secondaryAuth, f.email.value.trim(), f.password.value);
-    const newUid = cred.user.uid;
-    await signOut(secondaryAuth);
+    let newUid;
+    try {
+      const secondaryAuth = getAuth(secondaryApp);
+      const cred = await createUserWithEmailAndPassword(secondaryAuth, f.email.value.trim(), f.password.value);
+      newUid = cred.user.uid;
+      await signOut(secondaryAuth);
+    } finally {
+      // Release the secondary app whether creation succeeded or threw.
+      try { await deleteApp(secondaryApp); } catch (_) {}
+    }
     await setDoc(doc(db, 'admins', newUid), { uid: newUid, name: f.name.value, email: f.email.value.trim(), role: f.role.value, createdAt: serverTimestamp(), createdBy: currentAdmin.email });
 
     let memberID = null;

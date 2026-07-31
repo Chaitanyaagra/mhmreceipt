@@ -37,9 +37,14 @@
   --magenta-600:#A31350;
   --magenta-100:#FBE9F1;
 
-  --paper:#F5F6FA;
-  --paper-raised:#FFFFFF;
-  --white:#FFFFFF;
+  /* Warm ivory surfaces instead of cold white/grey — the single biggest lift
+     toward a "luxury civic" feel. Cards sit on ivory; raised cards are a
+     barely-warmer near-white so they still read as lifted. */
+  --paper:#FAF8F4;          /* page background — warm ivory */
+  --paper-raised:#FFFDF9;   /* card surface — warmer than pure white */
+  --white:#FFFFFF;          /* kept for PDFs / places that need true white */
+  --ivory:#FAF8F4;
+  --gold-glow:rgba(201,162,39,.18);   /* soft gold used in shadows/borders */
 
   --ink-900:#10192B;
   --ink-700:#2B3448;
@@ -47,8 +52,8 @@
   --ink-400:#7C879C;
   --ink-200:#C4CBD8;
 
-  --line:#E2E6EF;
-  --line-strong:#C9D0DF;
+  --line:#EAE6DC;           /* warm hairline to match ivory (was cool grey) */
+  --line-strong:#D9D3C6;
 
   --success:#1B7A4D;
   --success-bg:#E6F4EC;
@@ -76,8 +81,8 @@
   --radius-md:12px;
   --radius-sm:8px;
   --radius-pill:999px;
-  --shadow-card:0 1px 2px rgba(10,27,51,.05), 0 10px 28px -12px rgba(10,27,51,.16);
-  --shadow-pop:0 4px 10px rgba(10,27,51,.08), 0 20px 48px -16px rgba(10,27,51,.24);
+  --shadow-card:0 1px 2px rgba(58,44,20,.05), 0 12px 30px -14px rgba(58,44,20,.18);
+  --shadow-pop:0 6px 14px rgba(58,44,20,.09), 0 24px 54px -18px rgba(58,44,20,.26);
 
   --gradient-saffron:linear-gradient(120deg, var(--saffron-300) 0%, var(--saffron-500) 45%, var(--saffron-600) 100%);
   --gradient-navy:radial-gradient(120% 140% at 15% 0%, var(--navy-700) 0%, var(--navy-900) 45%, var(--navy-950) 100%);
@@ -178,9 +183,25 @@ ul{ margin:0; padding:0; list-style:none; }
 .btn-navy{ background:var(--navy-900); color:var(--white); }
 .btn-navy:hover{ background:var(--navy-800); }
 .btn-outline{ background:transparent; border-color:var(--line-strong); color:var(--navy-900); }
-.btn-outline:hover{ border-color:var(--navy-700); background:var(--paper); }
+.btn-outline:hover{ border-color:var(--gold-500); background:var(--paper); box-shadow:0 0 0 4px var(--gold-glow); }
 .btn-outline.on-dark{ border-color:rgba(255,255,255,.35); color:var(--white); }
 .btn-outline.on-dark:hover{ background:rgba(255,255,255,.08); }
+
+/* Premium gold-bordered button — a matte-gold outline that glows softly and
+   reveals a → on hover. Used for elegant secondary CTAs (e.g. Resident Login). */
+.btn-gold{
+  background:transparent; color:var(--navy-950);
+  border:1.5px solid var(--gold-500);
+}
+.btn-gold::after{
+  content:"→"; margin-left:2px; opacity:0; width:0; overflow:hidden;
+  transition:opacity .18s ease, width .18s ease, margin .18s ease;
+}
+@media (hover:hover){
+  .btn-gold:hover{ box-shadow:0 0 0 4px var(--gold-glow), 0 10px 22px -10px rgba(201,162,39,.5); background:rgba(201,162,39,.05); }
+  .btn-gold:hover::after{ opacity:1; width:1em; margin-left:6px; }
+}
+.btn-gold.on-dark{ color:var(--white); border-color:var(--gold-300); }
 .btn-ghost{ background:transparent; color:var(--navy-800); padding:10px 14px; }
 .btn-ghost:hover{ background:var(--paper); }
 .btn-danger{ background:var(--danger-bg); color:var(--danger); border-color:var(--danger-line); }
@@ -191,7 +212,25 @@ ul{ margin:0; padding:0; list-style:none; }
 .btn .spinner{ width:14px; height:14px; }
 
 /* --- Card / Surface ------------------------------------------------------ */
-.card{ background:var(--paper-raised); border:1px solid var(--line); border-radius:var(--radius-lg); box-shadow:var(--shadow-card); }
+.card{
+  position:relative;
+  background:var(--paper-raised);
+  border:1px solid var(--line);
+  border-radius:24px;
+  box-shadow:var(--shadow-card);
+  transition:transform .2s cubic-bezier(.22,.61,.36,1), box-shadow .2s ease;
+}
+/* A hair-thin matte-gold accent along the very top edge — the "premium" tell,
+   restrained (not a heavy border). */
+.card::before{
+  content:""; position:absolute; left:24px; right:24px; top:0; height:2px;
+  background:linear-gradient(90deg, transparent, var(--gold-500), transparent);
+  opacity:.55; border-radius:2px;
+}
+/* Lift on hover — desktop only (no hover on touch, so mobile is unaffected). */
+@media (hover:hover){
+  .card:hover{ transform:translateY(-3px); box-shadow:var(--shadow-pop); }
+}
 .card-pad{ padding:26px; }
 
 /* --- Badges / status pills ------------------------------------------------ */
@@ -657,4 +696,50 @@ tbody tr:hover{ background:#FAFBFD; }
     animation:none !important;
   }
   .success-ring .tick{ stroke-dashoffset:0; }
+}
+
+/* ============================================================================
+   PREMIUM CIVIC — dividers, hero glass, logo treatment
+   Mobile-fast: no texture images, glass limited to the hero only.
+   ============================================================================ */
+
+/* --- Thin gold section divider (restrained ❖, not a heavy rule) ----------- */
+.gold-divider{
+  display:flex; align-items:center; justify-content:center; gap:16px;
+  margin:8px auto; max-width:340px; color:var(--gold-500);
+}
+.gold-divider::before, .gold-divider::after{
+  content:""; height:1px; flex:1;
+  background:linear-gradient(90deg, transparent, var(--gold-500));
+}
+.gold-divider::after{ background:linear-gradient(90deg, var(--gold-500), transparent); }
+.gold-divider .gd-mark{ font-size:12px; opacity:.9; }
+
+/* --- Logo ring + glow ------------------------------------------------------
+   Wrap a seal <img> in .logo-ring to give it a matte-gold ring, soft glow and
+   shadow, so it reads as an emblem rather than a pasted image. */
+.logo-ring{
+  position:relative; display:inline-flex; align-items:center; justify-content:center;
+  border-radius:50%; padding:5px;
+  background:radial-gradient(circle at 50% 30%, rgba(255,255,255,.9), var(--paper-raised));
+  box-shadow:0 0 0 2px var(--gold-500), 0 0 0 6px var(--gold-glow), 0 12px 30px -10px rgba(58,44,20,.35);
+}
+.logo-ring.on-dark{
+  background:radial-gradient(circle at 50% 30%, rgba(255,255,255,.14), rgba(255,255,255,.04));
+  box-shadow:0 0 0 2px var(--gold-300), 0 0 24px var(--gold-glow), 0 12px 30px -8px rgba(0,0,0,.5);
+}
+.logo-ring img{ border-radius:50%; display:block; width:100%; height:100%; object-fit:contain; }
+
+/* --- Hero frosted-glass card (glass used ONLY here, for performance) ------- */
+.glass{
+  background:rgba(255,255,255,.08);
+  border:1px solid rgba(255,255,255,.14);
+  border-radius:24px;
+  -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px);
+  box-shadow:0 8px 32px -12px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.12);
+}
+/* Graceful fallback where backdrop-filter isn't supported: a solid tint so
+   text stays legible (never a see-through unreadable panel). */
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
+  .glass{ background:rgba(15,37,71,.72); }
 }

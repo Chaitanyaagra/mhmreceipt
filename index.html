@@ -174,7 +174,7 @@ nav.main-nav a:hover::after{ transform:scaleX(1); }
 .hero-visual img.seal-img{
   width:240px; height:240px; border-radius:50%;
   background:#fff; padding:9px;
-  box-shadow:0 18px 44px rgba(0,0,0,.5), 0 0 0 1px rgba(228,199,101,.5);
+  box-shadow:0 18px 44px rgba(0,0,0,.5), 0 0 0 1px rgba(228,199,101,.5), 0 0 60px -10px rgba(228,199,101,.4);
 }
 .seal-caption{
   text-align:center; margin-top:22px; color:rgba(255,255,255,.55);
@@ -529,6 +529,50 @@ optgroup, option[disabled]{ color:var(--ink-400); font-style:italic; }
 .dash-grid{ display:grid; grid-template-columns:1.35fr 1fr; gap:20px; align-items:start; margin-top:20px; }
 .pay-history-item{ display:flex; justify-content:space-between; align-items:center; padding:15px 0; border-bottom:1px solid var(--line); gap:12px; flex-wrap:wrap; }
 .pay-history-item:last-child{ border-bottom:none; }
+
+/* --- Payment history timeline --------------------------------------------
+   A vertical rail with a status-coloured node per payment. The rail connects
+   the nodes so the history reads as a chronological thread, newest first. */
+.pay-timeline{ position:relative; margin:4px 0 0; padding:0; list-style:none; }
+.pay-timeline .tl-item{
+  position:relative; padding:0 0 22px 34px; /* room for rail + node on the left */
+}
+.pay-timeline .tl-item:last-child{ padding-bottom:4px; }
+/* the connecting rail */
+.pay-timeline .tl-item::before{
+  content:""; position:absolute; left:11px; top:4px; bottom:-4px; width:2px;
+  background:var(--line);
+}
+.pay-timeline .tl-item:last-child::before{ display:none; }
+/* the node */
+.pay-timeline .tl-node{
+  position:absolute; left:4px; top:2px; width:16px; height:16px; border-radius:50%;
+  background:var(--white); border:3px solid var(--ink-300,#c3ccd8); box-sizing:border-box; z-index:1;
+}
+.pay-timeline .tl-node.is-verified{ border-color:var(--success); }
+.pay-timeline .tl-node.is-pending{ border-color:var(--warning,#C9A227); }
+.pay-timeline .tl-node.is-rejected{ border-color:var(--danger); }
+.pay-timeline .tl-node.is-verified::after{
+  content:""; position:absolute; inset:2px; border-radius:50%; background:var(--success);
+}
+.pay-timeline .tl-row{ display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap; }
+.pay-timeline .tl-amt{ font-weight:600; font-size:14.5px; }
+.pay-timeline .tl-meta{ color:var(--ink-400,#6b7688); font-size:12px; margin-top:2px; }
+.pay-timeline .tl-rcpt{ font-family:var(--font-mono,monospace); color:var(--ink-400,#6b7688); font-size:11.5px; margin-top:2px; }
+.pay-timeline .tl-actions{ display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end; }
+
+/* --- Dues progress bar (linear companion to the ring) --------------------- */
+.dues-bar-wrap{ margin-top:14px; }
+.dues-bar-head{ display:flex; justify-content:space-between; font-size:12px; color:var(--ink-400,#6b7688); margin-bottom:6px; }
+.dues-bar{ height:9px; border-radius:6px; background:var(--line); overflow:hidden; }
+.dues-bar > span{
+  display:block; height:100%; border-radius:6px; width:0;
+  background:linear-gradient(90deg, var(--gold-500,#C9A227), var(--gold-300,#E4C765));
+  transition:width .8s cubic-bezier(.22,.61,.36,1);
+}
+.dues-bar > span.is-paid{ background:linear-gradient(90deg, #0f8a54, var(--success)); }
+.dues-bar > span.is-unpaid{ background:linear-gradient(90deg, #c0392b, var(--danger)); }
+@media (prefers-reduced-motion: reduce){ .dues-bar > span{ transition:none; } }
 .dues-box{ border:1px solid var(--line); border-radius:var(--radius-md); overflow:hidden; }
 .dues-head{ display:flex; align-items:center; gap:18px; padding:18px 16px; background:var(--paper); flex-wrap:wrap; }
 .dues-head .amt{ font-family:var(--font-display); font-size:28px; font-weight:600; color:var(--navy-950); line-height:1.1; font-variant-numeric:tabular-nums; margin:3px 0 8px; }
@@ -832,7 +876,7 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
       <p class="lead">Register your flat once, pay online or at the office, and receive a QR-verified receipt every single time. No paper registers, no "did it go through?" uncertainty.</p>
       <div class="hero-ctas">
         <button class="btn btn-primary" onclick="window.__goToPortal('register')">Register as Resident</button>
-        <button class="btn btn-outline on-dark" onclick="window.__goToPortal('login')">Resident Login</button>
+        <button class="btn btn-gold on-dark" onclick="window.__goToPortal('login')">Resident Login</button>
       </div>
       <div class="stat-strip">
         <div class="stat"><b id="statMembers">—</b><span>Registered Members</span></div>
@@ -2046,6 +2090,12 @@ function renderDues(dues, financialYear) {
         <div><span class="lbl">Paid</span><b>${formatINR(dues.paid)}</b></div>
         <div><span class="lbl">Balance</span><b class="${dues.outstanding > 0 ? 't-danger' : 't-success'}">${formatINR(dues.outstanding)}</b></div>
       </div>
+      <div class="dues-bar-wrap">
+        <div class="dues-bar-head"><span>Progress</span><span>${pct}% &middot; ${formatINR(dues.paid)} / ${formatINR(dues.expected)}</span></div>
+        <div class="dues-bar" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100">
+          <span class="is-${escapeHtml(dues.status)}" style="width:${pct}%"></span>
+        </div>
+      </div>
     </div>`;
   window.__translate?.(el);
 }
@@ -2085,23 +2135,32 @@ async function loadPayments(uid) {
     verified: '<span class="badge badge-success">Verified</span>',
     rejected: '<span class="badge badge-danger">Rejected</span>'
   };
+  // Node colour class from the payment status.
+  const nodeClass = (s) => s === 'verified' ? 'is-verified'
+    : s === 'rejected' ? 'is-rejected' : 'is-pending';
 
-  list.innerHTML = listRows.map(p => `
-    <div class="pay-history-item">
-      <div>
-        <div style="font-weight:600; font-size:14.5px;">${formatINR(p.amount)} <span class="t-muted" style="font-weight:400;">· ${escapeHtml((p.mode||'').toUpperCase())}</span></div>
-        <div class="t-muted" style="font-size:12px;">${fmtDate(p.submittedAt)} · FY ${escapeHtml(p.financialYear)}</div>
-        ${p.receiptNumber ? `<div class="mono t-muted" style="font-size:11.5px; margin-top:2px;">${escapeHtml(p.receiptNumber)}</div>` : ''}
+  list.innerHTML = `<ul class="pay-timeline">` + listRows.map(p => `
+    <li class="tl-item">
+      <span class="tl-node ${nodeClass(p.status)}"></span>
+      <div class="tl-row">
+        <div>
+          <div class="tl-amt">${formatINR(p.amount)} <span class="t-muted" style="font-weight:400;">· ${escapeHtml((p.mode||'').toUpperCase())}</span></div>
+          <div class="tl-meta">${fmtDate(p.submittedAt)} · FY ${escapeHtml(p.financialYear)}${p.type === 'membership' ? ' · Membership' : ''}</div>
+          ${p.receiptNumber ? `<div class="tl-rcpt">${escapeHtml(p.receiptNumber)}</div>` : ''}
+        </div>
+        <div style="text-align:right;">
+          <div style="margin-bottom:7px;">${statusBadge[p.status] || ''}</div>
+          ${p.status === 'verified' ? `
+            <div class="tl-actions">
+              <button class="btn btn-outline btn-sm" data-receipt-id="${p.id}">Download PDF</button>
+              <button class="btn btn-ghost btn-sm" data-print-id="${p.id}">Print</button>
+            </div>
+          ` : ''}
+          ${p.status === 'rejected' && p.rejectionReason ? `<div class="t-danger" style="font-size:11.5px; max-width:180px;">${escapeHtml(p.rejectionReason)}</div>` : ''}
+        </div>
       </div>
-      <div style="text-align:right;">
-        <div style="margin-bottom:7px;">${statusBadge[p.status] || ''}</div>
-        ${p.status === 'verified' ? `
-          <button class="btn btn-outline btn-sm" data-receipt-id="${p.id}">Download PDF</button>
-          <button class="btn btn-ghost btn-sm" data-print-id="${p.id}">Print</button>
-        ` : ''}
-      </div>
-    </div>
-  `).join('');
+    </li>
+  `).join('') + `</ul>`;
 
   if (rows.length > listRows.length) {
     const note = document.createElement('div');
