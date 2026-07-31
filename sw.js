@@ -8,7 +8,7 @@
    Bump CACHE_NAME on any future structural change to force a clean cache.
    ========================================================================== */
 
-const CACHE_NAME = 'mhmrws-shell-v8';
+const CACHE_NAME = 'mhmrws-shell-v10';
 const SHELL_FILES = [
   './',
   './index.html',
@@ -18,6 +18,10 @@ const SHELL_FILES = [
   './avatar-placeholder.js',
   './jspdf.umd.min.js',
   './qrcode.local.js',
+  './premium.js',
+  './chart.umd.min.js',
+  './jszip.min.js',
+  './xlsx.full.min.js',
   './ui-a11y.js',
   './manifest.json',
   './logo-data.js',

@@ -26,7 +26,7 @@
      ========================================================================== -->
 <meta http-equiv="Content-Security-Policy" content="
   default-src 'self';
-  script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://www.gstatic.com https://accounts.google.com https://apis.google.com https://www.google.com;
+  script-src 'self' 'unsafe-inline' https://www.gstatic.com https://accounts.google.com https://apis.google.com https://www.google.com;
   style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
   img-src 'self' data: blob: https://firebasestorage.googleapis.com https://*.googleusercontent.com;
   font-src 'self' data: https://fonts.gstatic.com;
@@ -48,19 +48,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="styles.css">
-<!-- Third-party libraries.
-     These are loaded from a CDN with no integrity hash, which means a
-     compromised or hijacked CDN gets script execution on a page that handles
-     ID documents and payment records. Fix this — it takes two minutes:
-
-       1. Open https://cdnjs.com and search for the library.
-       2. Click the copy button next to "SRI" for the exact version below.
-       3. Paste the sha384-... value into an integrity="" attribute here.
-
-     Stronger still: download these five files into a vendor/ folder in this
-     repo and load them from './vendor/...'. Same-origin scripts need no hash,
-     cannot be tampered with by a third party, and let the service worker cache
-     them for genuine offline use. -->
+<!-- Third-party libraries — bundled locally (same-origin), not from a CDN.
+     Same-origin scripts can't be tampered with by a third party, need no SRI
+     hash, keep working even if a CDN is blocked, and are cached by the service
+     worker for offline use. -->
 <script src="./jspdf.umd.min.js"></script>
 <script src="./qrcode.local.js"></script>
 <style>
@@ -748,6 +739,18 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
 </head>
 <body>
 
+<!-- Elegant loading screen — society seal on the navy gradient. Removed by
+     __hideAppLoader() once the page's first meaningful content is ready. The
+     logo <img> src is filled in by the Firebase-free block below. -->
+<div id="appLoader" role="status" aria-label="Loading">
+  <img class="al-seal" id="appLoaderSeal" alt="" src="logo.webp">
+  <div>
+    <div class="al-name">Max Heights Majestic</div>
+  </div>
+  <div class="al-sub">Resident Welfare Society</div>
+  <div class="al-bar"></div>
+</div>
+
 <!-- ============ Reusable SVG icon sprite (defined once, referenced via <use>) ============ -->
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <defs>
@@ -1222,6 +1225,15 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
   </div>
 </div>
 
+<!-- Success celebration modal — shown with an animated tick + confetti after a
+     successful registration or payment. Auto-closes; also closable manually. -->
+<div class="modal-backdrop no-print" id="successModalBackdrop">
+  <div class="modal" style="max-width:380px; text-align:center;">
+    <div class="modal-body" id="successModalBody"></div>
+    <button class="btn btn-primary btn-block" id="successModalOk" style="margin-top:6px;">Theek hai</button>
+  </div>
+</div>
+
 <div id="printReceiptArea" aria-hidden="true"></div>
 <div id="toast-region"></div>
 
@@ -1237,6 +1249,7 @@ import { LOGO_DATA_URI, getLogoDataUri } from './logo-data.js';
 import { initLang, setLang, translateSubtree, setDynamicLabel, HI } from './i18n.js';
 import { TOWER_IDS, flatsForTower } from './tower-plan.js';
 import { installModalA11y, installOfflineBanner, isOffline, installPasswordToggles } from './ui-a11y.js';
+import { hideAppLoader } from './premium.js';
 
 /* Accessibility + offline live in a Firebase-free module and are installed
    here, in the Firebase-free block, so a slow or failed SDK load never strips
@@ -1244,6 +1257,19 @@ import { installModalA11y, installOfflineBanner, isOffline, installPasswordToggl
 installModalA11y();
 installOfflineBanner();
 installPasswordToggles();
+
+// Elegant loading screen: swap in the embedded seal (so it shows even offline)
+// then fade the loader out once the page is interactive. Runs in the
+// Firebase-free block so the screen always clears, even if Firebase is slow.
+(() => {
+  const seal = document.getElementById('appLoaderSeal');
+  if (seal && window.__MHM_LOGO) seal.src = window.__MHM_LOGO;
+  const clear = () => hideAppLoader();
+  if (document.readyState === 'complete') setTimeout(clear, 550);
+  else window.addEventListener('load', () => setTimeout(clear, 400));
+  // Safety net: never let the loader linger if something stalls.
+  setTimeout(clear, 4000);
+})();
 window.__isOffline = isOffline;
 window.__MHM_LOGO = LOGO_DATA_URI;          // image URL, fine for <img src>
 window.__MHM_LOGO_DATAURI = getLogoDataUri;  // call to get a data: URI for PDFs
@@ -1434,8 +1460,13 @@ window.__animateCount = (el) => {
     const isLogin = which === 'login';
     if (tabLogin) tabLogin.classList.toggle('active', isLogin);
     if (tabRegister) tabRegister.classList.toggle('active', !isLogin);
-    if (loginForm) loginForm.style.display = isLogin ? 'block' : 'none';
-    if (registerForm) registerForm.style.display = isLogin ? 'none' : 'block';
+    const show = isLogin ? loginForm : registerForm;
+    const hide = isLogin ? registerForm : loginForm;
+    if (hide) hide.style.display = 'none';
+    if (show) {
+      show.style.display = 'block';
+      show.classList.remove('fade-in-soft'); void show.offsetWidth; show.classList.add('fade-in-soft');
+    }
   };
   tabLogin && tabLogin.addEventListener('click', () => window.__showTab('login'));
   tabRegister && tabRegister.addEventListener('click', () => window.__showTab('register'));
@@ -1713,7 +1744,7 @@ registerForm.addEventListener('submit', async (e) => {
     if (f.photo.files[0] && !photoURL) {
       showToast('Registration jama ho gaya, lekin photo upload nahi ho payi. Office se photo add karwa lein.', 'error');
     } else {
-      showToast('Registration jama ho gaya! Admin approval ke baad aapki Member ID banegi.', 'success');
+      showSuccess('Registration ho gaya!', 'Admin approval ke baad aapki Member ID ban jayegi. Aap ab login kar sakte hain.');
     }
     f.reset();
     showTab('login');
@@ -1770,6 +1801,7 @@ onAuthStateChanged(auth, async (user) => {
     navBtn.onclick = async () => { await signOut(auth); location.reload(); };
     portal.style.display = 'none';
     dash.style.display = 'block';
+    dash.classList.remove('fade-in'); void dash.offsetWidth; dash.classList.add('fade-in');
     await loadDashboard(user.uid);
   } else {
     window.__loggedIn = false;
@@ -1780,6 +1812,18 @@ onAuthStateChanged(auth, async (user) => {
     dash.style.display = 'none';
   }
 });
+
+// Celebratory success: animated checkmark in a small modal, plus a confetti
+// burst. Used only for genuine milestones (registration submitted, payment
+// recorded) — not for routine confirmations, which keep the plain toast.
+function showSuccess(title, message, { celebrate = true } = {}) {
+  const body = document.getElementById('successModalBody');
+  if (body && window.__successHTML) body.innerHTML = window.__successHTML(title, message);
+  document.getElementById('successModalBackdrop').classList.add('open');
+  if (celebrate && window.__confetti) window.__confetti();
+}
+document.getElementById('successModalOk')?.addEventListener('click',
+  () => document.getElementById('successModalBackdrop').classList.remove('open'));
 
 async function loadDashboard(uid) {
   const content = document.getElementById('dashboardContent');
@@ -1801,6 +1845,7 @@ async function loadDashboard(uid) {
   if (currentMember.status === 'rejected') statusExtra = `<p class="t-danger" style="margin-top:12px; font-size:13.5px;">Reason: ${escapeHtml(currentMember.rejectionReason || 'Office se contact karein.')}</p>`;
   if (currentMember.status === 'inactive') statusExtra = '<p class="t-sub" style="margin-top:12px; font-size:13.5px;">Aapki membership deactivate ki gayi hai. Query ke liye office se contact karein.</p>';
 
+  content.className = 'stagger';
   content.innerHTML = `
     <div class="card status-card">
       <div class="status-head">
@@ -2340,8 +2385,10 @@ async function submitPayment(mode) {
       clientToken: crypto.randomUUID(),
       submittedAt: serverTimestamp()
     });
-    showToast('Payment submit ho gaya!', 'success');
     document.getElementById('paymentModalBackdrop').classList.remove('open');
+    showSuccess('Payment ho gaya!', isOffline
+      ? 'Aapka payment record ho gaya. Office confirm karne ke baad receipt milega.'
+      : 'Aapka payment submit ho gaya. Verify hone ke baad receipt milega.');
     await loadPayments(currentUser.uid);
   } catch (e) {
     showToast('Kuch galat ho gaya, dobara try karein.', 'error');
