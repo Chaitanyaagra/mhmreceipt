@@ -170,6 +170,22 @@
   <div class="al-sub">Admin Panel</div>
   <div class="al-bar"></div>
 </div>
+<script>
+  /* Non-module safety net — clears the loader even if a module import fails,
+     so the admin panel can never get stuck on the loading animation. */
+  (function () {
+    function hideLoader() {
+      var el = document.getElementById('appLoader');
+      if (!el) return;
+      el.classList.add('hide');
+      setTimeout(function () { if (el && el.parentNode) el.parentNode.removeChild(el); }, 700);
+    }
+    window.__forceHideAppLoader = hideLoader;
+    if (document.readyState === 'complete') setTimeout(hideLoader, 400);
+    else window.addEventListener('load', function () { setTimeout(hideLoader, 300); });
+    setTimeout(hideLoader, 3500);
+  })();
+</script>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
   <g id="a-overview"><path d="M4 20V11M9.3 20V5M14.7 20v-6M20 20V8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" fill="none"/></g>
   <g id="a-members"><circle cx="9" cy="8.4" r="3.3" stroke="currentColor" stroke-width="1.7" fill="none"/><path d="M2.6 19.4c.8-3.2 3.4-5 6.4-5s5.6 1.8 6.4 5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" fill="none"/><path d="M16.2 5.6a3.1 3.1 0 010 5.8M18.4 19.4c-.3-1.5-.9-2.8-1.8-3.8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" fill="none"/></g>
@@ -756,13 +772,13 @@ installModalA11y();
 installOfflineBanner();
 installPasswordToggles();
 
-// Fade out the loading screen once the admin panel is ready.
-(() => {
-  const clear = () => hideAppLoader();
-  if (document.readyState === 'complete') setTimeout(clear, 500);
+// Fade out the loading screen once the admin panel is ready. The inline
+// safety-net script in <head> guarantees this even if the import above fails.
+try {
+  const clear = () => { try { hideAppLoader(); } catch (e) { window.__forceHideAppLoader && window.__forceHideAppLoader(); } };
+  if (document.readyState === 'complete') setTimeout(clear, 400);
   else window.addEventListener('load', () => setTimeout(clear, 350));
-  setTimeout(clear, 4000);   // safety net
-})();
+} catch (e) { window.__forceHideAppLoader && window.__forceHideAppLoader(); }
 </script>
 
 <script type="module">

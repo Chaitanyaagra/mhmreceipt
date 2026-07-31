@@ -783,9 +783,10 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
 </head>
 <body>
 
-<!-- Elegant loading screen — society seal on the navy gradient. Removed by
-     __hideAppLoader() once the page's first meaningful content is ready. The
-     logo <img> src is filled in by the Firebase-free block below. -->
+<!-- Elegant loading screen — society seal on the navy gradient. Normally the
+     Firebase-free module below fades it out; the small inline script here is an
+     independent safety net that hides it even if a module import fails, so the
+     page can never get stuck on the loading animation. -->
 <div id="appLoader" role="status" aria-label="Loading">
   <img class="al-seal" id="appLoaderSeal" alt="" src="logo.webp">
   <div>
@@ -794,6 +795,23 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
   <div class="al-sub">Resident Welfare Society</div>
   <div class="al-bar"></div>
 </div>
+<script>
+  /* Non-module, no imports — so nothing can stop it running. Guarantees the
+     loader clears within a few seconds regardless of module/Firebase state. */
+  (function () {
+    function hideLoader() {
+      var el = document.getElementById('appLoader');
+      if (!el) return;
+      el.classList.add('hide');
+      setTimeout(function () { if (el && el.parentNode) el.parentNode.removeChild(el); }, 700);
+    }
+    window.__forceHideAppLoader = hideLoader;
+    // Hide shortly after the window loads, and unconditionally after 3.5s.
+    if (document.readyState === 'complete') setTimeout(hideLoader, 400);
+    else window.addEventListener('load', function () { setTimeout(hideLoader, 300); });
+    setTimeout(hideLoader, 3500);
+  })();
+</script>
 
 <!-- ============ Reusable SVG icon sprite (defined once, referenced via <use>) ============ -->
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -1302,18 +1320,16 @@ installModalA11y();
 installOfflineBanner();
 installPasswordToggles();
 
-// Elegant loading screen: swap in the embedded seal (so it shows even offline)
-// then fade the loader out once the page is interactive. Runs in the
-// Firebase-free block so the screen always clears, even if Firebase is slow.
-(() => {
+// The inline safety-net script in <head> already guarantees the loader clears.
+// Here we simply hide it a touch sooner once this module is up, using whichever
+// hook is available. Never let this throw and break the rest of the block.
+try {
   const seal = document.getElementById('appLoaderSeal');
-  if (seal && window.__MHM_LOGO) seal.src = window.__MHM_LOGO;
-  const clear = () => hideAppLoader();
-  if (document.readyState === 'complete') setTimeout(clear, 550);
-  else window.addEventListener('load', () => setTimeout(clear, 400));
-  // Safety net: never let the loader linger if something stalls.
-  setTimeout(clear, 4000);
-})();
+  if (seal && LOGO_DATA_URI) seal.src = LOGO_DATA_URI;
+  const clear = () => { try { hideAppLoader(); } catch (e) { window.__forceHideAppLoader && window.__forceHideAppLoader(); } };
+  if (document.readyState === 'complete') setTimeout(clear, 400);
+  else window.addEventListener('load', () => setTimeout(clear, 300));
+} catch (e) { window.__forceHideAppLoader && window.__forceHideAppLoader(); }
 window.__isOffline = isOffline;
 window.__MHM_LOGO = LOGO_DATA_URI;          // image URL, fine for <img src>
 window.__MHM_LOGO_DATAURI = getLogoDataUri;  // call to get a data: URI for PDFs
