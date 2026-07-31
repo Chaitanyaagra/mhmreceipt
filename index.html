@@ -2223,12 +2223,31 @@ async function loadPayments(uid) {
 }
 
 async function openPaymentModal() {
-  const q = query(collection(db, 'payments'), where('memberUid', '==', currentUser.uid), where('status', 'in', ['pending_approval', 'pending_verification']));
-  const existing = await getDocs(q);
-  if (!existing.empty) { showToast('Aapka ek payment pehle se pending hai — nayi entry ki zaroorat nahi.', 'error'); return; }
+  // Pre-checks (existing pending payment + saved bank details). These read
+  // Firestore, which can fail on a flaky network or a rules edge case. If they
+  // throw, we must NOT let the whole modal silently fail to open — that looks
+  // to the resident like "payment button does nothing". So each read is guarded
+  // and we fall back to sensible defaults, then always render the modal.
+  try {
+    const q = query(collection(db, 'payments'), where('memberUid', '==', currentUser.uid), where('status', 'in', ['pending_approval', 'pending_verification']));
+    const existing = await getDocs(q);
+    if (!existing.empty) { showToast('Aapka ek payment pehle se pending hai — nayi entry ki zaroorat nahi.', 'error'); return; }
+  } catch (e) {
+    // Could not check for an existing pending payment — proceed anyway. The
+    // worst case is a duplicate pending entry, which the treasurer can reject.
+    console.warn('Pending-payment check failed, continuing:', e?.code || e);
+  }
 
-  const paySettingsSnap = await getDoc(doc(db, 'settings', 'payment'));
-  const paySettings = paymentDetails(paySettingsSnap.exists() ? paySettingsSnap.data() : {});
+  let paySettings;
+  try {
+    const paySettingsSnap = await getDoc(doc(db, 'settings', 'payment'));
+    paySettings = paymentDetails(paySettingsSnap.exists() ? paySettingsSnap.data() : {});
+  } catch (e) {
+    // Fall back to the built-in society bank defaults so the modal still shows
+    // usable account details even if the settings read fails.
+    console.warn('Payment settings read failed, using defaults:', e?.code || e);
+    paySettings = paymentDetails({});
+  }
 
   // The maintenance invoice — expected / paid / outstanding for this FY,
   // straight from the committee's per-tower rate. This is what makes "type an
