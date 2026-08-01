@@ -99,6 +99,21 @@
   }
   .fy-select{ width:auto; }
 
+  /* This-month summary — a wide navy card with a gold accent, sitting above
+     the yearly stat cards. Gives the committee a single-glance monthly picture. */
+  .month-summary{ margin-bottom:20px; background:linear-gradient(120deg,#0F2547,#163a70); color:#fff; border:none; }
+  .month-summary .ms-head{ display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:16px; }
+  .month-summary .ms-eyebrow{ font-family:var(--font-mono,monospace); font-size:10.5px; letter-spacing:.18em; text-transform:uppercase; color:var(--gold-300,#E4C765); }
+  .month-summary .ms-month{ font-family:var(--font-display,Georgia,serif); font-size:20px; margin-top:2px; }
+  .month-summary .ms-grid{ display:grid; grid-template-columns:repeat(5,1fr); gap:14px; }
+  .month-summary .ms-item{ background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.10); border-radius:14px; padding:14px 12px; }
+  .month-summary .ms-num{ font-family:var(--font-display,Georgia,serif); font-size:22px; font-weight:600; }
+  .month-summary .ms-num.ms-warn{ color:var(--gold-300,#E4C765); }
+  .month-summary .ms-num.ms-danger{ color:#FF9B8A; }
+  .month-summary .ms-lbl{ font-size:11px; color:rgba(255,255,255,.65); margin-top:3px; }
+  .month-summary #msWhatsAppBtn{ border-color:rgba(255,255,255,.35); color:#fff; }
+  .month-summary #msWhatsAppBtn:hover{ background:rgba(255,255,255,.10); box-shadow:none; }
+  @media (max-width:820px){ .month-summary .ms-grid{ grid-template-columns:repeat(2,1fr); } }
   .stat-cards{ display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:22px; }
   .stat-card .num{ font-family:var(--font-display); font-size:26px; color:var(--navy-950); font-weight:600; }
   .stat-card .lbl{ font-size:12px; color:var(--ink-400); margin-top:2px; }
@@ -270,6 +285,26 @@
         <h2 class="view-title">Overview</h2>
         <select class="fy-select" id="fySelect"></select>
       </div>
+
+      <!-- This-month snapshot — the committee's at-a-glance card. Populated by
+           renderMonthlySummary() from the same payment/member data as below. -->
+      <div class="card card-pad month-summary" id="monthSummary">
+        <div class="ms-head">
+          <div>
+            <div class="ms-eyebrow">This Month</div>
+            <div class="ms-month" id="msMonthLabel">—</div>
+          </div>
+          <button class="btn btn-outline btn-sm" id="msWhatsAppBtn" title="Summary WhatsApp par bhejein">Share</button>
+        </div>
+        <div class="ms-grid">
+          <div class="ms-item"><div class="ms-num" id="msCollected">—</div><div class="ms-lbl">Collected</div></div>
+          <div class="ms-item"><div class="ms-num" id="msPayments">—</div><div class="ms-lbl">Payments</div></div>
+          <div class="ms-item"><div class="ms-num ms-warn" id="msPending">—</div><div class="ms-lbl">Pending Verify</div></div>
+          <div class="ms-item"><div class="ms-num ms-danger" id="msDefaulters">—</div><div class="ms-lbl">Defaulters (FY)</div></div>
+          <div class="ms-item"><div class="ms-num" id="msNewMembers">—</div><div class="ms-lbl">New Members</div></div>
+        </div>
+      </div>
+
       <div class="stat-cards">
         <div class="card card-pad stat-card"><div class="num" id="statTotalMembers">—</div><div class="lbl">Approved Members</div></div>
         <div class="card card-pad stat-card"><div class="num" id="statPendingApprovals">—</div><div class="lbl">Pending Approvals</div></div>
@@ -1032,6 +1067,9 @@ async function bootData() {
   fySel.addEventListener('change', () => { selectedFY = fySel.value; renderOverview(); renderDefaulters(); renderExpenses(); });
 
   await Promise.all([reloadMembers(), reloadPayments(), reloadExpenses()]);
+  // Maintenance rates must be loaded BEFORE the overview renders, otherwise the
+  // defaulter count (which depends on expected dues) always reads zero.
+  await loadMaintenance();
   renderOverview();
   renderMembersTable();
   renderPendingPayments();
@@ -1040,7 +1078,6 @@ async function bootData() {
   renderExpenses();
   loadContentPanels();
   loadSettingsForms();
-  loadMaintenance();
   renderBackupAge();
   loadAdmins();
   loadAuditLog();
@@ -1084,6 +1121,62 @@ function renderOverview() {
   const towers = {};
   verifiedThisFY.forEach(p => { towers[p.tower] = (towers[p.tower] || 0) + Number(p.amount || 0); });
   document.getElementById('towerTableBody').innerHTML = Object.entries(towers).map(([t, amt]) => `<tr><td>${escapeHtml(t)}</td><td>${formatINR(amt)}</td></tr>`).join('') || '<tr><td colspan="2" class="t-muted">No verified payments yet for this FY.</td></tr>';
+
+  renderMonthlySummary();
+}
+
+/* This-month snapshot for the committee: money collected this calendar month,
+   how many payments, how many still awaiting verification, how many approved
+   members are still short of their dues for the selected FY (defaulters), and
+   how many members joined this month. Uses the already-loaded members/payments,
+   so it costs no extra reads. */
+function renderMonthlySummary() {
+  const now = new Date();
+  const sameMonth = (d) => d && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+  const asDate = (ts) => ts?.toDate ? ts.toDate() : (ts ? new Date(ts) : null);
+
+  const verified = allPayments.filter(p => p.status === 'verified');
+  const thisMonthPays = verified.filter(p => sameMonth(asDate(p.verifiedAt) || asDate(p.submittedAt)));
+  const collected = thisMonthPays.reduce((s, p) => s + Number(p.amount || 0), 0);
+
+  const pendingVerify = allPayments.filter(p => p.status === 'pending_approval' || p.status === 'pending_verification').length;
+
+  // Defaulters: approved members whose maintenance dues for the selected FY are
+  // still outstanding (paid less than expected). Uses the shared duesFor helper.
+  const approved = allMembers.filter(m => m.status === 'approved');
+  let defaulters = 0;
+  approved.forEach(m => {
+    try {
+      const d = duesFor(m, allPayments.filter(p => p.memberUid === m.uid), selectedFY, maintenanceSettings);
+      // A defaulter is anyone with money still owed for a FY that has a rate set
+      // (covers both "unpaid" and "partial"); no_rate/paid/overpaid don't count.
+      if (d && d.status !== 'no_rate' && d.outstanding > 0) defaulters++;
+    } catch (e) { /* if dues can't be computed for a member, skip it */ }
+  });
+
+  const newMembers = allMembers.filter(m => sameMonth(asDate(m.createdAt))).length;
+
+  const monthLabel = now.toLocaleString('en-IN', { month: 'long', year: 'numeric' });
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  set('msMonthLabel', monthLabel);
+  set('msCollected', formatINR(collected));
+  set('msPayments', thisMonthPays.length);
+  set('msPending', pendingVerify);
+  set('msDefaulters', defaulters);
+  set('msNewMembers', newMembers);
+
+  // Share the snapshot on WhatsApp (opens WhatsApp with a prefilled message).
+  const waBtn = document.getElementById('msWhatsAppBtn');
+  if (waBtn) waBtn.onclick = () => {
+    const msg =
+      `*Max Heights Majestic RWS*\n${monthLabel} — Summary\n\n` +
+      `Collected: ${formatINR(collected)}\n` +
+      `Payments: ${thisMonthPays.length}\n` +
+      `Pending verify: ${pendingVerify}\n` +
+      `Defaulters (FY ${selectedFY}): ${defaulters}\n` +
+      `New members: ${newMembers}`;
+    window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
+  };
 }
 
 function drawChart(canvasId, type, labels, datasets) {
