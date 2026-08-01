@@ -762,3 +762,67 @@ body.logged-in .site-header{ position:sticky; top:0; z-index:40; }
 /* Give the dashboard a little breathing room now that it stands alone. */
 body.logged-in #dashboard{ min-height:calc(100vh - 66px); padding-top:26px; }
 /* The mobile bottom tab-bar stays useful (Home / Pay / Account), so keep it. */
+
+/* ============================================================================
+   CARD GRADIENT HEADER + FAB + bigger touch targets
+   ============================================================================ */
+
+/* Optional navy→gold gradient header strip for a card. Add <div class="card-head-gradient">…</div>
+   as the first child of a .card. Keeps the rest of the card clean. */
+.card-head-gradient{
+  margin:-1px -1px 0;                 /* sit flush over the card's rounded top */
+  padding:16px 22px;
+  border-radius:24px 24px 0 0;
+  background:linear-gradient(120deg, var(--navy-900) 0%, var(--navy-800) 55%, #163a70 100%);
+  color:#fff; display:flex; align-items:center; gap:12px;
+  position:relative; overflow:hidden;
+}
+/* A soft gold sheen across the header — the "premium" cue. */
+.card-head-gradient::after{
+  content:""; position:absolute; inset:0;
+  background:linear-gradient(90deg, transparent 40%, rgba(201,162,39,.18) 75%, transparent);
+  pointer-events:none;
+}
+.card-head-gradient h3, .card-head-gradient .ch-title{
+  font-family:var(--font-display, Georgia, serif); font-size:16.5px; margin:0; color:#fff;
+}
+.card-head-gradient .ch-sub{ font-size:12px; color:rgba(255,255,255,.72); margin-top:1px; }
+.card-head-gradient svg{ width:22px; height:22px; color:var(--gold-300); flex-shrink:0; }
+/* When a card leads with a gradient header, drop the thin gold top-accent line
+   (the header already carries the accent) and let the header meet the corners. */
+.card:has(> .card-head-gradient)::before{ display:none; }
+
+/* --- Floating Action Button (mobile) -------------------------------------
+   A round navy+gold button pinned bottom-right, above the tab bar. Used for the
+   primary "add" action on a screen (e.g. admin → Add Member). Desktop keeps the
+   normal inline buttons, so the FAB only shows on narrow screens. */
+.fab{
+  display:none; position:fixed; right:18px; bottom:88px; z-index:75;
+  width:56px; height:56px; border-radius:50%; border:none; cursor:pointer;
+  background:var(--gradient-saffron, linear-gradient(135deg,#F29D38,#E4890F));
+  color:var(--navy-950); box-shadow:0 8px 24px -6px rgba(242,123,14,.6);
+  align-items:center; justify-content:center;
+  transition:transform .15s ease, box-shadow .15s ease;
+}
+.fab svg{ width:26px; height:26px; }
+.fab:active{ transform:scale(.94); }
+.fab .fab-label{
+  position:absolute; right:64px; white-space:nowrap; background:var(--navy-900); color:#fff;
+  font-size:12.5px; padding:6px 11px; border-radius:8px; opacity:0; transform:translateX(6px);
+  transition:opacity .15s ease, transform .15s ease; pointer-events:none;
+}
+@media (max-width:820px){
+  .app-shell.active ~ .fab, .fab.fab-always{ display:flex; }
+}
+
+/* --- Larger touch targets on small screens -------------------------------
+   Bump interactive elements to the ~44px comfortable-tap minimum on phones. */
+@media (max-width:640px){
+  .btn{ min-height:44px; padding-top:12px; padding-bottom:12px; }
+  .btn-sm{ min-height:40px; }
+  .icon-btn{ min-width:42px; min-height:42px; }
+  input, select, textarea{ min-height:46px; font-size:16px; }  /* 16px stops iOS zoom-on-focus */
+  .pw-toggle{ width:46px; }
+  .paytype, .pay-option{ min-height:52px; }
+  .tabbar-mobile a{ padding:9px 2px; }   /* a little taller for easier tapping */
+}

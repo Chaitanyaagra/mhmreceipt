@@ -584,6 +584,13 @@
   </main>
 </div>
 
+<!-- Floating action button (mobile only) — quick access to the treasurer's most
+     frequent action, Record Cash/Cheque. Hidden on desktop where the inline
+     button is always in view. Wired in the module block below. -->
+<button class="fab no-print" id="fabRecordPayment" aria-label="Record Cash or Cheque payment" title="Record Cash/Cheque">
+  <span class="fab-label">Record Cash/Cheque</span>
+  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+</button>
 <!-- ============================= MODALS ============================= -->
 <div class="modal-backdrop" id="memberModalBackdrop">
   <div class="modal">
@@ -1538,6 +1545,12 @@ document.getElementById('closePaymentDetailModal').addEventListener('click', () 
 
 // Record cash/cheque payment wiring.
 document.getElementById('recordPaymentBtn')?.addEventListener('click', openRecordPaymentModal);
+// Mobile FAB opens the same Record Cash/Cheque flow. Switch to the Payments
+// view first so the context matches, then open the modal.
+document.getElementById('fabRecordPayment')?.addEventListener('click', () => {
+  if (typeof switchView === 'function') switchView('payments');
+  openRecordPaymentModal();
+});
 document.getElementById('closeRecordPaymentModal')?.addEventListener('click', () => document.getElementById('recordPaymentModalBackdrop').classList.remove('open'));
 document.getElementById('recordPaymentForm')?.addEventListener('submit', submitRecordPayment);
 // Cheque number only shows for cheque mode; FY only matters for maintenance.
