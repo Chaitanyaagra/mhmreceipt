@@ -1857,14 +1857,17 @@ onAuthStateChanged(auth, async (user) => {
   const navBtn = document.getElementById('navAuthBtn');
   if (user) {
     window.__loggedIn = true;
+    document.body.classList.add('logged-in');   // focus mode: hide marketing sections
     window.__setDynamicLabel(navBtn, 'Logout');
     navBtn.onclick = async () => { await signOut(auth); location.reload(); };
     portal.style.display = 'none';
     dash.style.display = 'block';
     dash.classList.remove('fade-in'); void dash.offsetWidth; dash.classList.add('fade-in');
+    window.scrollTo(0, 0);
     await loadDashboard(user.uid);
   } else {
     window.__loggedIn = false;
+    document.body.classList.remove('logged-in');
     currentMember = null;
     window.__setDynamicLabel(navBtn, 'Resident Login');
     navBtn.onclick = () => window.__goToPortal('login');
@@ -1888,7 +1891,14 @@ document.getElementById('successModalOk')?.addEventListener('click',
 async function loadDashboard(uid) {
   const content = document.getElementById('dashboardContent');
   content.innerHTML = '<div class="skeleton" style="height:170px;"></div>';
-  const snap = await getDoc(doc(db, 'members', uid));
+  let snap;
+  try {
+    snap = await getDoc(doc(db, 'members', uid));
+  } catch (e) {
+    console.warn('Profile read failed:', e?.code || e);
+    content.innerHTML = '<p class="t-muted">Profile abhi load nahi ho paaya — internet check karke page refresh karein.</p>';
+    return;
+  }
   if (!snap.exists()) { content.innerHTML = '<p class="t-muted">Profile record nahi mila. Office se contact karein.</p>'; return; }
   currentMember = snap.data();
   document.getElementById('dashGreeting').textContent = `Welcome, ${currentMember.name.split(' ')[0]}`;

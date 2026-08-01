@@ -743,3 +743,22 @@ tbody tr:hover{ background:#FAFBFD; }
 @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
   .glass{ background:rgba(15,37,71,.72); }
 }
+
+/* ============================================================================
+   LOGGED-IN VIEW — focus mode
+   Once a resident logs in, hide the public marketing sections so they see only
+   their dashboard, not the whole landing page. Toggled by adding/removing the
+   'logged-in' class on <body> in the auth handler. Purely presentational — the
+   sections stay in the DOM, just hidden, so logout restores everything.
+   ============================================================================ */
+body.logged-in > section:not(#dashboard),
+body.logged-in > footer.site-footer{
+  display:none !important;
+}
+/* Trim the header to just the brand + logout on the dashboard, and hide the
+   marketing nav links (About / Community / Accounts …) which don't apply here. */
+body.logged-in .main-nav{ display:none; }
+body.logged-in .site-header{ position:sticky; top:0; z-index:40; }
+/* Give the dashboard a little breathing room now that it stands alone. */
+body.logged-in #dashboard{ min-height:calc(100vh - 66px); padding-top:26px; }
+/* The mobile bottom tab-bar stays useful (Home / Pay / Account), so keep it. */

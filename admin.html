@@ -1795,7 +1795,10 @@ document.getElementById('emailDefaultersBtn').addEventListener('click', () => {
 /*  Content: Notices + Committee                                          */
 /* ---------------------------------------------------------------------- */
 async function loadContentPanels() {
-  const notices = (await getDocs(query(collection(db, 'notices'), orderBy('postedAt', 'desc')))).docs.map(d => ({ id: d.id, ...d.data() }));
+  let notices = [];
+  try {
+    notices = (await getDocs(query(collection(db, 'notices'), orderBy('postedAt', 'desc')))).docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch (e) { console.warn('Notices read failed:', e?.code || e); }
   document.getElementById('noticesEditList').innerHTML = notices.map(n => `
     <div class="list-edit-item">
       <div><b style="font-size:13.5px;">${escapeHtml(n.titleEn)}</b><div class="t-muted" style="font-size:12px;">${fmtDate(n.postedAt)}</div></div>
@@ -2374,7 +2377,14 @@ document.getElementById('backupNowBtn').addEventListener('click', async () => {
 /* ---------------------------------------------------------------------- */
 async function loadAdmins() {
   if (!can('manageAdmins')) { document.getElementById('view-adminUsers').innerHTML = '<p class="t-muted">Yeh section sirf Super Admin ke liye hai.</p>'; return; }
-  const admins = (await getDocs(collection(db, 'admins'))).docs.map(d => ({ id: d.id, ...d.data() }));
+  let admins = [];
+  try {
+    admins = (await getDocs(collection(db, 'admins'))).docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch (e) {
+    console.warn('Admins read failed:', e?.code || e);
+    document.getElementById('adminsTableBody').innerHTML = '<tr><td colspan="4" class="t-muted">Admin list load nahi ho paayi — page refresh karein.</td></tr>';
+    return;
+  }
   document.getElementById('adminsTableBody').innerHTML = admins.map(a => `
     <tr><td>${escapeHtml(a.name || '—')}</td><td>${escapeHtml(a.email)}</td><td>${escapeHtml(ROLE_LABELS[a.role] || a.role)}</td>
     <td>${a.id !== currentAdmin.uid ? `<button class="btn btn-danger btn-sm" data-remove-admin="${a.id}">Remove</button>` : '<span class="t-muted" style="font-size:12px;">(you)</span>'}</td></tr>
