@@ -202,7 +202,7 @@ service cloud.firestore {
                     && isValidPaymentMode(request.resource.data.mode)
                     && isValidFY(request.resource.data.financialYear)
                     && request.resource.data.status in ['pending_approval', 'pending_verification']
-                    && (absentOrNull(request.resource.data, 'type') || request.resource.data.type in ['membership', 'maintenance'])
+                    && (absentOrNull(request.resource.data, 'type') || request.resource.data.type in ['membership', 'maintenance', 'event'])
                     && absentOrNull(request.resource.data, 'receiptNumber')
                     && absentOrNull(request.resource.data, 'publicToken')
                     && isNonEmptyString(request.resource.data.residentName, 100)
@@ -218,7 +218,7 @@ service cloud.firestore {
                     && request.resource.data.mode in ['cash', 'cheque']
                     && isValidFY(request.resource.data.financialYear)
                     && request.resource.data.status == 'verified'
-                    && request.resource.data.type in ['membership', 'maintenance']
+                    && request.resource.data.type in ['membership', 'maintenance', 'event']
                     && request.resource.data.recordedByAdmin == true
                     && request.resource.data.verifiedBy == request.auth.token.email
                     && isNonEmptyString(request.resource.data.receiptNumber, 60)
@@ -279,6 +279,19 @@ service cloud.firestore {
                             && isNonEmptyString(request.resource.data.titleEn, 200)
                             && isNonEmptyString(request.resource.data.bodyEn, 5000);
       allow delete: if canApproveMembers();
+    }
+
+    // ---- Event fees (Diwali, functions, etc.) -----------------------------
+    // Public read so residents see active event demands and their fee in the
+    // payment modal. Only the Treasurer/Super Admin (canVerifyPayments) can
+    // create, edit, or raise the demand.
+    match /events/{eventId} {
+      allow read: if true;
+      allow create, update: if canVerifyPayments()
+                            && isNonEmptyString(request.resource.data.name, 120)
+                            && request.resource.data.feeAmount is number
+                            && request.resource.data.feeAmount > 0;
+      allow delete: if canVerifyPayments();
     }
 
     // ---- Committee directory — public read --------------------------------

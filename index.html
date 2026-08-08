@@ -1573,7 +1573,7 @@ import {
   generateMembershipCard, duesFor, DUES_LABEL, DUES_BADGE,
   expenseSummary, fundPosition,
   generateStatementPDF, skeletonList, emptyState, showFieldError, clearFieldErrors,
-  membershipDue, membershipFeeAmount, paymentDetails,
+  membershipDue, membershipFeeAmount, paymentDetails, eventDue,
   waShareText
 } from './app-common.js';
 
@@ -2259,6 +2259,19 @@ async function openPaymentModal() {
     paySettings = paymentDetails({});
   }
 
+  // Active event demands (Diwali, function, etc.) the resident still owes. Read
+  // guarded so a failure never blocks the modal; each becomes its own invoice
+  // card + a toggle option, exactly like the membership fee.
+  let eventDues = [];
+  try {
+    const evSnap = await getDocs(query(collection(db, 'events'), where('demandGenerated', '==', true)));
+    const events = evSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .filter(ev => ev.active !== false);
+    eventDues = events
+      .map(ev => eventDue(currentMember, allPaymentRows, ev))
+      .filter(ed => ed.outstanding > 0);
+  } catch (e) { console.warn('Events read failed, skipping:', e?.code || e); eventDues = []; }
+
   // The maintenance invoice — expected / paid / outstanding for this FY,
   // straight from the committee's per-tower rate. This is what makes "type an
   // amount" unnecessary: the bill is shown and the amount is pre-set to it.
@@ -2303,20 +2316,31 @@ async function openPaymentModal() {
 
   // When membership is still due, let the resident choose which one they are
   // paying now. Membership is pre-selected since it should be cleared first.
-  const typeToggle = membershipPending ? `
-    <div class="paytype-toggle">
-      <button type="button" class="paytype selected" data-type="membership" data-amt="${membership.outstanding}">
-        <div class="pt-top">Membership Fee</div><div class="pt-amt">${formatINR(membership.outstanding)}</div>
-      </button>
-      <button type="button" class="paytype" data-type="maintenance" data-amt="${dues.outstanding}">
-        <div class="pt-top">Maintenance</div><div class="pt-amt">${dues.outstanding > 0 ? formatINR(dues.outstanding) : (hasRate ? '✓ Clear' : '—')}</div>
-      </button>
-    </div>` : '';
+  // Event fee invoice cards (one per outstanding event demand).
+  const eventsHtml = eventDues.map(ed => `
+    <div class="invoice-card">
+      <div class="invoice-head"><span class="lbl">${escapeHtml(ed.name)}</span><span class="fy">Event</span></div>
+      <div class="invoice-rows">
+        ${ed.paid > 0
+          ? `<div class="r"><span class="muted">Event fee</span><span>${formatINR(ed.fee)}</span></div>
+             <div class="r"><span class="muted">Ab tak jama (verified)</span><span class="paid">− ${formatINR(ed.paid)}</span></div>` : ''}
+        <div class="r total"><span>Dena hai</span><span class="owe">${formatINR(ed.outstanding)}</span></div>
+      </div>
+    </div>`).join('');
+
+  // Build the toggle: membership (if pending) + maintenance + each event. Shown
+  // only when there's more than one thing to pay, so the resident picks one.
+  const toggleButtons = [];
+  if (membershipPending) toggleButtons.push(`<button type="button" class="paytype selected" data-type="membership" data-amt="${membership.outstanding}"><div class="pt-top">Membership Fee</div><div class="pt-amt">${formatINR(membership.outstanding)}</div></button>`);
+  toggleButtons.push(`<button type="button" class="paytype ${membershipPending ? '' : 'selected'}" data-type="maintenance" data-amt="${dues.outstanding}"><div class="pt-top">Maintenance</div><div class="pt-amt">${dues.outstanding > 0 ? formatINR(dues.outstanding) : (hasRate ? '✓ Clear' : '—')}</div></button>`);
+  eventDues.forEach(ed => toggleButtons.push(`<button type="button" class="paytype" data-type="event" data-event-id="${escapeHtml(ed.eventId)}" data-event-name="${escapeHtml(ed.name)}" data-amt="${ed.outstanding}"><div class="pt-top">${escapeHtml(ed.name)}</div><div class="pt-amt">${formatINR(ed.outstanding)}</div></button>`));
+  const typeToggle = (toggleButtons.length > 1) ? `<div class="paytype-toggle">${toggleButtons.join('')}</div>` : '';
 
   const body = document.getElementById('paymentModalBody');
   body.innerHTML = `
     ${membershipHtml}
     ${invoiceHtml}
+    ${eventsHtml}
     ${typeToggle}
     <div class="pay-option" data-mode="cash"><svg viewBox="0 0 24 24"><use href="#i-cash"/></svg><div><b>Cash</b><div class="t-muted" style="font-size:12.5px;">Visit the RWA office</div></div></div>
     <div class="pay-option" data-mode="cheque"><svg viewBox="0 0 24 24"><use href="#i-cheque"/></svg><div><b>Cheque</b><div class="t-muted" style="font-size:12.5px;">Visit the RWA office</div></div></div>
@@ -2343,6 +2367,8 @@ async function openPaymentModal() {
       payContext.type = tbtn.dataset.type;
       payContext.outstanding = Number(tbtn.dataset.amt) || 0;
       payContext.hasRate = payContext.type === 'membership' ? true : hasRate;
+      payContext.eventId = tbtn.dataset.eventId || null;
+      payContext.eventName = tbtn.dataset.eventName || null;
       // If a mode was already chosen, re-render the amount block for the new type.
       const sel = body.querySelector('.pay-option.selected');
       if (sel) renderPayDetailForm(sel.dataset.mode, paySettings, payContext);
@@ -2365,6 +2391,8 @@ function renderPayDetailForm(mode, paySettings, payContext) {
   const dues = { outstanding: payContext.outstanding };
   const hasRate = payContext.hasRate;
   window.__payType = payContext.type;   // read by submitPayment
+  window.__payEventId = payContext.eventId || null;
+  window.__payEventName = payContext.eventName || null;
   holder.innerHTML = `
     <div style="margin-top:18px; border-top:1px solid var(--line); padding-top:18px;">
       ${isOffline ? `
@@ -2477,9 +2505,11 @@ async function submitPayment(mode) {
       tower: currentMember.tower,
       residentName: currentMember.name,
       amount,
-      // 'membership' (one-time joining fee) or 'maintenance' (yearly). Older
-      // records have no type and are treated as maintenance.
-      type: (window.__payType === 'membership') ? 'membership' : 'maintenance',
+      // 'membership' (one-time joining fee), 'event' (a specific event demand),
+      // or 'maintenance' (yearly). Older records have no type = maintenance.
+      type: (window.__payType === 'membership' || window.__payType === 'event') ? window.__payType : 'maintenance',
+      ...(window.__payType === 'event' && window.__payEventId
+          ? { eventId: window.__payEventId, eventName: window.__payEventName || '' } : {}),
       financialYear: currentFinancialYear(),
       mode,
       utrOrChequeNo: utr,

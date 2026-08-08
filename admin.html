@@ -205,6 +205,7 @@
   <g id="a-overview"><path d="M4 20V11M9.3 20V5M14.7 20v-6M20 20V8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" fill="none"/></g>
   <g id="a-members"><circle cx="9" cy="8.4" r="3.3" stroke="currentColor" stroke-width="1.7" fill="none"/><path d="M2.6 19.4c.8-3.2 3.4-5 6.4-5s5.6 1.8 6.4 5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" fill="none"/><path d="M16.2 5.6a3.1 3.1 0 010 5.8M18.4 19.4c-.3-1.5-.9-2.8-1.8-3.8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" fill="none"/></g>
   <g id="a-payments"><rect x="2.5" y="5.5" width="19" height="13" rx="2.4" stroke="currentColor" stroke-width="1.7" fill="none"/><path d="M2.5 10h19M6 14.6h4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></g>
+  <g id="a-events"><rect x="3.5" y="4.5" width="17" height="16" rx="2.4" stroke="currentColor" stroke-width="1.7" fill="none"/><path d="M3.5 9h17M8 2.5v4M16 2.5v4M8 13h3M8 16.5h6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></g>
   <g id="a-expenses"><path d="M12 2.6v18.8M8.2 6.2h6a2.8 2.8 0 010 5.6H9.8a2.8 2.8 0 000 5.6h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" fill="none"/></g>
   <g id="a-content"><path d="M3.5 9.5h3.2L14 5.2v13.6L6.7 14.5H3.5z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" fill="none"/><path d="M17.4 9.2a4.2 4.2 0 010 5.6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" fill="none"/></g>
   <g id="a-importExport"><path d="M20 11.2A8 8 0 006.3 6.1M4 12.8a8 8 0 0013.7 5.1" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" fill="none"/><path d="M20 4.6v6.6h-6.6M4 19.4v-6.6h6.6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" fill="none"/></g>
@@ -252,6 +253,7 @@
       <button data-view="overview" class="active"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-overview"/></svg></span> Overview</button>
       <button data-view="members"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-members"/></svg></span> Members</button>
       <button data-view="payments"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-payments"/></svg></span> Payments</button>
+      <button data-view="events"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-events"/></svg></span> Events</button>
       <button data-view="expenses"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-expenses"/></svg></span> Expenses</button>
       <button data-view="content"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-content"/></svg></span> Notices &amp; Committee</button>
       <button data-view="importExport"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-importExport"/></svg></span> Import / Export</button>
@@ -381,6 +383,38 @@
         <div class="table-wrap responsive">
           <table><thead><tr><th>Resident</th><th>Flat / Tower</th><th>Outstanding</th><th>Status</th><th>Remind</th></tr></thead>
           <tbody id="defaultersBody"><tr><td colspan="4" class="t-muted">Loading…</td></tr></tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ---------------- EVENTS ---------------- -->
+    <div class="view-panel" id="view-events">
+      <div class="topbar"><h2 class="view-title">Events</h2></div>
+
+      <!-- Create / edit an event fee. Treasurer sets a name + fee, saves, then
+           uses "Generate Demand" to raise it against every approved member. -->
+      <div class="card card-pad" style="margin-bottom:20px;">
+        <h3 style="font-size:14.5px; margin-bottom:14px;">Naya Event / Fee banayein</h3>
+        <form id="eventForm" class="form-grid">
+          <input type="hidden" name="eventId">
+          <div class="field"><label for="ev-name">Event ka naam</label><input id="ev-name" name="name" placeholder="e.g. Diwali Celebration 2026" required></div>
+          <div class="field"><label for="ev-fee">Fee per member (₹)</label><input id="ev-fee" name="feeAmount" type="number" min="1" step="1" placeholder="e.g. 500" required></div>
+          <div class="field"><label for="ev-fy">Financial Year</label><select id="ev-fy" name="fy"></select></div>
+          <div class="field"><label for="ev-note">Note (optional)</label><input id="ev-note" name="note" placeholder="Members ko dikhega"></div>
+          <div style="grid-column:1/-1; display:flex; gap:10px;">
+            <button class="btn btn-primary btn-sm" type="submit">Event Save karein</button>
+            <button class="btn btn-outline btn-sm" type="button" id="eventFormReset">Clear</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="card card-pad">
+        <h3 style="font-size:14.5px; margin-bottom:12px;">Saare Events</h3>
+        <div class="table-wrap responsive">
+          <table>
+            <thead><tr><th>Event</th><th>Fee</th><th>FY</th><th>Status</th><th>Collected</th><th>Actions</th></tr></thead>
+            <tbody id="eventsTableBody"><tr><td colspan="6" class="t-muted">Loading…</td></tr></tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -844,7 +878,7 @@ import {
   encryptFile, decryptToBlob, backupToDrive, waLink, waShareText, serializeForExport,
   newPublicToken, publicKeyForMember,
   TOWER_IDS, TOWER_PLAN, flatsForTower, isValidFlat,
-  duesFor, DUES_LABEL, DUES_BADGE, membershipDue,
+  duesFor, DUES_LABEL, DUES_BADGE, membershipDue, eventDue,
   EXPENSE_CATEGORIES, EXPENSE_MODES, expenseSummary, fundPosition, validateExpense,
   renderPager, skeletonTableRows, emptyState
 } from './app-common.js';
@@ -863,19 +897,20 @@ const ROLE_LABELS = {
   secretary: 'Secretary', jointsecretary: 'Joint Secretary', treasurer: 'Treasurer'
 };
 const ROLE_NAV = {
-  superadmin: ['overview','members','payments','expenses','content','importExport','settings','adminUsers','auditLog'],
+  superadmin: ['overview','members','payments','events','expenses','content','importExport','settings','adminUsers','auditLog'],
   // Office-bearers can see where the money went even though only the
   // Treasurer may record it — that visibility is the point of the ledger.
-  president: ['overview','members','expenses','content','auditLog'],
+  president: ['overview','members','events','expenses','content','auditLog'],
   vicepresident: ['overview','members','expenses','content','auditLog'],
   secretary: ['overview','members','expenses','content','auditLog'],
   jointsecretary: ['overview','members','expenses','content','auditLog'],
-  treasurer: ['overview','payments','expenses','importExport','auditLog']
+  treasurer: ['overview','payments','events','expenses','importExport','auditLog']
 };
 const ACTION_PERMS = {
   approveMembers: ['superadmin','president','vicepresident','secretary','jointsecretary'],
   verifyPayments: ['superadmin','treasurer'],
   recordExpenses: ['superadmin','treasurer'],
+  manageEvents: ['superadmin','treasurer'],
   manageContent: ['superadmin','president','vicepresident','secretary','jointsecretary'],
   manageAdmins: ['superadmin']
 };
@@ -1066,14 +1101,16 @@ async function bootData() {
   fySel.innerHTML = financialYearOptions().map(fy => `<option value="${fy}" ${fy === selectedFY ? 'selected' : ''}>FY ${fy}</option>`).join('');
   fySel.addEventListener('change', () => { selectedFY = fySel.value; renderOverview(); renderDefaulters(); renderExpenses(); });
 
-  await Promise.all([reloadMembers(), reloadPayments(), reloadExpenses()]);
+  await Promise.all([reloadMembers(), reloadPayments(), reloadExpenses(), reloadEvents()]);
   // Maintenance rates must be loaded BEFORE the overview renders, otherwise the
   // defaulter count (which depends on expected dues) always reads zero.
   await loadMaintenance();
+  populateEventFY();
   renderOverview();
   renderMembersTable();
   renderPendingPayments();
   renderAllPayments();
+  renderEvents();
   renderDefaulters();
   renderExpenses();
   loadContentPanels();
@@ -1189,6 +1226,162 @@ function drawChart(canvasId, type, labels, datasets) {
 /* ---------------------------------------------------------------------- */
 /*  Expenses                                                               */
 /* ---------------------------------------------------------------------- */
+/* ---------------------------------------------------------------------- */
+/*  Events (Diwali, Ganesh Puja, annual function fees)                     */
+/*                                                                          */
+/*  Treasurer creates an event with a per-member fee, then "generates a     */
+/*  demand" which activates it — every approved resident then sees that fee */
+/*  in their payment modal (like the membership fee) until they clear it.   */
+/* ---------------------------------------------------------------------- */
+let allEvents = [];
+
+async function reloadEvents() {
+  try {
+    allEvents = (await getDocs(query(collection(db, 'events'), orderBy('createdAt', 'desc'))))
+      .docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch (e) { console.warn('Events read failed:', e?.code || e); allEvents = []; }
+}
+
+function renderEvents() {
+  const tbody = document.getElementById('eventsTableBody');
+  if (!tbody) return;
+  if (!allEvents.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="t-muted">Abhi koi event nahi. Upar form se banayein.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = allEvents.map(ev => {
+    // Money collected for this event = sum of verified event payments.
+    const collected = allPayments
+      .filter(p => p.type === 'event' && p.eventId === ev.id && p.status === 'verified')
+      .reduce((s, p) => s + Number(p.amount || 0), 0);
+    const active = ev.active !== false && ev.demandGenerated;
+    const statusBadge = ev.demandGenerated
+      ? (active ? '<span class="badge badge-success">Active (Demand raised)</span>'
+                : '<span class="badge badge-neutral">Closed</span>')
+      : '<span class="badge badge-warning">Draft</span>';
+    return `
+      <tr>
+        <td data-label="Event"><b>${escapeHtml(ev.name)}</b>${ev.note ? `<div class="t-muted" style="font-size:11.5px;">${escapeHtml(ev.note)}</div>` : ''}</td>
+        <td data-label="Fee">${formatINR(ev.feeAmount)}</td>
+        <td data-label="FY">${escapeHtml(ev.fy || '—')}</td>
+        <td data-label="Status">${statusBadge}</td>
+        <td data-label="Collected">${formatINR(collected)}</td>
+        <td data-label="Actions">
+          <div style="display:flex; gap:6px; flex-wrap:wrap;">
+            ${!ev.demandGenerated
+              ? `<button class="btn btn-primary btn-sm" data-ev-demand="${ev.id}">Generate Demand</button>`
+              : (active
+                  ? `<button class="btn btn-outline btn-sm" data-ev-close="${ev.id}">Close</button>`
+                  : `<button class="btn btn-outline btn-sm" data-ev-reopen="${ev.id}">Re-open</button>`)}
+            <button class="btn btn-ghost btn-sm" data-ev-edit="${ev.id}">Edit</button>
+            <button class="btn btn-ghost btn-sm t-danger" data-ev-del="${ev.id}">Delete</button>
+          </div>
+        </td>
+      </tr>`;
+  }).join('');
+
+  // Wire row actions.
+  tbody.querySelectorAll('[data-ev-demand]').forEach(b => b.onclick = () => generateEventDemand(b.dataset.evDemand));
+  tbody.querySelectorAll('[data-ev-close]').forEach(b => b.onclick = () => setEventActive(b.dataset.evClose, false));
+  tbody.querySelectorAll('[data-ev-reopen]').forEach(b => b.onclick = () => setEventActive(b.dataset.evReopen, true));
+  tbody.querySelectorAll('[data-ev-edit]').forEach(b => b.onclick = () => editEvent(b.dataset.evEdit));
+  tbody.querySelectorAll('[data-ev-del]').forEach(b => b.onclick = () => deleteEvent(b.dataset.evDel));
+}
+
+function editEvent(id) {
+  const ev = allEvents.find(e => e.id === id);
+  if (!ev) return;
+  const f = document.getElementById('eventForm');
+  f.eventId.value = ev.id;
+  f.name.value = ev.name || '';
+  f.feeAmount.value = ev.feeAmount || '';
+  f.fy.value = ev.fy || currentFinancialYear();
+  f.note.value = ev.note || '';
+  document.querySelector('[data-view="events"]')?.scrollIntoView({ behavior: 'smooth' });
+  f.name.focus();
+}
+
+async function deleteEvent(id) {
+  const ev = allEvents.find(e => e.id === id);
+  if (!ev) return;
+  if (!confirm(`"${ev.name}" event delete karein? (Iske purane payments records rahenge.)`)) return;
+  try {
+    await deleteDoc(doc(db, 'events', id));
+    await logAudit('event_delete', { eventId: id, name: ev.name });
+    showToast('Event delete ho gaya.', 'success');
+    await reloadEvents(); renderEvents();
+  } catch (e) { showToast('Delete nahi ho paaya.', 'error'); }
+}
+
+async function setEventActive(id, active) {
+  try {
+    await updateDoc(doc(db, 'events', id), { active, updatedAt: serverTimestamp() });
+    await logAudit(active ? 'event_reopen' : 'event_close', { eventId: id });
+    showToast(active ? 'Event dobara active ho gaya.' : 'Event band kar diya.', 'success');
+    await reloadEvents(); renderEvents();
+  } catch (e) { showToast('Update nahi ho paaya.', 'error'); }
+}
+
+/* "Generate Demand" — marks the event so residents start seeing the fee. The
+   demand is virtual (no per-member doc is written): every approved resident's
+   payment modal computes what they owe from the event fee minus what they've
+   paid. This keeps it cheap (no 454 writes) and always correct. */
+async function generateEventDemand(id) {
+  const ev = allEvents.find(e => e.id === id);
+  if (!ev) return;
+  const approvedCount = allMembers.filter(m => m.status === 'approved').length;
+  if (!confirm(`"${ev.name}" ke liye ${formatINR(ev.feeAmount)} ki demand ${approvedCount} approved members ko bhejein?\n\nSabko apne payment screen par yeh fee dikhne lagegi.`)) return;
+  try {
+    await updateDoc(doc(db, 'events', id), {
+      demandGenerated: true, active: true,
+      demandGeneratedAt: serverTimestamp(), demandGeneratedBy: currentAdmin.email
+    });
+    await logAudit('event_demand', { eventId: id, name: ev.name, fee: ev.feeAmount, members: approvedCount });
+    showToast(`Demand generate ho gayi — ${approvedCount} members ko dikhne lagegi.`, 'success');
+    await reloadEvents(); renderEvents();
+  } catch (e) { showToast('Demand generate nahi ho paayi.', 'error'); }
+}
+
+document.getElementById('eventForm')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (!can('manageEvents')) { showToast('Sirf Treasurer/Super Admin event bana sakte hain.', 'error'); return; }
+  const f = e.target;
+  const fee = Number(f.feeAmount.value);
+  if (!f.name.value.trim() || !(fee > 0)) { showToast('Naam aur sahi fee daalein.', 'error'); return; }
+  const data = {
+    name: f.name.value.trim(),
+    feeAmount: fee,
+    fy: f.fy.value,
+    note: f.note.value.trim(),
+    updatedAt: serverTimestamp()
+  };
+  try {
+    if (f.eventId.value) {
+      await updateDoc(doc(db, 'events', f.eventId.value), data);
+      showToast('Event update ho gaya.', 'success');
+    } else {
+      data.createdAt = serverTimestamp();
+      data.createdBy = currentAdmin.email;
+      data.demandGenerated = false;
+      data.active = true;
+      await addDoc(collection(db, 'events'), data);
+      showToast('Event save ho gaya. Ab "Generate Demand" dabayein.', 'success');
+    }
+    f.reset(); f.eventId.value = '';
+    populateEventFY();
+    await reloadEvents(); renderEvents();
+  } catch (err) { showToast('Save nahi ho paaya.', 'error'); }
+});
+document.getElementById('eventFormReset')?.addEventListener('click', () => {
+  const f = document.getElementById('eventForm'); f.reset(); f.eventId.value = ''; populateEventFY();
+});
+
+function populateEventFY() {
+  const sel = document.getElementById('ev-fy');
+  if (sel) sel.innerHTML = financialYearOptions().map(fy =>
+    `<option value="${fy}" ${fy === currentFinancialYear() ? 'selected' : ''}>FY ${fy}</option>`).join('');
+}
+
 let allExpenses = [];
 
 async function reloadExpenses() {
@@ -1288,7 +1481,13 @@ document.getElementById('expenseForm')?.addEventListener('submit', async (e) => 
     f.reset();
     await reloadExpenses(); renderExpenses(); renderOverview();
   } catch (err2) {
-    showToast('Kharcha save nahi ho paaya.', 'error');
+    console.error('Add expense failed:', err2);
+    const code = err2?.code || '';
+    if (code === 'permission-denied') {
+      showToast(`Permission denied (${code}) — role sahi hone ke baad bhi aa sakta hai. Yeh exact error Super Admin ko bhej dein.`, 'error');
+    } else {
+      showToast(`Kharcha save nahi ho paaya${code ? ` (${code})` : ''}.`, 'error');
+    }
   } finally { btn.disabled = false; }
 });
 
@@ -1677,7 +1876,11 @@ async function verifyPayment(id) {
     const batch = writeBatch(db);
     batch.update(doc(db, 'payments', id), {
       status: 'verified', receiptNumber, publicToken,
-      verifiedAt: serverTimestamp(), verifiedBy: currentAdmin.email
+      // Use the LIVE Firebase Auth email, not the (possibly stale) email cached
+      // on the admins/{uid} doc — the two can drift apart (case, a later email
+      // change) and this field is compared against request.auth.token.email
+      // server-side on the record-payment path, so any mismatch there fails.
+      verifiedAt: serverTimestamp(), verifiedBy: auth.currentUser?.email || currentAdmin.email
     });
     // Keyed by the random token: a resident scanning their own QR resolves it
     // instantly, and nobody can walk the receipt numbers to total up what the
@@ -1693,8 +1896,9 @@ async function verifyPayment(id) {
     document.getElementById('paymentDetailModalBackdrop').classList.remove('open');
     await reloadPayments(); renderPendingPayments(); renderAllPayments(); renderOverview(); renderDefaulters();
   } catch (e) {
-    console.error(e);
-    showToast('Verify nahi ho paaya — payment jaisa tha waisa hi hai. Dobara try karein.', 'error');
+    console.error('Verify payment failed:', e);
+    const code = e?.code || '';
+    showToast(`Verify nahi ho paaya${code ? ` (${code})` : ''} — payment jaisa tha waisa hi hai. Dobara try karein.`, 'error');
     if (btn) { btn.disabled = false; btn.textContent = '\u2713 Verify & Issue Receipt'; }
   }
 }
@@ -1799,7 +2003,12 @@ async function submitRecordPayment(e) {
       remarks: note || null,
       submittedAt: serverTimestamp(),
       verifiedAt: serverTimestamp(),
-      verifiedBy: currentAdmin.email
+      // MUST equal request.auth.token.email exactly — the security rule for
+      // this create path checks that. currentAdmin.email comes from the
+      // admins/{uid} Firestore doc, which can silently drift from the actual
+      // login email (case difference, doc typed by hand, email changed later).
+      // auth.currentUser.email is the live, guaranteed-matching value.
+      verifiedBy: auth.currentUser?.email || currentAdmin.email
     });
     batch.set(doc(db, 'receiptsPublic', publicToken), {
       receiptNumber, residentName: member.name, flatNumber: member.flatNumber, tower: member.tower,
@@ -1814,8 +2023,17 @@ async function submitRecordPayment(e) {
     document.getElementById('recordPaymentModalBackdrop').classList.remove('open');
     await reloadPayments(); renderPendingPayments(); renderAllPayments(); renderOverview(); renderDefaulters();
   } catch (err) {
-    console.error(err);
-    showToast('Payment record nahi ho paaya. Dobara try karein.', 'error');
+    console.error('Record payment failed:', err);
+    const code = err?.code || '';
+    if (code === 'permission-denied') {
+      // permission-denied can mean the role is wrong OR that a field the rule
+      // checks doesn't match (e.g. the login email vs. a stale admin-doc email)
+      // — Firestore doesn't say which. Show the raw code so it can be relayed
+      // exactly instead of re-diagnosed from scratch every time.
+      showToast(`Permission denied (${code}) — role ya field mismatch ho sakta hai. Yeh exact error Super Admin ko bhej dein.`, 'error');
+    } else {
+      showToast(`Payment record nahi ho paaya${code ? ` (${code})` : ''}. Dobara try karein.`, 'error');
+    }
   } finally {
     recordPaymentInFlight = false;
     btn.disabled = false; btn.textContent = 'Record & Issue Receipt';

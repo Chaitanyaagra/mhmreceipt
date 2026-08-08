@@ -281,6 +281,30 @@ export function membershipDue(member, payments, maintenanceSettings) {
   return { fee, paid, outstanding, cleared: outstanding === 0 };
 }
 
+/* ---------------------------------------------------------------------- */
+/*  Event fees (Diwali, Ganesh Puja, annual function, etc.)                */
+/*                                                                          */
+/*  The treasurer creates an "event" with a flat fee and activates it; each */
+/*  approved resident then owes that fee once. A payment counts toward an   */
+/*  event when its `type` is 'event' and its `eventId` matches. Same shape  */
+/*  as membershipDue so the resident UI can treat all three the same way.   */
+/* ---------------------------------------------------------------------- */
+export function eventPaid(payments, memberUid, eventId) {
+  return (payments || [])
+    .filter(p => p.memberUid === memberUid
+              && p.status === 'verified'
+              && p.type === 'event'
+              && p.eventId === eventId)
+    .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+}
+
+export function eventDue(member, payments, event) {
+  const fee = Number(event?.feeAmount) || 0;
+  const paid = eventPaid(payments, member?.uid, event?.id);
+  const outstanding = Math.max(0, fee - paid);
+  return { eventId: event?.id, name: event?.name || 'Event', fee, paid, outstanding, cleared: outstanding === 0 };
+}
+
 export const DUES_LABEL = {
   no_rate:  'Rate not set',
   unpaid:   'Unpaid',
