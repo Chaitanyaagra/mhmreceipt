@@ -354,7 +354,7 @@
     <div class="view-panel" id="view-payments">
       <div class="topbar"><h2 class="view-title">Payments</h2>
         <div class="action-row">
-          <button class="btn btn-primary btn-sm" id="recordPaymentBtn">+ Record Cash/Cheque</button>
+          <button class="btn btn-primary btn-sm" id="recordPaymentBtn">+ Record Payment</button>
           <button class="btn btn-outline btn-sm" id="exportPaymentsBtn">⬇ Export Excel</button>
         </div>
       </div>
@@ -392,8 +392,9 @@
       <div class="topbar"><h2 class="view-title">Events</h2></div>
 
       <!-- Create / edit an event fee. Treasurer sets a name + fee, saves, then
-           uses "Generate Demand" to raise it against every approved member. -->
-      <div class="card card-pad" style="margin-bottom:20px;">
+           uses "Generate Demand" to raise it against every approved member.
+           Hidden for view-only roles (e.g. President) by renderEvents(). -->
+      <div class="card card-pad" id="eventCreateCard" style="margin-bottom:20px;">
         <h3 style="font-size:14.5px; margin-bottom:14px;">Naya Event / Fee banayein</h3>
         <form id="eventForm" class="form-grid">
           <input type="hidden" name="eventId">
@@ -654,10 +655,10 @@
 </div>
 
 <!-- Floating action button (mobile only) — quick access to the treasurer's most
-     frequent action, Record Cash/Cheque. Hidden on desktop where the inline
+     frequent action, Record Payment. Hidden on desktop where the inline
      button is always in view. Wired in the module block below. -->
-<button class="fab no-print" id="fabRecordPayment" aria-label="Record Cash or Cheque payment" title="Record Cash/Cheque">
-  <span class="fab-label">Record Cash/Cheque</span>
+<button class="fab no-print" id="fabRecordPayment" aria-label="Record a payment" title="Record Payment">
+  <span class="fab-label">Record Payment</span>
   <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
 </button>
 <!-- ============================= MODALS ============================= -->
@@ -675,12 +676,13 @@
   </div>
 </div>
 
-<!-- Treasurer records a cash / cheque payment on a member's behalf. The money
-     was physically received at the office, so this creates the payment already
-     verified and issues a receipt in one step. -->
+<!-- Treasurer records a payment on a member's behalf — cash or cheque handed
+     in at the office, or a UPI/bank transfer the treasurer has already
+     confirmed. Since the money is already received, this creates the payment
+     already verified and issues a receipt in one step. -->
 <div class="modal-backdrop" id="recordPaymentModalBackdrop">
   <div class="modal">
-    <div class="modal-head"><h3 style="font-size:16.5px;">Record Cash / Cheque Payment</h3><button class="icon-btn" id="closeRecordPaymentModal">✕</button></div>
+    <div class="modal-head"><h3 style="font-size:16.5px;">Record Payment</h3><button class="icon-btn" id="closeRecordPaymentModal">✕</button></div>
     <div class="modal-body">
       <form id="recordPaymentForm">
         <div class="field">
@@ -702,6 +704,8 @@
             <select id="rpMode" required>
               <option value="cash">Cash</option>
               <option value="cheque">Cheque</option>
+              <option value="upi">UPI</option>
+              <option value="netbanking">Net Banking</option>
             </select>
           </div>
         </div>
@@ -716,7 +720,7 @@
           </div>
         </div>
         <div class="field" id="rpChequeWrap" style="display:none;">
-          <label for="rpCheque">Cheque number</label>
+          <label for="rpCheque" id="rpChequeLabel">Cheque number</label>
           <input type="text" id="rpCheque" placeholder="Cheque no." maxlength="40">
         </div>
         <div class="field">
@@ -724,7 +728,7 @@
           <input type="text" id="rpNote" placeholder="e.g. office counter par cash liya" maxlength="120">
         </div>
         <div class="callout callout-info" style="font-size:12.5px;">
-          Yeh payment turant <b>verified</b> maani jaayegi aur receipt ban jayega — kyunki paisa aapko physically mil chuka hai.
+          Yeh payment turant <b>verified</b> maani jaayegi aur receipt ban jayega — kyunki paisa aapko mil chuka hai (ya aapne confirm kar liya hai).
         </div>
         <button class="btn btn-primary btn-block" type="submit" id="rpSubmit">Record &amp; Issue Receipt</button>
       </form>
@@ -1245,8 +1249,14 @@ async function reloadEvents() {
 function renderEvents() {
   const tbody = document.getElementById('eventsTableBody');
   if (!tbody) return;
+  const canManage = can('manageEvents');
+  // Only the Treasurer/Super Admin can create or act on events; everyone else
+  // with tab visibility (e.g. President) gets a read-only collections view —
+  // same convention as the Expenses ledger.
+  const createCard = document.getElementById('eventCreateCard');
+  if (createCard) createCard.style.display = canManage ? 'block' : 'none';
   if (!allEvents.length) {
-    tbody.innerHTML = '<tr><td colspan="6" class="t-muted">Abhi koi event nahi. Upar form se banayein.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="t-muted">Abhi koi event nahi.' + (canManage ? ' Upar form se banayein.' : '') + '</td></tr>';
     return;
   }
   tbody.innerHTML = allEvents.map(ev => {
@@ -1259,15 +1269,9 @@ function renderEvents() {
       ? (active ? '<span class="badge badge-success">Active (Demand raised)</span>'
                 : '<span class="badge badge-neutral">Closed</span>')
       : '<span class="badge badge-warning">Draft</span>';
-    return `
-      <tr>
-        <td data-label="Event"><b>${escapeHtml(ev.name)}</b>${ev.note ? `<div class="t-muted" style="font-size:11.5px;">${escapeHtml(ev.note)}</div>` : ''}</td>
-        <td data-label="Fee">${formatINR(ev.feeAmount)}</td>
-        <td data-label="FY">${escapeHtml(ev.fy || '—')}</td>
-        <td data-label="Status">${statusBadge}</td>
-        <td data-label="Collected">${formatINR(collected)}</td>
-        <td data-label="Actions">
-          <div style="display:flex; gap:6px; flex-wrap:wrap;">
+    const actions = !canManage
+      ? '<span class="t-muted" style="font-size:12px;">view only</span>'
+      : `<div style="display:flex; gap:6px; flex-wrap:wrap;">
             ${!ev.demandGenerated
               ? `<button class="btn btn-primary btn-sm" data-ev-demand="${ev.id}">Generate Demand</button>`
               : (active
@@ -1275,12 +1279,19 @@ function renderEvents() {
                   : `<button class="btn btn-outline btn-sm" data-ev-reopen="${ev.id}">Re-open</button>`)}
             <button class="btn btn-ghost btn-sm" data-ev-edit="${ev.id}">Edit</button>
             <button class="btn btn-ghost btn-sm t-danger" data-ev-del="${ev.id}">Delete</button>
-          </div>
-        </td>
+          </div>`;
+    return `
+      <tr>
+        <td data-label="Event"><b>${escapeHtml(ev.name)}</b>${ev.note ? `<div class="t-muted" style="font-size:11.5px;">${escapeHtml(ev.note)}</div>` : ''}</td>
+        <td data-label="Fee">${formatINR(ev.feeAmount)}</td>
+        <td data-label="FY">${escapeHtml(ev.fy || '—')}</td>
+        <td data-label="Status">${statusBadge}</td>
+        <td data-label="Collected">${formatINR(collected)}</td>
+        <td data-label="Actions">${actions}</td>
       </tr>`;
   }).join('');
 
-  // Wire row actions.
+  // Wire row actions (no-ops if the buttons weren't rendered for a view-only role).
   tbody.querySelectorAll('[data-ev-demand]').forEach(b => b.onclick = () => generateEventDemand(b.dataset.evDemand));
   tbody.querySelectorAll('[data-ev-close]').forEach(b => b.onclick = () => setEventActive(b.dataset.evClose, false));
   tbody.querySelectorAll('[data-ev-reopen]').forEach(b => b.onclick = () => setEventActive(b.dataset.evReopen, true));
@@ -1835,9 +1846,9 @@ function openPaymentDetail(id) {
 }
 document.getElementById('closePaymentDetailModal').addEventListener('click', () => document.getElementById('paymentDetailModalBackdrop').classList.remove('open'));
 
-// Record cash/cheque payment wiring.
+// Record payment wiring (cash, cheque, UPI, or net banking).
 document.getElementById('recordPaymentBtn')?.addEventListener('click', openRecordPaymentModal);
-// Mobile FAB opens the same Record Cash/Cheque flow. Switch to the Payments
+// Mobile FAB opens the same Record Payment flow. Switch to the Payments
 // view first so the context matches, then open the modal.
 document.getElementById('fabRecordPayment')?.addEventListener('click', () => {
   if (typeof switchView === 'function') switchView('payments');
@@ -1845,9 +1856,24 @@ document.getElementById('fabRecordPayment')?.addEventListener('click', () => {
 });
 document.getElementById('closeRecordPaymentModal')?.addEventListener('click', () => document.getElementById('recordPaymentModalBackdrop').classList.remove('open'));
 document.getElementById('recordPaymentForm')?.addEventListener('submit', submitRecordPayment);
-// Cheque number only shows for cheque mode; FY only matters for maintenance.
+// A reference number is asked for cheque (cheque no.) and for UPI / Net
+// Banking (UTR / transaction ID) — cash needs none, so the field hides.
 document.getElementById('rpMode')?.addEventListener('change', (e) => {
-  document.getElementById('rpChequeWrap').style.display = e.target.value === 'cheque' ? 'block' : 'none';
+  const mode = e.target.value;
+  const wrap = document.getElementById('rpChequeWrap');
+  const label = document.getElementById('rpChequeLabel');
+  const input = document.getElementById('rpCheque');
+  if (mode === 'cheque') {
+    wrap.style.display = 'block';
+    label.textContent = 'Cheque number';
+    input.placeholder = 'Cheque no.';
+  } else if (mode === 'upi' || mode === 'netbanking') {
+    wrap.style.display = 'block';
+    label.textContent = 'UTR / Transaction ID';
+    input.placeholder = 'UTR / Txn ID';
+  } else {
+    wrap.style.display = 'none';
+  }
 });
 document.getElementById('rpType')?.addEventListener('change', (e) => {
   // Membership is a one-time fee, not tied to a financial year.
@@ -1913,13 +1939,15 @@ async function rejectPayment(id) {
 }
 
 /* ---------------------------------------------------------------------- */
-/*  Treasurer-recorded cash / cheque payments                               */
+/*  Treasurer-recorded payments (cash, cheque, UPI, net banking)            */
 /*                                                                          */
-/*  Not every resident pays online. When someone hands cash or a cheque at  */
-/*  the office, the treasurer records it here on the member's behalf. Since  */
-/*  the money is already in hand, the payment is created ALREADY VERIFIED    */
-/*  and a receipt is issued immediately — one step, no separate approval.    */
-/*  Only superadmin/treasurer (canVerifyPayments) can do this.              */
+/*  Not every payment goes through a resident's self-service submission.    */
+/*  When someone hands cash/cheque at the office, or pays by UPI/transfer   */
+/*  and the treasurer has confirmed it landed, it is recorded here on the   */
+/*  member's behalf. Since the money is already confirmed received, the     */
+/*  payment is created ALREADY VERIFIED and a receipt is issued immediately */
+/*  — one step, no separate approval. Only superadmin/treasurer            */
+/*  (canVerifyPayments) can do this.                                        */
 /* ---------------------------------------------------------------------- */
 let recordPaymentInFlight = false;
 
@@ -1968,11 +1996,13 @@ async function submitRecordPayment(e) {
   const mode = document.getElementById('rpMode').value;
   const amount = Number(document.getElementById('rpAmount').value);
   const fy = type === 'membership' ? currentFinancialYear() : document.getElementById('rpFY').value;
-  const chequeNo = document.getElementById('rpCheque').value.trim();
+  // Cheque number for cheque; UTR / transaction ID for UPI and Net Banking.
+  const refNo = document.getElementById('rpCheque').value.trim();
   const note = document.getElementById('rpNote').value.trim();
 
   if (!Number.isFinite(amount) || amount <= 0) { showToast('Sahi amount daalein.', 'error'); return; }
-  if (mode === 'cheque' && !chequeNo) { showToast('Cheque number daalein.', 'error'); return; }
+  if (mode === 'cheque' && !refNo) { showToast('Cheque number daalein.', 'error'); return; }
+  if ((mode === 'upi' || mode === 'netbanking') && !refNo) { showToast('UTR / Transaction ID daalein.', 'error'); return; }
 
   const btn = document.getElementById('rpSubmit');
   recordPaymentInFlight = true;
@@ -1994,7 +2024,7 @@ async function submitRecordPayment(e) {
       type,                                  // 'maintenance' | 'membership'
       financialYear: fy,
       mode,                                  // 'cash' | 'cheque'
-      utrOrChequeNo: mode === 'cheque' ? chequeNo : '',
+      utrOrChequeNo: (mode === 'cheque' || mode === 'upi' || mode === 'netbanking') ? refNo : '',
       paymentProofURL: '',
       status: 'verified',                    // money already received at the office
       receiptNumber,

@@ -658,7 +658,15 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
 .pay-option.selected{ border-color:var(--saffron-600); background:#FFF8EE; }
 .pay-option svg{ width:22px; height:22px; color:var(--navy-800); flex-shrink:0; }
 .qr-box{ text-align:center; padding:16px; background:var(--paper); border-radius:var(--radius-md); }
-.qr-box img{ width:172px; height:172px; margin:0 auto 12px; border-radius:8px; background:var(--white); padding:8px; }
+.qr-box img{ width:172px; height:172px; margin:0 auto 8px; border-radius:8px; background:var(--white); padding:8px; display:block; }
+.qr-download-btn{
+  display:inline-flex; align-items:center; gap:6px; margin:0 auto 12px; padding:7px 14px;
+  background:var(--white); border:1px solid var(--line-strong); border-radius:var(--radius-pill);
+  font-size:12.5px; font-weight:600; color:var(--navy-800); cursor:pointer;
+  transition:border-color .15s ease, background .15s ease;
+}
+.qr-download-btn:hover{ border-color:var(--navy-600); background:var(--paper); }
+.qr-download-btn svg{ width:15px; height:15px; flex-shrink:0; }
 
 /* ---------- Mobile bottom tab bar (the main mobile UX upgrade) ---------- */
 /* Tab bar is ~66px tall plus the safe area; lift toasts clear of it. */
@@ -1574,7 +1582,7 @@ import {
   expenseSummary, fundPosition,
   generateStatementPDF, skeletonList, emptyState, showFieldError, clearFieldErrors,
   membershipDue, membershipFeeAmount, paymentDetails, eventDue,
-  waShareText
+  waShareText, downloadImageFromUrl
 } from './app-common.js';
 
 /* Branding, the year stamp and the committee fallback are handled by the
@@ -2400,7 +2408,13 @@ function renderPayDetailForm(mode, paySettings, payContext) {
         ${paySettings.officeAddress ? `<div class="pay-detail-box"><div class="pdl"><span>Office</span><span>${escapeHtml(paySettings.officeAddress)}</span></div></div>` : ''}
       ` : `
         <div class="qr-box" style="margin-bottom:14px;">
-          ${paySettings.qrCodeImageURL ? `<img src="${paySettings.qrCodeImageURL}" alt="Payment QR">` : '<p class="t-muted" style="font-size:12.5px; margin-bottom:8px;">QR not configured yet — use the details below.</p>'}
+          ${paySettings.qrCodeImageURL ? `
+            <img src="${paySettings.qrCodeImageURL}" alt="Payment QR">
+            <button type="button" class="qr-download-btn" id="qrDownloadBtn">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 4v11m0 0l-4-4m4 4l4-4M5 19h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              QR Download karein
+            </button>
+          ` : '<p class="t-muted" style="font-size:12.5px; margin-bottom:8px;">QR not configured yet — use the details below.</p>'}
           ${paySettings.upiId ? `<div style="font-size:13.4px; margin-bottom:6px;"><b>UPI ID:</b> ${escapeHtml(paySettings.upiId)}</div>` : ''}
           <div class="pay-detail-box">
             <div class="pdl"><span>A/C Holder</span><span>${escapeHtml(paySettings.accountName || '—')}</span></div>
@@ -2461,6 +2475,25 @@ function renderPayDetailForm(mode, paySettings, payContext) {
 
   window.__translate(holder);
   document.getElementById('submitPaymentBtn').addEventListener('click', () => submitPayment(mode));
+
+  // Let the resident save the society's QR to their phone — useful if they
+  // want to scan it from a different device, or pay later while offline.
+  const qrBtn = document.getElementById('qrDownloadBtn');
+  if (qrBtn) {
+    qrBtn.addEventListener('click', async () => {
+      qrBtn.disabled = true;
+      const original = qrBtn.innerHTML;
+      qrBtn.innerHTML = 'Downloading…';
+      try {
+        await downloadImageFromUrl(paySettings.qrCodeImageURL, `${SOCIETY.shortName || 'Society'}-Payment-QR.png`);
+      } catch (e) {
+        showToast('QR download nahi ho payi — screenshot le lein.', 'error');
+      } finally {
+        qrBtn.disabled = false;
+        qrBtn.innerHTML = original;
+      }
+    });
+  }
 }
 
 let paymentInFlight = false;   // re-entrancy lock: a payment is a financial record, never submit twice

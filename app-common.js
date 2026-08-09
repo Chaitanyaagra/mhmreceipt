@@ -1310,6 +1310,36 @@ export function deliverPdf(pdf, filename) {
   }
 }
 
+/* Download any image URL (e.g. the society's UPI QR code, usually a Firebase
+   Storage link) straight to the visitor's device. A plain <a download> often
+   gets ignored for cross-origin images — many mobile browsers just open the
+   image in a new tab instead of saving it. Fetching it as a blob first and
+   downloading THAT is what actually triggers a save dialog / gallery write
+   consistently, so someone can keep the QR on their phone and scan it later
+   from a second device or a photo app, without needing to be online. */
+export async function downloadImageFromUrl(url, filename) {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`fetch failed: ${res.status}`);
+    const blob = await res.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = filename;
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => { try { URL.revokeObjectURL(blobUrl); } catch (_) {} }, 60000);
+    return true;
+  } catch (e) {
+    // CORS or offline — fall back to opening the image directly; the visitor
+    // can still long-press / use the browser's own "save image" from there.
+    try { window.open(url, '_blank', 'noopener'); return true; }
+    catch (e2) { return false; }
+  }
+}
+
 /* ---------------------------------------------------------------------- */
 /*  Excel export / import (uses SheetJS — window.XLSX)                    */
 /* ---------------------------------------------------------------------- */

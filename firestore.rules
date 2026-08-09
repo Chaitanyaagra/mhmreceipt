@@ -208,14 +208,16 @@ service cloud.firestore {
                     && isNonEmptyString(request.resource.data.residentName, 100)
                     && isNonEmptyString(request.resource.data.flatNumber, 30)
                     && isOptionalString(request.resource.data, 'utrOrChequeNo', 40))
-                    // Treasurer / Super Admin recording a cash or cheque payment
-                    // handed in at the office, on the member's behalf. The money
-                    // is already received, so it is created verified with a
-                    // receipt in one step. memberUid is someone else's here, so
-                    // this path is gated strictly on canVerifyPayments().
+                    // Treasurer / Super Admin recording a payment handed in or
+                    // confirmed at the office — cash, cheque, or a UPI/bank
+                    // transfer the treasurer has independently verified — on
+                    // the member's behalf. The money is already received, so
+                    // it is created verified with a receipt in one step.
+                    // memberUid is someone else's here, so this path is gated
+                    // strictly on canVerifyPayments().
                     || (canVerifyPayments()
                     && isValidAmount(request.resource.data.amount)
-                    && request.resource.data.mode in ['cash', 'cheque']
+                    && request.resource.data.mode in ['cash', 'cheque', 'upi', 'netbanking']
                     && isValidFY(request.resource.data.financialYear)
                     && request.resource.data.status == 'verified'
                     && request.resource.data.type in ['membership', 'maintenance', 'event']
