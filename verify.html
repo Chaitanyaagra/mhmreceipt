@@ -23,6 +23,11 @@
      AFTER DEPLOYING: open the site, press F12, and check the Console for
      "Refused to ..." messages. Any legitimate endpoint this policy blocks will
      announce itself there and just needs adding to the right directive.
+
+     www.gstatic.com is in connect-src only for the Firebase SDK's own .js.map
+     source-map fetch (a DevTools debugging aid, fired automatically when
+     DevTools is open) — blocking it breaks nothing, but the resulting console
+     warning looks exactly like a real error and wastes time chasing it.
      ========================================================================== -->
 <meta http-equiv="Content-Security-Policy" content="
   default-src 'self';
@@ -30,7 +35,7 @@
   style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
   img-src 'self' data: blob: https://firebasestorage.googleapis.com https://*.googleusercontent.com;
   font-src 'self' data: https://fonts.gstatic.com;
-  connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://accounts.google.com;
+  connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://accounts.google.com https://www.gstatic.com;
   frame-src https://www.google.com https://accounts.google.com;
   worker-src 'self';
   object-src 'none';
