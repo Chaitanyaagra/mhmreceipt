@@ -893,6 +893,55 @@ import {
 let currentAdmin = null;
 let allMembers = [];
 let allPayments = [];
+
+/* Diagnostic helper — run window.__mhmDebugPermissions() from the browser
+   console (F12) while logged into the admin panel. Prints exactly what
+   Firestore sees for this login: the auth UID/email, the admins/{uid}
+   document's raw role value (so hidden spaces/case differences show up),
+   and whether a real read against each collection approve-member touches
+   actually succeeds — so a "permission-denied" on Approve can be traced to
+   its real cause in one step instead of guessing blind.
+   Safe to leave in: it only reads data, never writes anything. */
+window.__mhmDebugPermissions = async function () {
+  const out = [];
+  const log = (s) => { out.push(s); console.log(s); };
+  log('=== MHMRWS permission diagnostic ===');
+  const u = auth.currentUser;
+  if (!u) { log('NOT logged in — auth.currentUser is null.'); return out.join('\n'); }
+  log(`Logged in as UID: ${u.uid}`);
+  log(`Logged in as email (live Auth token): ${JSON.stringify(u.email)}`);
+
+  try {
+    const snap = await getDoc(doc(db, 'admins', u.uid));
+    if (!snap.exists()) {
+      log(`admins/${u.uid} — DOES NOT EXIST. This is why every admin action fails: isAdmin() is false.`);
+    } else {
+      const data = snap.data();
+      log(`admins/${u.uid} document found. Raw contents: ${JSON.stringify(data)}`);
+      log(`role field exact value: ${JSON.stringify(data.role)}  (must be exactly "superadmin", "treasurer", "president", "vicepresident", "secretary", or "jointsecretary" — check for extra spaces or wrong case)`);
+      log(`email field in this doc: ${JSON.stringify(data.email)}  (compare to the live Auth email above — a mismatch breaks payment-verify, not approve, but is worth checking too)`);
+    }
+  } catch (e) {
+    log(`Reading admins/${u.uid} FAILED: ${e.code || e.message}. This alone would explain permission-denied on approve.`);
+  }
+
+  try {
+    await getDoc(doc(db, 'flatClaims', '__diagnostic_probe__'));
+    log('Read test on flatClaims collection: OK (isAdmin() is being accepted by the rules for reads).');
+  } catch (e) {
+    log(`Read test on flatClaims FAILED: ${e.code || e.message}`);
+  }
+
+  try {
+    await getDoc(doc(db, 'members', '__diagnostic_probe__'));
+    log('Read test on members collection: OK.');
+  } catch (e) {
+    log(`Read test on members FAILED: ${e.code || e.message}`);
+  }
+
+  log('=== copy everything above and send it back ===');
+  return out.join('\n');
+};
 let selectedFY = currentFinancialYear();
 const charts = {};
 
