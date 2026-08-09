@@ -938,7 +938,10 @@ document.getElementById('adminLoginForm').addEventListener('submit', async (e) =
   } finally { btn.disabled = false; }
 });
 
-document.getElementById('logoutBtn').addEventListener('click', async () => { await signOut(auth); location.reload(); });
+document.getElementById('logoutBtn').addEventListener('click', async () => {
+  try { await signOut(auth); } catch (e) { console.warn('Sign-out failed:', e); }
+  location.reload();   // return to a clean login screen regardless
+});
 
 // Password reset: sends a Firebase reset link to the admin's email. The role
 // (superadmin/treasurer/etc.) is stored separately in Firestore and is not
@@ -978,7 +981,10 @@ let idleTimer = null, idleWarnTimer = null, idleWarnToastShown = false;
 
 async function endIdleSession() {
   try { await logAudit(auth.currentUser, 'session_timeout', {}); } catch (e) {}
-  await signOut(auth);
+  try { await signOut(auth); } catch (e) { console.warn('Idle sign-out failed:', e); }
+  // Reload regardless — this is what actually returns the person to a clean
+  // login screen with the "session timed out" message; it must not be
+  // skipped just because the sign-out call itself had trouble.
   sessionStorage.setItem('mhmrws-timed-out', '1');
   location.reload();
 }
@@ -1007,7 +1013,16 @@ if (sessionStorage.getItem('mhmrws-timed-out')) {
 
 onAuthStateChanged(auth, async (user) => {
   if (!user) { document.getElementById('loginScreen').style.display = 'grid'; document.getElementById('appShell').classList.remove('active'); return; }
-  const adminSnap = await getDoc(doc(db, 'admins', user.uid));
+  let adminSnap;
+  try {
+    adminSnap = await getDoc(doc(db, 'admins', user.uid));
+  } catch (e) {
+    console.error('Admin lookup failed:', e);
+    const errEl = document.getElementById('loginError');
+    errEl.textContent = `Admin record load nahi ho paaya${e?.code ? ` (${e.code})` : ''} — internet check karke page refresh karein.`;
+    errEl.style.display = 'block';
+    return;
+  }
   if (!adminSnap.exists()) {
     await signOut(auth);
     const errEl = document.getElementById('loginError');
@@ -1023,7 +1038,16 @@ onAuthStateChanged(auth, async (user) => {
   applyRoleNav();
   resetIdleTimer();   // start the inactivity clock for this session
   checkStorageAvailable();
-  await bootData();
+  // Safety net: bootData() loads every section of the panel. Its own pieces
+  // are individually guarded now, but this catches anything unexpected so a
+  // stray failure shows a clear message instead of a panel that's silently
+  // stuck half-loaded with no explanation.
+  try {
+    await bootData();
+  } catch (e) {
+    console.error('bootData failed:', e);
+    showToast(`Panel poori tarah load nahi ho paaya${e?.code ? ` (${e.code})` : ''} — page refresh karein.`, 'error');
+  }
 });
 
 function applyRoleNav() {
@@ -1126,10 +1150,20 @@ async function bootData() {
 }
 
 async function reloadMembers() {
-  allMembers = (await getDocs(collection(db, 'members'))).docs.map(d => ({ id: d.id, ...d.data() }));
+  try {
+    allMembers = (await getDocs(collection(db, 'members'))).docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch (e) {
+    console.warn('Members read failed:', e?.code || e);
+    showToast(`Members list load nahi ho payi${e?.code ? ` (${e.code})` : ''} — page refresh karke dobara try karein.`, 'error');
+  }
 }
 async function reloadPayments() {
-  allPayments = (await getDocs(collection(db, 'payments'))).docs.map(d => ({ id: d.id, ...d.data() }));
+  try {
+    allPayments = (await getDocs(collection(db, 'payments'))).docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch (e) {
+    console.warn('Payments read failed:', e?.code || e);
+    showToast(`Payments list load nahi ho payi${e?.code ? ` (${e.code})` : ''} — page refresh karke dobara try karein.`, 'error');
+  }
 }
 
 /* ---------------------------------------------------------------------- */
@@ -1436,9 +1470,17 @@ function renderExpenses() {
   document.querySelectorAll('[data-del-exp]').forEach(b => b.addEventListener('click', async () => {
     const e = allExpenses.find(x => x.id === b.dataset.delExp);
     if (!confirm(`"${e?.description}" (${formatINR(e?.amount)}) hata dein?`)) return;
-    await deleteDoc(doc(db, 'expenses', b.dataset.delExp));
-    await logAudit(auth.currentUser, 'delete_expense', { id: b.dataset.delExp, description: e?.description, amount: e?.amount });
-    await reloadExpenses(); renderExpenses(); renderOverview();
+    b.disabled = true;
+    try {
+      await deleteDoc(doc(db, 'expenses', b.dataset.delExp));
+      await logAudit(auth.currentUser, 'delete_expense', { id: b.dataset.delExp, description: e?.description, amount: e?.amount });
+      await reloadExpenses(); renderExpenses(); renderOverview();
+    } catch (err) {
+      console.error('Delete expense failed:', err);
+      const code = err?.code || '';
+      showToast(`Kharcha delete nahi ho paaya${code ? ` (${code})` : ''}.`, 'error');
+      b.disabled = false;
+    }
   }));
 
   // Only the Treasurer records spending; everyone else sees a read-only ledger.
@@ -1665,21 +1707,42 @@ function flatClaimId(tower, flatNumber) {
    All of it now commits together, or none of it does. */
 async function approveMember(id) {
   const m = allMembers.find(x => x.id === id) || {};
-  const claimRef = doc(db, 'flatClaims', flatClaimId(m.tower, m.flatNumber));
 
-  // Cheap pre-check so the common case gives a readable message instead of a
-  // transaction abort. The transaction below is what actually enforces it.
-  const existing = await getDoc(claimRef);
-  if (existing.exists() && existing.data().memberDocId !== id) {
-    const holder = allMembers.find(x => x.id === existing.data().memberDocId);
-    showToast(`Tower ${m.tower}, Flat ${m.flatNumber} pehle se ${holder?.name || 'kisi aur member'} ke naam par hai. Pehle unhe deactivate karein.`, 'error');
+  // Approval writes tower/flatNumber into flatClaims and membersPublic, and
+  // the security rules require those to be non-empty strings. A member
+  // record with a missing tower/flat (e.g. touched by hand in the Firebase
+  // Console) would otherwise fail the transaction with an opaque
+  // permission-denied. Catch it here with a message that says what to fix.
+  if (!String(m.tower || '').trim() || !String(m.flatNumber || '').trim()) {
+    showToast('Is member ka Tower/Flat number missing hai — pehle unka profile edit karke theek karein.', 'error');
     return;
   }
 
-  const memberID = await generateMemberId();
-  const publicToken = newPublicToken();
+  const btn = document.getElementById('approveBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Approving…'; }
 
+  // Everything below can throw (network blips, a permission edge case, a
+  // stale rules deploy) — ALL of it now lives inside one try/catch. Before,
+  // the two pre-checks (getDoc + generateMemberId) sat OUTSIDE the try block,
+  // so if either of them threw, the error was never caught: no toast, no
+  // console message the person could act on, just a button that looked like
+  // it did nothing. That silent-failure shape is exactly "approve nahi ho
+  // raha" with no visible error.
   try {
+    const claimRef = doc(db, 'flatClaims', flatClaimId(m.tower, m.flatNumber));
+
+    // Cheap pre-check so the common case gives a readable message instead of
+    // a transaction abort. The transaction below is what actually enforces it.
+    const existing = await getDoc(claimRef);
+    if (existing.exists() && existing.data().memberDocId !== id) {
+      const holder = allMembers.find(x => x.id === existing.data().memberDocId);
+      showToast(`Tower ${m.tower}, Flat ${m.flatNumber} pehle se ${holder?.name || 'kisi aur member'} ke naam par hai. Pehle unhe deactivate karein.`, 'error');
+      return;
+    }
+
+    const memberID = await generateMemberId();
+    const publicToken = newPublicToken();
+
     await runTransaction(db, async (tx) => {
       const claim = await tx.get(claimRef);
       if (claim.exists() && claim.data().memberDocId !== id) throw new Error('FLAT_TAKEN');
@@ -1700,55 +1763,69 @@ async function approveMember(id) {
         memberDocId: id, memberUid: m.uid || null, memberID, claimedAt: serverTimestamp()
       });
     });
+
+    await logAudit(auth.currentUser, 'approve_member', { id, memberID });
+    showToast(`Approved! Member ID: ${memberID}`, 'success');
+    document.getElementById('memberModalBackdrop').classList.remove('open');
+    await reloadMembers(); renderMembersTable(); renderOverview(); populateTowerFilter();
   } catch (err) {
     if (err.message === 'FLAT_TAKEN') {
       showToast('Yeh flat abhi-abhi kisi aur ko allot ho gaya. Page refresh karke dobara dekhein.', 'error');
     } else {
-      console.error(err);
-      showToast('Approve nahi ho paaya — kuch bhi save nahi hua. Dobara try karein.', 'error');
+      console.error('Approve member failed:', err);
+      const code = err?.code || '';
+      showToast(`Approve nahi ho paaya${code ? ` (${code})` : ''} — kuch bhi save nahi hua. Yeh exact error Super Admin/developer ko bhej dein.`, 'error');
     }
-    return;
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '\u2713 Approve'; }
   }
-
-  await logAudit(auth.currentUser, 'approve_member', { id, memberID });
-  showToast(`Approved! Member ID: ${memberID}`, 'success');
-  document.getElementById('memberModalBackdrop').classList.remove('open');
-  await reloadMembers(); renderMembersTable(); renderOverview(); populateTowerFilter();
 }
 async function rejectMember(id) {
   const reason = prompt('Reject karne ki wajah:');
   if (reason === null) return;
   const m = allMembers.find(x => x.id === id) || {};
-  const batch = writeBatch(db);
-  batch.update(doc(db, 'members', id), { status: 'rejected', rejectionReason: reason, updatedAt: serverTimestamp() });
-  const rejKey = publicKeyForMember(m);
-  if (rejKey) batch.set(doc(db, 'membersPublic', rejKey), { status: 'rejected', updatedAt: serverTimestamp() }, { merge: true });
-  // Free the flat so whoever actually lives there can be approved for it.
-  if (m.tower && m.flatNumber) batch.delete(doc(db, 'flatClaims', flatClaimId(m.tower, m.flatNumber)));
-  await batch.commit();
-  await logAudit(auth.currentUser, 'reject_member', { id, reason });
-  showToast('Registration reject kar diya gaya.', 'success');
-  document.getElementById('memberModalBackdrop').classList.remove('open');
-  await reloadMembers(); renderMembersTable(); renderOverview();
+  try {
+    const batch = writeBatch(db);
+    batch.update(doc(db, 'members', id), { status: 'rejected', rejectionReason: reason, updatedAt: serverTimestamp() });
+    const rejKey = publicKeyForMember(m);
+    if (rejKey) batch.set(doc(db, 'membersPublic', rejKey), { status: 'rejected', updatedAt: serverTimestamp() }, { merge: true });
+    // Free the flat so whoever actually lives there can be approved for it.
+    if (m.tower && m.flatNumber) batch.delete(doc(db, 'flatClaims', flatClaimId(m.tower, m.flatNumber)));
+    await batch.commit();
+    await logAudit(auth.currentUser, 'reject_member', { id, reason });
+    showToast('Registration reject kar diya gaya.', 'success');
+    document.getElementById('memberModalBackdrop').classList.remove('open');
+    await reloadMembers(); renderMembersTable(); renderOverview();
+  } catch (err) {
+    console.error('Reject member failed:', err);
+    const code = err?.code || '';
+    showToast(`Reject nahi ho paaya${code ? ` (${code})` : ''}. Dobara try karein.`, 'error');
+  }
 }
 async function deactivateMember(id) {
   const reason = prompt('Deactivate karne ki wajah (history surakshit rahegi):');
   if (reason === null) return;
   const m = allMembers.find(x => x.id === id) || {};
-  const batch = writeBatch(db);
-  batch.update(doc(db, 'members', id), { status: 'inactive', deactivatedReason: reason, deactivatedAt: serverTimestamp(), updatedAt: serverTimestamp() });
-  // Flip the public record too, so the card stops verifying at the gate the
-  // moment the member is deactivated — in the same commit, so it can never be
-  // the case that the member is inactive but the card still scans as valid.
-  const deacKey = publicKeyForMember(m);
-  if (deacKey) batch.set(doc(db, 'membersPublic', deacKey), { status: 'inactive', updatedAt: serverTimestamp() }, { merge: true });
-  // Release the flat for the next resident.
-  if (m.tower && m.flatNumber) batch.delete(doc(db, 'flatClaims', flatClaimId(m.tower, m.flatNumber)));
-  await batch.commit();
-  await logAudit(auth.currentUser, 'deactivate_member', { id, reason });
-  showToast('Member deactivate ho gaya.', 'success');
-  document.getElementById('memberModalBackdrop').classList.remove('open');
-  await reloadMembers(); renderMembersTable(); renderOverview();
+  try {
+    const batch = writeBatch(db);
+    batch.update(doc(db, 'members', id), { status: 'inactive', deactivatedReason: reason, deactivatedAt: serverTimestamp(), updatedAt: serverTimestamp() });
+    // Flip the public record too, so the card stops verifying at the gate the
+    // moment the member is deactivated — in the same commit, so it can never be
+    // the case that the member is inactive but the card still scans as valid.
+    const deacKey = publicKeyForMember(m);
+    if (deacKey) batch.set(doc(db, 'membersPublic', deacKey), { status: 'inactive', updatedAt: serverTimestamp() }, { merge: true });
+    // Release the flat for the next resident.
+    if (m.tower && m.flatNumber) batch.delete(doc(db, 'flatClaims', flatClaimId(m.tower, m.flatNumber)));
+    await batch.commit();
+    await logAudit(auth.currentUser, 'deactivate_member', { id, reason });
+    showToast('Member deactivate ho gaya.', 'success');
+    document.getElementById('memberModalBackdrop').classList.remove('open');
+    await reloadMembers(); renderMembersTable(); renderOverview();
+  } catch (err) {
+    console.error('Deactivate member failed:', err);
+    const code = err?.code || '';
+    showToast(`Deactivate nahi ho paaya${code ? ` (${code})` : ''}. Dobara try karein.`, 'error');
+  }
 }
 
 /* ---------------------------------------------------------------------- */
@@ -1931,11 +2008,17 @@ async function verifyPayment(id) {
 async function rejectPayment(id) {
   const reason = prompt('Reject karne ki wajah:');
   if (reason === null) return;
-  await updateDoc(doc(db, 'payments', id), { status: 'rejected', remarks: reason });
-  await logAudit(auth.currentUser, 'reject_payment', { paymentId: id, reason });
-  showToast('Payment reject kar diya gaya.', 'success');
-  document.getElementById('paymentDetailModalBackdrop').classList.remove('open');
-  await reloadPayments(); renderPendingPayments(); renderAllPayments();
+  try {
+    await updateDoc(doc(db, 'payments', id), { status: 'rejected', remarks: reason });
+    await logAudit(auth.currentUser, 'reject_payment', { paymentId: id, reason });
+    showToast('Payment reject kar diya gaya.', 'success');
+    document.getElementById('paymentDetailModalBackdrop').classList.remove('open');
+    await reloadPayments(); renderPendingPayments(); renderAllPayments();
+  } catch (err) {
+    console.error('Reject payment failed:', err);
+    const code = err?.code || '';
+    showToast(`Payment reject nahi ho paaya${code ? ` (${code})` : ''}.`, 'error');
+  }
 }
 
 /* ---------------------------------------------------------------------- */
@@ -2160,14 +2243,23 @@ async function loadContentPanels() {
     </div>`).join('') || '<p class="t-muted" style="font-size:13px;">No notices yet.</p>';
   document.querySelectorAll('[data-del-notice]').forEach(b => b.addEventListener('click', async () => {
     if (!confirm('Yeh notice delete karein?')) return;
-    await deleteDoc(doc(db, 'notices', b.dataset.delNotice));
-    await logAudit(auth.currentUser, 'delete_notice', { id: b.dataset.delNotice });
-    loadContentPanels();
+    try {
+      await deleteDoc(doc(db, 'notices', b.dataset.delNotice));
+      await logAudit(auth.currentUser, 'delete_notice', { id: b.dataset.delNotice });
+      loadContentPanels();
+    } catch (err) {
+      console.error('Delete notice failed:', err);
+      const code = err?.code || '';
+      showToast(`Notice delete nahi ho paaya${code ? ` (${code})` : ''}.`, 'error');
+    }
   }));
 
   loadDocuments();
 
-  const committee = (await getDocs(collection(db, 'committee'))).docs.map(d => ({ id: d.id, ...d.data() }));
+  let committee = [];
+  try {
+    committee = (await getDocs(collection(db, 'committee'))).docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch (e) { console.warn('Committee read failed:', e?.code || e); }
   document.getElementById('committeeEditList').innerHTML = committee.map(c => `
     <div class="list-edit-item">
       <div><b style="font-size:13.5px;">${escapeHtml(c.name)}</b><div class="t-muted" style="font-size:12px;">${escapeHtml(c.role)}</div></div>
@@ -2175,9 +2267,15 @@ async function loadContentPanels() {
     </div>`).join('') || '<p class="t-muted" style="font-size:13px;">No committee members yet.</p>';
   document.querySelectorAll('[data-del-committee]').forEach(b => b.addEventListener('click', async () => {
     if (!confirm('Yeh committee member delete karein?')) return;
-    await deleteDoc(doc(db, 'committee', b.dataset.delCommittee));
-    await logAudit(auth.currentUser, 'delete_committee', { id: b.dataset.delCommittee });
-    loadContentPanels();
+    try {
+      await deleteDoc(doc(db, 'committee', b.dataset.delCommittee));
+      await logAudit(auth.currentUser, 'delete_committee', { id: b.dataset.delCommittee });
+      loadContentPanels();
+    } catch (err) {
+      console.error('Delete committee member failed:', err);
+      const code = err?.code || '';
+      showToast(`Committee member delete nahi ho paaya${code ? ` (${code})` : ''}.`, 'error');
+    }
   }));
 }
 /* ---- Documents & forms -------------------------------------------------
@@ -2201,9 +2299,17 @@ async function loadDocuments() {
       </div>`).join('') || '<p class="t-muted" style="font-size:13px;">Abhi koi document nahi hai.</p>';
     el.querySelectorAll('[data-del-doc]').forEach(b => b.addEventListener('click', async () => {
       if (!confirm('Yeh document hata dein?')) return;
-      await deleteDoc(doc(db, 'documents', b.dataset.delDoc));
-      await logAudit(auth.currentUser, 'delete_document', { id: b.dataset.delDoc });
-      loadDocuments();
+      b.disabled = true;
+      try {
+        await deleteDoc(doc(db, 'documents', b.dataset.delDoc));
+        await logAudit(auth.currentUser, 'delete_document', { id: b.dataset.delDoc });
+        loadDocuments();
+      } catch (err) {
+        console.error('Delete document failed:', err);
+        const code = err?.code || '';
+        showToast(`Document delete nahi ho paaya${code ? ` (${code})` : ''}.`, 'error');
+        b.disabled = false;
+      }
     }));
   } catch (e) {
     el.innerHTML = '<p class="t-muted" style="font-size:13px;">Documents load nahi ho paaye.</p>';
@@ -2262,48 +2368,68 @@ document.getElementById('closeNoticeModal').addEventListener('click', () => docu
 document.getElementById('noticeForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const f = e.target;
-  let attachmentURL = '';
-  if (f.attachment.files[0]) {
-    const r = storageRef(storage, `noticeAttachments/${Date.now()}_${f.attachment.files[0].name}`);
-    await uploadBytes(r, f.attachment.files[0]);
-    attachmentURL = await getDownloadURL(r);
-  }
-  await addDoc(collection(db, 'notices'), {
-    titleEn: f.titleEn.value, titleHi: f.titleHi.value, bodyEn: f.bodyEn.value, bodyHi: f.bodyHi.value,
-    attachmentURL, postedAt: serverTimestamp(), postedBy: currentAdmin.email
-  });
-  await logAudit(auth.currentUser, 'add_notice', { title: f.titleEn.value });
-  showToast('Notice post ho gaya.', 'success');
-  document.getElementById('noticeModalBackdrop').classList.remove('open');
+  const btn = f.querySelector('button[type="submit"]');
+  if (btn) btn.disabled = true;
+  try {
+    let attachmentURL = '';
+    if (f.attachment.files[0]) {
+      const r = storageRef(storage, `noticeAttachments/${Date.now()}_${f.attachment.files[0].name}`);
+      await uploadBytes(r, f.attachment.files[0]);
+      attachmentURL = await getDownloadURL(r);
+    }
+    await addDoc(collection(db, 'notices'), {
+      titleEn: f.titleEn.value, titleHi: f.titleHi.value, bodyEn: f.bodyEn.value, bodyHi: f.bodyHi.value,
+      attachmentURL, postedAt: serverTimestamp(), postedBy: currentAdmin.email
+    });
+    await logAudit(auth.currentUser, 'add_notice', { title: f.titleEn.value });
+    showToast('Notice post ho gaya.', 'success');
+    document.getElementById('noticeModalBackdrop').classList.remove('open');
 
-  // A notice nobody sees isn't much use, so offer to push it to the society
-  // WhatsApp group straight away. Hindi if we have it, else English.
-  const shareTitle = f.titleHi.value || f.titleEn.value;
-  const shareBody = f.bodyHi.value || f.bodyEn.value;
-  const shareLines = [`📢 ${shareTitle}`, '', shareBody, '', '— Max Heights Majestic RWS'];
-  if (attachmentURL) shareLines.push('', attachmentURL);
-  if (confirm('Notice post ho gaya. Ise WhatsApp group par share karein?')) {
-    window.open(waShareText(shareLines.join('\n')), '_blank', 'noopener');
-  }
+    // A notice nobody sees isn't much use, so offer to push it to the society
+    // WhatsApp group straight away. Hindi if we have it, else English.
+    const shareTitle = f.titleHi.value || f.titleEn.value;
+    const shareBody = f.bodyHi.value || f.bodyEn.value;
+    const shareLines = [`📢 ${shareTitle}`, '', shareBody, '', '— Max Heights Majestic RWS'];
+    if (attachmentURL) shareLines.push('', attachmentURL);
+    if (confirm('Notice post ho gaya. Ise WhatsApp group par share karein?')) {
+      window.open(waShareText(shareLines.join('\n')), '_blank', 'noopener');
+    }
 
-  f.reset(); loadContentPanels();
+    f.reset(); loadContentPanels();
+  } catch (err) {
+    console.error('Add notice failed:', err);
+    const code = err?.code || '';
+    showToast(`Notice post nahi ho paaya${code ? ` (${code})` : ''}.`, 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
 });
 document.getElementById('addCommitteeBtn').addEventListener('click', () => document.getElementById('committeeModalBackdrop').classList.add('open'));
 document.getElementById('closeCommitteeModal').addEventListener('click', () => document.getElementById('committeeModalBackdrop').classList.remove('open'));
 document.getElementById('committeeForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const f = e.target;
-  let photoURL = '';
-  if (f.photo.files[0]) {
-    const r = storageRef(storage, `committeePhotos/${Date.now()}_${f.photo.files[0].name}`);
-    await uploadBytes(r, f.photo.files[0]);
-    photoURL = await getDownloadURL(r);
+  const btn = f.querySelector('button[type="submit"]');
+  if (btn) btn.disabled = true;
+  try {
+    let photoURL = '';
+    if (f.photo.files[0]) {
+      const r = storageRef(storage, `committeePhotos/${Date.now()}_${f.photo.files[0].name}`);
+      await uploadBytes(r, f.photo.files[0]);
+      photoURL = await getDownloadURL(r);
+    }
+    await addDoc(collection(db, 'committee'), { name: f.name.value, role: f.role.value, photoURL, addedAt: serverTimestamp() });
+    await logAudit(auth.currentUser, 'add_committee', { name: f.name.value });
+    showToast('Committee member added.', 'success');
+    document.getElementById('committeeModalBackdrop').classList.remove('open');
+    f.reset(); loadContentPanels();
+  } catch (err) {
+    console.error('Add committee member failed:', err);
+    const code = err?.code || '';
+    showToast(`Committee member save nahi ho paaya${code ? ` (${code})` : ''}.`, 'error');
+  } finally {
+    if (btn) btn.disabled = false;
   }
-  await addDoc(collection(db, 'committee'), { name: f.name.value, role: f.role.value, photoURL, addedAt: serverTimestamp() });
-  await logAudit(auth.currentUser, 'add_committee', { name: f.name.value });
-  showToast('Committee member added.', 'success');
-  document.getElementById('committeeModalBackdrop').classList.remove('open');
-  f.reset(); loadContentPanels();
 });
 
 /* ---------------------------------------------------------------------- */
@@ -2358,21 +2484,43 @@ async function confirmImport() {
   const btn = document.getElementById('confirmImportBtn');
   btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
   let count = 0;
-  for (const row of importRows) {
-    if (row.errors.length) continue;
-    const memberID = await generateMemberId();
-    await addDoc(collection(db, 'members'), {
-      uid: null, name: row.name, fatherHusbandName: row.fatherHusbandName, tower: row.tower, flatNumber: row.flat,
-      mobile: row.mobile, email: row.email, residentType: row.residentType, address: '', nomineeName: '', nomineeRelation: '',
-      photoURL: '', idDocURL: '', declarationAccepted: true, memberID, status: 'approved', role: 'resident',
-      source: 'bulk_import', createdAt: serverTimestamp(), updatedAt: serverTimestamp()
-    });
-    count++;
+  const failed = [];   // rows that had no validation errors but still failed to write
+  try {
+    for (const row of importRows) {
+      if (row.errors.length) continue;
+      try {
+        const memberID = await generateMemberId();
+        await addDoc(collection(db, 'members'), {
+          uid: null, name: row.name, fatherHusbandName: row.fatherHusbandName, tower: row.tower, flatNumber: row.flat,
+          mobile: row.mobile, email: row.email, residentType: row.residentType, address: '', nomineeName: '', nomineeRelation: '',
+          photoURL: '', idDocURL: '', declarationAccepted: true, memberID, status: 'approved', role: 'resident',
+          source: 'bulk_import', createdAt: serverTimestamp(), updatedAt: serverTimestamp()
+        });
+        count++;
+      } catch (rowErr) {
+        // One bad row (e.g. a transient write failure) must not silently
+        // stop the rest of the file from importing, and must not be hidden —
+        // note it and keep going, then report exactly what happened.
+        console.error('Import row failed:', row.name, rowErr);
+        failed.push({ name: row.name, code: rowErr?.code || '' });
+      }
+    }
+    await logAudit(auth.currentUser, 'bulk_import', { count, failed: failed.length });
+    if (failed.length) {
+      showToast(`${count} imported, ${failed.length} FAIL ho gaye (${failed.map(f => f.name).join(', ')}). Inhe dobara try karein.`, 'error');
+    } else {
+      showToast(`${count} residents imported. Note: they'll need to register normally with their email to get portal login access.`, 'success');
+    }
+    await reloadMembers(); renderMembersTable(); renderOverview(); populateTowerFilter();
+    document.getElementById('importPreview').innerHTML = ''; document.getElementById('importFile').value = '';
+  } catch (err) {
+    // Something outside the per-row loop itself failed (e.g. the reload after).
+    console.error('Bulk import failed:', err);
+    const code = err?.code || '';
+    showToast(`Import mein dikkat aayi${code ? ` (${code})` : ''} — ${count} save ho chuke the. List refresh karke check karein.`, 'error');
+  } finally {
+    btn.disabled = false; btn.innerHTML = 'Import Valid Rows';
   }
-  await logAudit(auth.currentUser, 'bulk_import', { count });
-  showToast(`${count} residents imported. Note: they'll need to register normally with their email to get portal login access.`, 'success');
-  await reloadMembers(); renderMembersTable(); renderOverview(); populateTowerFilter();
-  document.getElementById('importPreview').innerHTML = ''; document.getElementById('importFile').value = '';
 }
 
 document.getElementById('zipExportBtn').addEventListener('click', async () => {
@@ -2380,49 +2528,59 @@ document.getElementById('zipExportBtn').addEventListener('click', async () => {
   if (!monthVal) return showToast('Pehle month select karein.', 'error');
   const statusEl = document.getElementById('zipStatus');
   statusEl.textContent = 'Gathering files…';
-  const [y, m] = monthVal.split('-').map(Number);
-  const inMonth = (ts) => { if (!ts?.toDate) return false; const d = ts.toDate(); return d.getFullYear() === y && d.getMonth() === m - 1; };
+  try {
+    const [y, m] = monthVal.split('-').map(Number);
+    const inMonth = (ts) => { if (!ts?.toDate) return false; const d = ts.toDate(); return d.getFullYear() === y && d.getMonth() === m - 1; };
 
-  const files = [];
-  allMembers.forEach(mem => {
-    if (inMonth(mem.createdAt)) {
-      if (mem.photoURL) files.push({ url: mem.photoURL, name: `Photos/${mem.memberID || mem.id}.jpg` });
-      if (mem.idDocURL) files.push({ url: mem.idDocURL, name: `IDDocs/${mem.memberID || mem.id}${mem.idDocEncrypted ? '.enc' : ''}` });
-    }
-  });
-  const verifiedThisMonth = allPayments.filter(p => p.status === 'verified' && inMonth(p.verifiedAt));
+    const files = [];
+    allMembers.forEach(mem => {
+      if (inMonth(mem.createdAt)) {
+        if (mem.photoURL) files.push({ url: mem.photoURL, name: `Photos/${mem.memberID || mem.id}.jpg` });
+        if (mem.idDocURL) files.push({ url: mem.idDocURL, name: `IDDocs/${mem.memberID || mem.id}${mem.idDocEncrypted ? '.enc' : ''}` });
+      }
+    });
+    const verifiedThisMonth = allPayments.filter(p => p.status === 'verified' && inMonth(p.verifiedAt));
 
-  // The society record is the same for every receipt — it used to be fetched
-  // once per receipt inside the loop, which is one billed read per PDF.
-  const societySnap = await getDoc(doc(db, 'settings', 'society'));
-  const society = societySnap.exists() ? societySnap.data() : { fullName: SOCIETY.fullName };
-
-  let done = 0;
-  const total = verifiedThisMonth.length + files.length;
-  const tick = () => { statusEl.textContent = `Building ${++done} / ${total}…`; };
-
-  for (const p of verifiedThisMonth) {
+    // The society record is the same for every receipt — it used to be fetched
+    // once per receipt inside the loop, which is one billed read per PDF. Falls
+    // back to the built-in name so a missing settings doc doesn't stop the export.
+    let society;
     try {
-      const mem = allMembers.find(x => x.uid === p.memberUid) || {};
-      const blob = await generateReceiptPDF({ payment: p, member: mem, society, logoDataUrl: null, save: false });
-      files.push({ blob, name: `Receipts/${p.receiptNumber}.pdf` });
-    } catch (e) { /* skip a failed receipt rather than aborting the whole export */ }
-    tick();
-  }
+      const societySnap = await getDoc(doc(db, 'settings', 'society'));
+      society = societySnap.exists() ? societySnap.data() : { fullName: SOCIETY.fullName };
+    } catch (e) { society = { fullName: SOCIETY.fullName }; }
 
-  const zip = new window.JSZip();
-  for (const f of files) {
-    if (f.blob) { zip.file(f.name, f.blob); tick(); continue; }
-    try { const b = await fetch(f.url).then(r => r.blob()); zip.file(f.name, b); } catch (e) {}
-    tick();
+    let done = 0;
+    const total = verifiedThisMonth.length + files.length;
+    const tick = () => { statusEl.textContent = `Building ${++done} / ${total}…`; };
+
+    for (const p of verifiedThisMonth) {
+      try {
+        const mem = allMembers.find(x => x.uid === p.memberUid) || {};
+        const blob = await generateReceiptPDF({ payment: p, member: mem, society, logoDataUrl: null, save: false });
+        files.push({ blob, name: `Receipts/${p.receiptNumber}.pdf` });
+      } catch (e) { /* skip a failed receipt rather than aborting the whole export */ }
+      tick();
+    }
+
+    const zip = new window.JSZip();
+    for (const f of files) {
+      if (f.blob) { zip.file(f.name, f.blob); tick(); continue; }
+      try { const b = await fetch(f.url).then(r => r.blob()); zip.file(f.name, b); } catch (e) {}
+      tick();
+    }
+    statusEl.textContent = 'Compressing…';
+    const zipBlob = await zip.generateAsync({ type: 'blob' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(zipBlob); a.download = `MHMRWS-${monthVal}.zip`; a.click();
+    URL.revokeObjectURL(a.href);
+    await logAudit(auth.currentUser, 'zip_export', { month: monthVal, fileCount: files.length });
+    statusEl.textContent = `Done — ${files.length} files zipped.`;
+  } catch (err) {
+    console.error('ZIP export failed:', err);
+    const code = err?.code || '';
+    statusEl.textContent = `Export fail ho gaya${code ? ` (${code})` : ''} — dobara try karein.`;
   }
-  statusEl.textContent = 'Compressing…';
-  const zipBlob = await zip.generateAsync({ type: 'blob' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(zipBlob); a.download = `MHMRWS-${monthVal}.zip`; a.click();
-  URL.revokeObjectURL(a.href);
-  await logAudit(auth.currentUser, 'zip_export', { month: monthVal, fileCount: files.length });
-  statusEl.textContent = `Done — ${files.length} files zipped.`;
 });
 
 /* ---------------------------------------------------------------------- */
@@ -2451,30 +2609,45 @@ const PAYMENT_DEFAULTS = {
 };
 
 async function loadSettingsForms() {
-  const societySnap = await getDoc(doc(db, 'settings', 'society'));
   const f = document.getElementById('societySettingsForm');
-  const s = societySnap.exists() ? societySnap.data() : {};
-  f.name.value = s.name || SOCIETY_DEFAULTS.name;
-  f.regNumber.value = s.regNumber || SOCIETY_DEFAULTS.regNumber;
-  f.address.value = s.address || SOCIETY_DEFAULTS.address;
-  f.contactPhone.value = s.contactPhone || '';
-  f.contactEmail.value = s.contactEmail || '';
-  if (!societySnap.exists()) {
-    showToast('Society info pre-filled — jaanch kar "Save Society Info" dabayein.', 'info');
+  try {
+    const societySnap = await getDoc(doc(db, 'settings', 'society'));
+    const s = societySnap.exists() ? societySnap.data() : {};
+    f.name.value = s.name || SOCIETY_DEFAULTS.name;
+    f.regNumber.value = s.regNumber || SOCIETY_DEFAULTS.regNumber;
+    f.address.value = s.address || SOCIETY_DEFAULTS.address;
+    f.contactPhone.value = s.contactPhone || '';
+    f.contactEmail.value = s.contactEmail || '';
+    if (!societySnap.exists()) {
+      showToast('Society info pre-filled — jaanch kar "Save Society Info" dabayein.', 'info');
+    }
+  } catch (e) {
+    console.warn('Society settings read failed:', e?.code || e);
+    f.name.value = SOCIETY_DEFAULTS.name; f.regNumber.value = SOCIETY_DEFAULTS.regNumber; f.address.value = SOCIETY_DEFAULTS.address;
+    showToast(`Society settings load nahi ho paayi${e?.code ? ` (${e.code})` : ''} — defaults dikha rahe hain.`, 'error');
   }
-  const paySnap = await getDoc(doc(db, 'settings', 'payment'));
-  const p = paySnap.exists() ? paySnap.data() : {};
+
   const pf = document.getElementById('paymentSettingsForm');
-  pf.accountName.value   = p.accountName   || PAYMENT_DEFAULTS.accountName;
-  pf.upiId.value         = p.upiId         || PAYMENT_DEFAULTS.upiId;
-  pf.bankName.value      = p.bankName      || PAYMENT_DEFAULTS.bankName;
-  pf.accountNumber.value = p.accountNumber || PAYMENT_DEFAULTS.accountNumber;
-  pf.accountType.value   = p.accountType   || PAYMENT_DEFAULTS.accountType;
-  pf.ifsc.value          = p.ifsc          || PAYMENT_DEFAULTS.ifsc;
-  pf.branch.value        = p.branch        || PAYMENT_DEFAULTS.branch;
-  pf.officeAddress.value = p.officeAddress || PAYMENT_DEFAULTS.officeAddress;
-  if (!paySnap.exists()) {
-    showToast('Bank details pre-filled — jaanch kar "Save Payment Settings" dabayein.', 'info');
+  try {
+    const paySnap = await getDoc(doc(db, 'settings', 'payment'));
+    const p = paySnap.exists() ? paySnap.data() : {};
+    pf.accountName.value   = p.accountName   || PAYMENT_DEFAULTS.accountName;
+    pf.upiId.value         = p.upiId         || PAYMENT_DEFAULTS.upiId;
+    pf.bankName.value      = p.bankName      || PAYMENT_DEFAULTS.bankName;
+    pf.accountNumber.value = p.accountNumber || PAYMENT_DEFAULTS.accountNumber;
+    pf.accountType.value   = p.accountType   || PAYMENT_DEFAULTS.accountType;
+    pf.ifsc.value          = p.ifsc          || PAYMENT_DEFAULTS.ifsc;
+    pf.branch.value        = p.branch        || PAYMENT_DEFAULTS.branch;
+    pf.officeAddress.value = p.officeAddress || PAYMENT_DEFAULTS.officeAddress;
+    if (!paySnap.exists()) {
+      showToast('Bank details pre-filled — jaanch kar "Save Payment Settings" dabayein.', 'info');
+    }
+  } catch (e) {
+    console.warn('Payment settings read failed:', e?.code || e);
+    pf.accountName.value = PAYMENT_DEFAULTS.accountName; pf.upiId.value = PAYMENT_DEFAULTS.upiId; pf.bankName.value = PAYMENT_DEFAULTS.bankName;
+    pf.accountNumber.value = PAYMENT_DEFAULTS.accountNumber; pf.accountType.value = PAYMENT_DEFAULTS.accountType; pf.ifsc.value = PAYMENT_DEFAULTS.ifsc;
+    pf.branch.value = PAYMENT_DEFAULTS.branch; pf.officeAddress.value = PAYMENT_DEFAULTS.officeAddress;
+    showToast(`Payment settings load nahi ho paayi${e?.code ? ` (${e.code})` : ''} — defaults dikha rahe hain.`, 'error');
   }
 }
 /* ---- Maintenance rates -------------------------------------------------
@@ -2533,6 +2706,7 @@ function renderMaintSummary() {
 document.getElementById('maintenanceForm')?.addEventListener('submit', async (e) => {
   e.preventDefault();
   const f = e.target;
+  const btn = f.querySelector('button[type="submit"]');
   const fy = document.getElementById('maintFY').value;
   const def = Number(f.defaultRate.value);
   if (!Number.isFinite(def) || def < 0) return showToast('Sahi amount daalein.', 'error');
@@ -2558,28 +2732,48 @@ document.getElementById('maintenanceForm')?.addEventListener('submit', async (e)
     membershipFee = fee;
   }
 
-  await setDoc(doc(db, 'settings', 'maintenance'), settingsPatch, { merge: true });
-  await logAudit(auth.currentUser, 'update_maintenance_rate', { fy, default: def, byTower, membershipFee });
-  maintenanceSettings = { ...maintenanceSettings, rates, ...(settingsPatch.membershipFee != null ? { membershipFee: settingsPatch.membershipFee } : {}) };
-  renderMaintSummary();
-  renderDefaulters();
-  renderOverview();
-  showToast(`FY ${fy} ka rate save ho gaya.`, 'success');
+  if (btn) btn.disabled = true;
+  try {
+    await setDoc(doc(db, 'settings', 'maintenance'), settingsPatch, { merge: true });
+    await logAudit(auth.currentUser, 'update_maintenance_rate', { fy, default: def, byTower, membershipFee });
+    maintenanceSettings = { ...maintenanceSettings, rates, ...(settingsPatch.membershipFee != null ? { membershipFee: settingsPatch.membershipFee } : {}) };
+    renderMaintSummary();
+    renderDefaulters();
+    renderOverview();
+    showToast(`FY ${fy} ka rate save ho gaya.`, 'success');
+  } catch (err) {
+    console.error('Save maintenance rate failed:', err);
+    const code = err?.code || '';
+    showToast(`Rate save nahi ho paaya${code ? ` (${code})` : ''}.`, 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
 });
 
 document.getElementById('societySettingsForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const f = e.target;
-  await setDoc(doc(db, 'settings', 'society'), {
-    name: f.name.value, regNumber: f.regNumber.value, address: f.address.value,
-    contactPhone: f.contactPhone.value, contactEmail: f.contactEmail.value, updatedAt: serverTimestamp()
-  }, { merge: true });
-  await logAudit(auth.currentUser, 'update_society_settings', {});
-  showToast('Society info saved.', 'success');
+  const btn = f.querySelector('button[type="submit"]');
+  if (btn) btn.disabled = true;
+  try {
+    await setDoc(doc(db, 'settings', 'society'), {
+      name: f.name.value, regNumber: f.regNumber.value, address: f.address.value,
+      contactPhone: f.contactPhone.value, contactEmail: f.contactEmail.value, updatedAt: serverTimestamp()
+    }, { merge: true });
+    await logAudit(auth.currentUser, 'update_society_settings', {});
+    showToast('Society info saved.', 'success');
+  } catch (err) {
+    console.error('Save society settings failed:', err);
+    const code = err?.code || '';
+    showToast(`Society info save nahi ho paayi${code ? ` (${code})` : ''}.`, 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
 });
 document.getElementById('paymentSettingsForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const f = e.target;
+  const btn = f.querySelector('button[type="submit"]');
   const data = {
     accountName: f.accountName.value.trim(),
     upiId: f.upiId.value.trim(),
@@ -2591,14 +2785,23 @@ document.getElementById('paymentSettingsForm').addEventListener('submit', async 
     officeAddress: f.officeAddress.value.trim(),
     updatedAt: serverTimestamp()
   };
-  if (f.qrImage.files[0]) {
-    const r = storageRef(storage, `settings/payment-qr-${Date.now()}`);
-    await uploadBytes(r, f.qrImage.files[0]);
-    data.qrCodeImageURL = await getDownloadURL(r);
+  if (btn) btn.disabled = true;
+  try {
+    if (f.qrImage.files[0]) {
+      const r = storageRef(storage, `settings/payment-qr-${Date.now()}`);
+      await uploadBytes(r, f.qrImage.files[0]);
+      data.qrCodeImageURL = await getDownloadURL(r);
+    }
+    await setDoc(doc(db, 'settings', 'payment'), data, { merge: true });
+    await logAudit(auth.currentUser, 'update_payment_settings', {});
+    showToast('Payment settings saved.', 'success');
+  } catch (err) {
+    console.error('Save payment settings failed:', err);
+    const code = err?.code || '';
+    showToast(`Payment settings save nahi ho payi${code ? ` (${code})` : ''} — QR ya bank details save nahi hui, dobara try karein.`, 'error');
+  } finally {
+    if (btn) btn.disabled = false;
   }
-  await setDoc(doc(db, 'settings', 'payment'), data, { merge: true });
-  await logAudit(auth.currentUser, 'update_payment_settings', {});
-  showToast('Payment settings saved.', 'success');
 });
 
 document.getElementById('encryptPendingBtn').addEventListener('click', async () => {
@@ -2745,10 +2948,18 @@ async function loadAdmins() {
   `).join('');
   document.querySelectorAll('[data-remove-admin]').forEach(b => b.addEventListener('click', async () => {
     if (!confirm('Is admin ka access hata dein? (Login account chalta rahega, sirf admin-role hatega)')) return;
-    await deleteDoc(doc(db, 'admins', b.dataset.removeAdmin));
-    await logAudit(auth.currentUser, 'remove_admin', { id: b.dataset.removeAdmin });
-    showToast('Admin access hata diya gaya.', 'success');
-    loadAdmins();
+    b.disabled = true;
+    try {
+      await deleteDoc(doc(db, 'admins', b.dataset.removeAdmin));
+      await logAudit(auth.currentUser, 'remove_admin', { id: b.dataset.removeAdmin });
+      showToast('Admin access hata diya gaya.', 'success');
+      loadAdmins();
+    } catch (err) {
+      console.error('Remove admin failed:', err);
+      const code = err?.code || '';
+      showToast(`Admin access hata nahi paaya${code ? ` (${code})` : ''}.`, 'error');
+      b.disabled = false;
+    }
   }));
 }
 document.querySelector('#addAdminForm [name="alsoResident"]').addEventListener('change', (e) => {

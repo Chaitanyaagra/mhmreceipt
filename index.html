@@ -2207,8 +2207,15 @@ async function loadPayments(uid) {
   window.__translate(list);
 
   async function loadReceiptContext() {
-    const societySnap = await getDoc(doc(db, 'settings', 'society'));
-    const society = societySnap.exists() ? societySnap.data() : { fullName: SOCIETY.fullName, regNumber: SOCIETY.regNumber };
+    let society;
+    try {
+      const societySnap = await getDoc(doc(db, 'settings', 'society'));
+      society = societySnap.exists() ? societySnap.data() : { fullName: SOCIETY.fullName, regNumber: SOCIETY.regNumber };
+    } catch (e) {
+      // Falls back to the built-in society name/reg-number so a receipt can
+      // still be generated even if this settings read fails.
+      society = { fullName: SOCIETY.fullName, regNumber: SOCIETY.regNumber };
+    }
     // jsPDF needs actual bytes, not a URL — fetch-and-cache the data URI.
     let logoDataUrl = null;
     try { logoDataUrl = await window.__MHM_LOGO_DATAURI(); } catch (e) { /* PDF still renders sans seal */ }
