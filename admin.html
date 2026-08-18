@@ -312,6 +312,16 @@
         </div>
       </div>
 
+      <!-- Today's birthdays & anniversaries — computed client-side from member
+           + family DOB/anniversary data, no separate collection needed.
+           Populated by renderCelebrations(). Hidden entirely when there's
+           nothing to celebrate today, so it never sits there empty. -->
+      <div class="card card-pad celeb-card" id="celebCard" style="display:none;">
+        <h3 style="font-size:14.5px; margin-bottom:4px;">🎉 Aaj Birthday / Anniversary</h3>
+        <p class="t-muted" style="font-size:12px; margin-bottom:10px;">Ek click mein RWA WhatsApp se wish bhejein.</p>
+        <div class="celeb-list" id="celebList"></div>
+      </div>
+
       <div class="stat-cards">
         <div class="card card-pad stat-card"><div class="num" id="statTotalMembers">—</div><div class="lbl">Approved Members</div></div>
         <div class="card card-pad stat-card"><div class="num" id="statPendingApprovals">—</div><div class="lbl">Pending Approvals</div></div>
@@ -332,6 +342,7 @@
     <div class="view-panel" id="view-members">
       <div class="topbar"><h2 class="view-title">Members</h2>
         <div class="action-row">
+          <button class="btn btn-primary btn-sm" id="registerResidentBtn">+ Register Resident</button>
           <button class="btn btn-outline btn-sm" id="exportMembersBtn">⬇ Export Excel</button>
         </div>
       </div>
@@ -376,8 +387,8 @@
       </div>
       <div id="paymentsAllPanel" style="display:none;">
         <div class="table-wrap responsive">
-          <table><thead><tr><th>Resident</th><th>Flat</th><th>Amount</th><th>Mode</th><th>Status</th><th>Receipt No.</th><th>Date</th></tr></thead>
-          <tbody id="allPaymentsBody"><tr><td colspan="7" class="t-muted">Loading…</td></tr></tbody></table>
+          <table><thead><tr><th>Resident</th><th>Flat</th><th>Amount</th><th>Mode</th><th>Status</th><th>Receipt No.</th><th>Date</th><th>Actions</th></tr></thead>
+          <tbody id="allPaymentsBody"><tr><td colspan="8" class="t-muted">Loading…</td></tr></tbody></table>
         </div>
         <div class="pager" id="allPaymentsPager"></div>
       </div>
@@ -674,6 +685,62 @@
   </div>
 </div>
 
+<!-- Admin registers a resident directly — for a family who can't/won't fill
+     the public form themselves, or a move-in the office is handling. Created
+     already APPROVED (admin registering implies trust), with a real login so
+     the resident can sign in immediately with the email/password set here. -->
+<div class="modal-backdrop" id="registerResidentModalBackdrop">
+  <div class="modal">
+    <div class="modal-head"><h3 style="font-size:16.5px;">Register Resident</h3><button class="icon-btn" id="closeRegisterResidentModal">✕</button></div>
+    <div class="modal-body">
+      <form id="registerResidentForm">
+        <div class="form-2col">
+          <div class="field"><label for="rr-name">Name</label><input name="name" id="rr-name" required maxlength="100"></div>
+          <div class="field"><label for="rr-father">Father / Husband Name</label><input name="fatherHusbandName" id="rr-father" maxlength="100"></div>
+        </div>
+        <div class="form-2col">
+          <div class="field"><label for="rrTowerSelect">Tower</label>
+            <select name="tower" id="rrTowerSelect" required><option value="">Select tower</option></select>
+          </div>
+          <div class="field"><label for="rrFlatSelect">Flat Number</label>
+            <select name="flatNumber" id="rrFlatSelect" required disabled><option value="">Select tower first</option></select>
+          </div>
+        </div>
+        <div class="form-2col">
+          <div class="field"><label for="rr-mobile">Mobile Number</label><input name="mobile" id="rr-mobile" type="tel" maxlength="10" required></div>
+          <div class="field"><label for="rr-email">Email (login ke liye)</label><input name="email" id="rr-email" type="email" required></div>
+        </div>
+        <div class="form-2col">
+          <div class="field"><label for="rr-occupation">Occupation</label><input name="occupation" id="rr-occupation" maxlength="100"></div>
+          <div class="field"><label for="rr-residentType">Owner / Tenant</label>
+            <select name="residentType" id="rr-residentType" required>
+              <option value="owner">Owner</option><option value="tenant">Tenant</option>
+            </select>
+          </div>
+        </div>
+        <div class="field"><label for="rr-address">Address</label><textarea name="address" id="rr-address" rows="2" maxlength="500"></textarea></div>
+        <div class="form-2col">
+          <div class="field"><label for="rr-nomineeName">Nominee Name</label><input name="nomineeName" id="rr-nomineeName" maxlength="100"></div>
+          <div class="field"><label for="rr-nomineeRelation">Nominee Relation</label><input name="nomineeRelation" id="rr-nomineeRelation" maxlength="60"></div>
+        </div>
+        <div class="form-2col">
+          <div class="field"><label for="rr-dob">Date of Birth <span class="t-muted" style="font-weight:400;">(optional)</span></label><input type="date" name="dob" id="rr-dob"></div>
+          <div class="field"><label for="rr-anniversary">Anniversary <span class="t-muted" style="font-weight:400;">(optional)</span></label><input type="date" name="anniversary" id="rr-anniversary"></div>
+        </div>
+        <div class="field">
+          <label>Family Members <span class="t-muted" style="font-weight:400;">(optional)</span></label>
+          <div class="fm-editor" id="rrFamilyEditor"></div>
+          <button type="button" class="btn btn-outline btn-sm fm-add-btn" id="rrFamilyAdd">+ Family Member Jodein</button>
+        </div>
+        <div class="field"><label for="rr-password">Login Password</label><input name="password" id="rr-password" type="password" required minlength="6">
+          <div class="hint">Yeh resident ko unke email ke saath share karein — isse woh portal mein login kar sakte hain.</div>
+        </div>
+        <button class="btn btn-primary btn-block" type="submit">Resident Register Karein</button>
+      </form>
+    </div>
+  </div>
+</div>
+
 <div class="modal-backdrop" id="paymentDetailModalBackdrop">
   <div class="modal">
     <div class="modal-head"><h3 style="font-size:16.5px;">Payment Details</h3><button class="icon-btn" id="closePaymentDetailModal">✕</button></div>
@@ -889,7 +956,9 @@ import {
   TOWER_IDS, TOWER_PLAN, flatsForTower, isValidFlat,
   duesFor, DUES_LABEL, DUES_BADGE, membershipDue, eventDue,
   EXPENSE_CATEGORIES, EXPENSE_MODES, expenseSummary, fundPosition, validateExpense,
-  renderPager, skeletonTableRows, emptyState
+  renderPager, skeletonTableRows, emptyState,
+  initFamilyMembersEditor, addFamilyMemberRow, collectFamilyMembers,
+  todaysCelebrations, celebrationWishMessage
 } from './app-common.js';
 
 /* ---------------------------------------------------------------------- */
@@ -1113,9 +1182,9 @@ function applyRoleNav() {
 }
 
 /* ---- Tower → Flat dropdowns (same floor plan as the resident form) ---- */
-(function initAdminTowerFlat(){
-  const t = document.getElementById('adminTowerSelect');
-  const f = document.getElementById('adminFlatSelect');
+function initTowerFlatCascade(towerSelId, flatSelId) {
+  const t = document.getElementById(towerSelId);
+  const f = document.getElementById(flatSelId);
   if (!t || !f) return;
   t.innerHTML = '<option value="">Select tower</option>' +
     TOWER_IDS.map(x => `<option value="${x}">Tower ${x}</option>`).join('');
@@ -1127,7 +1196,24 @@ function applyRoleNav() {
       `</optgroup>`).join('');
     f.disabled = false;
   });
-})();
+}
+initTowerFlatCascade('adminTowerSelect', 'adminFlatSelect');
+initTowerFlatCascade('rrTowerSelect', 'rrFlatSelect');
+
+// Register Resident — opens the modal with a fresh form each time (a stale
+// family-member row list from a previous open would otherwise carry over).
+const rrFamilyEditor = document.getElementById('rrFamilyEditor');
+document.getElementById('registerResidentBtn')?.addEventListener('click', () => {
+  document.getElementById('registerResidentForm').reset();
+  if (rrFamilyEditor) initFamilyMembersEditor(rrFamilyEditor);
+  document.getElementById('rrFlatSelect').innerHTML = '<option value="">Select tower first</option>';
+  document.getElementById('rrFlatSelect').disabled = true;
+  document.getElementById('registerResidentModalBackdrop').classList.add('open');
+});
+document.getElementById('rrFamilyAdd')?.addEventListener('click', () => { if (rrFamilyEditor) addFamilyMemberRow(rrFamilyEditor); });
+document.getElementById('closeRegisterResidentModal')?.addEventListener('click', () => {
+  document.getElementById('registerResidentModalBackdrop').classList.remove('open');
+});
 
 /* Check that Storage is reachable and configured — WITHOUT writing anything.
    The old version uploaded a tiny probe file on every page load and never
@@ -1252,6 +1338,40 @@ function renderOverview() {
   document.getElementById('towerTableBody').innerHTML = Object.entries(towers).map(([t, amt]) => `<tr><td>${escapeHtml(t)}</td><td>${formatINR(amt)}</td></tr>`).join('') || '<tr><td colspan="2" class="t-muted">No verified payments yet for this FY.</td></tr>';
 
   renderMonthlySummary();
+  renderCelebrations();
+}
+
+// Today's birthdays & anniversaries, with a one-click WhatsApp wish. The
+// message goes to the RESIDENT's own WhatsApp number even for a family
+// member's birthday (most family members don't have their own registered
+// number), naming who it's for — see celebrationWishMessage(). Sending
+// itself is one manual tap: wa.me opens WhatsApp Web/App on whichever
+// account is signed in there, so for the wish to actually come FROM the RWA
+// number, that's the account that needs to be open when the button is used.
+function renderCelebrations() {
+  const card = document.getElementById('celebCard');
+  const list = document.getElementById('celebList');
+  if (!card || !list) return;
+  let entries = [];
+  try { entries = todaysCelebrations(allMembers); } catch (e) { console.warn('Celebrations compute failed:', e); }
+
+  if (!entries.length) { card.style.display = 'none'; list.innerHTML = ''; return; }
+  card.style.display = 'block';
+  list.innerHTML = entries.map((en, i) => `
+    <div class="celeb-item">
+      <div class="celeb-icon">${en.kind === 'anniversary' ? '🎉' : '🎂'}</div>
+      <div class="celeb-info">
+        <div class="celeb-name">${escapeHtml(en.name)}${en.relation ? ` <span class="t-muted" style="font-weight:400;">(${escapeHtml(en.relation)} of ${escapeHtml(en.memberName)})</span>` : ''}</div>
+        <div class="celeb-sub">${en.kind === 'anniversary' ? 'Anniversary' : 'Birthday'} · Flat ${escapeHtml(en.flat)}</div>
+      </div>
+      <a class="btn btn-primary btn-sm" data-celeb-wa="${i}" target="_blank" rel="noopener">WhatsApp Bhejein</a>
+    </div>
+  `).join('');
+  list.querySelectorAll('[data-celeb-wa]').forEach((a) => {
+    const en = entries[Number(a.dataset.celebWa)];
+    const msg = celebrationWishMessage(en, SOCIETY.fullName || 'Society');
+    a.href = waLink(en.mobile, msg);
+  });
 }
 
 /* This-month snapshot for the committee: money collected this calendar month,
@@ -1692,6 +1812,11 @@ document.getElementById('exportMembersBtn').addEventListener('click', () => {
 function openMemberModal(id) {
   const m = allMembers.find(x => x.id === id);
   if (!m) return;
+  renderMemberDetailView(m);
+  document.getElementById('memberModalBackdrop').classList.add('open');
+}
+
+function renderMemberDetailView(m) {
   const body = document.getElementById('memberModalBody');
   body.innerHTML = `
     <div class="row" style="gap:14px; margin-bottom:16px;">
@@ -1707,6 +1832,9 @@ function openMemberModal(id) {
       <div class="vrow"><span class="t-muted">Type</span><span>${escapeHtml(m.residentType || '—')}</span></div>
       <div class="vrow"><span class="t-muted">Address</span><span>${escapeHtml(m.address || '—')}</span></div>
       <div class="vrow"><span class="t-muted">Nominee</span><span>${escapeHtml(m.nomineeName || '—')} (${escapeHtml(m.nomineeRelation || '—')})</span></div>
+      <div class="vrow"><span class="t-muted">Date of Birth</span><span>${m.dob ? fmtDate({toDate:()=>new Date(m.dob)}) : '—'}</span></div>
+      <div class="vrow"><span class="t-muted">Anniversary</span><span>${m.anniversary ? fmtDate({toDate:()=>new Date(m.anniversary)}) : '—'}</span></div>
+      <div class="vrow"><span class="t-muted">Family Members</span><span>${(m.familyMembers && m.familyMembers.length) ? m.familyMembers.map(fm => escapeHtml(fm.name) + (fm.relation ? ` (${escapeHtml(fm.relation)})` : '')).join(', ') : '—'}</span></div>
       <div class="vrow"><span class="t-muted">Member ID</span><span class="mono">${escapeHtml(m.memberID || '—')}</span></div>
       ${(() => {
         // Membership fee status — helps the committee see who still owes the
@@ -1722,18 +1850,162 @@ function openMemberModal(id) {
     <div style="margin:16px 0; display:flex; gap:10px; flex-wrap:wrap;">
       ${m.idDocURL ? `<button class="btn btn-outline btn-sm" id="viewDocBtn">${m.idDocEncrypted ? '<svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#a-unlock"/></svg>Decrypt &amp; View ID Doc' : '<svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#a-doc"/></svg>View ID Doc'}</button>` : '<span class="t-muted" style="font-size:12.5px;">No ID document uploaded.</span>'}
     </div>
-    <div class="action-row">
+    <div class="action-row" style="flex-wrap:wrap;">
       ${m.status === 'pending' && can('approveMembers') ? `<button class="btn btn-primary btn-sm" id="approveBtn">✓ Approve</button><button class="btn btn-danger btn-sm" id="rejectBtn">✕ Reject</button>` : ''}
       ${m.status === 'approved' && can('approveMembers') ? `<button class="btn btn-danger btn-sm" id="deactivateBtn">Deactivate Member</button>` : ''}
+      ${can('approveMembers') ? `<button class="btn btn-outline btn-sm" id="editMemberBtn">✎ Edit Master Data</button>` : ''}
     </div>
   `;
   document.getElementById('viewDocBtn')?.addEventListener('click', () => openMemberDoc(m));
   document.getElementById('approveBtn')?.addEventListener('click', () => approveMember(m.id));
   document.getElementById('rejectBtn')?.addEventListener('click', () => rejectMember(m.id));
   document.getElementById('deactivateBtn')?.addEventListener('click', () => deactivateMember(m.id));
-  document.getElementById('memberModalBackdrop').classList.add('open');
+  document.getElementById('editMemberBtn')?.addEventListener('click', () => renderMemberEditForm(m));
 }
 document.getElementById('closeMemberModal').addEventListener('click', () => document.getElementById('memberModalBackdrop').classList.remove('open'));
+
+// Master-data correction — every field a committee might need to fix after
+// the fact: a typo in the phone number, a resident who got married and wants
+// their spouse added, a flat number entered wrong at registration. Changing
+// tower/flat for an APPROVED member also moves their flatClaims lock and
+// keeps the public directory record (membersPublic) in step — see
+// submitMemberEdit() for exactly how that stays consistent.
+function renderMemberEditForm(m) {
+  const body = document.getElementById('memberModalBody');
+  body.innerHTML = `
+    <form id="memberEditForm">
+      <div class="form-2col">
+        <div class="field"><label for="me-name">Name</label><input name="name" id="me-name" required maxlength="100" value="${escapeHtml(m.name)}"></div>
+        <div class="field"><label for="me-father">Father / Husband Name</label><input name="fatherHusbandName" id="me-father" maxlength="100" value="${escapeHtml(m.fatherHusbandName || '')}"></div>
+      </div>
+      <div class="form-2col">
+        <div class="field"><label for="meTowerSelect">Tower</label><select name="tower" id="meTowerSelect" required></select></div>
+        <div class="field"><label for="meFlatSelect">Flat Number</label><select name="flatNumber" id="meFlatSelect" required></select></div>
+      </div>
+      <div class="form-2col">
+        <div class="field"><label for="me-mobile">Mobile</label><input name="mobile" id="me-mobile" type="tel" maxlength="10" required value="${escapeHtml(m.mobile || '')}"></div>
+        <div class="field"><label for="me-email">Email</label><input name="email" id="me-email" type="email" required value="${escapeHtml(m.email || '')}"></div>
+      </div>
+      <div class="form-2col">
+        <div class="field"><label for="me-occupation">Occupation</label><input name="occupation" id="me-occupation" maxlength="100" value="${escapeHtml(m.occupation || '')}"></div>
+        <div class="field"><label for="me-residentType">Owner / Tenant</label>
+          <select name="residentType" id="me-residentType">
+            <option value="owner" ${m.residentType === 'owner' ? 'selected' : ''}>Owner</option>
+            <option value="tenant" ${m.residentType === 'tenant' ? 'selected' : ''}>Tenant</option>
+          </select>
+        </div>
+      </div>
+      <div class="field"><label for="me-address">Address</label><textarea name="address" id="me-address" rows="2" maxlength="500">${escapeHtml(m.address || '')}</textarea></div>
+      <div class="form-2col">
+        <div class="field"><label for="me-nomineeName">Nominee Name</label><input name="nomineeName" id="me-nomineeName" maxlength="100" value="${escapeHtml(m.nomineeName || '')}"></div>
+        <div class="field"><label for="me-nomineeRelation">Nominee Relation</label><input name="nomineeRelation" id="me-nomineeRelation" maxlength="60" value="${escapeHtml(m.nomineeRelation || '')}"></div>
+      </div>
+      <div class="form-2col">
+        <div class="field"><label for="me-dob">Date of Birth</label><input type="date" name="dob" id="me-dob" value="${escapeHtml(m.dob || '')}"></div>
+        <div class="field"><label for="me-anniversary">Anniversary</label><input type="date" name="anniversary" id="me-anniversary" value="${escapeHtml(m.anniversary || '')}"></div>
+      </div>
+      <div class="field">
+        <label>Family Members</label>
+        <div class="fm-editor" id="meFamilyEditor"></div>
+        <button type="button" class="btn btn-outline btn-sm fm-add-btn" id="meFamilyAdd">+ Family Member Jodein</button>
+      </div>
+      <div style="display:flex; gap:10px; margin-top:6px;">
+        <button class="btn btn-primary btn-sm" type="submit">Save Changes</button>
+        <button class="btn btn-outline btn-sm" type="button" id="cancelMemberEdit">Cancel</button>
+      </div>
+    </form>
+  `;
+  initTowerFlatCascade('meTowerSelect', 'meFlatSelect');
+  // initTowerFlatCascade wires a blank cascade; pre-select this member's
+  // current tower/flat, firing the same change handler so the flat list
+  // populates before we set the flat value.
+  const tSel = document.getElementById('meTowerSelect');
+  tSel.value = m.tower || '';
+  tSel.dispatchEvent(new Event('change', { bubbles: true }));
+  setTimeout(() => { const fSel = document.getElementById('meFlatSelect'); if (fSel) fSel.value = m.flatNumber || ''; }, 0);
+
+  const meFamilyEditor = document.getElementById('meFamilyEditor');
+  initFamilyMembersEditor(meFamilyEditor, m.familyMembers || []);
+  document.getElementById('meFamilyAdd').addEventListener('click', () => addFamilyMemberRow(meFamilyEditor));
+  document.getElementById('cancelMemberEdit').addEventListener('click', () => renderMemberDetailView(m));
+  document.getElementById('memberEditForm').addEventListener('submit', (e) => submitMemberEdit(e, m));
+}
+
+async function submitMemberEdit(e, original) {
+  e.preventDefault();
+  const f = e.target;
+  const btn = f.querySelector('button[type="submit"]');
+  const tower = f.tower.value.trim();
+  const flatNumber = f.flatNumber.value.trim();
+  if (!tower || !flatNumber) { showToast('Tower aur Flat chunna zaroori hai.', 'error'); return; }
+  const flatChanged = original.status === 'approved' && (tower !== original.tower || flatNumber !== original.flatNumber);
+
+  const patch = {
+    name: f.name.value.trim(), fatherHusbandName: f.fatherHusbandName.value.trim(),
+    tower, flatNumber, mobile: f.mobile.value.trim(), email: f.email.value.trim(),
+    occupation: f.occupation.value.trim(), residentType: f.residentType.value,
+    address: f.address.value.trim(), nomineeName: f.nomineeName.value.trim(), nomineeRelation: f.nomineeRelation.value.trim(),
+    dob: f.dob.value || null, anniversary: f.anniversary.value || null,
+    familyMembers: collectFamilyMembers(document.getElementById('meFamilyEditor')),
+    updatedAt: serverTimestamp()
+  };
+
+  btn.disabled = true;
+  try {
+    if (flatChanged) {
+      // Moving an approved member's flat: check the destination is free
+      // BEFORE touching anything, same pre-check-then-transaction shape as
+      // approveMember() — the pre-check gives a readable error in the common
+      // case, the transaction's own re-check is what actually guarantees no
+      // two members ever hold the same flat.
+      const newClaimRef = doc(db, 'flatClaims', flatClaimId(tower, flatNumber));
+      const existing = await getDoc(newClaimRef);
+      if (existing.exists() && existing.data().memberDocId !== original.id) {
+        const holder = allMembers.find(x => x.id === existing.data().memberDocId);
+        showToast(`Tower ${tower}, Flat ${flatNumber} pehle se ${holder?.name || 'kisi aur member'} ke naam par hai.`, 'error');
+        btn.disabled = false;
+        return;
+      }
+      const oldClaimRef = doc(db, 'flatClaims', flatClaimId(original.tower, original.flatNumber));
+      await runTransaction(db, async (tx) => {
+        const claim = await tx.get(newClaimRef);
+        if (claim.exists() && claim.data().memberDocId !== original.id) throw new Error('FLAT_TAKEN');
+        tx.update(doc(db, 'members', original.id), patch);
+        tx.delete(oldClaimRef);
+        tx.set(newClaimRef, {
+          tower, flatNumber, memberDocId: original.id, memberUid: original.uid || null,
+          memberID: original.memberID, claimedAt: serverTimestamp()
+        });
+        if (original.publicToken) {
+          tx.update(doc(db, 'membersPublic', original.publicToken), {
+            name: patch.name, tower, flatNumber, residentType: patch.residentType, updatedAt: serverTimestamp()
+          });
+        }
+      });
+    } else {
+      await updateDoc(doc(db, 'members', original.id), patch);
+      if (original.status === 'approved' && original.publicToken) {
+        await updateDoc(doc(db, 'membersPublic', original.publicToken), {
+          name: patch.name, tower, flatNumber, residentType: patch.residentType, updatedAt: serverTimestamp()
+        });
+      }
+    }
+    await logAudit(auth.currentUser, 'edit_member', { memberId: original.id, flatChanged });
+    showToast('Member ki details update ho gayi.', 'success');
+    document.getElementById('memberModalBackdrop').classList.remove('open');
+    await reloadMembers(); renderMembersTable(); renderOverview(); populateTowerFilter();
+  } catch (err) {
+    if (err.message === 'FLAT_TAKEN') {
+      showToast('Yeh flat abhi-abhi kisi aur ko allot ho gaya. Page refresh karke dobara dekhein.', 'error');
+    } else {
+      console.error('Edit member failed:', err);
+      const code = err?.code || '';
+      showToast(`Save nahi ho paaya${code ? ` (${code})` : ''}.`, 'error');
+    }
+  } finally {
+    btn.disabled = false;
+  }
+}
 
 async function openMemberDoc(m) {
   if (!m.idDocEncrypted) { window.open(m.idDocURL, '_blank'); return; }
@@ -1918,7 +2190,7 @@ function renderAllPayments() {
   const pager = document.getElementById('allPaymentsPager');
 
   if (!rows.length) {
-    body.innerHTML = `<tr><td colspan="7">${emptyState('Abhi tak koi payment nahi', 'Verify ki gayi aur pending — sabhi payments yahan aayenge.', { compact: true })}</td></tr>`;
+    body.innerHTML = `<tr><td colspan="8">${emptyState('Abhi tak koi payment nahi', 'Verify ki gayi aur pending — sabhi payments yahan aayenge.', { compact: true })}</td></tr>`;
     if (pager) pager.innerHTML = '';
     return;
   }
@@ -1933,8 +2205,10 @@ function renderAllPayments() {
       <td data-label="Mode">${escapeHtml((p.mode || '').toUpperCase())}</td>
       <td data-label="Status"><span class="badge ${badge[p.status] || 'badge-neutral'}">${escapeHtml((p.status || '').replace('_', ' '))}</span></td>
       <td data-label="Receipt No." class="mono">${escapeHtml(p.receiptNumber || '—')}</td><td data-label="Date">${fmtDate(p.submittedAt)}</td>
+      <td data-label="Actions"><button class="btn btn-outline btn-sm" data-pay-detail="${p.id}">View</button></td>
     </tr>
   `).join('');
+  body.querySelectorAll('[data-pay-detail]').forEach(b => b.addEventListener('click', () => openPaymentDetail(b.dataset.payDetail)));
 
   renderPager(pager, {
     page: allPaymentsPage, pageSize: PAYMENTS_PAGE_SIZE, total: rows.length,
@@ -1953,6 +2227,11 @@ document.getElementById('exportPaymentsBtn').addEventListener('click', () => {
 function openPaymentDetail(id) {
   const p = allPayments.find(x => x.id === id);
   if (!p) return;
+  renderPaymentDetailView(p);
+  document.getElementById('paymentDetailModalBackdrop').classList.add('open');
+}
+
+function renderPaymentDetailView(p) {
   const body = document.getElementById('paymentDetailModalBody');
   body.innerHTML = `
     <div class="vrow-list" style="font-size:13.5px;">
@@ -1962,18 +2241,117 @@ function openPaymentDetail(id) {
       <div class="vrow"><span class="t-muted">Mode</span><span>${escapeHtml((p.mode || '').toUpperCase())}</span></div>
       <div class="vrow"><span class="t-muted">UTR / Cheque No.</span><span class="mono">${escapeHtml(p.utrOrChequeNo || '—')}</span></div>
       <div class="vrow"><span class="t-muted">Financial Year</span><span>${escapeHtml(p.financialYear)}</span></div>
+      <div class="vrow"><span class="t-muted">Status</span><span>${escapeHtml((p.status || '').replace('_', ' '))}</span></div>
+      ${p.receiptNumber ? `<div class="vrow"><span class="t-muted">Receipt No.</span><span class="mono">${escapeHtml(p.receiptNumber)}</span></div>` : ''}
+      ${p.remarks ? `<div class="vrow"><span class="t-muted">Remarks</span><span>${escapeHtml(p.remarks)}</span></div>` : ''}
       <div class="vrow"><span class="t-muted">Submitted</span><span>${fmtDateTime(p.submittedAt)}</span></div>
     </div>
     ${p.paymentProofURL ? `<a href="${p.paymentProofURL}" target="_blank" class="btn btn-outline btn-sm" style="margin:14px 0; display:inline-flex;"><svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#a-clip"/></svg>View Payment Proof</a>` : ''}
-    <div class="action-row" style="margin-top:8px;">
+    <div class="action-row" style="margin-top:8px; flex-wrap:wrap;">
       ${(p.status === 'pending_approval' || p.status === 'pending_verification') && can('verifyPayments') ? `
         <button class="btn btn-primary btn-sm" id="verifyBtn">✓ Verify &amp; Issue Receipt</button>
         <button class="btn btn-danger btn-sm" id="rejectPayBtn">✕ Reject</button>` : ''}
+      ${can('verifyPayments') ? `
+        <button class="btn btn-outline btn-sm" id="editPayBtn">✎ Edit (galti theek karein)</button>
+        <button class="btn btn-ghost btn-sm t-danger" id="deletePayBtn">🗑 Delete Entry</button>` : ''}
     </div>
   `;
   document.getElementById('verifyBtn')?.addEventListener('click', () => verifyPayment(p.id));
   document.getElementById('rejectPayBtn')?.addEventListener('click', () => rejectPayment(p.id));
-  document.getElementById('paymentDetailModalBackdrop').classList.add('open');
+  document.getElementById('editPayBtn')?.addEventListener('click', () => renderPaymentDetailEdit(p));
+  document.getElementById('deletePayBtn')?.addEventListener('click', () => deletePaymentEntry(p));
+}
+
+// Correction form — lets the Treasurer fix a genuine data-entry mistake
+// (wrong amount, wrong mode, wrong FY) on a payment of ANY status, including
+// an already-verified one. The receipt number itself is never changed here;
+// see submitPaymentEdit() for exactly what is and isn't touched.
+function renderPaymentDetailEdit(p) {
+  const body = document.getElementById('paymentDetailModalBody');
+  const modeOptions = ['cash', 'cheque', 'upi', 'netbanking']
+    .map(m => `<option value="${m}" ${p.mode === m ? 'selected' : ''}>${m.toUpperCase()}</option>`).join('');
+  const typeOptions = ['maintenance', 'membership', 'event']
+    .map(t => `<option value="${t}" ${p.type === t ? 'selected' : ''}>${t[0].toUpperCase() + t.slice(1)}</option>`).join('');
+  body.innerHTML = `
+    <form id="paymentEditForm">
+      <p class="t-muted" style="font-size:12.5px; margin-bottom:14px;">
+        ${escapeHtml(p.residentName)} · ${escapeHtml(p.flatNumber)} ke is entry mein galti theek karein.
+        ${p.receiptNumber ? `Receipt <b>${escapeHtml(p.receiptNumber)}</b> waisa hi rahega — sirf figures update hongi.` : ''}
+      </p>
+      <div class="field"><label for="pe-amount">Amount (₹)</label><input id="pe-amount" name="amount" type="number" min="1" step="1" value="${p.amount}" required></div>
+      <div class="form-2col">
+        <div class="field"><label for="pe-mode">Mode</label><select id="pe-mode" name="mode">${modeOptions}</select></div>
+        <div class="field"><label for="pe-type">Type</label><select id="pe-type" name="type">${typeOptions}</select></div>
+      </div>
+      <div class="field"><label for="pe-fy">Financial Year</label><select id="pe-fy" name="financialYear"></select></div>
+      <div class="field"><label for="pe-utr">UTR / Cheque No. (optional)</label><input id="pe-utr" name="utrOrChequeNo" value="${escapeHtml(p.utrOrChequeNo || '')}" maxlength="40"></div>
+      <div class="field"><label for="pe-remarks">Remarks (optional, kyun badla note karein)</label><input id="pe-remarks" name="remarks" value="${escapeHtml(p.remarks || '')}" maxlength="500" placeholder="e.g. Amount galat type ho gaya tha"></div>
+      <div style="display:flex; gap:10px; margin-top:6px;">
+        <button class="btn btn-primary btn-sm" type="submit">Save Correction</button>
+        <button class="btn btn-outline btn-sm" type="button" id="cancelPayEdit">Cancel</button>
+      </div>
+    </form>
+  `;
+  const fySel = document.getElementById('pe-fy');
+  fySel.innerHTML = financialYearOptions().map(fy => `<option value="${fy}" ${fy === p.financialYear ? 'selected' : ''}>FY ${fy}</option>`).join('');
+  document.getElementById('cancelPayEdit').addEventListener('click', () => renderPaymentDetailView(p));
+  document.getElementById('paymentEditForm').addEventListener('submit', (e) => submitPaymentEdit(e, p));
+}
+
+async function submitPaymentEdit(e, original) {
+  e.preventDefault();
+  const f = e.target;
+  const btn = f.querySelector('button[type="submit"]');
+  const amount = Number(f.amount.value);
+  if (!Number.isFinite(amount) || amount <= 0) { showToast('Sahi amount daalein.', 'error'); return; }
+  const patch = {
+    amount, mode: f.mode.value, type: f.type.value, financialYear: f.financialYear.value,
+    utrOrChequeNo: f.utrOrChequeNo.value.trim(), remarks: f.remarks.value.trim() || null
+  };
+  if (btn) btn.disabled = true;
+  try {
+    await updateDoc(doc(db, 'payments', original.id), patch);
+    // Keep the public receipt in sync so a QR scan shows the corrected figure,
+    // not the original mistake — only when this payment actually has one.
+    if (original.receiptNumber && original.publicToken) {
+      try {
+        await updateDoc(doc(db, 'receiptsPublic', original.publicToken), { amount, receiptNumber: original.receiptNumber });
+      } catch (e2) { console.warn('Public receipt sync failed:', e2?.code || e2); }
+    }
+    await logAudit(auth.currentUser, 'edit_payment', {
+      paymentId: original.id, before: { amount: original.amount, mode: original.mode, type: original.type, financialYear: original.financialYear },
+      after: patch
+    });
+    showToast('Payment entry update ho gayi.', 'success');
+    document.getElementById('paymentDetailModalBackdrop').classList.remove('open');
+    await reloadPayments(); renderPendingPayments(); renderAllPayments(); renderOverview(); renderDefaulters();
+  } catch (err) {
+    console.error('Edit payment failed:', err);
+    const code = err?.code || '';
+    showToast(`Correction save nahi ho paayi${code ? ` (${code})` : ''}.`, 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function deletePaymentEntry(p) {
+  if (!confirm(`${p.residentName} (${p.flatNumber}) ki ${formatINR(p.amount)} ki entry poori tarah delete karein?\n\nYeh wapas nahi ho sakta. Agar receipt ban chuka hai, woh bhi verify hona band ho jaayega.`)) return;
+  try {
+    await deleteDoc(doc(db, 'payments', p.id));
+    if (p.publicToken) {
+      try { await deleteDoc(doc(db, 'receiptsPublic', p.publicToken)); } catch (e2) { console.warn('Public receipt cleanup failed:', e2?.code || e2); }
+    }
+    await logAudit(auth.currentUser, 'delete_payment', {
+      paymentId: p.id, residentName: p.residentName, flatNumber: p.flatNumber, amount: p.amount, receiptNumber: p.receiptNumber || null
+    });
+    showToast('Payment entry delete ho gayi.', 'success');
+    document.getElementById('paymentDetailModalBackdrop').classList.remove('open');
+    await reloadPayments(); renderPendingPayments(); renderAllPayments(); renderOverview(); renderDefaulters();
+  } catch (err) {
+    console.error('Delete payment failed:', err);
+    const code = err?.code || '';
+    showToast(`Delete nahi ho paaya${code ? ` (${code})` : ''}.`, 'error');
+  }
 }
 document.getElementById('closePaymentDetailModal').addEventListener('click', () => document.getElementById('paymentDetailModalBackdrop').classList.remove('open'));
 
@@ -3087,6 +3465,72 @@ document.getElementById('addAdminForm').addEventListener('submit', async (e) => 
   } catch (err) {
     showToast(err.message || 'Admin create nahi ho paaya.', 'error');
   } finally { btn.disabled = false; }
+});
+
+// Admin registering a resident directly — same secondary-app pattern as Add
+// Admin above, but the full resident profile (address, nominee, DOB, family)
+// and created already APPROVED with a Member ID, since an admin creating the
+// record implies it doesn't need the usual pending-review step.
+document.getElementById('registerResidentForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const f = e.target;
+  const btn = f.querySelector('button[type="submit"]');
+  const tower = f.tower.value.trim();
+  const flatNumber = f.flatNumber.value.trim();
+  if (!tower || !flatNumber) { showToast('Tower aur Flat chunna zaroori hai.', 'error'); return; }
+  btn.disabled = true;
+  try {
+    const claimRef = doc(db, 'flatClaims', flatClaimId(tower, flatNumber));
+    const held = await getDoc(claimRef);
+    if (held.exists()) throw new Error(`Tower ${tower}, Flat ${flatNumber} pehle se kisi aur member ke naam par hai.`);
+
+    const secondaryApp = initializeApp(firebaseConfig, 'Secondary_' + Date.now());
+    let newUid;
+    try {
+      const secondaryAuth = getAuth(secondaryApp);
+      const cred = await createUserWithEmailAndPassword(secondaryAuth, f.email.value.trim(), f.password.value);
+      newUid = cred.user.uid;
+      await signOut(secondaryAuth);
+    } finally {
+      try { await deleteApp(secondaryApp); } catch (_) {}
+    }
+
+    const memberID = await generateMemberId();
+    const publicToken = newPublicToken();
+    const familyMembers = rrFamilyEditor ? collectFamilyMembers(rrFamilyEditor) : [];
+
+    const batch = writeBatch(db);
+    batch.set(doc(db, 'members', newUid), {
+      uid: newUid, name: f.name.value.trim(), fatherHusbandName: f.fatherHusbandName.value.trim(), tower, flatNumber,
+      mobile: f.mobile.value.trim(), email: f.email.value.trim(), occupation: f.occupation.value.trim(),
+      residentType: f.residentType.value, address: f.address.value.trim(),
+      nomineeName: f.nomineeName.value.trim(), nomineeRelation: f.nomineeRelation.value.trim(),
+      dob: f.dob.value || null, anniversary: f.anniversary.value || null, familyMembers,
+      photoURL: '', idDocURL: '', declarationAccepted: true, memberID, publicToken,
+      status: 'approved', role: 'resident',
+      source: 'admin_registered', createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
+      approvedBy: currentAdmin.email, approvedAt: serverTimestamp()
+    });
+    batch.set(doc(db, 'membersPublic', publicToken), {
+      memberID, name: f.name.value.trim(), tower, flatNumber,
+      residentType: f.residentType.value, status: 'approved', updatedAt: serverTimestamp()
+    });
+    batch.set(claimRef, {
+      tower, flatNumber, memberDocId: newUid, memberUid: newUid, memberID, claimedAt: serverTimestamp()
+    });
+    await batch.commit();
+
+    await logAudit(auth.currentUser, 'register_resident', { email: f.email.value.trim(), memberID, tower, flatNumber });
+    showToast(`Resident register ho gaya — Member ID: ${memberID}`, 'success');
+    document.getElementById('registerResidentModalBackdrop').classList.remove('open');
+    await reloadMembers(); renderMembersTable(); renderOverview(); populateTowerFilter();
+  } catch (err) {
+    console.error('Register resident failed:', err);
+    const code = err?.code || '';
+    showToast(err.message && !code ? err.message : `Resident register nahi ho paaya${code ? ` (${code})` : ''}.`, 'error');
+  } finally {
+    btn.disabled = false;
+  }
 });
 
 /* ---------------------------------------------------------------------- */

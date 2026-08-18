@@ -71,6 +71,17 @@ service cloud.firestore {
     function isOptionalString(data, field, maxLen) {
       return absentOrNull(data, field) || (data[field] is string && data[field].size() <= maxLen);
     }
+    function isOptionalDateString(data, field) {
+      return absentOrNull(data, field)
+          || (data[field] is string && data[field].matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$'));
+    }
+    function isOptionalFamilyList(data, field) {
+      // Light-touch on purpose: this is descriptive data (used only to show a
+      // birthday/anniversary reminder), not anything security-sensitive, so it
+      // isn't worth a deep per-item shape check the way payments/expenses are.
+      return absentOrNull(data, field)
+          || (data[field] is list && data[field].size() <= 20);
+    }
     // A 10-digit Indian mobile number.
     function isValidMobile(v) {
       return v is string && v.matches('^[0-9]{10}$');
@@ -114,6 +125,11 @@ service cloud.firestore {
             && isOptionalString(request.resource.data, 'address', 500)
             && isOptionalString(request.resource.data, 'occupation', 100)
             && isOptionalString(request.resource.data, 'nomineeName', 100)
+            // Birthday/anniversary reminder data — all optional, never required,
+            // since not every resident wants to share a family member's DOB.
+            && isOptionalDateString(request.resource.data, 'dob')
+            && isOptionalDateString(request.resource.data, 'anniversary')
+            && isOptionalFamilyList(request.resource.data, 'familyMembers')
             && isValidMemberStatus(request.resource.data.status)
             && request.resource.data.residentType in ['owner', 'tenant'];
       }
@@ -230,22 +246,32 @@ service cloud.firestore {
                     && isOptionalString(request.resource.data, 'utrOrChequeNo', 40));
 
       // Verifying a payment issues a receipt number and moves money in the
-      // books, so it is restricted to the Treasurer / Super Admin.
+      // books, so changing anything about a payment is restricted to the
+      // Treasurer / Super Admin.
       //
-      // A VERIFIED PAYMENT IS FROZEN. Not just the amount and the payer — the
-      // whole record. Un-verifying a receipt that has already been printed,
-      // QR-coded and handed to a resident would leave the society unable to
-      // explain its own paperwork. Mistakes are corrected with a reversing
-      // entry, which is what the accounts want anyway.
+      // Two update shapes are allowed:
+      //  (a) the normal verify/reject flow — status is the only thing this
+      //      path is meant to change, plus issuing a receipt when approving.
+      //  (b) a correction edit — the Treasurer fixing a genuine data-entry
+      //      mistake (wrong amount, wrong resident, wrong mode). This is
+      //      allowed even on an already-verified payment, because "verified
+      //      payments never change" turned out to make ordinary typos
+      //      uncorrectable, which is worse for the books than an accountable,
+      //      logged correction. The app writes an audit-log entry for every
+      //      correction; that log — not a frozen document — is what makes the
+      //      change traceable.
       allow update: if canVerifyPayments()
-                    && resource.data.status != 'verified'
                     && isValidPaymentStatus(request.resource.data.status)
-                    && unchanged('amount')
-                    && unchanged('memberUid')
-                    && unchanged('mode')
-                    && unchanged('financialYear')
-                    && unchanged('submittedAt')
-                    // A receipt number, once issued, is never rewritten.
+                    && isValidAmount(request.resource.data.amount)
+                    && isValidPaymentMode(request.resource.data.mode)
+                    && isValidFY(request.resource.data.financialYear)
+                    && isNonEmptyString(request.resource.data.residentName, 100)
+                    && isNonEmptyString(request.resource.data.flatNumber, 30)
+                    && isOptionalString(request.resource.data, 'utrOrChequeNo', 40)
+                    && isOptionalString(request.resource.data, 'remarks', 500)
+                    // A receipt number, once issued, is never rewritten or removed —
+                    // correcting the amount on a receipted payment does not reissue
+                    // a new receipt number, it keeps the one already handed out.
                     && (absentOrNull(resource.data, 'receiptNumber') || unchanged('receiptNumber'))
                     && (absentOrNull(resource.data, 'publicToken') || unchanged('publicToken'))
                     // Marking something verified must actually produce a receipt.
@@ -254,7 +280,12 @@ service cloud.firestore {
                           && isPublicToken(request.resource.data.publicToken)
                        ));
 
-      allow delete: if false;
+      // A genuine duplicate or bad entry can be removed outright, not just
+      // edited — same people who may correct a payment may remove one.
+      // The app deletes the matching receiptsPublic record in the same
+      // action so a deleted receipt stops verifying as real, and writes an
+      // audit-log entry so the deletion itself is traceable.
+      allow delete: if canVerifyPayments();
     }
 
     // ---- Sequence counters (Member ID / Receipt No.) ---------------------
@@ -333,8 +364,17 @@ service cloud.firestore {
       allow create: if canVerifyPayments()
                     && isValidAmount(request.resource.data.amount)
                     && isNonEmptyString(request.resource.data.receiptNumber, 40);
-      // A verified receipt is a financial record: immutable once issued.
-      allow update, delete: if false;
+      // A verified receipt is a financial record — normally immutable — but
+      // it must be kept in sync with its payments/{id} counterpart: if the
+      // Treasurer corrects the amount on a receipted payment, the public
+      // receipt has to show the same corrected figure, not a stale one. If
+      // the underlying payment is deleted as a mistake, the receipt must stop
+      // verifying as real. Both actions are logged in auditLogs.
+      allow update: if canVerifyPayments()
+                    && isValidAmount(request.resource.data.amount)
+                    && isNonEmptyString(request.resource.data.receiptNumber, 40)
+                    && unchanged('receiptNumber');
+      allow delete: if canVerifyPayments();
     }
 
     // ---- Expenses — public read, Treasurer writes -------------------------

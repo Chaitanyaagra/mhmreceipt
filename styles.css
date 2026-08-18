@@ -826,3 +826,39 @@ body.logged-in #dashboard{ min-height:calc(100vh - 66px); padding-top:26px; }
   .paytype, .pay-option{ min-height:52px; }
   .tabbar-mobile a{ padding:9px 2px; }   /* a little taller for easier tapping */
 }
+
+/* ============================================================================
+   FAMILY MEMBERS EDITOR — dynamic rows for DOB/anniversary wishing
+   ============================================================================ */
+.fm-editor{ display:flex; flex-direction:column; gap:8px; margin-bottom:6px; }
+.fm-row{ display:grid; grid-template-columns:1fr 130px 150px 34px; gap:8px; align-items:center; }
+.fm-row input, .fm-row select{ margin:0; }
+.fm-remove{
+  width:34px; height:38px; border-radius:var(--radius-sm,8px); border:1.5px solid var(--line);
+  background:var(--white); color:var(--ink-400,#7C879C); cursor:pointer; font-size:15px; line-height:1;
+  display:flex; align-items:center; justify-content:center; flex-shrink:0;
+}
+.fm-remove:hover{ border-color:var(--danger,#c0392b); color:var(--danger,#c0392b); }
+.fm-add-btn{ align-self:flex-start; margin-top:2px; }
+@media (max-width:600px){
+  .fm-row{ grid-template-columns:1fr 1fr; grid-template-areas:"name name" "rel dob" "rem rem"; }
+  .fm-row .fm-name{ grid-area:name; }
+  .fm-row .fm-relation{ grid-area:rel; }
+  .fm-row .fm-dob{ grid-area:dob; }
+  .fm-row .fm-remove{ grid-area:rem; width:100%; }
+}
+
+/* --- Today's celebrations widget (admin overview) -------------------------- */
+.celeb-card{ margin-bottom:20px; }
+.celeb-list{ display:flex; flex-direction:column; gap:0; }
+.celeb-item{
+  display:flex; align-items:center; gap:12px; padding:12px 0; border-bottom:1px solid var(--line);
+}
+.celeb-item:last-child{ border-bottom:none; }
+.celeb-icon{
+  width:38px; height:38px; border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center;
+  font-size:18px; background:var(--gold-glow, rgba(201,162,39,.15));
+}
+.celeb-info{ flex:1; min-width:0; }
+.celeb-name{ font-weight:600; font-size:13.5px; }
+.celeb-sub{ font-size:12px; color:var(--ink-400,#7C879C); }

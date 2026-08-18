@@ -1493,6 +1493,109 @@ export function waLink(mobile, message) {
   return `https://wa.me/${withCountry}?text=${encodeURIComponent(message)}`;
 }
 
+/* ---------------------------------------------------------------------- */
+/*  Family members editor — dynamic add/remove rows (name, relation, DOB)   */
+/*                                                                          */
+/*  Shared by the public registration form, the admin "Register Resident"   */
+/*  form, and the admin "Edit Member" form, so the row markup, add/remove    */
+/*  wiring, and read-back logic live in exactly one place.                  */
+/* ---------------------------------------------------------------------- */
+export const FAMILY_RELATIONS = ['Spouse', 'Son', 'Daughter', 'Father', 'Mother', 'Brother', 'Sister', 'Other'];
+
+function familyMemberRowHTML(fm = {}) {
+  const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+  const relOptions = FAMILY_RELATIONS.map(r => `<option value="${r}" ${fm.relation === r ? 'selected' : ''}>${r}</option>`).join('');
+  return `
+    <div class="fm-row">
+      <input type="text" class="fm-name" placeholder="Naam" maxlength="100" value="${esc(fm.name)}">
+      <select class="fm-relation">${relOptions}</select>
+      <input type="date" class="fm-dob" title="Date of Birth" value="${esc(fm.dob)}">
+      <button type="button" class="fm-remove" aria-label="Family member hataayein">✕</button>
+    </div>`;
+}
+
+function wireFamilyRemoveButtons(container) {
+  container.querySelectorAll('.fm-remove').forEach((btn) => {
+    btn.onclick = () => {
+      const rows = container.querySelectorAll('.fm-row');
+      if (rows.length > 1) {
+        btn.closest('.fm-row').remove();
+      } else {
+        // Keep at least one (empty) row rather than leaving none — matches
+        // the resting state initFamilyMembersEditor() starts with.
+        const row = btn.closest('.fm-row');
+        row.querySelector('.fm-name').value = '';
+        row.querySelector('.fm-dob').value = '';
+        row.querySelector('.fm-relation').selectedIndex = 0;
+      }
+    };
+  });
+}
+
+/* Renders the existing family members (or one blank starter row) into
+   `container` and wires the remove buttons. Call addFamilyMemberRow() from
+   an "+ Add" button's click handler to append another row. */
+export function initFamilyMembersEditor(container, existing = []) {
+  const list = existing.length ? existing : [{}];
+  container.innerHTML = list.map(familyMemberRowHTML).join('');
+  wireFamilyRemoveButtons(container);
+}
+
+export function addFamilyMemberRow(container) {
+  container.insertAdjacentHTML('beforeend', familyMemberRowHTML());
+  wireFamilyRemoveButtons(container);
+}
+
+/* Reads the current rows back into a plain array, dropping any row left
+   completely blank (so an unused row never gets saved as a "member" with no
+   name). dob is stored as null rather than '' when left empty. */
+export function collectFamilyMembers(container) {
+  return [...container.querySelectorAll('.fm-row')]
+    .map((row) => ({
+      name: row.querySelector('.fm-name').value.trim(),
+      relation: row.querySelector('.fm-relation').value,
+      dob: row.querySelector('.fm-dob').value || null
+    }))
+    .filter((fm) => fm.name);
+}
+
+/* ---------------------------------------------------------------------- */
+/*  Birthday / anniversary reminders                                        */
+/*                                                                          */
+/*  Matches month+day only (the year is irrelevant for a recurring          */
+/*  birthday). Scans each approved member's own DOB/anniversary plus every   */
+/*  family member's DOB, so "today" can include people who don't have their  */
+/*  own login — the wish still goes out via the resident's WhatsApp number.  */
+/* ---------------------------------------------------------------------- */
+export function todaysCelebrations(members, today = new Date()) {
+  const mm = String(today.getMonth() + 1).padStart(2, '0');
+  const dd = String(today.getDate()).padStart(2, '0');
+  const isToday = (dateStr) => typeof dateStr === 'string' && dateStr.length >= 10 && dateStr.slice(5, 7) === mm && dateStr.slice(8, 10) === dd;
+
+  const out = [];
+  (members || []).filter((m) => m.status === 'approved').forEach((m) => {
+    const flat = `${m.tower || ''}-${m.flatNumber || ''}`;
+    if (isToday(m.dob)) out.push({ kind: 'birthday', name: m.name, relation: null, mobile: m.mobile, memberName: m.name, flat, memberId: m.id });
+    if (isToday(m.anniversary)) out.push({ kind: 'anniversary', name: m.name, relation: null, mobile: m.mobile, memberName: m.name, flat, memberId: m.id });
+    (m.familyMembers || []).forEach((fm) => {
+      if (isToday(fm.dob)) out.push({ kind: 'birthday', name: fm.name, relation: fm.relation || null, mobile: m.mobile, memberName: m.name, flat, memberId: m.id });
+    });
+  });
+  return out;
+}
+
+/* A warm, ready-to-send wish. The message is addressed to whichever person
+   is celebrating; when it's a family member without their own number, the
+   wish still goes to the resident's WhatsApp with their relative named, so
+   it reads naturally either way. */
+export function celebrationWishMessage(entry, societyName) {
+  if (entry.kind === 'anniversary') {
+    return `🎉 ${societyName} ki taraf se ${entry.name} ji ko Wedding Anniversary ki dher saari shubhkamnayein! Aapka vaivahik jeevan khushiyon se bhara rahe. 🎊`;
+  }
+  const who = entry.relation ? `${entry.relation} ${entry.name} ji` : `${entry.name} ji`;
+  return `🎂 ${societyName} ki taraf se ${who} ko Janamdin ki dher saari shubhkamnayein! Aapki zindagi khushiyon aur sehat se bhari rahe. 🎈`;
+}
+
 /* Share sheet with no fixed recipient — WhatsApp lets the user pick the chat or
    group. This is what a notice "Share on WhatsApp" button needs: the committee
    posts to the society group, a resident forwards to a neighbour. */

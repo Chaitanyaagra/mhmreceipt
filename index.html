@@ -1179,6 +1179,18 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
             <div class="field"><label for="fld-nomineeName-10">Nominee Name <i class="req">*</i></label><input name="nomineeName" required maxlength="100" id="fld-nomineeName-10"></div>
             <div class="field"><label for="fld-nomineeRelation-11">Nominee Relation <i class="req">*</i></label><input name="nomineeRelation" required maxlength="60" id="fld-nomineeRelation-11"></div>
           </div>
+
+          <!-- Optional — only used so the society can wish residents (and their
+               family) on their birthday/anniversary. Never required. -->
+          <div class="form-2col">
+            <div class="field"><label for="fld-dob-14">Date of Birth <span class="t-muted" style="font-weight:400;">(optional)</span></label><input type="date" name="dob" id="fld-dob-14"></div>
+            <div class="field"><label for="fld-anniversary-15">Anniversary <span class="t-muted" style="font-weight:400;">(optional)</span></label><input type="date" name="anniversary" id="fld-anniversary-15"></div>
+          </div>
+          <div class="field">
+            <label>Family Members <span class="t-muted" style="font-weight:400;">(optional — taaki unhe bhi wish kar sakein)</span></label>
+            <div class="fm-editor" id="regFamilyEditor"></div>
+            <button type="button" class="btn btn-outline btn-sm fm-add-btn" id="regFamilyAdd">+ Family Member Jodein</button>
+          </div>
         </fieldset>
 
         <fieldset>
@@ -1587,7 +1599,8 @@ import {
   expenseSummary, fundPosition,
   generateStatementPDF, skeletonList, emptyState, showFieldError, clearFieldErrors,
   membershipDue, membershipFeeAmount, paymentDetails, eventDue,
-  waShareText, downloadImageFromUrl
+  waShareText, downloadImageFromUrl,
+  initFamilyMembersEditor, addFamilyMemberRow, collectFamilyMembers
 } from './app-common.js';
 
 /* Branding, the year stamp and the committee fallback are handled by the
@@ -1619,6 +1632,18 @@ const registerForm = document.getElementById('registerForm');
 // showTab lives in the Firebase-free block (window.__showTab) so tab switching
 // works even if Firebase is unavailable. Alias it here for the auth code.
 const showTab = (which) => window.__showTab(which);
+
+// Family members — starts with one blank row; "+ Add" appends another.
+// Optional throughout, so an empty editor is a normal, valid submission. This
+// lives here (not in the Firebase-free block) because it needs the
+// app-common.js helpers, and app-common.js itself pulls in the Firebase SDK —
+// importing it into the Firebase-free block would defeat the point of that
+// block staying usable when Firebase fails to load.
+const regFamilyEditor = document.getElementById('regFamilyEditor');
+if (regFamilyEditor) {
+  initFamilyMembersEditor(regFamilyEditor);
+  document.getElementById('regFamilyAdd')?.addEventListener('click', () => addFamilyMemberRow(regFamilyEditor));
+}
 
 /* ---- Stepped registration (progressive enhancement) ----------------------
    The three fieldsets become three steps. If anything here throws, the form is
@@ -1805,6 +1830,10 @@ registerForm.addEventListener('submit', async (e) => {
       address: f.address.value.trim(),
       nomineeName: f.nomineeName.value.trim(),
       nomineeRelation: f.nomineeRelation.value.trim(),
+      // Optional — used only to send a birthday/anniversary wish; never required.
+      dob: f.dob.value || null,
+      anniversary: f.anniversary.value || null,
+      familyMembers: regFamilyEditor ? collectFamilyMembers(regFamilyEditor) : [],
       photoURL, idDocURL,
       declarationAccepted: true,
       memberID: null,
