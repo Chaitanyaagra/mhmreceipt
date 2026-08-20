@@ -413,12 +413,19 @@
         <button data-ptab="defaulters">Defaulters</button>
       </div>
       <div id="paymentsPendingPanel">
+        <div class="toolbar" id="pendingBulkBar" style="display:none;">
+          <span id="pendingSelectedCount" class="mono" style="font-size:12.5px; color:var(--ink-600);"></span>
+          <button class="btn btn-primary btn-sm" id="bulkVerifyBtn">✓ Verify Selected</button>
+        </div>
         <div class="table-wrap responsive">
-          <table><thead><tr><th>Resident</th><th>Flat</th><th>Amount</th><th>Mode</th><th>UTR</th><th>Submitted</th><th>Actions</th></tr></thead>
-          <tbody id="pendingPaymentsBody"><tr><td colspan="7" class="t-muted">Loading…</td></tr></tbody></table>
+          <table><thead><tr><th style="width:36px;"><input type="checkbox" id="pendingSelectAll" aria-label="Select all"></th><th>Resident</th><th>Flat</th><th>Amount</th><th>Mode</th><th>UTR</th><th>Submitted</th><th>Actions</th></tr></thead>
+          <tbody id="pendingPaymentsBody"><tr><td colspan="8" class="t-muted">Loading…</td></tr></tbody></table>
         </div>
       </div>
       <div id="paymentsAllPanel" style="display:none;">
+        <div class="toolbar">
+          <input class="grow" id="paymentSearch" type="search" placeholder="Naam, flat ya receipt no. se dhoondhein…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+        </div>
         <div class="table-wrap responsive">
           <table><thead><tr><th>Resident</th><th>Flat</th><th>Amount</th><th>Mode</th><th>Status</th><th>Receipt No.</th><th>Date</th><th>Actions</th></tr></thead>
           <tbody id="allPaymentsBody"><tr><td colspan="8" class="t-muted">Loading…</td></tr></tbody></table>
@@ -1113,7 +1120,7 @@ const ROLE_NAV = {
   vicepresident: ['overview','members','expenses','content','auditLog'],
   secretary: ['overview','members','expenses','content','auditLog'],
   jointsecretary: ['overview','members','expenses','content','auditLog'],
-  treasurer: ['overview','payments','events','expenses','importExport','auditLog']
+  treasurer: ['overview','members','payments','events','expenses','importExport','auditLog']
 };
 const ACTION_PERMS = {
   approveMembers: ['superadmin','president','vicepresident','secretary','jointsecretary'],
@@ -1944,6 +1951,11 @@ function updateNavBadges() {
 
 function renderMembersTable() {
   updateNavBadges();
+  // Treasurer sees Members for lookup (who owns which flat, is this member
+  // approved) while recording payments — that's a READ need, not a reason to
+  // also expose "+ Register Resident", which creates a member outright.
+  const registerBtn = document.getElementById('registerResidentBtn');
+  if (registerBtn) registerBtn.style.display = can('approveMembers') ? 'inline-flex' : 'none';
   const rows = filteredMembers();
   const body = document.getElementById('membersTableBody');
   const pager = document.getElementById('membersPager');
@@ -1986,6 +1998,11 @@ function renderMembersTable() {
   if (ms && ms.value) ms.value = '';
   // A late autofill can happen just after load; wipe it once more shortly after.
   setTimeout(() => { if (ms && /@/.test(ms.value)) { ms.value = ''; if (typeof renderMembersTable === 'function') renderMembersTable(); } }, 400);
+})();
+(() => {
+  const ps = document.getElementById('paymentSearch');
+  if (ps && ps.value) ps.value = '';
+  setTimeout(() => { if (ps && /@/.test(ps.value)) { ps.value = ''; if (typeof renderAllPayments === 'function') renderAllPayments(); } }, 400);
 })();
 
 ['memberSearch', 'filterTower', 'filterStatus'].forEach(id =>
@@ -2402,6 +2419,7 @@ function renderPendingPayments() {
   const rows = allPayments.filter(p => p.status === 'pending_approval' || p.status === 'pending_verification');
   document.getElementById('pendingPaymentsBody').innerHTML = rows.map(p => `
     <tr>
+      <td data-label=""><input type="checkbox" class="pending-pay-check" value="${p.id}" aria-label="Select ${escapeHtml(p.residentName)}'s payment"></td>
       <td data-label="Resident">${escapeHtml(p.residentName)}</td>
       <td data-label="Flat">${escapeHtml(p.flatNumber)}</td>
       <td data-label="Amount"><b>${formatINR(p.amount)}</b></td>
@@ -2410,20 +2428,96 @@ function renderPendingPayments() {
       <td data-label="Submitted">${fmtDate(p.submittedAt)}</td>
       <td data-label="Actions"><button class="btn btn-outline btn-sm" data-pay-detail="${p.id}">Review &amp; Verify</button></td>
     </tr>
-  `).join('') || '<tr><td colspan="7" class="t-muted">No pending payments</td></tr>';
+  `).join('') || '<tr><td colspan="8" class="t-muted">No pending payments</td></tr>';
   document.querySelectorAll('[data-pay-detail]').forEach(b => b.addEventListener('click', () => openPaymentDetail(b.dataset.payDetail)));
+
+  // Selecting rows is its own small UI: individual checkboxes drive the
+  // header "select all" (three-state: none/some/all) and the bulk-action
+  // bar's visibility + count. Re-wired on every render since the rows
+  // themselves are rebuilt each time.
+  const selectAll = document.getElementById('pendingSelectAll');
+  const checks = () => [...document.querySelectorAll('.pending-pay-check')];
+  const updateBulkBar = () => {
+    const selected = checks().filter(c => c.checked);
+    const bar = document.getElementById('pendingBulkBar');
+    bar.style.display = selected.length ? 'flex' : 'none';
+    document.getElementById('pendingSelectedCount').textContent = `${selected.length} selected`;
+    if (selectAll) {
+      selectAll.checked = selected.length > 0 && selected.length === checks().length;
+      selectAll.indeterminate = selected.length > 0 && selected.length < checks().length;
+    }
+  };
+  checks().forEach(c => c.addEventListener('change', updateBulkBar));
+  if (selectAll) {
+    selectAll.checked = false; selectAll.indeterminate = false;
+    selectAll.onchange = () => { checks().forEach(c => { c.checked = selectAll.checked; }); updateBulkBar(); };
+  }
+  updateBulkBar();
+}
+document.getElementById('bulkVerifyBtn')?.addEventListener('click', () => {
+  const ids = [...document.querySelectorAll('.pending-pay-check:checked')].map(c => c.value);
+  if (ids.length) bulkVerifyPayments(ids);
+});
+
+// Verifies several payments in one action — sequential, not parallel, since
+// each verify increments the same shared receipt-number counter through a
+// Firestore transaction; doing them one at a time avoids any contention on
+// that counter rather than relying on retries under load. A failure on one
+// payment does not stop the rest, matching the resilient pattern used for
+// bulk member import — the summary at the end says exactly what happened.
+async function bulkVerifyPayments(ids) {
+  if (!confirm(`${ids.length} payments verify karein? Har ek ke liye receipt ban jayega.`)) return;
+  const btn = document.getElementById('bulkVerifyBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Verifying…'; }
+  let done = 0;
+  const failed = [];
+  for (const id of ids) {
+    const p = allPayments.find(x => x.id === id);
+    if (!p) continue;
+    try {
+      const receiptNumber = await generateReceiptNumber(p.financialYear);
+      const publicToken = newPublicToken();
+      const batch = writeBatch(db);
+      batch.update(doc(db, 'payments', id), {
+        status: 'verified', receiptNumber, publicToken,
+        verifiedAt: serverTimestamp(), verifiedBy: auth.currentUser?.email || currentAdmin.email
+      });
+      batch.set(doc(db, 'receiptsPublic', publicToken), {
+        receiptNumber, residentName: p.residentName, flatNumber: p.flatNumber, tower: p.tower,
+        amount: p.amount, financialYear: p.financialYear, verifiedAt: serverTimestamp(), status: 'Verified'
+      });
+      await batch.commit();
+      await logAudit(auth.currentUser, 'verify_payment', { paymentId: id, receiptNumber, amount: p.amount, bulk: true });
+      done++;
+    } catch (e) {
+      console.error('Bulk verify: payment failed:', id, e);
+      failed.push({ name: p.residentName, code: e?.code || '' });
+    }
+  }
+  if (failed.length) {
+    showToast(`${done} verify ho gaye, ${failed.length} fail (${failed.map(f => f.name).join(', ')}). Inhe ek-ek karke try karein.`, 'error');
+  } else {
+    showToast(`${done} payments verify ho gaye — receipts ban gaye.`, 'success');
+  }
+  if (btn) { btn.disabled = false; btn.textContent = '✓ Verify Selected'; }
+  await reloadPayments(); renderPendingPayments(); renderAllPayments(); renderOverview(); renderDefaulters();
 }
 
 const PAYMENTS_PAGE_SIZE = 25;
 let allPaymentsPage = 1;
+document.getElementById('paymentSearch')?.addEventListener('input', () => { allPaymentsPage = 1; renderAllPayments(); });
 function renderAllPayments() {
-  const rows = [...allPayments].sort((a, b) => (b.submittedAt?.seconds || 0) - (a.submittedAt?.seconds || 0));
+  const term = document.getElementById('paymentSearch')?.value.trim().toLowerCase() || '';
+  let rows = [...allPayments].sort((a, b) => (b.submittedAt?.seconds || 0) - (a.submittedAt?.seconds || 0));
+  if (term) {
+    rows = rows.filter(p => `${p.residentName} ${p.flatNumber} ${p.receiptNumber || ''}`.toLowerCase().includes(term));
+  }
   const badge = { pending_approval: 'badge-warning', pending_verification: 'badge-warning', verified: 'badge-success', rejected: 'badge-danger' };
   const body = document.getElementById('allPaymentsBody');
   const pager = document.getElementById('allPaymentsPager');
 
   if (!rows.length) {
-    body.innerHTML = `<tr><td colspan="8">${emptyState('Abhi tak koi payment nahi', 'Verify ki gayi aur pending — sabhi payments yahan aayenge.', { compact: true })}</td></tr>`;
+    body.innerHTML = `<tr><td colspan="8">${emptyState(term ? 'Koi payment nahi mila' : 'Abhi tak koi payment nahi', term ? 'Is naam/flat/receipt se koi payment nahi mila.' : 'Verify ki gayi aur pending — sabhi payments yahan aayenge.', { compact: true })}</td></tr>`;
     if (pager) pager.innerHTML = '';
     return;
   }
@@ -3729,6 +3823,7 @@ document.getElementById('addAdminForm').addEventListener('submit', async (e) => 
 // record implies it doesn't need the usual pending-review step.
 document.getElementById('registerResidentForm').addEventListener('submit', async (e) => {
   e.preventDefault();
+  if (!can('approveMembers')) { showToast('Sirf President/Secretary/Super Admin resident register kar sakte hain.', 'error'); return; }
   const f = e.target;
   const btn = f.querySelector('button[type="submit"]');
   const tower = f.tower.value.trim();
