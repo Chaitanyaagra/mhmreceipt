@@ -77,6 +77,13 @@
   .side-nav button:hover{ background:rgba(255,255,255,.06); color:var(--white); }
   .side-nav button.active{ background:rgba(255,255,255,.13); color:var(--white); }
   .side-nav .icon{ width:18px; height:18px; display:grid; place-items:center; flex-shrink:0; }
+  /* Pending-work count — Members (pending approvals) and Payments (pending
+     verification). Hidden entirely at zero so an empty queue doesn't nag. */
+  .nav-badge{
+    margin-left:auto; min-width:19px; height:19px; padding:0 5px; border-radius:999px;
+    background:#E4483C; color:#fff; font-size:11px; font-weight:700; line-height:19px;
+    text-align:center; flex-shrink:0;
+  }
   .side-nav .icon svg{ width:17px; height:17px; }
   .sidebar-foot{ margin-top:auto; padding-top:16px; border-top:1px solid rgba(255,255,255,.12); }
   .admin-chip{ font-size:12px; color:rgba(255,255,255,.6); margin-bottom:10px; padding:0 8px; }
@@ -256,8 +263,8 @@
     </div>
     <nav class="side-nav" id="sideNav">
       <button data-view="overview" class="active"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-overview"/></svg></span> Overview</button>
-      <button data-view="members"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-members"/></svg></span> Members</button>
-      <button data-view="payments"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-payments"/></svg></span> Payments</button>
+      <button data-view="members"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-members"/></svg></span> Members<span class="nav-badge" id="navBadgeMembers" style="display:none;">0</span></button>
+      <button data-view="payments"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-payments"/></svg></span> Payments<span class="nav-badge" id="navBadgePayments" style="display:none;">0</span></button>
       <button data-view="events"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-events"/></svg></span> Events</button>
       <button data-view="expenses"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-expenses"/></svg></span> Expenses</button>
       <button data-view="content"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-content"/></svg></span> Notices &amp; Committee</button>
@@ -293,6 +300,23 @@
         <select class="fy-select" id="fySelect"></select>
       </div>
 
+      <!-- Rules-out-of-sync warning — Super Admin only, since only they can
+           actually publish rules. Populated by checkRulesHealth(). Hidden by
+           default; only ever shown if the canary read below actually fails. -->
+      <div class="card card-pad" id="rulesHealthBanner" style="display:none; margin-bottom:20px; background:#FFF4E5; border-color:#E8A33D;">
+        <div style="display:flex; align-items:flex-start; gap:12px;">
+          <div style="font-size:22px; line-height:1;">⚠️</div>
+          <div>
+            <b style="font-size:13.5px;">Firestore Rules purani lag rahi hain</b>
+            <p style="font-size:12.5px; margin-top:4px; color:var(--ink-700,#3A4256);">
+              Ek naya feature ka data padhne mein permission error aa raha hai — iska matlab aksar yeh hota hai ki Firebase Console mein
+              latest <code>firestore.rules</code> publish nahi hui hai. Firebase Console → Firestore Database → Rules mein jaakar,
+              is zip ki <code>firestore.rules</code> file poori copy-paste karke Publish karein.
+            </p>
+          </div>
+        </div>
+      </div>
+
       <!-- This-month snapshot — the committee's at-a-glance card. Populated by
            renderMonthlySummary() from the same payment/member data as below. -->
       <div class="card card-pad month-summary" id="monthSummary">
@@ -320,6 +344,15 @@
         <h3 style="font-size:14.5px; margin-bottom:4px;">🎉 Aaj Birthday / Anniversary</h3>
         <p class="t-muted" style="font-size:12px; margin-bottom:10px;">Ek click mein RWA WhatsApp se wish bhejein.</p>
         <div class="celeb-list" id="celebList"></div>
+      </div>
+
+      <!-- Next 7 days — so the committee isn't caught off guard; a card or a
+           message can be arranged ahead of time instead of same-day. Hidden
+           entirely when nothing is coming up, same as the "today" card. -->
+      <div class="card card-pad celeb-card" id="celebUpcomingCard" style="display:none;">
+        <h3 style="font-size:14.5px; margin-bottom:4px;">📅 Agle 7 Din</h3>
+        <p class="t-muted" style="font-size:12px; margin-bottom:10px;">Pehle se plan karne ke liye.</p>
+        <div class="celeb-list" id="celebUpcomingList"></div>
       </div>
 
       <div class="stat-cards">
@@ -502,7 +535,11 @@
       <div class="settings-grid">
         <div class="card card-pad">
           <h3 style="font-size:15px; margin-bottom:6px;">Bulk Import Residents</h3>
-          <p class="t-sub" style="font-size:13px; margin-bottom:14px;">Upload an .xlsx/.csv with columns: Name, FatherHusbandName, Tower, FlatNumber, Mobile, Email, ResidentType. Rows are dry-run validated before anything is saved.</p>
+          <p class="t-sub" style="font-size:13px; margin-bottom:14px;">
+            Upload an .xlsx/.csv with columns: <b>Name, FatherHusbandName, Tower, FlatNumber, Mobile, Email, ResidentType</b> (all required),
+            plus optional columns for birthday wishing: <b>DOB, Anniversary, Family1Name, Family1Relation, Family1DOB</b> (up to Family3 —
+            more family members can be added later per-resident from "Edit Master Data"). Rows are dry-run validated before anything is saved.
+          </p>
           <input type="file" id="importFile" accept=".xlsx,.csv">
           <div id="importPreview" style="margin-top:16px;"></div>
         </div>
@@ -732,11 +769,49 @@
           <div class="fm-editor" id="rrFamilyEditor"></div>
           <button type="button" class="btn btn-outline btn-sm fm-add-btn" id="rrFamilyAdd">+ Family Member Jodein</button>
         </div>
-        <div class="field"><label for="rr-password">Login Password</label><input name="password" id="rr-password" type="password" required minlength="6">
-          <div class="hint">Yeh resident ko unke email ke saath share karein — isse woh portal mein login kar sakte hain.</div>
+        <div class="form-2col">
+          <div class="field">
+            <label for="rr-photo">Photo <span class="t-muted" style="font-weight:400;">(optional)</span></label>
+            <input type="file" name="photo" id="rr-photo" accept="image/*">
+          </div>
+          <div class="field">
+            <label for="rr-idDoc">Aadhaar / PAN <span class="t-muted" style="font-weight:400;">(optional)</span></label>
+            <input type="file" name="idDoc" id="rr-idDoc" accept="image/*,.pdf">
+          </div>
         </div>
+        <div class="form-2col">
+          <div class="field"><label for="rr-password">Login Password</label><input name="password" id="rr-password" type="password" required minlength="6">
+            <div class="hint">Yeh resident ko unke email ke saath share karein — isse woh portal mein login kar sakte hain.</div>
+          </div>
+          <div class="field"><label for="rr-confirmPassword">Confirm Password</label><input name="confirmPassword" id="rr-confirmPassword" type="password" required minlength="6"></div>
+        </div>
+        <p class="t-muted" style="font-size:12px; line-height:1.6; margin-bottom:14px;">
+          🔒 Yeh jaankari (mobile, email, DOB, family details, Aadhaar/PAN) sirf committee members ko dikhti hai — kabhi public nahi.
+          Resident ise "My Profile" se khud dekh/edit kar sakta hai, aur flat khali karte waqt personal data erase karwa sakta hai.
+          <button type="button" class="link-btn" id="openPrivacyPolicyBtnAdmin">Poori Privacy Policy padhein</button>
+        </p>
+        <label class="checkbox-row" style="margin-bottom:16px;">
+          <input type="checkbox" name="declaration" id="rr-declaration" required>
+          <span>Main confirm karta/karti hoon ki upar di gayi jaankari is resident ne khud provide ki hai aur sahi hai.</span>
+        </label>
         <button class="btn btn-primary btn-block" type="submit">Resident Register Karein</button>
       </form>
+    </div>
+  </div>
+</div>
+
+<!-- Privacy Policy — same content as the resident-facing one, so whoever
+     reads it (admin or, if they screen-share/print it, the resident being
+     registered) sees identical wording. -->
+<div class="modal-backdrop" id="privacyPolicyModalBackdrop">
+  <div class="modal">
+    <div class="modal-head"><h3 style="font-size:16.5px;">Privacy Policy</h3><button class="icon-btn" id="closePrivacyPolicyModal">✕</button></div>
+    <div class="modal-body" style="font-size:13px; line-height:1.7;">
+      <p><b>Hum kya data lete hain:</b> Naam, mobile, email, address, photo, Aadhaar/PAN (optional), Date of Birth, Anniversary, family members ke naam/rishta/DOB, aur payment history.</p>
+      <p><b>Kyun lete hain:</b> Membership verify karne, maintenance bill banane, gate/security ke liye photo ID, aur birthday/anniversary par wish karne ke liye. Aadhaar/PAN sirf identity confirm karne ke liye — kahin aur share nahi hoti.</p>
+      <p><b>Kaun dekh sakta hai:</b> Sirf society ke committee members (admin panel login) — kabhi public nahi dikhaya jaata.</p>
+      <p><b>Kitne time tak:</b> Jab tak resident society mein hai. Financial records audit ke liye lambe samay tak rakhe jaate hain, jaisa kanoon maang karta hai.</p>
+      <p><b>Resident ke adhikar:</b> Woh "My Profile" se apna data khud dekh/edit kar sakte hain. Flat bechte/khali karte waqt, committee unka personal data (mobile, email, family details, photo, ID) erase kar sakti hai — sirf naam, flat number, aur financial history surakshit rehti hai.</p>
     </div>
   </div>
 </div>
@@ -827,9 +902,10 @@
 
 <div class="modal-backdrop" id="expenseModalBackdrop">
   <div class="modal">
-    <div class="modal-head"><h3 style="font-size:16.5px;">Add Expense</h3><button class="icon-btn" id="closeExpenseModal">&#10005;</button></div>
+    <div class="modal-head"><h3 style="font-size:16.5px;" id="expenseModalTitle">Add Expense</h3><button class="icon-btn" id="closeExpenseModal">&#10005;</button></div>
     <div class="modal-body">
       <form id="expenseForm">
+        <input type="hidden" name="expenseId" id="expExpenseId">
         <div class="field"><label for="expDesc">Kis cheez ka kharcha</label>
           <input id="expDesc" name="description" required maxlength="200" placeholder="e.g. Guard salary — July 2026"></div>
         <div class="form-2col">
@@ -857,7 +933,7 @@
           <input id="expBill" name="billLink" type="url" placeholder="https://drive.google.com/...">
           <div class="hint">Bill ka Drive link daal dein toh audit ke waqt dhoondhna nahi padega.</div>
         </div>
-        <button class="btn btn-primary btn-block" type="submit">Save Expense</button>
+        <button class="btn btn-primary btn-block" type="submit" id="expenseSaveBtn">Save Expense</button>
       </form>
     </div>
   </div>
@@ -924,6 +1000,12 @@ installModalA11y();
 installOfflineBanner();
 installPasswordToggles();
 
+// Privacy Policy modal — pure DOM toggle, no Firebase needed.
+document.getElementById('openPrivacyPolicyBtnAdmin')?.addEventListener('click', () =>
+  document.getElementById('privacyPolicyModalBackdrop').classList.add('open'));
+document.getElementById('closePrivacyPolicyModal')?.addEventListener('click', () =>
+  document.getElementById('privacyPolicyModalBackdrop').classList.remove('open'));
+
 // Fade out the loading screen once the admin panel is ready. The inline
 // safety-net script in <head> guarantees this even if the import above fails.
 try {
@@ -946,7 +1028,7 @@ import {
   writeBatch, runTransaction
 } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
 import {
-  ref as storageRef, uploadBytes, getDownloadURL
+  ref as storageRef, uploadBytes, getDownloadURL, getStorage, deleteObject
 } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-storage.js";
 import {
   showToast, escapeHtml, fmtDate, fmtDateTime, formatINR, currentFinancialYear, financialYearOptions,
@@ -958,7 +1040,7 @@ import {
   EXPENSE_CATEGORIES, EXPENSE_MODES, expenseSummary, fundPosition, validateExpense,
   renderPager, skeletonTableRows, emptyState,
   initFamilyMembersEditor, addFamilyMemberRow, collectFamilyMembers,
-  todaysCelebrations, celebrationWishMessage
+  todaysCelebrations, upcomingCelebrations, celebrationWishMessage
 } from './app-common.js';
 
 /* ---------------------------------------------------------------------- */
@@ -1270,6 +1352,7 @@ async function bootData() {
   fySel.addEventListener('change', () => { selectedFY = fySel.value; renderOverview(); renderDefaulters(); renderExpenses(); });
 
   await Promise.all([reloadMembers(), reloadPayments(), reloadExpenses(), reloadEvents()]);
+  checkRulesHealth();
   // Maintenance rates must be loaded BEFORE the overview renders, otherwise the
   // defaulter count (which depends on expected dues) always reads zero.
   await loadMaintenance();
@@ -1348,30 +1431,71 @@ function renderOverview() {
 // itself is one manual tap: wa.me opens WhatsApp Web/App on whichever
 // account is signed in there, so for the wish to actually come FROM the RWA
 // number, that's the account that needs to be open when the button is used.
+// Surfaces the exact confusion a stale rules deploy caused before: a feature
+// silently not working, discovered only through a mystery bug report. Uses
+// the read reloadEvents() already does — no extra Firestore call — and only
+// shows for Super Admin, since they're the one who can actually publish
+// rules; anyone else seeing this would just be alarmed with no way to act.
+function checkRulesHealth() {
+  const banner = document.getElementById('rulesHealthBanner');
+  if (!banner) return;
+  const shouldShow = rulesLikelyStale && currentAdmin?.role === 'superadmin';
+  banner.style.display = shouldShow ? 'block' : 'none';
+}
+
 function renderCelebrations() {
   const card = document.getElementById('celebCard');
   const list = document.getElementById('celebList');
-  if (!card || !list) return;
-  let entries = [];
-  try { entries = todaysCelebrations(allMembers); } catch (e) { console.warn('Celebrations compute failed:', e); }
+  if (card && list) {
+    let entries = [];
+    try { entries = todaysCelebrations(allMembers); } catch (e) { console.warn('Celebrations compute failed:', e); }
+    if (!entries.length) { card.style.display = 'none'; list.innerHTML = ''; }
+    else {
+      card.style.display = 'block';
+      list.innerHTML = entries.map((en, i) => `
+        <div class="celeb-item">
+          <div class="celeb-icon">${en.kind === 'anniversary' ? '🎉' : '🎂'}</div>
+          <div class="celeb-info">
+            <div class="celeb-name">${escapeHtml(en.name)}${en.relation ? ` <span class="t-muted" style="font-weight:400;">(${escapeHtml(en.relation)} of ${escapeHtml(en.memberName)})</span>` : ''}</div>
+            <div class="celeb-sub">${en.kind === 'anniversary' ? 'Anniversary' : 'Birthday'} · Flat ${escapeHtml(en.flat)}</div>
+          </div>
+          <a class="btn btn-primary btn-sm" data-celeb-wa="${i}" target="_blank" rel="noopener">WhatsApp Bhejein</a>
+        </div>
+      `).join('');
+      list.querySelectorAll('[data-celeb-wa]').forEach((a) => {
+        const en = entries[Number(a.dataset.celebWa)];
+        const msg = celebrationWishMessage(en, SOCIETY.fullName || 'Society');
+        a.href = waLink(en.mobile, msg);
+      });
+    }
+  }
 
-  if (!entries.length) { card.style.display = 'none'; list.innerHTML = ''; return; }
-  card.style.display = 'block';
-  list.innerHTML = entries.map((en, i) => `
-    <div class="celeb-item">
-      <div class="celeb-icon">${en.kind === 'anniversary' ? '🎉' : '🎂'}</div>
-      <div class="celeb-info">
-        <div class="celeb-name">${escapeHtml(en.name)}${en.relation ? ` <span class="t-muted" style="font-weight:400;">(${escapeHtml(en.relation)} of ${escapeHtml(en.memberName)})</span>` : ''}</div>
-        <div class="celeb-sub">${en.kind === 'anniversary' ? 'Anniversary' : 'Birthday'} · Flat ${escapeHtml(en.flat)}</div>
-      </div>
-      <a class="btn btn-primary btn-sm" data-celeb-wa="${i}" target="_blank" rel="noopener">WhatsApp Bhejein</a>
-    </div>
-  `).join('');
-  list.querySelectorAll('[data-celeb-wa]').forEach((a) => {
-    const en = entries[Number(a.dataset.celebWa)];
-    const msg = celebrationWishMessage(en, SOCIETY.fullName || 'Society');
-    a.href = waLink(en.mobile, msg);
-  });
+  // Next 7 days — informational + an early-wish option, sorted soonest first.
+  const upCard = document.getElementById('celebUpcomingCard');
+  const upList = document.getElementById('celebUpcomingList');
+  if (upCard && upList) {
+    let upcoming = [];
+    try { upcoming = upcomingCelebrations(allMembers, 7); } catch (e) { console.warn('Upcoming celebrations compute failed:', e); }
+    if (!upcoming.length) { upCard.style.display = 'none'; upList.innerHTML = ''; }
+    else {
+      upCard.style.display = 'block';
+      upList.innerHTML = upcoming.map((en, i) => `
+        <div class="celeb-item">
+          <div class="celeb-icon">${en.kind === 'anniversary' ? '🎉' : '🎂'}</div>
+          <div class="celeb-info">
+            <div class="celeb-name">${escapeHtml(en.name)}${en.relation ? ` <span class="t-muted" style="font-weight:400;">(${escapeHtml(en.relation)} of ${escapeHtml(en.memberName)})</span>` : ''}</div>
+            <div class="celeb-sub">${en.kind === 'anniversary' ? 'Anniversary' : 'Birthday'} · Flat ${escapeHtml(en.flat)} · ${en.daysAway} din mein</div>
+          </div>
+          <a class="btn btn-outline btn-sm" data-celeb-up-wa="${i}" target="_blank" rel="noopener">WhatsApp</a>
+        </div>
+      `).join('');
+      upList.querySelectorAll('[data-celeb-up-wa]').forEach((a) => {
+        const en = upcoming[Number(a.dataset.celebUpWa)];
+        const msg = celebrationWishMessage(en, SOCIETY.fullName || 'Society');
+        a.href = waLink(en.mobile, msg);
+      });
+    }
+  }
 }
 
 /* This-month snapshot for the committee: money collected this calendar month,
@@ -1446,17 +1570,29 @@ function drawChart(canvasId, type, labels, datasets) {
 /*  in their payment modal (like the membership fee) until they clear it.   */
 /* ---------------------------------------------------------------------- */
 let allEvents = [];
+let rulesLikelyStale = false;   // set by reloadEvents(); read by checkRulesHealth()
 
 async function reloadEvents() {
   try {
     allEvents = (await getDocs(query(collection(db, 'events'), orderBy('createdAt', 'desc'))))
       .docs.map(d => ({ id: d.id, ...d.data() }));
-  } catch (e) { console.warn('Events read failed:', e?.code || e); allEvents = []; }
+    rulesLikelyStale = false;
+  } catch (e) {
+    console.warn('Events read failed:', e?.code || e);
+    allEvents = [];
+    // events has allow-read-if-true rules, so a permission-denied here can
+    // only mean the LIVE rules don't have this match block at all yet — the
+    // exact shape "rules weren't republished after a code update" takes.
+    // Piggybacks on this existing read rather than spending a second one
+    // purely to check — see checkRulesHealth().
+    rulesLikelyStale = (e?.code === 'permission-denied');
+  }
 }
 
 function renderEvents() {
   const tbody = document.getElementById('eventsTableBody');
   if (!tbody) return;
+  checkRulesHealth();
   const canManage = can('manageEvents');
   // Only the Treasurer/Super Admin can create or act on events; everyone else
   // with tab visibility (e.g. President) gets a read-only collections view —
@@ -1638,9 +1774,10 @@ function renderExpenses() {
       <td data-label="Category">${escapeHtml(e.category || '—')}</td>
       <td data-label="Paid To">${escapeHtml(e.paidTo || '—')}${e.billLink ? ` <a href="${escapeHtml(e.billLink)}" target="_blank" rel="noopener" style="text-decoration:underline;">bill</a>` : ''}</td>
       <td data-label="Amount"><b>${formatINR(e.amount)}</b></td>
-      <td data-label="Actions">${canEdit ? `<button class="btn btn-danger btn-sm" data-del-exp="${e.id}">Delete</button>` : '<span class="t-muted" style="font-size:12px;">view only</span>'}</td>
-    </tr>`).join('') || `<tr><td colspan="6" class="t-muted">FY ${escapeHtml(fy)} mein abhi koi kharcha dर्ज nahi hai.</td></tr>`;
+      <td data-label="Actions">${canEdit ? `<div style="display:flex; gap:6px;"><button class="btn btn-outline btn-sm" data-edit-exp="${e.id}">Edit</button><button class="btn btn-danger btn-sm" data-del-exp="${e.id}">Delete</button></div>` : '<span class="t-muted" style="font-size:12px;">view only</span>'}</td>
+    </tr>`).join('') || `<tr><td colspan="6" class="t-muted">FY ${escapeHtml(fy)} mein abhi koi kharcha darj nahi hai.</td></tr>`;
 
+  document.querySelectorAll('[data-edit-exp]').forEach(b => b.addEventListener('click', () => openExpenseModal(allExpenses.find(x => x.id === b.dataset.editExp))));
   document.querySelectorAll('[data-del-exp]').forEach(b => b.addEventListener('click', async () => {
     const e = allExpenses.find(x => x.id === b.dataset.delExp);
     if (!confirm(`"${e?.description}" (${formatINR(e?.amount)}) hata dein?`)) return;
@@ -1662,12 +1799,32 @@ function renderExpenses() {
   if (addBtn) addBtn.style.display = canEdit ? 'inline-flex' : 'none';
 }
 
-document.getElementById('addExpenseBtn')?.addEventListener('click', () => {
+// Shared by "+ Add Expense" (no argument) and the per-row "Edit" button
+// (existing expense passed in) — one form, one submit handler, so a fix to
+// validation or error handling never needs to be made in two places.
+function openExpenseModal(existing = null) {
   const f = document.getElementById('expenseForm');
+  f.reset();
   f.category.innerHTML = EXPENSE_CATEGORIES.map(c => `<option>${escapeHtml(c)}</option>`).join('');
-  f.date.value = new Date().toISOString().slice(0, 10);
+  document.getElementById('expenseModalTitle').textContent = existing ? 'Edit Expense' : 'Add Expense';
+  document.getElementById('expenseSaveBtn').textContent = existing ? 'Save Changes' : 'Save Expense';
+  if (existing) {
+    f.expenseId.value = existing.id;
+    f.description.value = existing.description || '';
+    f.amount.value = existing.amount || '';
+    f.date.value = existing.date?.toDate ? existing.date.toDate().toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10);
+    f.category.value = existing.category || '';
+    f.mode.value = existing.mode || 'bank';
+    f.paidTo.value = existing.paidTo || '';
+    f.reference.value = existing.reference || '';
+    f.billLink.value = existing.billLink || '';
+  } else {
+    f.expenseId.value = '';
+    f.date.value = new Date().toISOString().slice(0, 10);
+  }
   document.getElementById('expenseModalBackdrop').classList.add('open');
-});
+}
+document.getElementById('addExpenseBtn')?.addEventListener('click', () => openExpenseModal());
 document.getElementById('closeExpenseModal')?.addEventListener('click', () =>
   document.getElementById('expenseModalBackdrop').classList.remove('open'));
 
@@ -1675,6 +1832,7 @@ document.getElementById('expenseForm')?.addEventListener('submit', async (e) => 
   e.preventDefault();
   const f = e.target;
   const btn = f.querySelector('button[type="submit"]');
+  const editingId = f.expenseId.value;
   const payload = {
     description: f.description.value.trim(),
     amount: Number(f.amount.value),
@@ -1695,20 +1853,32 @@ document.getElementById('expenseForm')?.addEventListener('submit', async (e) => 
 
   btn.disabled = true;
   try {
-    await addDoc(collection(db, 'expenses'), {
-      ...payload,
-      reference: f.reference.value.trim(),
-      billLink: f.billLink.value.trim(),
-      date: when, financialYear: fy,
-      addedBy: currentAdmin.email, addedAt: serverTimestamp()
-    });
-    await logAudit(auth.currentUser, 'add_expense', { ...payload, financialYear: fy });
-    showToast(`Kharcha FY ${fy} mein add ho gaya.`, 'success');
+    if (editingId) {
+      await updateDoc(doc(db, 'expenses', editingId), {
+        ...payload,
+        reference: f.reference.value.trim(),
+        billLink: f.billLink.value.trim(),
+        date: when, financialYear: fy,
+        updatedBy: currentAdmin.email, updatedAt: serverTimestamp()
+      });
+      await logAudit(auth.currentUser, 'edit_expense', { id: editingId, ...payload, financialYear: fy });
+      showToast('Kharcha update ho gaya.', 'success');
+    } else {
+      await addDoc(collection(db, 'expenses'), {
+        ...payload,
+        reference: f.reference.value.trim(),
+        billLink: f.billLink.value.trim(),
+        date: when, financialYear: fy,
+        addedBy: currentAdmin.email, addedAt: serverTimestamp()
+      });
+      await logAudit(auth.currentUser, 'add_expense', { ...payload, financialYear: fy });
+      showToast(`Kharcha FY ${fy} mein add ho gaya.`, 'success');
+    }
     document.getElementById('expenseModalBackdrop').classList.remove('open');
     f.reset();
     await reloadExpenses(); renderExpenses(); renderOverview();
   } catch (err2) {
-    console.error('Add expense failed:', err2);
+    console.error('Save expense failed:', err2);
     const code = err2?.code || '';
     if (code === 'permission-denied') {
       showToast(`Permission denied (${code}) — role sahi hone ke baad bhi aa sakta hai. Yeh exact error Super Admin ko bhej dein.`, 'error');
@@ -1754,7 +1924,26 @@ const statusBadgeHtml = {
 
 const MEMBERS_PAGE_SIZE = 25;
 let membersPage = 1;
+// Pending-work counts on the sidebar — always computed from the full
+// allMembers/allPayments arrays, never a filtered view, so the badge reflects
+// the true queue regardless of whatever search/filter is on screen right now.
+function updateNavBadges() {
+  const memBadge = document.getElementById('navBadgeMembers');
+  if (memBadge) {
+    const n = allMembers.filter(m => m.status === 'pending').length;
+    memBadge.textContent = n > 99 ? '99+' : String(n);
+    memBadge.style.display = n > 0 ? 'block' : 'none';
+  }
+  const payBadge = document.getElementById('navBadgePayments');
+  if (payBadge) {
+    const n = allPayments.filter(p => p.status === 'pending_approval' || p.status === 'pending_verification').length;
+    payBadge.textContent = n > 99 ? '99+' : String(n);
+    payBadge.style.display = n > 0 ? 'block' : 'none';
+  }
+}
+
 function renderMembersTable() {
+  updateNavBadges();
   const rows = filteredMembers();
   const body = document.getElementById('membersTableBody');
   const pager = document.getElementById('membersPager');
@@ -1850,10 +2039,12 @@ function renderMemberDetailView(m) {
     <div style="margin:16px 0; display:flex; gap:10px; flex-wrap:wrap;">
       ${m.idDocURL ? `<button class="btn btn-outline btn-sm" id="viewDocBtn">${m.idDocEncrypted ? '<svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#a-unlock"/></svg>Decrypt &amp; View ID Doc' : '<svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#a-doc"/></svg>View ID Doc'}</button>` : '<span class="t-muted" style="font-size:12.5px;">No ID document uploaded.</span>'}
     </div>
+    ${m.status === 'inactive' && m.dataErasedAt ? `<p class="t-muted" style="font-size:12px; margin-bottom:10px;">🔒 Personal data erase ho chuka hai (${fmtDate(m.dataErasedAt)}) — sirf naam, flat aur financial history surakshit hai.</p>` : ''}
     <div class="action-row" style="flex-wrap:wrap;">
       ${m.status === 'pending' && can('approveMembers') ? `<button class="btn btn-primary btn-sm" id="approveBtn">✓ Approve</button><button class="btn btn-danger btn-sm" id="rejectBtn">✕ Reject</button>` : ''}
       ${m.status === 'approved' && can('approveMembers') ? `<button class="btn btn-danger btn-sm" id="deactivateBtn">Deactivate Member</button>` : ''}
       ${can('approveMembers') ? `<button class="btn btn-outline btn-sm" id="editMemberBtn">✎ Edit Master Data</button>` : ''}
+      ${m.status === 'inactive' && !m.dataErasedAt && can('approveMembers') ? `<button class="btn btn-danger btn-sm" id="erasePersonalDataBtn">🔒 Erase Personal Data</button>` : ''}
     </div>
   `;
   document.getElementById('viewDocBtn')?.addEventListener('click', () => openMemberDoc(m));
@@ -1861,8 +2052,49 @@ function renderMemberDetailView(m) {
   document.getElementById('rejectBtn')?.addEventListener('click', () => rejectMember(m.id));
   document.getElementById('deactivateBtn')?.addEventListener('click', () => deactivateMember(m.id));
   document.getElementById('editMemberBtn')?.addEventListener('click', () => renderMemberEditForm(m));
+  document.getElementById('erasePersonalDataBtn')?.addEventListener('click', () => erasePersonalData(m));
 }
 document.getElementById('closeMemberModal').addEventListener('click', () => document.getElementById('memberModalBackdrop').classList.remove('open'));
+
+// DPDP Act "right to erasure" — for a member who has moved out (status
+// already 'inactive'), scrubs the personal-identity fields while keeping
+// exactly what the society legally needs to keep: name, flat, Member ID, and
+// the full payment/expense trail (an auditor cannot reconcile a receipt with
+// nobody's name on it). Storage files are deleted best-effort — a failure
+// there does not block the Firestore erase, since the Firestore fields are
+// the part actually visible to anyone browsing the member record.
+async function erasePersonalData(m) {
+  if (!confirm(
+    `${m.name} (${m.tower}-${m.flatNumber}) ka personal data poori tarah erase karein?\n\n` +
+    `ERASE HOGA: mobile, email, address, DOB, anniversary, family members, nominee details, photo, ID document.\n` +
+    `SURAKSHIT RAHEGA: naam, flat, Member ID, aur poora payment/kharcha history (audit ke liye zaroori).\n\n` +
+    `Yeh wapas nahi ho sakta.`
+  )) return;
+  try {
+    if (m.photoURL) {
+      try { await deleteObject(storageRef(storage, m.photoURL)); } catch (e) { console.warn('Photo delete failed:', e?.code || e); }
+    }
+    if (m.idDocURL) {
+      try { await deleteObject(storageRef(storage, m.idDocURL)); } catch (e) { console.warn('ID doc delete failed:', e?.code || e); }
+    }
+    await updateDoc(doc(db, 'members', m.id), {
+      mobile: '', email: '', address: '', fatherHusbandName: '', occupation: '',
+      dob: null, anniversary: null, familyMembers: [],
+      nomineeName: '', nomineeRelation: '',
+      photoURL: '', idDocURL: '', idDocEncrypted: false,
+      dataErasedAt: serverTimestamp(), dataErasedBy: currentAdmin.email,
+      updatedAt: serverTimestamp()
+    });
+    await logAudit(auth.currentUser, 'erase_personal_data', { memberId: m.id, name: m.name, flat: `${m.tower}-${m.flatNumber}` });
+    showToast('Personal data erase ho gaya. Financial history surakshit hai.', 'success');
+    document.getElementById('memberModalBackdrop').classList.remove('open');
+    await reloadMembers(); renderMembersTable(); renderOverview();
+  } catch (err) {
+    console.error('Erase personal data failed:', err);
+    const code = err?.code || '';
+    showToast(`Erase nahi ho paaya${code ? ` (${code})` : ''}.`, 'error');
+  }
+}
 
 // Master-data correction — every field a committee might need to fix after
 // the fact: a typo in the phone number, a resident who got married and wants
@@ -2166,6 +2398,7 @@ document.querySelectorAll('[data-ptab]').forEach(btn => btn.addEventListener('cl
 }));
 
 function renderPendingPayments() {
+  updateNavBadges();
   const rows = allPayments.filter(p => p.status === 'pending_approval' || p.status === 'pending_verification');
   document.getElementById('pendingPaymentsBody').innerHTML = rows.map(p => `
     <tr>
@@ -2874,6 +3107,18 @@ document.getElementById('importFile').addEventListener('change', async (e) => {
   const rows = await parseExcelFile(file);
   const existingFlats = new Set(allMembers.map(m => `${m.tower}|${m.flatNumber}`));
   const seenInFile = new Set();
+  // Excel/Sheets sometimes hands back a real Date object for a date-formatted
+  // cell, and a plain string otherwise — normalise either to "YYYY-MM-DD" (or
+  // '' if the cell was blank or unreadable as a date), same optional-date
+  // shape the rest of the app already uses for dob/anniversary.
+  const asDateStr = (v) => {
+    if (!v && v !== 0) return '';
+    if (v instanceof Date && !Number.isNaN(v.getTime())) return v.toISOString().slice(0, 10);
+    const s = String(v).trim();
+    if (!s) return '';
+    const d = new Date(s);
+    return Number.isNaN(d.getTime()) ? '' : d.toISOString().slice(0, 10);
+  };
   importRows = rows.map(r => {
     const name = String(r.Name || r.name || '').trim();
     // Accept "B", "b", "Tower B", "TOWER-B" — all normalise to "B".
@@ -2882,6 +3127,16 @@ document.getElementById('importFile').addEventListener('change', async (e) => {
     const mobile = String(r.Mobile || r.mobile || '').trim();
     const email = String(r.Email || r.email || '').trim();
     const residentType = String(r.ResidentType || r.residentType || 'owner').trim().toLowerCase();
+    const dob = asDateStr(r.DOB || r.DateOfBirth);
+    const anniversary = asDateStr(r.Anniversary);
+    // Up to 3 family members via numbered columns — the most a flat Excel row
+    // can reasonably hold. More than that, the resident/office can add later
+    // from "Edit Master Data", same as any other post-import correction.
+    const familyMembers = [1, 2, 3].map(i => ({
+      name: String(r[`Family${i}Name`] || '').trim(),
+      relation: String(r[`Family${i}Relation`] || '').trim(),
+      dob: asDateStr(r[`Family${i}DOB`])
+    })).filter(fm => fm.name);
     const errors = [];
 
     if (!name) errors.push('Missing name');
@@ -2899,7 +3154,7 @@ document.getElementById('importFile').addEventListener('change', async (e) => {
     if (mobile && !/^[0-9]{10}$/.test(mobile)) errors.push('Mobile must be 10 digits');
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.push('Invalid email');
 
-    return { name, tower, flat, mobile, email, residentType, fatherHusbandName: String(r.FatherHusbandName || '').trim(), errors };
+    return { name, tower, flat, mobile, email, residentType, fatherHusbandName: String(r.FatherHusbandName || '').trim(), dob, anniversary, familyMembers, errors };
   });
   const validCount = importRows.filter(r => !r.errors.length).length;
   document.getElementById('importPreview').innerHTML = `
@@ -2925,6 +3180,7 @@ async function confirmImport() {
         await addDoc(collection(db, 'members'), {
           uid: null, name: row.name, fatherHusbandName: row.fatherHusbandName, tower: row.tower, flatNumber: row.flat,
           mobile: row.mobile, email: row.email, residentType: row.residentType, address: '', nomineeName: '', nomineeRelation: '',
+          dob: row.dob || null, anniversary: row.anniversary || null, familyMembers: row.familyMembers || [],
           photoURL: '', idDocURL: '', declarationAccepted: true, memberID, status: 'approved', role: 'resident',
           source: 'bulk_import', createdAt: serverTimestamp(), updatedAt: serverTimestamp()
         });
@@ -3478,18 +3734,49 @@ document.getElementById('registerResidentForm').addEventListener('submit', async
   const tower = f.tower.value.trim();
   const flatNumber = f.flatNumber.value.trim();
   if (!tower || !flatNumber) { showToast('Tower aur Flat chunna zaroori hai.', 'error'); return; }
+  if (f.password.value !== f.confirmPassword.value) { showToast('Password match nahi ho raha.', 'error'); return; }
+  if (!f.declaration.checked) { showToast('Declaration confirm karna zaroori hai.', 'error'); return; }
   btn.disabled = true;
+  let photoFailed = false;
   try {
     const claimRef = doc(db, 'flatClaims', flatClaimId(tower, flatNumber));
     const held = await getDoc(claimRef);
     if (held.exists()) throw new Error(`Tower ${tower}, Flat ${flatNumber} pehle se kisi aur member ke naam par hai.`);
 
     const secondaryApp = initializeApp(firebaseConfig, 'Secondary_' + Date.now());
-    let newUid;
+    let newUid, photoURL = '', idDocURL = '';
     try {
       const secondaryAuth = getAuth(secondaryApp);
       const cred = await createUserWithEmailAndPassword(secondaryAuth, f.email.value.trim(), f.password.value);
       newUid = cred.user.uid;
+
+      // Storage rules require request.auth.uid to match the {uid} in the
+      // upload path — the admin's OWN session can never satisfy that for
+      // someone else's folder. Uploading here, while the secondary app is
+      // still signed in AS the new resident (before signOut below), is what
+      // makes these uploads pass the same rules a resident's own upload does.
+      // Both files are optional — skip a file entirely rather than trying to
+      // upload nothing (which would look like a failed upload it never was).
+      try {
+        const secondaryStorage = getStorage(secondaryApp);
+        if (f.photo.files[0]) {
+          const pr = storageRef(secondaryStorage, `photos/${newUid}/photo_${Date.now()}`);
+          await uploadBytes(pr, f.photo.files[0]);
+          photoURL = await getDownloadURL(pr);
+        }
+        if (f.idDoc.files[0]) {
+          const dr = storageRef(secondaryStorage, `documents/${newUid}/iddoc_${Date.now()}`);
+          await uploadBytes(dr, f.idDoc.files[0]);
+          idDocURL = await getDownloadURL(dr);
+        }
+      } catch (upErr) {
+        // A storage hiccup shouldn't lose the whole registration — the office
+        // can add the photo later from the member's edit screen. Same
+        // resilience the public registration form already has.
+        console.warn('Upload failed (continuing without it):', upErr?.code || upErr);
+        if (f.photo.files[0]) photoFailed = true;
+      }
+
       await signOut(secondaryAuth);
     } finally {
       try { await deleteApp(secondaryApp); } catch (_) {}
@@ -3506,7 +3793,7 @@ document.getElementById('registerResidentForm').addEventListener('submit', async
       residentType: f.residentType.value, address: f.address.value.trim(),
       nomineeName: f.nomineeName.value.trim(), nomineeRelation: f.nomineeRelation.value.trim(),
       dob: f.dob.value || null, anniversary: f.anniversary.value || null, familyMembers,
-      photoURL: '', idDocURL: '', declarationAccepted: true, memberID, publicToken,
+      photoURL, idDocURL, declarationAccepted: true, memberID, publicToken,
       status: 'approved', role: 'resident',
       source: 'admin_registered', createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
       approvedBy: currentAdmin.email, approvedAt: serverTimestamp()
@@ -3521,7 +3808,12 @@ document.getElementById('registerResidentForm').addEventListener('submit', async
     await batch.commit();
 
     await logAudit(auth.currentUser, 'register_resident', { email: f.email.value.trim(), memberID, tower, flatNumber });
-    showToast(`Resident register ho gaya — Member ID: ${memberID}`, 'success');
+    showToast(
+      photoFailed
+        ? `Resident register ho gaya (Member ID: ${memberID}) — lekin photo upload nahi ho payi. Baad mein "Edit Master Data" se add kar sakte hain.`
+        : `Resident register ho gaya — Member ID: ${memberID}`,
+      photoFailed ? 'error' : 'success'
+    );
     document.getElementById('registerResidentModalBackdrop').classList.remove('open');
     await reloadMembers(); renderMembersTable(); renderOverview(); populateTowerFilter();
   } catch (err) {

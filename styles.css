@@ -862,3 +862,18 @@ body.logged-in #dashboard{ min-height:calc(100vh - 66px); padding-top:26px; }
 .celeb-info{ flex:1; min-width:0; }
 .celeb-name{ font-weight:600; font-size:13.5px; }
 .celeb-sub{ font-size:12px; color:var(--ink-400,#7C879C); }
+
+/* Required-field asterisk marker — shared so it renders consistently
+   wherever a form uses <i class="req">*</i> next to a label (index.html had
+   its own copy of this; admin.html's forms need it too). */
+.field label .req{ color:var(--magenta-500,#C01860); font-style:normal; font-weight:700; margin-left:2px; }
+
+
+/* Inline text-link-styled button — used for "read full policy" style links
+   inside body text where a full <button> would look too heavy. */
+.link-btn{
+  background:none; border:none; padding:0; margin-left:4px;
+  color:var(--navy-700,#1E3A5F); font-weight:600; font-size:inherit;
+  text-decoration:underline; cursor:pointer; display:inline;
+}
+.link-btn:hover{ color:var(--gold-600,#A8841E); }

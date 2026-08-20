@@ -40,9 +40,16 @@ service firebase.storage {
     // Resident registration photo — owner + admins only (not public).
     match /photos/{uid}/{fileName} {
       allow read: if isAdmin() || request.auth.uid == uid;
-      allow write: if request.auth.uid == uid
+      allow create, update: if request.auth.uid == uid
                    && request.resource.size < 5 * 1024 * 1024
                    && request.resource.contentType.matches('image/.*');
+      // Delete is split out from create/update because a delete request has
+      // no request.resource to check size/type against, and because an admin
+      // — not just the owner — needs to be able to remove this: the DPDP-Act
+      // "erase my personal data" flow for a resident who has moved out is
+      // run by the committee, on a member who is by then usually no longer
+      // signed in to do it themselves.
+      allow delete: if isAdmin() || request.auth.uid == uid;
     }
 
     // Aadhaar / PAN uploads — owner + admins only, never public.
@@ -50,9 +57,12 @@ service firebase.storage {
     // before upload (see app-common.js encryptFile()) for defense in depth.
     match /documents/{uid}/{fileName} {
       allow read: if isAdmin() || request.auth.uid == uid;
-      allow write: if request.auth.uid == uid
+      allow create, update: if request.auth.uid == uid
                    && request.resource.size < 8 * 1024 * 1024
                    && isImagePdfOrEncrypted();
+      // See the note on /photos/ above — admin-initiated delete is what the
+      // "erase my personal data" flow needs.
+      allow delete: if isAdmin() || request.auth.uid == uid;
     }
 
     // UPI/bank-transfer payment screenshots — owner + admins only.

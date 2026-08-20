@@ -161,8 +161,9 @@ export function validateRegistration(f) {
   if (!/^[\p{L}\p{M}\s.'-]+$/u.test(nomineeName)) return { field: 'nomineeName', message: 'Nominee ke naam mein sirf akshar aur space ho sakte hain.' };
   if (!nomineeRelation) return { field: 'nomineeRelation', message: 'Nominee se sambandh zaroori hai.' };
 
-  if (!f.photo?.files?.length) return { field: 'photo', message: 'Apni photo upload karna zaroori hai.' };
-  // Aadhaar / PAN is deliberately NOT required — see the note in index.html.
+  // Photo and Aadhaar/PAN are both deliberately NOT required — some residents
+  // don't have a photo ready at registration time; the office can add it
+  // later from the member's edit screen, same as the ID document already was.
 
   if (f.password.value.length < 6) return { field: 'password', message: 'Password kam se kam 6 characters ka hona chahiye.' };
   if (f.password.value !== f.confirmPassword.value) return { field: 'confirmPassword', message: 'Password match nahi kar raha.' };
@@ -1581,6 +1582,41 @@ export function todaysCelebrations(members, today = new Date()) {
       if (isToday(fm.dob)) out.push({ kind: 'birthday', name: fm.name, relation: fm.relation || null, mobile: m.mobile, memberName: m.name, flat, memberId: m.id });
     });
   });
+  return out;
+}
+
+/* Same idea as todaysCelebrations(), but for the next N days (today itself
+   excluded — that's what todaysCelebrations() is for). Walks forward day by
+   day using real Date arithmetic so a Dec 29 birthday correctly shows up as
+   "in 3 days" when today is Dec 26, even across a year boundary. Results are
+   sorted soonest-first so the committee sees what's coming up next. */
+export function upcomingCelebrations(members, days = 7, today = new Date()) {
+  const targets = [];
+  for (let i = 1; i <= days; i++) {
+    const d = new Date(today);
+    d.setDate(d.getDate() + i);
+    targets.push({ mm: String(d.getMonth() + 1).padStart(2, '0'), dd: String(d.getDate()).padStart(2, '0'), daysAway: i });
+  }
+  const matchDay = (dateStr) => {
+    if (typeof dateStr !== 'string' || dateStr.length < 10) return null;
+    const mm = dateStr.slice(5, 7), dd = dateStr.slice(8, 10);
+    const t = targets.find((x) => x.mm === mm && x.dd === dd);
+    return t ? t.daysAway : null;
+  };
+
+  const out = [];
+  (members || []).filter((m) => m.status === 'approved').forEach((m) => {
+    const flat = `${m.tower || ''}-${m.flatNumber || ''}`;
+    let d = matchDay(m.dob);
+    if (d != null) out.push({ kind: 'birthday', name: m.name, relation: null, mobile: m.mobile, memberName: m.name, flat, memberId: m.id, daysAway: d });
+    d = matchDay(m.anniversary);
+    if (d != null) out.push({ kind: 'anniversary', name: m.name, relation: null, mobile: m.mobile, memberName: m.name, flat, memberId: m.id, daysAway: d });
+    (m.familyMembers || []).forEach((fm) => {
+      const fd = matchDay(fm.dob);
+      if (fd != null) out.push({ kind: 'birthday', name: fm.name, relation: fm.relation || null, mobile: m.mobile, memberName: m.name, flat, memberId: m.id, daysAway: fd });
+    });
+  });
+  out.sort((a, b) => a.daysAway - b.daysAway);
   return out;
 }
 

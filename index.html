@@ -1196,7 +1196,10 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
         <fieldset>
           <legend>Uploads</legend>
           <div class="form-2col">
-            <div class="field"><label for="fld-photo-12">Photo <i class="req">*</i></label><input type="file" name="photo" accept="image/*" required id="fld-photo-12"></div>
+            <div class="field">
+              <label for="fld-photo-12">Photo <span class="t-muted" style="font-weight:400;">(optional)</span></label>
+              <input type="file" name="photo" accept="image/*" id="fld-photo-12">
+            </div>
             <div class="field">
               <label for="fld-idDoc-13">Aadhaar / PAN <span class="t-muted" style="font-weight:400;">(optional)</span></label>
               <input type="file" name="idDoc" accept="image/*,.pdf" id="fld-idDoc-13">
@@ -1214,6 +1217,12 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
         </fieldset>
 
         <div class="final-only">
+          <p class="t-muted" style="font-size:12px; line-height:1.6; margin-bottom:14px;">
+            🔒 Aapki jaankari (mobile, email, DOB, family details, Aadhaar/PAN) sirf society ke committee members ko dikhti hai —
+            membership verify karne, maintenance calculate karne, aur birthday/anniversary wish karne ke liye. Kabhi public nahi hoti.
+            Flat bechte/khali karte waqt aap apna personal data erase karwa sakte hain.
+            <button type="button" class="link-btn" id="openPrivacyPolicyBtnReg">Poori Privacy Policy padhein</button>
+          </p>
           <label class="checkbox-row" style="margin-bottom:20px;">
             <input type="checkbox" name="declaration" required>
             <span>I declare that the information provided above is true to the best of my knowledge, and I authorize MHMRWS to verify these details.</span>
@@ -1321,6 +1330,58 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
   </div>
 </div>
 
+<!-- Resident's own "My Profile" edit — contact info + birthday/family data
+     only. Name, Owner/Tenant type, and Tower/Flat are intentionally NOT
+     editable here even though Firestore rules would technically allow some
+     of it: identity-level changes go through the office, not a self-service
+     form. Security rules are the real backstop either way. -->
+<div class="modal-backdrop no-print" id="profileModalBackdrop">
+  <div class="modal">
+    <div class="modal-head"><h3 style="font-size:16.5px;">Apni Profile Edit Karein</h3><button class="icon-btn" id="closeProfileModal">✕</button></div>
+    <div class="modal-body">
+      <form id="profileEditForm">
+        <div class="form-2col">
+          <div class="field"><label for="pf-mobile">Mobile Number</label><input name="mobile" id="pf-mobile" type="tel" maxlength="10" required></div>
+          <div class="field"><label for="pf-email">Email</label><input name="email" id="pf-email" type="email" required></div>
+        </div>
+        <div class="field"><label for="pf-occupation">Occupation</label><input name="occupation" id="pf-occupation" maxlength="100"></div>
+        <div class="field"><label for="pf-address">Address</label><textarea name="address" id="pf-address" rows="2" maxlength="500"></textarea></div>
+        <div class="form-2col">
+          <div class="field"><label for="pf-nomineeName">Nominee Name</label><input name="nomineeName" id="pf-nomineeName" maxlength="100"></div>
+          <div class="field"><label for="pf-nomineeRelation">Nominee Relation</label><input name="nomineeRelation" id="pf-nomineeRelation" maxlength="60"></div>
+        </div>
+        <div class="form-2col">
+          <div class="field"><label for="pf-dob">Date of Birth <span class="t-muted" style="font-weight:400;">(optional)</span></label><input type="date" name="dob" id="pf-dob"></div>
+          <div class="field"><label for="pf-anniversary">Anniversary <span class="t-muted" style="font-weight:400;">(optional)</span></label><input type="date" name="anniversary" id="pf-anniversary"></div>
+        </div>
+        <div class="field">
+          <label>Family Members <span class="t-muted" style="font-weight:400;">(optional — taaki unhe bhi wish kar sakein)</span></label>
+          <div class="fm-editor" id="pfFamilyEditor"></div>
+          <button type="button" class="btn btn-outline btn-sm fm-add-btn" id="pfFamilyAdd">+ Family Member Jodein</button>
+        </div>
+        <button class="btn btn-primary btn-block" type="submit">Save Karein</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Privacy Policy — full text, opened from the registration form's privacy
+     notice. Static content, no Firebase needed, so it can open even before
+     login and even if the SDK is slow to load. -->
+<div class="modal-backdrop no-print" id="privacyPolicyModalBackdrop">
+  <div class="modal">
+    <div class="modal-head"><h3 style="font-size:16.5px;">Privacy Policy</h3><button class="icon-btn" id="closePrivacyPolicyModal">✕</button></div>
+    <div class="modal-body" style="font-size:13px; line-height:1.7;">
+      <p><b>Hum kya data lete hain:</b> Naam, mobile, email, address, photo, Aadhaar/PAN (optional), Date of Birth, Anniversary, family members ke naam/rishta/DOB, aur aapki payment history.</p>
+      <p><b>Kyun lete hain:</b> Membership verify karne, maintenance bill banane, gate/security ke liye photo ID, aur birthday/anniversary par wish karne ke liye. Aadhaar/PAN sirf identity confirm karne ke liye — kahin aur share nahi hoti.</p>
+      <p><b>Kaun dekh sakta hai:</b> Sirf society ke committee members (jo admin panel mein login karte hain) — kabhi public nahi dikhaya jaata. Aapka apna data sirf aapko aur committee ko dikhta hai.</p>
+      <p><b>Kitne time tak:</b> Jab tak aap society ke resident hain. Financial records (payment receipts) audit ke liye lambe samay tak rakhe jaate hain, jaisa kanoon maang karta hai.</p>
+      <p><b>Aapke adhikar:</b> Aap "My Profile" se apna data khud dekh/edit kar sakte hain. Flat bechte ya khali karte waqt, aap committee se apna personal data (mobile, email, family details, photo, ID) erase karwa sakte hain — sirf naam, flat number, aur financial history (audit ke liye zaroori) surakshit rehti hai.</p>
+      <p><b>Sawaal ho to:</b> Society office se sampark karein.</p>
+    </div>
+  </div>
+</div>
+
 <div id="printReceiptArea" aria-hidden="true"></div>
 <div id="toast-region"></div>
 
@@ -1344,6 +1405,14 @@ import { hideAppLoader } from './premium.js';
 installModalA11y();
 installOfflineBanner();
 installPasswordToggles();
+
+// Privacy Policy modal — pure DOM toggle, no Firebase needed, so it can be
+// opened from the registration form even before the Firebase-dependent block
+// below has finished loading.
+document.getElementById('openPrivacyPolicyBtnReg')?.addEventListener('click', () =>
+  document.getElementById('privacyPolicyModalBackdrop').classList.add('open'));
+document.getElementById('closePrivacyPolicyModal')?.addEventListener('click', () =>
+  document.getElementById('privacyPolicyModalBackdrop').classList.remove('open'));
 
 // The inline safety-net script in <head> already guarantees the loader clears.
 // Here we simply hide it a touch sooner once this module is up, using whichever
@@ -1587,7 +1656,7 @@ import {
   signOut, sendPasswordResetEmail, deleteUser
 } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
 import {
-  doc, getDoc, setDoc, addDoc, collection, query, where, orderBy, getDocs, serverTimestamp, limit
+  doc, getDoc, setDoc, updateDoc, addDoc, collection, query, where, orderBy, getDocs, serverTimestamp, limit
 } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
 import {
   ref as storageRef, uploadBytes, getDownloadURL
@@ -1995,7 +2064,21 @@ async function loadDashboard(uid) {
         <div class="detail-line"><span>Email</span><span>${escapeHtml(currentMember.email)}</span></div>
         <div class="detail-line"><span>Type</span><span>${escapeHtml(currentMember.residentType)}</span></div>
         <div class="detail-line"><span>Nominee</span><span>${escapeHtml(currentMember.nomineeName || '—')}</span></div>
+        <div class="detail-line"><span>Date of Birth</span><span>${currentMember.dob || '—'}</span></div>
+        <div class="detail-line"><span>Family Members</span><span>${(currentMember.familyMembers && currentMember.familyMembers.length) ? currentMember.familyMembers.length : '—'}</span></div>
+        <button class="btn btn-outline btn-sm" id="editProfileBtn" style="margin-top:10px;">✎ Edit Profile</button>
       </div>
+      ${(!currentMember.dob && !(currentMember.familyMembers && currentMember.familyMembers.length)) ? `
+      <div class="card card-pad" style="grid-column:1/-1; background:var(--gold-glow,rgba(201,162,39,.08)); border-color:var(--gold-500,#C9A227);">
+        <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+          <div style="font-size:22px;">🎂</div>
+          <div style="flex:1; min-width:200px;">
+            <b style="font-size:13.5px;">Apna Birthday add karein!</b>
+            <div class="t-muted" style="font-size:12.5px; margin-top:2px;">Society aapko aur aapke family ko unke birthday/anniversary par WhatsApp par wish karegi — bas apni details bhar dein.</div>
+          </div>
+          <button class="btn btn-primary btn-sm" id="fillProfileNudgeBtn">Abhi Bharein</button>
+        </div>
+      </div>` : ''}
     </div>` : ''}
   `;
 
@@ -2005,9 +2088,63 @@ async function loadDashboard(uid) {
     document.getElementById('openPaymentBtn').addEventListener('click', openPaymentModal);
     document.getElementById('downloadCardBtn')?.addEventListener('click', downloadCard);
     document.getElementById('downloadStatementBtn')?.addEventListener('click', downloadStatement);
+    document.getElementById('editProfileBtn')?.addEventListener('click', openProfileModal);
+    document.getElementById('fillProfileNudgeBtn')?.addEventListener('click', openProfileModal);
     await loadPayments(uid);
   }
 }
+
+/* My Profile — a resident editing their own contact/family info. Deliberately
+   does NOT expose name, owner/tenant type, or tower/flat: those go through
+   the office. The security rules are the real enforcement either way (they
+   reject a self-update that touches status/memberID/tower/flatNumber/role),
+   this is just keeping the form itself focused on what residents actually
+   need to self-serve. */
+function openProfileModal() {
+  const f = document.getElementById('profileEditForm');
+  f.mobile.value = currentMember.mobile || '';
+  f.email.value = currentMember.email || '';
+  f.occupation.value = currentMember.occupation || '';
+  f.address.value = currentMember.address || '';
+  f.nomineeName.value = currentMember.nomineeName || '';
+  f.nomineeRelation.value = currentMember.nomineeRelation || '';
+  f.dob.value = currentMember.dob || '';
+  f.anniversary.value = currentMember.anniversary || '';
+  const editor = document.getElementById('pfFamilyEditor');
+  initFamilyMembersEditor(editor, currentMember.familyMembers || []);
+  document.getElementById('pfFamilyAdd').onclick = () => addFamilyMemberRow(editor);
+  document.getElementById('profileModalBackdrop').classList.add('open');
+}
+document.getElementById('closeProfileModal')?.addEventListener('click', () =>
+  document.getElementById('profileModalBackdrop').classList.remove('open'));
+
+document.getElementById('profileEditForm')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const f = e.target;
+  const btn = f.querySelector('button[type="submit"]');
+  const patch = {
+    mobile: f.mobile.value.trim(), email: f.email.value.trim(),
+    occupation: f.occupation.value.trim(), address: f.address.value.trim(),
+    nomineeName: f.nomineeName.value.trim(), nomineeRelation: f.nomineeRelation.value.trim(),
+    dob: f.dob.value || null, anniversary: f.anniversary.value || null,
+    familyMembers: collectFamilyMembers(document.getElementById('pfFamilyEditor')),
+    updatedAt: serverTimestamp()
+  };
+  btn.disabled = true;
+  try {
+    await updateDoc(doc(db, 'members', currentUser.uid), patch);
+    Object.assign(currentMember, patch);
+    showToast('Profile update ho gayi.', 'success');
+    document.getElementById('profileModalBackdrop').classList.remove('open');
+    await loadDashboard(currentUser.uid);
+  } catch (err) {
+    console.error('Profile update failed:', err);
+    const code = err?.code || '';
+    showToast(`Profile save nahi ho payi${code ? ` (${code})` : ''}.`, 'error');
+  } finally {
+    btn.disabled = false;
+  }
+});
 
 /* Full financial-year statement — every verified receipt on one PDF, for a
    loan file or income proof. Uses the current FY; a resident who needs an
