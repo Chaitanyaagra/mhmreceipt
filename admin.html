@@ -360,6 +360,7 @@
         <div class="card card-pad stat-card"><div class="num" id="statPendingApprovals">—</div><div class="lbl">Pending Approvals</div></div>
         <div class="card card-pad stat-card"><div class="num" id="statPendingPayments">—</div><div class="lbl">Pending Payments</div></div>
         <div class="card card-pad stat-card"><div class="num" id="statCollected">—</div><div class="lbl">Collected (Selected FY)</div></div>
+        <div class="card card-pad stat-card"><div class="num" id="statFundBalance">—</div><div class="lbl">Fund Balance (Selected FY)</div></div>
       </div>
       <div class="chart-grid">
         <div class="card card-pad chart-card"><h3 style="font-size:14.5px; margin-bottom:12px;">Monthly Collections</h3><canvas id="monthlyChart"></canvas></div>
@@ -1411,6 +1412,15 @@ function renderOverview() {
   document.getElementById('statPendingPayments').textContent = pendingPayments.length;
   document.getElementById('statCollected').textContent = formatINR(collected);
 
+  // Fund balance — the single number a treasurer checks first: what's
+  // actually left after this year's expenses, not just what came in. Reuses
+  // the same fundPosition() the Expenses tab uses, so the two numbers can
+  // never quietly drift apart from computing it two different ways.
+  const pos = fundPosition(allPayments, allExpenses, selectedFY);
+  const balEl = document.getElementById('statFundBalance');
+  balEl.textContent = formatINR(pos.balance);
+  balEl.style.color = pos.balance < 0 ? 'var(--danger)' : '';
+
   const monthly = {};
   verifiedThisFY.forEach(p => {
     const d = p.verifiedAt?.toDate ? p.verifiedAt.toDate() : new Date();
@@ -1750,7 +1760,11 @@ async function reloadExpenses() {
   try {
     allExpenses = (await getDocs(query(collection(db, 'expenses'), orderBy('date', 'desc'))))
       .docs.map(d => ({ id: d.id, ...d.data() }));
-  } catch (e) { allExpenses = []; }
+  } catch (e) {
+    allExpenses = [];
+    console.error('Expenses read failed:', e?.code || e);
+    showToast(`Kharche load nahi hue${e?.code ? ` (${e.code})` : ''} — yeh khaali list nahi hai, refresh karein.`, 'error');
+  }
 }
 
 function renderExpenses() {
@@ -3441,7 +3455,16 @@ async function loadMaintenance() {
   try {
     const snap = await getDoc(doc(db, 'settings', 'maintenance'));
     maintenanceSettings = snap.exists() ? snap.data() : {};
-  } catch (e) { maintenanceSettings = {}; }
+  } catch (e) {
+    maintenanceSettings = {};
+    // An empty maintenanceSettings makes expectedDue() compute 0 for every
+    // resident — every defaulter would silently disappear from the
+    // Defaulters list and the "This Month" summary, looking like a clean
+    // bill of health instead of a failed read. That's worse than an error
+    // that's actually visible.
+    console.error('Maintenance rates read failed:', e?.code || e);
+    showToast(`Maintenance rates load nahi hui${e?.code ? ` (${e.code})` : ''} — Defaulters list abhi galat dikh sakti hai. Page refresh karein.`, 'error');
+  }
 
   const fySel = document.getElementById('maintFY');
   if (fySel) {
@@ -3770,7 +3793,7 @@ document.getElementById('addAdminForm').addEventListener('submit', async (e) => 
       // Release the secondary app whether creation succeeded or threw.
       try { await deleteApp(secondaryApp); } catch (_) {}
     }
-    await setDoc(doc(db, 'admins', newUid), { uid: newUid, name: f.name.value, email: f.email.value.trim(), role: f.role.value, createdAt: serverTimestamp(), createdBy: currentAdmin.email });
+    await setDoc(doc(db, 'admins', newUid), { uid: newUid, name: f.name.value.trim(), email: f.email.value.trim(), role: f.role.value, createdAt: serverTimestamp(), createdBy: currentAdmin.email });
 
     let memberID = null;
     if (f.alsoResident.checked) {
@@ -3789,7 +3812,7 @@ document.getElementById('addAdminForm').addEventListener('submit', async (e) => 
       // and creating one from here now produce identical state.
       const batch = writeBatch(db);
       batch.set(doc(db, 'members', newUid), {
-        uid: newUid, name: f.name.value, fatherHusbandName: '', tower,
+        uid: newUid, name: f.name.value.trim(), fatherHusbandName: '', tower,
         flatNumber, mobile: f.mobile.value.trim(), email: f.email.value.trim(),
         occupation: '', residentType: 'owner', address: '', nomineeName: '', nomineeRelation: '',
         photoURL: '', idDocURL: '', declarationAccepted: true, memberID, publicToken,

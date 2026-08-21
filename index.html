@@ -2311,10 +2311,29 @@ async function loadPayments(uid) {
   // Pull the whole history for this member: the dues panel and the FY statement
   // both need every row, and one resident's payments are few. The list itself
   // still shows only the most recent (below).
-  const q = query(collection(db, 'payments'), where('memberUid', '==', uid), orderBy('submittedAt', 'desc'));
+  //
+  // Deliberately NOT using orderBy() here. A where()-equality filter plus an
+  // orderBy() on a DIFFERENT field needs a Firestore composite index — one
+  // that has to be created by hand in the Firebase Console and is easy to
+  // forget (it was, earlier in this project). If that index is missing, the
+  // query throws failed-precondition, the catch below used to swallow it
+  // into an empty list, and the resident's entire payment history and dues
+  // would silently look like they'd never paid anything — a serious, very
+  // hard-to-diagnose failure for something this core. Sorting the (small)
+  // result set in JS instead means this screen never depends on that index
+  // existing at all.
+  const q = query(collection(db, 'payments'), where('memberUid', '==', uid));
   let rows;
-  try { rows = (await getDocs(q)).docs.map(d => ({ id: d.id, ...d.data() })); }
-  catch (e) { rows = []; }
+  try {
+    rows = (await getDocs(q)).docs.map(d => ({ id: d.id, ...d.data() }));
+    rows.sort((a, b) => (b.submittedAt?.seconds || 0) - (a.submittedAt?.seconds || 0));
+  } catch (e) {
+    console.error('Loading payment history failed:', e?.code || e);
+    rows = [];
+    // This is the resident's own money — if we can't load it, say so rather
+    // than silently showing "no payments" as if that were the true answer.
+    showToast(`Aapki payment history load nahi ho payi${e?.code ? ` (${e.code})` : ''} — page refresh karke dobara try karein.`, 'error');
+  }
   allPaymentRows = rows;   // kept for the statement button
 
   // Dues are computed from the same rows the history renders, so the panel
@@ -2419,20 +2438,14 @@ async function loadPayments(uid) {
 }
 
 async function openPaymentModal() {
-  // Pre-checks (existing pending payment + saved bank details). These read
-  // Firestore, which can fail on a flaky network or a rules edge case. If they
-  // throw, we must NOT let the whole modal silently fail to open — that looks
-  // to the resident like "payment button does nothing". So each read is guarded
-  // and we fall back to sensible defaults, then always render the modal.
-  try {
-    const q = query(collection(db, 'payments'), where('memberUid', '==', currentUser.uid), where('status', 'in', ['pending_approval', 'pending_verification']));
-    const existing = await getDocs(q);
-    if (!existing.empty) { showToast('Aapka ek payment pehle se pending hai — nayi entry ki zaroorat nahi.', 'error'); return; }
-  } catch (e) {
-    // Could not check for an existing pending payment — proceed anyway. The
-    // worst case is a duplicate pending entry, which the treasurer can reject.
-    console.warn('Pending-payment check failed, continuing:', e?.code || e);
-  }
+  // Existing-pending-payment check: uses allPaymentRows, already loaded by
+  // loadPayments() when the dashboard rendered, instead of a second Firestore
+  // query. That query needed a composite index (memberUid + status) that is
+  // easy to forget to create in the Firebase Console — this way there's
+  // nothing to forget, and the answer can never disagree with what the
+  // resident's own payment history further down the dashboard already shows.
+  const alreadyPending = allPaymentRows.some(p => p.status === 'pending_approval' || p.status === 'pending_verification');
+  if (alreadyPending) { showToast('Aapka ek payment pehle se pending hai — nayi entry ki zaroorat nahi.', 'error'); return; }
 
   let paySettings;
   try {
