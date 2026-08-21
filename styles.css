@@ -746,13 +746,24 @@ tbody tr:hover{ background:#FAFBFD; }
 
 /* ============================================================================
    LOGGED-IN VIEW — focus mode
-   Once a resident logs in, hide the public marketing sections so they see only
-   their dashboard, not the whole landing page. Toggled by adding/removing the
-   'logged-in' class on <body> in the auth handler. Purely presentational — the
-   sections stay in the DOM, just hidden, so logout restores everything.
+   Once a resident logs in, hide the sections aimed at a PROSPECTIVE resident
+   (the pitch: hero, about, benefits, community feel, the login/register
+   tabs) so the dashboard isn't buried under a full landing page. Sections a
+   resident keeps needing AFTER joining — Notices, financial transparency,
+   Bylaws/AGM documents, Committee contacts, office contact details — stay
+   visible; hiding those was the actual bug here: a logged-in resident is
+   exactly who most needs to see a maintenance-shutoff notice or find the
+   office phone number, and this used to hide the entire rest of the page
+   the moment they signed in, notices included.
+   Toggled by adding/removing the 'logged-in' class on <body> in the auth
+   handler. Purely presentational — sections stay in the DOM, just hidden,
+   so logout restores everything instantly.
    ============================================================================ */
-body.logged-in > section:not(#dashboard),
-body.logged-in > footer.site-footer{
+body.logged-in #top,
+body.logged-in #about,
+body.logged-in #benefits,
+body.logged-in #community,
+body.logged-in #portal{
   display:none !important;
 }
 /* Trim the header to just the brand + logout on the dashboard, and hide the

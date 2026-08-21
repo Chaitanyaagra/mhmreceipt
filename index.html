@@ -893,6 +893,17 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
   </div>
 </header>
 
+<section id="dashboard" style="display:none; background:var(--paper);">
+  <div class="wrap">
+    <div class="section-head" style="margin-bottom:22px;">
+      <div class="rule-gold"></div>
+      <div class="eyebrow">Your Portal</div>
+      <h2 id="dashGreeting" style="font-size:26px;">Welcome back</h2>
+    </div>
+    <div id="dashboardContent"></div>
+  </div>
+</section>
+
 <section class="hero engrave" id="top" style="padding-top:70px;">
   <div class="hero-photo" aria-hidden="true"></div>
   <div class="birds" aria-hidden="true">
@@ -1241,17 +1252,6 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
   </div>
 </section>
 
-<section id="dashboard" style="display:none; background:var(--paper);">
-  <div class="wrap">
-    <div class="section-head" style="margin-bottom:22px;">
-      <div class="rule-gold"></div>
-      <div class="eyebrow">Your Portal</div>
-      <h2 id="dashGreeting" style="font-size:26px;">Welcome back</h2>
-    </div>
-    <div id="dashboardContent"></div>
-  </div>
-</section>
-
 <section id="contact">
   <div class="wrap">
     <div class="section-head reveal">
@@ -1307,7 +1307,7 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
 <!-- ============ Mobile bottom tab bar ============ -->
 <nav class="tabbar-mobile no-print" id="tabbarMobile" aria-label="Primary">
   <ul>
-    <li><a href="#top" data-tab="top" class="active"><svg viewBox="0 0 24 24"><use href="#i-home"/></svg>Home</a></li>
+    <li><a href="#top" data-tab="top" id="tabHomeBtn" class="active"><svg viewBox="0 0 24 24"><use href="#i-home"/></svg>Home</a></li>
     <li><a href="#notices" data-tab="notices"><svg viewBox="0 0 24 24"><use href="#i-bell"/></svg>Notices</a></li>
     <li><a href="#" data-tab="pay" id="tabPayBtn"><svg viewBox="0 0 24 24"><use href="#i-rupee"/></svg>Pay</a></li>
     <li><a href="#portal" data-tab="account" id="tabAccountBtn"><svg viewBox="0 0 24 24"><use href="#i-user"/></svg>Account</a></li>
@@ -1360,6 +1360,7 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
           <button type="button" class="btn btn-outline btn-sm fm-add-btn" id="pfFamilyAdd">+ Family Member Jodein</button>
         </div>
         <button class="btn btn-primary btn-block" type="submit">Save Karein</button>
+        <button type="button" class="link-btn" id="changePasswordBtn" style="display:block; text-align:center; margin-top:14px; width:100%;">Password Badlein</button>
       </form>
     </div>
   </div>
@@ -1644,6 +1645,15 @@ window.__animateCount = (el) => {
 
   const acct = document.getElementById('tabAccountBtn');
   acct && acct.addEventListener('click', (e) => {
+    if (window.__loggedIn) { e.preventDefault(); const d = document.getElementById('dashboard'); if (d) d.scrollIntoView({ behavior: 'smooth' }); }
+  });
+
+  // "Home" points at the marketing hero (#top), which — like #portal — is
+  // hidden once logged in. Same redirect-to-dashboard fix as Account above:
+  // without it, tapping Home after signing in visibly does nothing, since
+  // the browser can't scroll to a display:none target.
+  const home = document.getElementById('tabHomeBtn');
+  home && home.addEventListener('click', (e) => {
     if (window.__loggedIn) { e.preventDefault(); const d = document.getElementById('dashboard'); if (d) d.scrollIntoView({ behavior: 'smooth' }); }
   });
 })();
@@ -2141,6 +2151,28 @@ document.getElementById('profileEditForm')?.addEventListener('submit', async (e)
     console.error('Profile update failed:', err);
     const code = err?.code || '';
     showToast(`Profile save nahi ho payi${code ? ` (${code})` : ''}.`, 'error');
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+// "Change Password" while logged in — reuses the same reset-email mechanism
+// as "Forgot Password" (send a link, don't ask for the current password
+// inline) instead of Firebase Auth's re-authenticate-then-updatePassword
+// flow. Simpler, and it's the exact same tested code path either way.
+// Uses currentUser.email (the real login credential) rather than the email
+// field on this form, which is just an editable Firestore profile field and
+// may not match what the resident actually signs in with.
+document.getElementById('changePasswordBtn')?.addEventListener('click', async (e) => {
+  const btn = e.currentTarget;
+  btn.disabled = true;
+  try {
+    await sendPasswordResetEmail(auth, currentUser.email);
+    showToast(`Password reset link ${currentUser.email} par bhej diya gaya hai.`, 'success');
+  } catch (err) {
+    console.error('Password reset email failed:', err);
+    const code = err?.code || '';
+    showToast(`Reset link nahi bhej paaye${code ? ` (${code})` : ''}.`, 'error');
   } finally {
     btn.disabled = false;
   }

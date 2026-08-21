@@ -275,6 +275,7 @@
     </nav>
     <div class="sidebar-foot">
       <div class="admin-chip"><b id="adminName">—</b><span id="adminRole">—</span></div>
+      <button class="link-btn" id="changePasswordBtn" style="display:block; text-align:center; color:rgba(255,255,255,.72); margin-bottom:8px; width:100%;">Password Badlein</button>
       <button class="btn btn-outline on-dark btn-sm btn-block" id="logoutBtn">Logout</button>
     </div>
   </aside>
@@ -1118,9 +1119,9 @@ const ROLE_NAV = {
   // Office-bearers can see where the money went even though only the
   // Treasurer may record it — that visibility is the point of the ledger.
   president: ['overview','members','events','expenses','content','auditLog'],
-  vicepresident: ['overview','members','expenses','content','auditLog'],
-  secretary: ['overview','members','expenses','content','auditLog'],
-  jointsecretary: ['overview','members','expenses','content','auditLog'],
+  vicepresident: ['overview','members','events','expenses','content','auditLog'],
+  secretary: ['overview','members','events','expenses','content','auditLog'],
+  jointsecretary: ['overview','members','events','expenses','content','auditLog'],
   treasurer: ['overview','members','payments','events','expenses','importExport','auditLog']
 };
 const ACTION_PERMS = {
@@ -1154,6 +1155,29 @@ document.getElementById('adminLoginForm').addEventListener('submit', async (e) =
 document.getElementById('logoutBtn').addEventListener('click', async () => {
   try { await signOut(auth); } catch (e) { console.warn('Sign-out failed:', e); }
   location.reload();   // return to a clean login screen regardless
+});
+
+// "Change Password" while logged in — same reset-email mechanism as the
+// login screen's "Forgot Password" link, just reachable without logging out
+// first. Uses auth.currentUser.email (the actual Auth login credential)
+// rather than currentAdmin.email (the Firestore admins-doc field, which can
+// drift from the real login email — the exact mismatch that caused the
+// verifiedBy bug earlier in this project).
+document.getElementById('changePasswordBtn')?.addEventListener('click', async (e) => {
+  const btn = e.currentTarget;
+  const email = auth.currentUser?.email;
+  if (!email) return;
+  btn.disabled = true;
+  try {
+    await sendPasswordResetEmail(auth, email);
+    showToast(`Password reset link ${email} par bhej diya gaya hai.`, 'success');
+  } catch (err) {
+    console.error('Password reset email failed:', err);
+    const code = err?.code || '';
+    showToast(`Reset link nahi bhej paaye${code ? ` (${code})` : ''}.`, 'error');
+  } finally {
+    btn.disabled = false;
+  }
 });
 
 // Password reset: sends a Firebase reset link to the admin's email. The role
