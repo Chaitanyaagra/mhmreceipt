@@ -1,8 +1,8 @@
 {
-  "name": "Max Heights Majestic RWA — Digital Portal",
-  "short_name": "MHMRWS Portal",
-  "description": "Membership registration, payments and QR-verified receipts for Max Heights Majestic Resident Welfare Society.",
-  "start_url": "./index.html",
+  "name": "Max Heights Majestic — Admin Panel",
+  "short_name": "MHMRWS Admin",
+  "description": "Committee admin panel — members, payments, expenses, events and settings for Max Heights Majestic Resident Welfare Society.",
+  "start_url": "./admin.html",
   "scope": "./",
   "display": "standalone",
   "background_color": "#0A1B33",

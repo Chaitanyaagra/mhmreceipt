@@ -52,6 +52,13 @@ service cloud.firestore {
     function canApproveMembers() {
       return isAdmin() && adminRole() in ['superadmin', 'president', 'vicepresident', 'secretary', 'jointsecretary'];
     }
+    // Any signed-in resident whose OWN member doc is currently approved —
+    // used to gate voting eligibility, same exists()+get() shape as isAdmin().
+    function isApprovedMember() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/members/$(request.auth.uid))
+        && get(/databases/$(database)/documents/members/$(request.auth.uid)).data.status == 'approved';
+    }
     /* ---------- validation helpers ---------- */
     //
     // ABSENCE vs NULL — read this before editing anything below.
@@ -97,7 +104,7 @@ service cloud.firestore {
       return v in ['pending', 'approved', 'rejected', 'inactive'];
     }
     function isValidPaymentStatus(v) {
-      return v in ['pending_approval', 'pending_verification', 'verified', 'rejected'];
+      return v in ['pending_approval', 'pending_verification', 'verified', 'rejected', 'voided'];
     }
     // "2025-26" style financial year.
     function isValidFY(v) {
@@ -249,18 +256,29 @@ service cloud.firestore {
       // books, so changing anything about a payment is restricted to the
       // Treasurer / Super Admin.
       //
-      // Two update shapes are allowed:
+      // Three update shapes are allowed:
       //  (a) the normal verify/reject flow — status is the only thing this
       //      path is meant to change, plus issuing a receipt when approving.
       //  (b) a correction edit — the Treasurer fixing a genuine data-entry
-      //      mistake (wrong amount, wrong resident, wrong mode). This is
-      //      allowed even on an already-verified payment, because "verified
+      //      mistake (wrong amount, wrong FY, wrong mode). This is allowed
+      //      even on an already-verified payment, because "verified
       //      payments never change" turned out to make ordinary typos
       //      uncorrectable, which is worse for the books than an accountable,
       //      logged correction. The app writes an audit-log entry for every
       //      correction; that log — not a frozen document — is what makes the
       //      change traceable.
+      //  (c) voiding — see the note on `delete` below for why this exists
+      //      instead of deletion for anything that was ever verified.
+      //
+      // memberUid and recordedByAdmin are locked no matter which shape this
+      // is: correcting a typo in the amount is one thing, but silently
+      // reassigning WHOSE payment this is would corrupt two members' dues
+      // at once with no trace of it happening. If a payment was genuinely
+      // recorded against the wrong resident, the correct fix is to void it
+      // and create a fresh one for the right person — not repoint this one.
       allow update: if canVerifyPayments()
+                    && unchanged('memberUid')
+                    && unchanged('recordedByAdmin')
                     && isValidPaymentStatus(request.resource.data.status)
                     && isValidAmount(request.resource.data.amount)
                     && isValidPaymentMode(request.resource.data.mode)
@@ -278,14 +296,31 @@ service cloud.firestore {
                     && (request.resource.data.status != 'verified' || (
                           isNonEmptyString(request.resource.data.receiptNumber, 40)
                           && isPublicToken(request.resource.data.publicToken)
-                       ));
+                       ))
+                    // Voiding must say who and why — this is the one status
+                    // change that permanently reduces someone's recorded
+                    // payments, so it does not get to be silent the way a
+                    // routine correction can be.
+                    && (request.resource.data.status != 'voided' || (
+                          resource.data.status == 'verified'
+                          && isNonEmptyString(request.resource.data.voidReason, 500)
+                          && request.resource.data.voidedBy == request.auth.token.email
+                       ))
+                    // Once voided, always voided — a void is itself a
+                    // permanent record, not an editable draft.
+                    && resource.data.status != 'voided';
 
-      // A genuine duplicate or bad entry can be removed outright, not just
-      // edited — same people who may correct a payment may remove one.
-      // The app deletes the matching receiptsPublic record in the same
-      // action so a deleted receipt stops verifying as real, and writes an
-      // audit-log entry so the deletion itself is traceable.
-      allow delete: if canVerifyPayments();
+      // A never-verified entry (duplicate, bad data-entry, abandoned
+      // pending row) can be removed outright — it never affected anyone's
+      // dues or the books, so there is nothing a deletion would erase from
+      // the financial history. A VERIFIED payment is different: it already
+      // moved money in the books and has a receipt someone may be holding,
+      // so it can only be voided (see `update` above), never hard-deleted —
+      // "payments never truly disappear" is the actual guarantee here, not
+      // a comment that the rule then contradicts.
+      allow delete: if canVerifyPayments()
+                    && resource.data.status != 'verified'
+                    && resource.data.status != 'voided';
     }
 
     // ---- Sequence counters (Member ID / Receipt No.) ---------------------
@@ -312,6 +347,82 @@ service cloud.firestore {
                             && isNonEmptyString(request.resource.data.titleEn, 200)
                             && isNonEmptyString(request.resource.data.bodyEn, 5000);
       allow delete: if canApproveMembers();
+    }
+
+    // ---- Society calendar (festivals, meetings, maintenance work,
+    // shutdowns) — informational, not financial, so it uses the same
+    // office-bearer permission as notices/committee rather than the
+    // treasurer-focused canVerifyPayments() the fee-collection /events/
+    // collection below uses. Public read so residents see it without login.
+    // ---- Pet Registration ---------------------------------------------------
+    // A resident's own pets — read/write scoped to the owner, plus the
+    // committee (who need this for the vaccination-due reminder and for
+    // handling any community complaint about a specific animal). ownerUid is
+    // locked on update for the same reason memberUid is locked on a payment:
+    // editing a pet's name or vaccination date is a normal correction,
+    // silently reassigning WHOSE pet this is should never be possible via an
+    // ordinary edit.
+    match /pets/{petId} {
+      allow read: if isAdmin() || (isSignedIn() && resource.data.ownerUid == request.auth.uid);
+      allow create: if isSignedIn()
+                    && request.resource.data.ownerUid == request.auth.uid
+                    && isNonEmptyString(request.resource.data.name, 100)
+                    && request.resource.data.species in ['dog', 'cat', 'bird', 'other'];
+      allow update: if ((isSignedIn() && resource.data.ownerUid == request.auth.uid) || isAdmin())
+                    && unchanged('ownerUid')
+                    && isNonEmptyString(request.resource.data.name, 100)
+                    && request.resource.data.species in ['dog', 'cat', 'bird', 'other'];
+      allow delete: if (isSignedIn() && resource.data.ownerUid == request.auth.uid) || isAdmin();
+    }
+
+    match /calendarEvents/{calId} {
+      allow read: if true;
+      allow create, update: if canApproveMembers()
+                            && isNonEmptyString(request.resource.data.title, 200)
+                            && isNonEmptyString(request.resource.data.date, 20);
+      allow delete: if canApproveMembers();
+    }
+
+    // ---- Digital polls (one-member-one-vote) -------------------------------
+    // A vote's DOCUMENT ID is the voter's own uid — that is what makes
+    // double-voting impossible at the database level, not a client-side
+    // check that a modified client could skip. Once votes/{uid} exists for a
+    // poll, the only path back to that same document is an update, which is
+    // denied below; a genuinely new vote can only ever be a create, and
+    // create only succeeds where nothing exists yet.
+    //
+    // Privacy note: votes are readable by any signed-in approved member so
+    // results can be tallied client-side — this project has no server
+    // backend to compute an aggregate for it. The UI only ever shows totals,
+    // never who voted for what, but that is a UI convention, not
+    // cryptographic ballot secrecy: someone querying Firestore directly
+    // could see the raw voter-uid-to-option pairing. Fine for a low-stakes
+    // RWA preference poll; not a fit for anything needing a truly secret
+    // ballot.
+    function pollIsOpen(pollId) {
+      let poll = get(/databases/$(database)/documents/polls/$(pollId)).data;
+      return request.time >= poll.startTime && request.time <= poll.endTime;
+    }
+    match /polls/{pollId} {
+      allow read: if true;
+      allow create, update: if canApproveMembers()
+                            && isNonEmptyString(request.resource.data.question, 300)
+                            && request.resource.data.options is list
+                            && request.resource.data.options.size() >= 2
+                            && request.resource.data.options.size() <= 10
+                            && request.resource.data.startTime is timestamp
+                            && request.resource.data.endTime is timestamp
+                            && request.resource.data.endTime > request.resource.data.startTime;
+      allow delete: if canApproveMembers();
+
+      match /votes/{voterUid} {
+        allow read: if isSignedIn();
+        allow create: if isOwner(voterUid)
+                      && isApprovedMember()
+                      && request.resource.data.option is string
+                      && pollIsOpen(pollId);
+        allow update, delete: if false;   // a cast vote is final
+      }
     }
 
     // ---- Event fees (Diwali, functions, etc.) -----------------------------
@@ -382,16 +493,101 @@ service cloud.firestore {
     // the same figures go into the audited accounts. Only the Treasurer and
     // Super Admin can record or remove an entry, matching who may verify
     // payments — money in and money out are governed identically.
+    // Expense Approval Workflow — deliberately additive, not a breaking
+    // change: the Treasurer/Super Admin's EXISTING direct-entry workflow is
+    // untouched (they can still create an expense that's immediately
+    // 'approved', exactly as before). What's new: any other office-bearer
+    // (canApproveMembers()) can now create an expense too, but ONLY as a
+    // 'pending_approval' request — they cannot mark their own request
+    // approved. Every expense written before this change has no status
+    // field at all; app code treats an absent status as legacy-approved,
+    // so nothing already in the database needs a migration.
+    //
+    // Read is admin-only by design: a raw expense record carries vendor
+    // names, bill references, and payment details that go beyond what
+    // "financial transparency" requires residents or the public to see
+    // line-by-line. The aggregate figures residents and visitors actually
+    // care about — collected, spent, balance, category breakdown — live in
+    // publicFinancialSummary below instead, kept in sync by the admin app
+    // whenever this collection changes.
     match /expenses/{expenseId} {
+      allow read: if isAdmin();
+      allow create: if (
+        (canVerifyPayments() && request.resource.data.status in ['approved', 'pending_approval'])
+        || (canApproveMembers() && request.resource.data.status == 'pending_approval')
+      )
+        && isNonEmptyString(request.resource.data.description, 200)
+        && request.resource.data.amount is number
+        && request.resource.data.amount > 0
+        && request.resource.data.amount <= 10000000
+        && isValidFY(request.resource.data.financialYear)
+        && request.resource.data.mode in ['cash','cheque','bank','upi'];
+      // Approving, rejecting, or editing a request all go through the same
+      // Treasurer/Super Admin gate that direct-entry already used — a
+      // second office-bearer approving is not required, keeping this a
+      // one-approver workflow rather than a full multi-sign-off chain.
+      // addedBy/addedAt are locked: they record who originally raised this
+      // entry and when, which an edit — even a correction — must not be
+      // able to quietly rewrite.
+      allow update: if canVerifyPayments()
+                    && (absentOrNull(resource.data, 'addedBy') || unchanged('addedBy'))
+                    && (absentOrNull(resource.data, 'addedAt') || unchanged('addedAt'));
+      allow delete: if canVerifyPayments();
+    }
+
+    // ---- Bank Reconciliation -----------------------------------------------
+    // Read restricted to Treasurer/Super Admin — a bank statement line is
+    // more sensitive than an expense record (it can reveal the account's
+    // running behaviour), so this doesn't get the public-read treatment
+    // expenses/payments get.
+    // ---- Public Financial Summary -------------------------------------------
+    // Aggregate-only figures for the pre-login "Accounts" transparency page:
+    // collected, spent, balance, and a category breakdown — never a raw
+    // transaction. Doc ID is the FY string. Written by admin-side code
+    // whenever expenses/payments change, not computed live off the raw
+    // collections (payments' own read rule is member-scoped, not public, so
+    // an anonymous visitor's browser was never actually able to query it
+    // directly — this summary is what makes the transparency page real
+    // instead of silently empty for anyone who isn't an admin).
+    match /publicFinancialSummary/{fy} {
       allow read: if true;
       allow create, update: if canVerifyPayments()
-                            && isNonEmptyString(request.resource.data.description, 200)
+                            && request.resource.data.collected is number
+                            && request.resource.data.spent is number
+                            && request.resource.data.balance is number;
+      allow delete: if false;
+    }
+
+    match /bankTransactions/{txId} {
+      allow read: if canVerifyPayments();
+      allow create, update: if canVerifyPayments()
                             && request.resource.data.amount is number
                             && request.resource.data.amount > 0
-                            && request.resource.data.amount <= 10000000
-                            && isValidFY(request.resource.data.financialYear)
-                            && request.resource.data.mode in ['cash','cheque','bank','upi'];
+                            && request.resource.data.type in ['credit', 'debit'];
       allow delete: if canVerifyPayments();
+    }
+
+    // ---- Budget vs Actual ---------------------------------------------------
+    // One document per financial year (doc ID is the FY string itself, e.g.
+    // "2026-27"), holding every category's planned amount together — public
+    // read because this app's whole "accounts" section on the resident page
+    // is built around financial transparency, and a budget is exactly the
+    // kind of thing an AGM would want visible.
+    match /budgets/{fy} {
+      allow read: if true;
+      allow create, update: if canVerifyPayments() && request.resource.data.categories is map;
+      allow delete: if canVerifyPayments();
+    }
+
+    // ---- Monthly Financial Closing ------------------------------------------
+    // Doc ID is the year-month itself (e.g. "2026-08"). A closure record is
+    // never deleted, even by Super Admin — voiding a close, if it's ever
+    // needed, should leave a trace rather than erase one; that's the same
+    // reasoning as "void, don't delete" for individual transactions.
+    match /monthClosures/{yearMonth} {
+      allow read: if true;
+      allow create, update: if canVerifyPayments();
+      allow delete: if false;
     }
 
     // ---- Documents & forms — public read, office-bearer write -------------

@@ -52,6 +52,18 @@ service firebase.storage {
       allow delete: if isAdmin() || request.auth.uid == uid;
     }
 
+    // Pet photo + vaccination certificate uploads — same owner-or-admin
+    // shape as photos/ above, just a slightly larger size cap and PDF
+    // allowed too (a vaccination certificate is usually a scanned PDF, not
+    // a photo).
+    match /petPhotos/{uid}/{fileName} {
+      allow read: if isAdmin() || request.auth.uid == uid;
+      allow create, update: if request.auth.uid == uid
+                   && request.resource.size < 8 * 1024 * 1024
+                   && isImagePdfOrEncrypted();
+      allow delete: if isAdmin() || request.auth.uid == uid;
+    }
+
     // Aadhaar / PAN uploads — owner + admins only, never public.
     // Files here may additionally be AES-256-GCM encrypted client-side
     // before upload (see app-common.js encryptFile()) for defense in depth.
@@ -68,9 +80,14 @@ service firebase.storage {
     // UPI/bank-transfer payment screenshots — owner + admins only.
     match /paymentProofs/{uid}/{fileName} {
       allow read: if isAdmin() || request.auth.uid == uid;
-      allow write: if request.auth.uid == uid
+      allow create, update: if request.auth.uid == uid
                    && request.resource.size < 8 * 1024 * 1024
                    && isImageOrPdf();
+      // Split from create/update for the same reason as photos/ and
+      // documents/ above: a delete request has no request.resource to check
+      // size/type against, and admin needs to be able to clean up an old or
+      // mistaken upload without waiting on the resident who submitted it.
+      allow delete: if isAdmin() || request.auth.uid == uid;
     }
 
     // Notice board attachments (circulars, PDFs) — public read, admin write.

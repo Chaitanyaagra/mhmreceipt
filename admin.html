@@ -10,7 +10,7 @@
      What this buys: an injected <script src="https://evil.example/x.js"> will
      not load, and stolen data cannot be POSTed anywhere except the endpoints
      listed in connect-src. That is the realistic attack against a page that
-     handles Aadhaar uploads and payment records.
+     handles payment proof uploads and resident photo IDs.
 
      What it does NOT buy: script-src still has 'unsafe-inline', because every
      page here is built from inline module scripts and inline style attributes. Removing that needs the inline scripts moved into their
@@ -45,7 +45,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Admin Panel — MHMRWS Digital Portal</title>
 <meta name="robots" content="noindex">
+<meta name="theme-color" content="#0A1B33">
+<link rel="manifest" href="manifest-admin.json">
 <link rel="icon" href="favicon-32.png">
+<link rel="apple-touch-icon" href="icon-192.png">
 <meta name="color-scheme" content="light">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -218,6 +221,9 @@
   <g id="a-members"><circle cx="9" cy="8.4" r="3.3" stroke="currentColor" stroke-width="1.7" fill="none"/><path d="M2.6 19.4c.8-3.2 3.4-5 6.4-5s5.6 1.8 6.4 5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" fill="none"/><path d="M16.2 5.6a3.1 3.1 0 010 5.8M18.4 19.4c-.3-1.5-.9-2.8-1.8-3.8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" fill="none"/></g>
   <g id="a-payments"><rect x="2.5" y="5.5" width="19" height="13" rx="2.4" stroke="currentColor" stroke-width="1.7" fill="none"/><path d="M2.5 10h19M6 14.6h4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></g>
   <g id="a-events"><rect x="3.5" y="4.5" width="17" height="16" rx="2.4" stroke="currentColor" stroke-width="1.7" fill="none"/><path d="M3.5 9h17M8 2.5v4M16 2.5v4M8 13h3M8 16.5h6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></g>
+  <g id="a-calendar"><rect x="3.5" y="4.5" width="17" height="16" rx="2.4" stroke="currentColor" stroke-width="1.7" fill="none"/><path d="M3.5 9h17M8 2.5v4M16 2.5v4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="15.5" cy="14.5" r="2" fill="currentColor"/></g>
+  <g id="a-polls"><path d="M4 20.5V13M10 20.5V7M16 20.5V10.5M20 20.5V4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></g>
+  <g id="a-financials"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7" fill="none"/><path d="M12 7v10M9.2 14.5c0 1.4 1.25 2.3 2.8 2.3s2.8-.8 2.8-2.1c0-3-5.6-1.6-5.6-4.4 0-1.3 1.25-2.1 2.8-2.1s2.8.9 2.8 2.1" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" fill="none"/></g>
   <g id="a-expenses"><path d="M12 2.6v18.8M8.2 6.2h6a2.8 2.8 0 010 5.6H9.8a2.8 2.8 0 000 5.6h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" fill="none"/></g>
   <g id="a-content"><path d="M3.5 9.5h3.2L14 5.2v13.6L6.7 14.5H3.5z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" fill="none"/><path d="M17.4 9.2a4.2 4.2 0 010 5.6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" fill="none"/></g>
   <g id="a-importExport"><path d="M20 11.2A8 8 0 006.3 6.1M4 12.8a8 8 0 0013.7 5.1" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" fill="none"/><path d="M20 4.6v6.6h-6.6M4 19.4v-6.6h6.6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" fill="none"/></g>
@@ -261,6 +267,10 @@
         <div class="full">Admin Panel</div>
       </div>
     </div>
+    <div class="usearch-wrap" id="usearchWrap">
+      <input type="search" id="universalSearch" placeholder="Sab kuch dhoondhein…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="Search members, payments, events, expenses">
+      <div class="usearch-results" id="usearchResults"></div>
+    </div>
     <nav class="side-nav" id="sideNav">
       <button data-view="overview" class="active"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-overview"/></svg></span> Overview</button>
       <button data-view="members"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-members"/></svg></span> Members<span class="nav-badge" id="navBadgeMembers" style="display:none;">0</span></button>
@@ -268,6 +278,9 @@
       <button data-view="events"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-events"/></svg></span> Events</button>
       <button data-view="expenses"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-expenses"/></svg></span> Expenses</button>
       <button data-view="content"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-content"/></svg></span> Notices &amp; Committee</button>
+      <button data-view="calendar"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-calendar"/></svg></span> Calendar</button>
+      <button data-view="polls"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-polls"/></svg></span> Polls</button>
+      <button data-view="financials"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-financials"/></svg></span> Financials</button>
       <button data-view="importExport"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-importExport"/></svg></span> Import / Export</button>
       <button data-view="settings"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-settings"/></svg></span> Settings &amp; Backup</button>
       <button data-view="adminUsers"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-adminUsers"/></svg></span> Admin Users</button>
@@ -289,7 +302,7 @@
       <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#a-cloud"/></svg>
       <div>
         <b>Firebase Storage abhi set up nahi hai.</b>
-        Registration, payment aur receipts sab chalenge — par <b>photo, Aadhaar/PAN aur payment screenshot upload nahi honge</b>.
+        Registration, payment aur receipts sab chalenge — par <b>photo aur payment screenshot upload nahi honge</b>.
         Enable karne ke liye Firebase Console mein Blaze plan par jaana hoga (SETUP-GUIDE.md dekhein).
       </div>
     </div>
@@ -300,6 +313,17 @@
         <h2 class="view-title">Overview</h2>
         <select class="fy-select" id="fySelect"></select>
       </div>
+
+      <!-- Command Center — everything currently waiting on someone, in one
+           row of clickable numbers, so nobody has to open five different
+           tabs just to see what needs doing today. Each pill is gated to
+           the same permission that gates the underlying action (a
+           president sees member approvals, not bank reconciliation; a
+           treasurer sees the reverse) and hides itself at zero — an empty
+           "0 pending" pill is noise, not a call to action. Populated by
+           renderCommandCenter().
+      -->
+      <div class="cc-strip" id="commandCenterStrip"></div>
 
       <!-- Rules-out-of-sync warning — Super Admin only, since only they can
            actually publish rules. Populated by checkRulesHealth(). Hidden by
@@ -316,6 +340,20 @@
             </p>
           </div>
         </div>
+      </div>
+
+      <!-- Treasurer Dashboard — cash/bank split, this-month figures, dues,
+           all in one glance. Populated by renderTreasurerDashboard(), only
+           ever shown to whoever can already verify payments (same
+           permission as every other financial action in this app). Two
+           line items are honestly labelled as "not set up yet" rather than
+           faked: Bank Reconciliation and Upcoming Bills both need features
+           this project doesn't have yet (a bank-statement feed, and a
+           recurring-expense schedule respectively). -->
+      <div class="card card-pad" id="treasurerDashCard" style="display:none; margin-bottom:20px;">
+        <h3 style="font-size:15px; margin-bottom:4px;">💰 Treasurer Dashboard</h3>
+        <p class="t-muted" style="font-size:12px; margin-bottom:16px;">Financial position, ek nazar mein.</p>
+        <div class="td-grid" id="treasurerDashGrid"></div>
       </div>
 
       <!-- This-month snapshot — the committee's at-a-glance card. Populated by
@@ -356,12 +394,26 @@
         <div class="celeb-list" id="celebUpcomingList"></div>
       </div>
 
+      <!-- Pet vaccination reminders — same "hidden unless there's genuinely
+           something to show" shape as the celebration cards above. Overdue
+           and due-within-30-days are combined into one card (unlike
+           birthdays, a missed vaccination doesn't stop mattering the day
+           after — an overdue pet needs following up on more, not less,
+           urgently than one still on time). Sorted soonest/most-overdue
+           first via petVaccinationStatus()'s daysUntil. -->
+      <div class="card card-pad celeb-card" id="petVaxCard" style="display:none;">
+        <h3 style="font-size:14.5px; margin-bottom:4px;">💉 Pet Vaccination Reminders</h3>
+        <p class="t-muted" style="font-size:12px; margin-bottom:10px;">Overdue aur agle 30 din mein due.</p>
+        <div class="celeb-list" id="petVaxList"></div>
+      </div>
+
       <div class="stat-cards">
         <div class="card card-pad stat-card"><div class="num" id="statTotalMembers">—</div><div class="lbl">Approved Members</div></div>
         <div class="card card-pad stat-card"><div class="num" id="statPendingApprovals">—</div><div class="lbl">Pending Approvals</div></div>
         <div class="card card-pad stat-card"><div class="num" id="statPendingPayments">—</div><div class="lbl">Pending Payments</div></div>
         <div class="card card-pad stat-card"><div class="num" id="statCollected">—</div><div class="lbl">Collected (Selected FY)</div></div>
         <div class="card card-pad stat-card"><div class="num" id="statFundBalance">—</div><div class="lbl">Fund Balance (Selected FY)</div></div>
+        <div class="card card-pad stat-card"><div class="num" id="statCollectionEfficiency">—</div><div class="lbl">Collection Efficiency</div></div>
       </div>
       <div class="chart-grid">
         <div class="card card-pad chart-card"><h3 style="font-size:14.5px; margin-bottom:12px;">Monthly Collections</h3><canvas id="monthlyChart"></canvas></div>
@@ -370,6 +422,15 @@
       <div class="card card-pad">
         <h3 style="font-size:14.5px; margin-bottom:12px;">Tower-wise Collection</h3>
         <div class="table-wrap"><table><thead><tr><th>Tower</th><th>Amount Collected</th></tr></thead><tbody id="towerTableBody"></tbody></table></div>
+      </div>
+      <div class="card card-pad" id="incomeExpCard" style="display:none;">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+          <div>
+            <h3 style="font-size:14.5px; margin-bottom:4px;">Income &amp; Expenditure Statement</h3>
+            <p class="t-muted" style="font-size:12.5px;">AGM ke liye ya CA ko dene ke liye — poore saal ka collection vs kharcha, ek PDF mein.</p>
+          </div>
+          <button class="btn btn-navy btn-sm" id="downloadIncomeExpBtn"><svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#a-doc"/></svg>Download PDF (Selected FY)</button>
+        </div>
       </div>
     </div>
 
@@ -439,8 +500,8 @@
         <div class="toolbar"><button class="btn btn-outline btn-sm" id="emailDefaultersBtn"><svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#a-mail"/></svg>Email All (BCC)</button>
         <span class="t-muted" style="font-size:12.5px;">for FY selected in Overview</span></div>
         <div class="table-wrap responsive">
-          <table><thead><tr><th>Resident</th><th>Flat / Tower</th><th>Outstanding</th><th>Status</th><th>Remind</th></tr></thead>
-          <tbody id="defaultersBody"><tr><td colspan="4" class="t-muted">Loading…</td></tr></tbody></table>
+          <table><thead><tr><th>Resident</th><th>Flat / Tower</th><th>Outstanding</th><th>Health</th><th>Remind</th><th></th></tr></thead>
+          <tbody id="defaultersBody"><tr><td colspan="6" class="t-muted">Loading…</td></tr></tbody></table>
         </div>
       </div>
     </div>
@@ -485,7 +546,18 @@
         <div class="action-row">
           <button class="btn btn-outline btn-sm" id="exportExpensesBtn">Export Excel</button>
           <button class="btn btn-primary btn-sm" id="addExpenseBtn">+ Add Expense</button>
+          <button class="btn btn-primary btn-sm" id="requestExpenseBtn">+ Request Expense</button>
         </div>
+      </div>
+
+      <!-- Expense Approval Workflow — only ever shown when there's actually
+           something pending, and only to whoever can approve (Treasurer/
+           Super Admin). The requester who raised it sees it too, in their
+           own read-only list further below, so they know it hasn't been
+           forgotten. -->
+      <div class="card card-pad" id="expensePendingCard" style="display:none; margin-bottom:20px; background:#FFF9E8; border-color:#E8C766;">
+        <h3 style="font-size:14.5px; margin-bottom:10px;">⏳ Pending Expense Approvals</h3>
+        <div id="expensePendingList"></div>
       </div>
 
       <div class="stat-cards">
@@ -508,8 +580,8 @@
 
       <div class="table-wrap responsive">
         <table>
-          <thead><tr><th>Date</th><th>Description</th><th>Category</th><th>Paid To</th><th>Amount</th><th>Actions</th></tr></thead>
-          <tbody id="expensesBody"><tr><td colspan="6" class="t-muted">Loading…</td></tr></tbody>
+          <thead><tr><th>Date</th><th>Description</th><th>Category</th><th>Paid To</th><th>Amount</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="expensesBody"><tr><td colspan="7" class="t-muted">Loading…</td></tr></tbody>
         </table>
       </div>
       <p class="t-sub" style="font-size:12.3px; margin-top:12px;">
@@ -538,7 +610,141 @@
       </div>
     </div>
 
-    <!-- ---------------- IMPORT / EXPORT ---------------- -->
+    <!-- ---------------- SOCIETY CALENDAR ---------------- -->
+    <div class="view-panel" id="view-calendar">
+      <div class="topbar"><h2 class="view-title">Society Calendar</h2></div>
+      <div class="settings-grid">
+        <div class="card card-pad">
+          <h3 style="font-size:15px; margin-bottom:14px;">Add Entry</h3>
+          <form id="calendarForm">
+            <div class="field"><label for="cal-title">Title</label><input name="title" id="cal-title" required maxlength="200" placeholder="e.g. Lift AMC Maintenance"></div>
+            <div class="form-2col">
+              <div class="field"><label for="cal-date">Date</label><input type="date" name="date" id="cal-date" required></div>
+              <div class="field"><label for="cal-type">Type</label>
+                <select name="type" id="cal-type">
+                  <option value="festival">🎉 Festival</option>
+                  <option value="meeting">🗓️ Committee Meeting</option>
+                  <option value="maintenance">🔧 Maintenance Work</option>
+                  <option value="shutdown">⚡ Water/Power Shutdown</option>
+                  <option value="event">🎊 Event</option>
+                  <option value="other">📌 Other</option>
+                </select>
+              </div>
+            </div>
+            <div class="field"><label for="cal-desc">Description <span class="t-muted" style="font-weight:400;">(optional)</span></label><textarea name="description" id="cal-desc" rows="2" maxlength="500"></textarea></div>
+            <button class="btn btn-primary" type="submit">Calendar Mein Jodein</button>
+          </form>
+        </div>
+        <div class="card card-pad">
+          <h3 style="font-size:15px; margin-bottom:14px;">Upcoming &amp; Recent</h3>
+          <div id="calendarEditList"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ---------------- POLLS ---------------- -->
+    <div class="view-panel" id="view-polls">
+      <div class="topbar"><h2 class="view-title">Polls</h2></div>
+      <div class="settings-grid">
+        <div class="card card-pad">
+          <h3 style="font-size:15px; margin-bottom:14px;">Create Poll</h3>
+          <form id="pollForm">
+            <div class="field"><label for="poll-question">Question</label><input name="question" id="poll-question" required maxlength="300" placeholder="e.g. Kya humein naya gym equipment lena chahiye?"></div>
+            <div class="field">
+              <label>Options <span class="t-muted" style="font-weight:400;">(kam se kam 2)</span></label>
+              <div class="fm-editor" id="pollOptionsEditor"></div>
+              <button type="button" class="btn btn-outline btn-sm fm-add-btn" id="pollOptionAdd">+ Option Jodein</button>
+            </div>
+            <div class="form-2col">
+              <div class="field"><label for="poll-start">Start</label><input type="datetime-local" name="start" id="poll-start" required></div>
+              <div class="field"><label for="poll-end">End</label><input type="datetime-local" name="end" id="poll-end" required></div>
+            </div>
+            <button class="btn btn-primary" type="submit">Poll Shuru Karein</button>
+          </form>
+        </div>
+        <div class="card card-pad">
+          <h3 style="font-size:15px; margin-bottom:14px;">All Polls</h3>
+          <div id="pollsList"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ---------------- FINANCIALS (Reconciliation / Budget / Closing) ---------------- -->
+    <div class="view-panel" id="view-financials">
+      <div class="topbar"><h2 class="view-title">Financials</h2></div>
+      <div class="tab-strip">
+        <button data-ftab="recon" class="active">Bank Reconciliation</button>
+        <button data-ftab="budget">Budget vs Actual</button>
+        <button data-ftab="closing">Monthly Closing</button>
+      </div>
+
+      <!-- Bank Reconciliation -->
+      <div id="financialsReconPanel">
+        <div class="stat-cards" style="grid-template-columns:repeat(3,1fr);">
+          <div class="card card-pad stat-card"><div class="num" id="reconMatchedPct">—</div><div class="lbl">Reconciled</div></div>
+          <div class="card card-pad stat-card"><div class="num" id="reconMatchedCount">—</div><div class="lbl">Matched</div></div>
+          <div class="card card-pad stat-card"><div class="num" id="reconUnmatchedCount">—</div><div class="lbl">Unmatched</div></div>
+        </div>
+        <div class="card card-pad" style="margin-bottom:20px;">
+          <h3 style="font-size:14.5px; margin-bottom:12px;">Bank Transaction Jodein</h3>
+          <form id="bankTxForm">
+            <div class="form-2col">
+              <div class="field"><label for="btx-date">Date</label><input type="date" name="date" id="btx-date" required></div>
+              <div class="field"><label for="btx-amount">Amount</label><input type="number" name="amount" id="btx-amount" min="1" step="1" required></div>
+            </div>
+            <div class="form-2col">
+              <div class="field"><label for="btx-desc">Description (bank statement se)</label><input name="description" id="btx-desc" required maxlength="200"></div>
+              <div class="field"><label for="btx-type">Type</label>
+                <select name="type" id="btx-type">
+                  <option value="credit">Credit (paisa aaya)</option>
+                  <option value="debit">Debit (paisa gaya)</option>
+                </select>
+              </div>
+            </div>
+            <button class="btn btn-primary btn-sm" type="submit">Jodein</button>
+          </form>
+        </div>
+        <div class="table-wrap responsive">
+          <table>
+            <thead><tr><th>Date</th><th>Description</th><th>Type</th><th>Amount</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody id="bankTxBody"><tr><td colspan="6" class="t-muted">Loading…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Budget vs Actual -->
+      <div id="financialsBudgetPanel" style="display:none;">
+        <div class="card card-pad" style="margin-bottom:20px;">
+          <h3 style="font-size:14.5px; margin-bottom:12px;">Category Budget Set Karein — FY <span id="budgetFYLabel"></span></h3>
+          <form id="budgetForm">
+            <div class="form-2col">
+              <div class="field"><label for="budget-category">Category</label><select name="category" id="budget-category"></select></div>
+              <div class="field"><label for="budget-amount">Saal Bhar Ka Budget</label><input type="number" name="amount" id="budget-amount" min="0" step="1000" required></div>
+            </div>
+            <button class="btn btn-primary btn-sm" type="submit">Save Budget</button>
+          </form>
+        </div>
+        <div class="table-wrap responsive">
+          <table>
+            <thead><tr><th>Category</th><th>Budget</th><th>Actual</th><th>Variance</th></tr></thead>
+            <tbody id="budgetBody"><tr><td colspan="4" class="t-muted">Loading…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Monthly Financial Closing -->
+      <div id="financialsClosingPanel" style="display:none;">
+        <div class="card card-pad" style="margin-bottom:20px;">
+          <h3 style="font-size:14.5px; margin-bottom:4px;" id="closingMonthLabel">Close karein</h3>
+          <p class="t-muted" style="font-size:12.5px; margin-bottom:14px;">Yeh checklist confirm karti hai ki mahine ka data poora hai, phir mahina "closed" mark ho jaata hai.</p>
+          <div id="closingChecklist"></div>
+          <button class="btn btn-primary btn-sm" id="closeMonthBtn" style="margin-top:14px;">Mahina Close Karein</button>
+        </div>
+        <h3 style="font-size:14.5px; margin-bottom:12px;">Pehle Se Closed Mahine</h3>
+        <div id="closedMonthsList"></div>
+      </div>
+    </div>
+
     <div class="view-panel" id="view-importExport">
       <div class="topbar"><h2 class="view-title">Import / Export</h2></div>
       <div class="settings-grid">
@@ -778,15 +984,21 @@
           <div class="fm-editor" id="rrFamilyEditor"></div>
           <button type="button" class="btn btn-outline btn-sm fm-add-btn" id="rrFamilyAdd">+ Family Member Jodein</button>
         </div>
-        <div class="form-2col">
-          <div class="field">
-            <label for="rr-photo">Photo <span class="t-muted" style="font-weight:400;">(optional)</span></label>
-            <input type="file" name="photo" id="rr-photo" accept="image/*">
+        <div class="field">
+          <label>Kya resident ke paas pet hai?</label>
+          <div class="pet-toggle-row">
+            <label class="checkbox-row"><input type="radio" name="rr-hasPet" value="yes" id="rr-hasPet-yes"> Haan</label>
+            <label class="checkbox-row"><input type="radio" name="rr-hasPet" value="no" id="rr-hasPet-no" checked> Nahi</label>
           </div>
-          <div class="field">
-            <label for="rr-idDoc">Aadhaar / PAN <span class="t-muted" style="font-weight:400;">(optional)</span></label>
-            <input type="file" name="idDoc" id="rr-idDoc" accept="image/*,.pdf">
-          </div>
+        </div>
+        <div id="rrPetsWrap" style="display:none;">
+          <div class="pet-section-label" style="border-top:none; padding-top:0; margin-top:0;">Pet Registration</div>
+          <div id="rrPetsEditor"></div>
+          <button type="button" class="btn btn-outline btn-sm fm-add-btn" id="rrPetAdd">+ Ek Aur Pet Jodein</button>
+        </div>
+        <div class="field">
+          <label for="rr-photo">Photo <span class="t-muted" style="font-weight:400;">(optional)</span></label>
+          <input type="file" name="photo" id="rr-photo" accept="image/*">
         </div>
         <div class="form-2col">
           <div class="field"><label for="rr-password">Login Password</label><input name="password" id="rr-password" type="password" required minlength="6">
@@ -795,7 +1007,7 @@
           <div class="field"><label for="rr-confirmPassword">Confirm Password</label><input name="confirmPassword" id="rr-confirmPassword" type="password" required minlength="6"></div>
         </div>
         <p class="t-muted" style="font-size:12px; line-height:1.6; margin-bottom:14px;">
-          🔒 Yeh jaankari (mobile, email, DOB, family details, Aadhaar/PAN) sirf committee members ko dikhti hai — kabhi public nahi.
+          🔒 Yeh jaankari (mobile, email, DOB, family details) sirf committee members ko dikhti hai — kabhi public nahi.
           Resident ise "My Profile" se khud dekh/edit kar sakta hai, aur flat khali karte waqt personal data erase karwa sakta hai.
           <button type="button" class="link-btn" id="openPrivacyPolicyBtnAdmin">Poori Privacy Policy padhein</button>
         </p>
@@ -816,8 +1028,8 @@
   <div class="modal">
     <div class="modal-head"><h3 style="font-size:16.5px;">Privacy Policy</h3><button class="icon-btn" id="closePrivacyPolicyModal">✕</button></div>
     <div class="modal-body" style="font-size:13px; line-height:1.7;">
-      <p><b>Hum kya data lete hain:</b> Naam, mobile, email, address, photo, Aadhaar/PAN (optional), Date of Birth, Anniversary, family members ke naam/rishta/DOB, aur payment history.</p>
-      <p><b>Kyun lete hain:</b> Membership verify karne, maintenance bill banane, gate/security ke liye photo ID, aur birthday/anniversary par wish karne ke liye. Aadhaar/PAN sirf identity confirm karne ke liye — kahin aur share nahi hoti.</p>
+      <p><b>Hum kya data lete hain:</b> Naam, mobile, email, address, photo, Date of Birth, Anniversary, family members ke naam/rishta/DOB, aur payment history.</p>
+      <p><b>Kyun lete hain:</b> Membership verify karne, maintenance bill banane, gate/security ke liye photo ID, aur birthday/anniversary par wish karne ke liye.</p>
       <p><b>Kaun dekh sakta hai:</b> Sirf society ke committee members (admin panel login) — kabhi public nahi dikhaya jaata.</p>
       <p><b>Kitne time tak:</b> Jab tak resident society mein hai. Financial records audit ke liye lambe samay tak rakhe jaate hain, jaisa kanoon maang karta hai.</p>
       <p><b>Resident ke adhikar:</b> Woh "My Profile" se apna data khud dekh/edit kar sakte hain. Flat bechte/khali karte waqt, committee unka personal data (mobile, email, family details, photo, ID) erase kar sakti hai — sirf naam, flat number, aur financial history surakshit rehti hai.</p>
@@ -1041,14 +1253,15 @@ import {
 } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-storage.js";
 import {
   showToast, escapeHtml, fmtDate, fmtDateTime, formatINR, currentFinancialYear, financialYearOptions,
-  generateMemberId, generateReceiptNumber, logAudit, generateReceiptPDF, exportToExcel, parseExcelFile,
+  generateMemberId, generateReceiptNumber, logAudit, generateReceiptPDF, generateIncomeExpenditurePDF, exportToExcel, parseExcelFile,
   encryptFile, decryptToBlob, backupToDrive, waLink, waShareText, serializeForExport,
   newPublicToken, publicKeyForMember,
   TOWER_IDS, TOWER_PLAN, flatsForTower, isValidFlat,
-  duesFor, DUES_LABEL, DUES_BADGE, membershipDue, eventDue,
-  EXPENSE_CATEGORIES, EXPENSE_MODES, expenseSummary, fundPosition, validateExpense,
+  duesFor, DUES_LABEL, DUES_BADGE, maintenanceHealthStatus, membershipDue, eventDue,
+  EXPENSE_CATEGORIES, EXPENSE_MODES, expenseSummary, fundPosition, treasurerDashboardStats, validateExpense,
   renderPager, skeletonTableRows, emptyState,
   initFamilyMembersEditor, addFamilyMemberRow, collectFamilyMembers,
+  initPetsEditor, addPetCard, collectPets, petVaccinationStatus,
   todaysCelebrations, upcomingCelebrations, celebrationWishMessage
 } from './app-common.js';
 
@@ -1058,6 +1271,7 @@ import {
 let currentAdmin = null;
 let allMembers = [];
 let allPayments = [];
+let allPets = [];
 
 /* Diagnostic helper — run window.__mhmDebugPermissions() from the browser
    console (F12) while logged into the admin panel. Prints exactly what
@@ -1115,14 +1329,14 @@ const ROLE_LABELS = {
   secretary: 'Secretary', jointsecretary: 'Joint Secretary', treasurer: 'Treasurer'
 };
 const ROLE_NAV = {
-  superadmin: ['overview','members','payments','events','expenses','content','importExport','settings','adminUsers','auditLog'],
+  superadmin: ['overview','members','payments','events','expenses','content','calendar','polls','financials','importExport','settings','adminUsers','auditLog'],
   // Office-bearers can see where the money went even though only the
   // Treasurer may record it — that visibility is the point of the ledger.
-  president: ['overview','members','events','expenses','content','auditLog'],
-  vicepresident: ['overview','members','events','expenses','content','auditLog'],
-  secretary: ['overview','members','events','expenses','content','auditLog'],
-  jointsecretary: ['overview','members','events','expenses','content','auditLog'],
-  treasurer: ['overview','members','payments','events','expenses','importExport','auditLog']
+  president: ['overview','members','events','expenses','content','calendar','polls','auditLog'],
+  vicepresident: ['overview','members','events','expenses','content','calendar','polls','auditLog'],
+  secretary: ['overview','members','events','expenses','content','calendar','polls','auditLog'],
+  jointsecretary: ['overview','members','events','expenses','content','calendar','polls','auditLog'],
+  treasurer: ['overview','members','payments','events','expenses','calendar','financials','importExport','auditLog']
 };
 const ACTION_PERMS = {
   approveMembers: ['superadmin','president','vicepresident','secretary','jointsecretary'],
@@ -1317,14 +1531,29 @@ initTowerFlatCascade('rrTowerSelect', 'rrFlatSelect');
 // Register Resident — opens the modal with a fresh form each time (a stale
 // family-member row list from a previous open would otherwise carry over).
 const rrFamilyEditor = document.getElementById('rrFamilyEditor');
+const rrPetsEditor = document.getElementById('rrPetsEditor');
+const rrPetsWrap = document.getElementById('rrPetsWrap');
 document.getElementById('registerResidentBtn')?.addEventListener('click', () => {
   document.getElementById('registerResidentForm').reset();
   if (rrFamilyEditor) initFamilyMembersEditor(rrFamilyEditor);
+  // Same staleness concern as the family editor above — a pet card left
+  // over from a previous open must not silently attach to a different
+  // resident's registration.
+  if (rrPetsEditor) rrPetsEditor.innerHTML = '';
+  if (rrPetsWrap) rrPetsWrap.style.display = 'none';
   document.getElementById('rrFlatSelect').innerHTML = '<option value="">Select tower first</option>';
   document.getElementById('rrFlatSelect').disabled = true;
   document.getElementById('registerResidentModalBackdrop').classList.add('open');
 });
 document.getElementById('rrFamilyAdd')?.addEventListener('click', () => { if (rrFamilyEditor) addFamilyMemberRow(rrFamilyEditor); });
+document.getElementById('rrPetAdd')?.addEventListener('click', () => { if (rrPetsEditor) addPetCard(rrPetsEditor); });
+document.querySelectorAll('input[name="rr-hasPet"]').forEach(radio => {
+  radio.addEventListener('change', () => {
+    const showPets = document.querySelector('input[name="rr-hasPet"]:checked')?.value === 'yes';
+    if (rrPetsWrap) rrPetsWrap.style.display = showPets ? 'block' : 'none';
+    if (showPets && rrPetsEditor && !rrPetsEditor.querySelector('.pet-card')) addPetCard(rrPetsEditor);
+  });
+});
 document.getElementById('closeRegisterResidentModal')?.addEventListener('click', () => {
   document.getElementById('registerResidentModalBackdrop').classList.remove('open');
 });
@@ -1375,6 +1604,70 @@ function switchView(view) {
 }
 document.querySelectorAll('#sideNav button').forEach(btn => btn.addEventListener('click', () => switchView(btn.dataset.view)));
 
+// Universal Search — searches across everything already loaded in memory
+// (Members, Payments, Events, Expenses), so it costs no extra Firestore
+// reads. Clicking a result switches to that view AND opens the same detail
+// screen the sidebar navigation would, reusing the exact same functions
+// (openMemberModal, openPaymentDetail, editEvent, openExpenseModal) rather
+// than building a parallel "preview" UI that could drift out of sync with
+// the real one.
+let usearchActions = [];
+function performUniversalSearch(term) {
+  const results = document.getElementById('usearchResults');
+  const t = term.trim().toLowerCase();
+  if (t.length < 2) { results.classList.remove('open'); results.innerHTML = ''; usearchActions = []; return; }
+
+  const memberMatches = (allMembers || []).filter(m =>
+    `${m.name} ${m.flatNumber} ${m.tower} ${m.mobile} ${m.memberID || ''}`.toLowerCase().includes(t)
+  ).slice(0, 6);
+  const paymentMatches = (allPayments || []).filter(p =>
+    `${p.residentName} ${p.flatNumber} ${p.receiptNumber || ''}`.toLowerCase().includes(t)
+  ).slice(0, 6);
+  const eventMatches = (allEvents || []).filter(ev => `${ev.name || ''}`.toLowerCase().includes(t)).slice(0, 6);
+  const expenseMatches = (allExpenses || []).filter(e =>
+    `${e.description || ''} ${e.paidTo || ''}`.toLowerCase().includes(t)
+  ).slice(0, 6);
+
+  const groups = [
+    { label: 'Members', items: memberMatches, describe: m => ({ title: m.name, sub: `${m.tower}-${m.flatNumber} · ${m.mobile}` }), action: m => { switchView('members'); openMemberModal(m.id); } },
+    { label: 'Payments', items: paymentMatches, describe: p => ({ title: p.residentName, sub: `${formatINR(p.amount)} · ${p.receiptNumber || p.status}` }), action: p => { switchView('payments'); openPaymentDetail(p.id); } },
+    { label: 'Events', items: eventMatches, describe: ev => ({ title: ev.name, sub: ev.active === false ? 'Inactive' : 'Active' }), action: ev => { switchView('events'); editEvent(ev.id); } },
+    { label: 'Expenses', items: expenseMatches, describe: e => ({ title: e.description, sub: `${formatINR(e.amount)} · ${e.category}` }), action: e => { switchView('expenses'); openExpenseModal(e); } }
+  ];
+
+  usearchActions = [];
+  const nonEmpty = groups.filter(g => g.items.length);
+  if (!nonEmpty.length) {
+    results.innerHTML = `<div class="usearch-empty">Kuch nahi mila "${escapeHtml(term)}" ke liye</div>`;
+  } else {
+    results.innerHTML = nonEmpty.map(g => `
+      <div class="usearch-group-label">${escapeHtml(g.label)}</div>
+      ${g.items.map(item => {
+        const { title, sub } = g.describe(item);
+        const idx = usearchActions.length;
+        usearchActions.push(() => g.action(item));
+        return `<button type="button" class="usearch-item" data-usearch-idx="${idx}"><b>${escapeHtml(title || '—')}</b><span class="usearch-sub">${escapeHtml(sub || '')}</span></button>`;
+      }).join('')}
+    `).join('');
+    results.querySelectorAll('[data-usearch-idx]').forEach(el => {
+      el.addEventListener('click', () => {
+        const fn = usearchActions[Number(el.dataset.usearchIdx)];
+        if (fn) fn();
+        document.getElementById('universalSearch').value = '';
+        results.classList.remove('open'); results.innerHTML = ''; usearchActions = [];
+      });
+    });
+  }
+  results.classList.add('open');
+}
+document.getElementById('universalSearch')?.addEventListener('input', (e) => performUniversalSearch(e.target.value));
+// Clicking away closes the results without needing to clear the input —
+// the search term itself is left in place in case they want to reopen it.
+document.addEventListener('click', (e) => {
+  const wrap = document.getElementById('usearchWrap');
+  if (wrap && !wrap.contains(e.target)) document.getElementById('usearchResults')?.classList.remove('open');
+});
+
 /* ---------------------------------------------------------------------- */
 /*  Boot: load core collections once, then render every view               */
 /* ---------------------------------------------------------------------- */
@@ -1397,6 +1690,14 @@ async function bootData() {
   renderDefaulters();
   renderExpenses();
   loadContentPanels();
+  loadCalendarPanel();
+  loadPollsPanel();
+  loadPets();
+  // Closing's checklist reads window.__bankTxs, which loadBankReconciliation()
+  // sets — sequenced explicitly so closing never checks that count before
+  // it's actually loaded.
+  (async () => { await loadBankReconciliation(); loadClosingPanel(); })();
+  loadBudgetPanel();
   loadSettingsForms();
   renderBackupAge();
   loadAdmins();
@@ -1419,11 +1720,132 @@ async function reloadPayments() {
     console.warn('Payments read failed:', e?.code || e);
     showToast(`Payments list load nahi ho payi${e?.code ? ` (${e.code})` : ''} — page refresh karke dobara try karein.`, 'error');
   }
+  republishPublicSummary();
+}
+
+// Public Financial Summary — the pre-login "Accounts" page reads ONLY this
+// aggregate document, never the raw payments/expenses collections (whose
+// read rules are member-scoped / admin-only respectively, so an anonymous
+// visitor's browser could never actually query them). Re-written here so it
+// stays in sync with whatever the currently-loaded allPayments/allExpenses
+// say, without needing a manual call added at every individual mutation
+// site — reloadPayments()/reloadExpenses() already run after every one of
+// them, so hooking in here covers all of them at once. Silently skipped for
+// roles that can't write it (the rule matches canVerifyPayments()) rather
+// than showing an error the person can't do anything about.
+async function republishPublicSummary() {
+  if (!can('verifyPayments')) return;
+  try {
+    const fy = currentFinancialYear();
+    const pos = fundPosition(allPayments, allExpenses, fy);
+    const summary = expenseSummary(allExpenses, fy);
+    await setDoc(doc(db, 'publicFinancialSummary', fy), {
+      collected: pos.collected, spent: pos.spent, balance: pos.balance,
+      categories: summary.categories,
+      updatedAt: serverTimestamp(), updatedBy: currentAdmin?.email || null
+    });
+  } catch (e) {
+    console.warn('Public summary republish failed (non-fatal — the admin dashboard itself is unaffected):', e?.code || e);
+  }
 }
 
 /* ---------------------------------------------------------------------- */
 /*  Overview                                                               */
 /* ---------------------------------------------------------------------- */
+// Treasurer Dashboard — cash/bank split, this-month collection/spend,
+// outstanding dues, all pulled together in one glance. Everything shown
+// here is computed from data this app already has; nothing is invented.
+// Two tiles are honestly labelled "not set up yet" rather than showing a
+// fake number — Bank Reconciliation and Upcoming Bills both need features
+// this project doesn't have (a bank-statement feed, and a recurring-expense
+// schedule respectively).
+// window.__bankTxs is set by loadBankReconciliation(), which runs async and
+// may not have finished by the time this first renders — showing "—" until
+// then is correct (there's genuinely nothing to report yet), and
+// loadBankReconciliation() calls renderTreasurerDashboard() again once its
+// data is in, so this tile doesn't stay stuck at "—".
+function reconTileValue() {
+  const txs = window.__bankTxs;
+  if (!txs || !txs.length) return '—';
+  const accountedFor = txs.filter(t => t.status === 'matched' || t.status === 'ignored').length;
+  return `${Math.round((accountedFor / txs.length) * 100)}%`;
+}
+function reconTileNote() {
+  const txs = window.__bankTxs;
+  if (!txs || !txs.length) return 'Bank transactions abhi jodi nahi gayi';
+  const unmatched = txs.filter(t => !t.status || t.status === 'unmatched').length;
+  return unmatched > 0 ? `${unmatched} unmatched` : 'Sab match ho gaya';
+}
+
+// Command Center — everything currently waiting on someone, as one row of
+// clickable numbers. Each pill only appears when its count is actually
+// above zero (an empty "0 pending" pill is noise, not a call to action) AND
+// the viewer can actually do something about it — same permission gate the
+// underlying action itself uses, so nobody sees a pill for a queue they
+// can't touch. Takes pendingApprovals/pendingPayments as arguments since
+// renderOverview() already computed them; expense and bank-tx counts are
+// read straight from their own already-loaded arrays.
+function renderCommandCenter(pendingMemberCount, pendingPaymentCount) {
+  const strip = document.getElementById('commandCenterStrip');
+  if (!strip) return;
+  const pendingExpenseCount = allExpenses.filter(e => e.status === 'pending_approval').length;
+  const unmatchedBankCount = (window.__bankTxs || []).filter(t => !t.status || t.status === 'unmatched').length;
+  const petVaxCount = allPets.filter(p => ['overdue', 'due_soon'].includes(petVaccinationStatus(p).status)).length;
+
+  const pills = [
+    { count: pendingPaymentCount, label: 'Payments Pending', show: can('verifyPayments'), go: () => switchView('payments') },
+    { count: pendingMemberCount, label: 'Member Approvals', show: can('approveMembers'), go: () => switchView('members') },
+    { count: pendingExpenseCount, label: 'Expense Approvals', show: can('recordExpenses'), go: () => switchView('expenses') },
+    { count: unmatchedBankCount, label: 'Bank Unmatched', show: can('verifyPayments'), go: () => switchView('financials') },
+    // Lives on Overview itself (not a separate tab), so this scrolls to it
+    // instead of switching views — visible to any role that can see
+    // Overview at all, since a pet-safety issue isn't a Treasurer-only or
+    // President-only concern the way money/approvals are.
+    { count: petVaxCount, label: 'Pet Vaccinations', show: true, go: () => document.getElementById('petVaxCard')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }
+  ].filter(p => p.show && p.count > 0);
+
+  window.__ccActions = pills.map(p => p.go);
+  strip.innerHTML = pills.map((p, i) => `
+    <button type="button" class="cc-pill" data-cc-idx="${i}">
+      <span class="cc-num">${p.count}</span>
+      <span class="cc-lbl">${escapeHtml(p.label)}</span>
+    </button>`).join('');
+  strip.querySelectorAll('[data-cc-idx]').forEach(btn =>
+    btn.addEventListener('click', () => window.__ccActions[Number(btn.dataset.ccIdx)]?.()));
+}
+
+function renderTreasurerDashboard() {
+  const card = document.getElementById('treasurerDashCard');
+  if (!card) return;
+  if (!can('verifyPayments')) { card.style.display = 'none'; return; }
+  card.style.display = 'block';
+
+  const stats = treasurerDashboardStats(allPayments, allExpenses);
+  const outstanding = outstandingMembers();
+  const outstandingTotal = outstanding.reduce((s, x) => s + x.d.outstanding, 0);
+
+  const tile = (label, value, note) => `
+    <div class="td-tile">
+      <div class="td-label">${escapeHtml(label)}</div>
+      <div class="td-value">${value}</div>
+      ${note ? `<div class="td-note">${escapeHtml(note)}</div>` : ''}
+    </div>`;
+
+  document.getElementById('treasurerDashGrid').innerHTML = [
+    tile('Bank Balance', formatINR(stats.bankBalance), 'Cheque + UPI + Netbanking'),
+    tile('Cash Balance', formatINR(stats.cashBalance), 'Hand mein cash'),
+    tile('Collection (Is Month)', formatINR(stats.thisMonthCollection)),
+    tile('Expenses (Is Month)', formatINR(stats.thisMonthExpenses)),
+    tile('Outstanding Maintenance', formatINR(outstandingTotal), `${outstanding.length} member${outstanding.length === 1 ? '' : 's'} — FY ${selectedFY}`),
+    tile(
+      stats.monthSurplus >= 0 ? 'Is Month Surplus' : 'Is Month Deficit',
+      `<span style="color:${stats.monthSurplus >= 0 ? 'var(--success,#1E7D4B)' : 'var(--danger,#C0392B)'}">${formatINR(Math.abs(stats.monthSurplus))}</span>`
+    ),
+    tile('Bank Reconciliation', reconTileValue(), reconTileNote()),
+    tile('Upcoming Bills', '—', 'Recurring expenses abhi track nahi hote')
+  ].join('');
+}
+
 function renderOverview() {
   const approved = allMembers.filter(m => m.status === 'approved');
   const pendingApprovals = allMembers.filter(m => m.status === 'pending');
@@ -1431,10 +1853,18 @@ function renderOverview() {
   const verifiedThisFY = allPayments.filter(p => p.status === 'verified' && p.financialYear === selectedFY);
   const collected = verifiedThisFY.reduce((s, p) => s + Number(p.amount || 0), 0);
 
+  renderTreasurerDashboard();
+  renderCommandCenter(pendingApprovals.length, pendingPayments.length);
+
   document.getElementById('statTotalMembers').textContent = approved.length;
   document.getElementById('statPendingApprovals').textContent = pendingApprovals.length;
   document.getElementById('statPendingPayments').textContent = pendingPayments.length;
   document.getElementById('statCollected').textContent = formatINR(collected);
+
+  // Only whoever can already verify payments sees the Income & Expenditure
+  // download — same permission level as every other financial action.
+  const ieCard = document.getElementById('incomeExpCard');
+  if (ieCard) ieCard.style.display = can('verifyPayments') ? 'block' : 'none';
 
   // Fund balance — the single number a treasurer checks first: what's
   // actually left after this year's expenses, not just what came in. Reuses
@@ -1444,6 +1874,22 @@ function renderOverview() {
   const balEl = document.getElementById('statFundBalance');
   balEl.textContent = formatINR(pos.balance);
   balEl.style.color = pos.balance < 0 ? 'var(--danger)' : '';
+
+  // Collection Efficiency — what fraction of this year's expected
+  // maintenance has actually come in, across every approved member. Someone
+  // who overpaid still caps their contribution at 100% of what they owed
+  // (Math.min), so one generous resident can't make the whole society look
+  // better-collected than it really is.
+  const effEl = document.getElementById('statCollectionEfficiency');
+  if (effEl) {
+    let totalExpected = 0, totalPaidTowardExpected = 0;
+    approved.forEach(m => {
+      const d = duesFor(m, allPayments, selectedFY, maintenanceSettings);
+      totalExpected += d.expected;
+      totalPaidTowardExpected += Math.min(d.paid, d.expected);
+    });
+    effEl.textContent = totalExpected > 0 ? `${Math.round((totalPaidTowardExpected / totalExpected) * 100)}%` : '—';
+  }
 
   const monthly = {};
   verifiedThisFY.forEach(p => {
@@ -1537,6 +1983,66 @@ function renderCelebrations() {
       });
     }
   }
+}
+
+async function loadPets() {
+  try {
+    allPets = (await getDocs(collection(db, 'pets'))).docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch (e) {
+    console.warn('Pets read failed:', e?.code || e);
+    allPets = [];
+  }
+  renderPetVaxReminders();
+  // Command Center's Pet Vaccinations pill also depends on allPets, and
+  // wasn't ready the first time renderOverview() ran.
+  renderOverview();
+}
+
+const PET_ICON = { dog: '🐕', cat: '🐈', bird: '🐦', other: '🐾' };
+function petVaxReminderMessage(pet) {
+  const st = petVaccinationStatus(pet);
+  const overdue = st.status === 'overdue';
+  const line1 = overdue
+    ? `Namaste! ${pet.ownerName} ji, aapke pet "${pet.name}" ki vaccination ${Math.abs(st.daysUntil)} din pehle expire ho chuki hai.`
+    : `Namaste! ${pet.ownerName} ji, aapke pet "${pet.name}" ki vaccination ${st.daysUntil} din mein due hai.`;
+  return `${line1}\nKripya apne vet se re-vaccination karwa kar record update karwa dein.\n— ${SOCIETY.fullName || 'Society'}`;
+}
+function renderPetVaxReminders() {
+  const card = document.getElementById('petVaxCard');
+  const list = document.getElementById('petVaxList');
+  if (!card || !list) return;
+
+  const owners = new Map(allMembers.map(m => [m.uid, m]));
+  const flagged = allPets
+    .map(pet => ({ pet, st: petVaccinationStatus(pet) }))
+    .filter(x => x.st.status === 'overdue' || x.st.status === 'due_soon')
+    // Most overdue first, then soonest-due — the thing needing the most
+    // urgent follow-up should never be scrolled past.
+    .sort((a, b) => a.st.daysUntil - b.st.daysUntil);
+
+  if (!flagged.length) { card.style.display = 'none'; list.innerHTML = ''; return; }
+  card.style.display = 'block';
+  list.innerHTML = flagged.map(({ pet, st }, i) => {
+    const owner = owners.get(pet.ownerUid);
+    const mobile = owner?.mobile || '';
+    return `
+    <div class="celeb-item">
+      <div class="celeb-icon">${PET_ICON[pet.species] || '🐾'}</div>
+      <div class="celeb-info">
+        <div class="celeb-name">${escapeHtml(pet.name)} <span class="t-muted" style="font-weight:400;">(${escapeHtml(pet.ownerName || '—')})</span></div>
+        <div class="celeb-sub">
+          Flat ${escapeHtml(pet.flatNumber || '—')} ·
+          ${st.status === 'overdue' ? `<span style="color:var(--danger,#C0392B);">${Math.abs(st.daysUntil)} din overdue</span>` : `${st.daysUntil} din mein due`}
+        </div>
+      </div>
+      ${mobile ? `<a class="btn btn-primary btn-sm" data-petvax-wa="${i}" target="_blank" rel="noopener">WhatsApp Bhejein</a>` : '<span class="t-muted" style="font-size:11.5px;">Mobile nahi mila</span>'}
+    </div>`;
+  }).join('');
+  list.querySelectorAll('[data-petvax-wa]').forEach(a => {
+    const { pet } = flagged[Number(a.dataset.petvaxWa)];
+    const owner = owners.get(pet.ownerUid);
+    if (owner?.mobile) a.href = waLink(owner.mobile, petVaxReminderMessage(pet));
+  });
 }
 
 /* This-month snapshot for the committee: money collected this calendar month,
@@ -1789,6 +2295,17 @@ async function reloadExpenses() {
     console.error('Expenses read failed:', e?.code || e);
     showToast(`Kharche load nahi hue${e?.code ? ` (${e.code})` : ''} — yeh khaali list nahi hai, refresh karein.`, 'error');
   }
+  republishPublicSummary();
+}
+
+const EXPENSE_STATUS_BADGE = {
+  pending_approval: '<span class="badge badge-warning">Pending</span>',
+  rejected: '<span class="badge badge-danger">Rejected</span>'
+};
+// A missing status is a legacy expense (written before this workflow
+// existed) — treated as approved, same as the filter in expenseSummary().
+function expenseStatusBadge(e) {
+  return EXPENSE_STATUS_BADGE[e.status] || '<span class="badge badge-success">Approved</span>';
 }
 
 function renderExpenses() {
@@ -1810,8 +2327,12 @@ function renderExpenses() {
     [{ data: summary.categories.map(c => c.amount),
        backgroundColor: ['#0F2547','#F27B0E','#C9A227','#1B7A4D','#C01860','#2B5AA6','#B5760A','#7C879C','#8F7115','#1F4585','#A31350','#465066'] }]);
 
-  const rows = allExpenses.filter(e => e.financialYear === fy);
-  const canEdit = can('recordExpenses');
+  const canApprove = can('recordExpenses');   // Treasurer/Super Admin: approve, edit, delete, direct-entry
+  const canRequest = can('approveMembers') && !canApprove;   // other office-bearers: request only
+
+  // Main ledger shows everything EXCEPT pending requests — those live in
+  // their own card above so they don't get lost among finalised entries.
+  const rows = allExpenses.filter(e => e.financialYear === fy && e.status !== 'pending_approval');
   document.getElementById('expensesBody').innerHTML = rows.map(e => `
     <tr>
       <td data-label="Date">${fmtDate(e.date)}</td>
@@ -1819,8 +2340,9 @@ function renderExpenses() {
       <td data-label="Category">${escapeHtml(e.category || '—')}</td>
       <td data-label="Paid To">${escapeHtml(e.paidTo || '—')}${e.billLink ? ` <a href="${escapeHtml(e.billLink)}" target="_blank" rel="noopener" style="text-decoration:underline;">bill</a>` : ''}</td>
       <td data-label="Amount"><b>${formatINR(e.amount)}</b></td>
-      <td data-label="Actions">${canEdit ? `<div style="display:flex; gap:6px;"><button class="btn btn-outline btn-sm" data-edit-exp="${e.id}">Edit</button><button class="btn btn-danger btn-sm" data-del-exp="${e.id}">Delete</button></div>` : '<span class="t-muted" style="font-size:12px;">view only</span>'}</td>
-    </tr>`).join('') || `<tr><td colspan="6" class="t-muted">FY ${escapeHtml(fy)} mein abhi koi kharcha darj nahi hai.</td></tr>`;
+      <td data-label="Status">${expenseStatusBadge(e)}</td>
+      <td data-label="Actions">${canApprove ? `<div style="display:flex; gap:6px;"><button class="btn btn-outline btn-sm" data-edit-exp="${e.id}">Edit</button><button class="btn btn-danger btn-sm" data-del-exp="${e.id}">Delete</button></div>` : '<span class="t-muted" style="font-size:12px;">view only</span>'}</td>
+    </tr>`).join('') || `<tr><td colspan="7" class="t-muted">FY ${escapeHtml(fy)} mein abhi koi kharcha darj nahi hai.</td></tr>`;
 
   document.querySelectorAll('[data-edit-exp]').forEach(b => b.addEventListener('click', () => openExpenseModal(allExpenses.find(x => x.id === b.dataset.editExp))));
   document.querySelectorAll('[data-del-exp]').forEach(b => b.addEventListener('click', async () => {
@@ -1839,9 +2361,51 @@ function renderExpenses() {
     }
   }));
 
-  // Only the Treasurer records spending; everyone else sees a read-only ledger.
-  const addBtn = document.getElementById('addExpenseBtn');
-  if (addBtn) addBtn.style.display = canEdit ? 'inline-flex' : 'none';
+  document.getElementById('addExpenseBtn').style.display = canApprove ? 'inline-flex' : 'none';
+  document.getElementById('requestExpenseBtn').style.display = canRequest ? 'inline-flex' : 'none';
+
+  // Pending Approval Requests — Treasurer/Super Admin only, and only shown
+  // at all when there's genuinely something waiting.
+  const pendingCard = document.getElementById('expensePendingCard');
+  const pending = allExpenses.filter(e => e.status === 'pending_approval');
+  if (canApprove && pending.length) {
+    pendingCard.style.display = 'block';
+    document.getElementById('expensePendingList').innerHTML = pending.map(e => `
+      <div class="list-edit-item" style="align-items:flex-start;">
+        <div>
+          <b style="font-size:13.5px;">${escapeHtml(e.description)}</b> — <span class="mono">${formatINR(e.amount)}</span>
+          <div class="t-muted" style="font-size:11.5px; margin-top:2px;">
+            ${escapeHtml(e.category || '—')} · ${escapeHtml(e.paidTo || '—')} · Requested by ${escapeHtml(e.requestedBy || '—')}
+          </div>
+        </div>
+        <div style="display:flex; gap:6px; flex-shrink:0;">
+          <button class="btn btn-primary btn-sm" data-approve-exp="${e.id}">Approve</button>
+          <button class="btn btn-danger btn-sm" data-reject-exp="${e.id}">Reject</button>
+        </div>
+      </div>`).join('');
+    document.querySelectorAll('[data-approve-exp]').forEach(b => b.addEventListener('click', () => decideExpenseRequest(b.dataset.approveExp, 'approved')));
+    document.querySelectorAll('[data-reject-exp]').forEach(b => b.addEventListener('click', () => decideExpenseRequest(b.dataset.rejectExp, 'rejected')));
+  } else {
+    pendingCard.style.display = 'none';
+  }
+}
+
+async function decideExpenseRequest(id, decision) {
+  const e = allExpenses.find(x => x.id === id);
+  const verb = decision === 'approved' ? 'Approve' : 'Reject';
+  if (!confirm(`"${e?.description}" (${formatINR(e?.amount)}) ko ${decision === 'approved' ? 'approve' : 'reject'} karein?`)) return;
+  try {
+    await updateDoc(doc(db, 'expenses', id), {
+      status: decision, decidedBy: currentAdmin.email, decidedAt: serverTimestamp()
+    });
+    await logAudit(auth.currentUser, decision === 'approved' ? 'approve_expense' : 'reject_expense', { id, description: e?.description, amount: e?.amount });
+    showToast(`Request ${decision === 'approved' ? 'approve' : 'reject'} ho gayi.`, 'success');
+    await reloadExpenses(); renderExpenses(); renderOverview();
+  } catch (err) {
+    console.error(`${verb} expense failed:`, err);
+    const code = err?.code || '';
+    showToast(`${verb} nahi ho paaya${code ? ` (${code})` : ''}.`, 'error');
+  }
 }
 
 // Shared by "+ Add Expense" (no argument) and the per-row "Edit" button
@@ -1870,6 +2434,7 @@ function openExpenseModal(existing = null) {
   document.getElementById('expenseModalBackdrop').classList.add('open');
 }
 document.getElementById('addExpenseBtn')?.addEventListener('click', () => openExpenseModal());
+document.getElementById('requestExpenseBtn')?.addEventListener('click', () => openExpenseModal());
 document.getElementById('closeExpenseModal')?.addEventListener('click', () =>
   document.getElementById('expenseModalBackdrop').classList.remove('open'));
 
@@ -1909,15 +2474,23 @@ document.getElementById('expenseForm')?.addEventListener('submit', async (e) => 
       await logAudit(auth.currentUser, 'edit_expense', { id: editingId, ...payload, financialYear: fy });
       showToast('Kharcha update ho gaya.', 'success');
     } else {
+      // Status is decided by the SUBMITTER'S actual permission, not by
+      // which button they clicked — Treasurer/Super Admin's entry is final
+      // immediately (their existing, unchanged workflow); anyone else who
+      // can reach this form at all can only ever create a pending request,
+      // exactly what the rules on the server side also enforce.
+      const isDirect = can('recordExpenses');
       await addDoc(collection(db, 'expenses'), {
         ...payload,
         reference: f.reference.value.trim(),
         billLink: f.billLink.value.trim(),
         date: when, financialYear: fy,
+        status: isDirect ? 'approved' : 'pending_approval',
+        requestedBy: isDirect ? null : currentAdmin.email,
         addedBy: currentAdmin.email, addedAt: serverTimestamp()
       });
-      await logAudit(auth.currentUser, 'add_expense', { ...payload, financialYear: fy });
-      showToast(`Kharcha FY ${fy} mein add ho gaya.`, 'success');
+      await logAudit(auth.currentUser, isDirect ? 'add_expense' : 'request_expense', { ...payload, financialYear: fy });
+      showToast(isDirect ? `Kharcha FY ${fy} mein add ho gaya.` : 'Request bhej di gayi — Treasurer approval ka wait karein.', 'success');
     }
     document.getElementById('expenseModalBackdrop').classList.remove('open');
     f.reset();
@@ -2119,9 +2692,20 @@ document.getElementById('closeMemberModal').addEventListener('click', () => docu
 // there does not block the Firestore erase, since the Firestore fields are
 // the part actually visible to anyone browsing the member record.
 async function erasePersonalData(m) {
+  // Checked up front (not just in the confirm text) so the confirm dialog
+  // can honestly say whether pets are part of what's about to disappear —
+  // pets have no audit-trail reason to survive an erasure the way payment
+  // history does, so this deletes them outright rather than trying to
+  // "erase but keep" the way the member record itself does.
+  let ownedPets = [];
+  try {
+    ownedPets = (await getDocs(query(collection(db, 'pets'), where('ownerUid', '==', m.uid)))).docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch (e) { console.warn('Pet lookup before erase failed:', e?.code || e); }
+
   if (!confirm(
     `${m.name} (${m.tower}-${m.flatNumber}) ka personal data poori tarah erase karein?\n\n` +
-    `ERASE HOGA: mobile, email, address, DOB, anniversary, family members, nominee details, photo, ID document.\n` +
+    `ERASE HOGA: mobile, email, address, DOB, anniversary, family members, nominee details, photo, ID document` +
+    `${ownedPets.length ? `, aur ${ownedPets.length} pet record${ownedPets.length === 1 ? '' : 's'} (${ownedPets.map(p => p.name).join(', ')})` : ''}.\n` +
     `SURAKSHIT RAHEGA: naam, flat, Member ID, aur poora payment/kharcha history (audit ke liye zaroori).\n\n` +
     `Yeh wapas nahi ho sakta.`
   )) return;
@@ -2132,6 +2716,9 @@ async function erasePersonalData(m) {
     if (m.idDocURL) {
       try { await deleteObject(storageRef(storage, m.idDocURL)); } catch (e) { console.warn('ID doc delete failed:', e?.code || e); }
     }
+    for (const pet of ownedPets) {
+      try { await deleteDoc(doc(db, 'pets', pet.id)); } catch (e) { console.warn('Pet delete failed:', pet.id, e?.code || e); }
+    }
     await updateDoc(doc(db, 'members', m.id), {
       mobile: '', email: '', address: '', fatherHusbandName: '', occupation: '',
       dob: null, anniversary: null, familyMembers: [],
@@ -2140,10 +2727,10 @@ async function erasePersonalData(m) {
       dataErasedAt: serverTimestamp(), dataErasedBy: currentAdmin.email,
       updatedAt: serverTimestamp()
     });
-    await logAudit(auth.currentUser, 'erase_personal_data', { memberId: m.id, name: m.name, flat: `${m.tower}-${m.flatNumber}` });
+    await logAudit(auth.currentUser, 'erase_personal_data', { memberId: m.id, name: m.name, flat: `${m.tower}-${m.flatNumber}`, petsDeleted: ownedPets.length });
     showToast('Personal data erase ho gaya. Financial history surakshit hai.', 'success');
     document.getElementById('memberModalBackdrop').classList.remove('open');
-    await reloadMembers(); renderMembersTable(); renderOverview();
+    await reloadMembers(); renderMembersTable(); renderOverview(); await loadPets();
   } catch (err) {
     console.error('Erase personal data failed:', err);
     const code = err?.code || '';
@@ -2278,6 +2865,22 @@ async function submitMemberEdit(e, original) {
       }
     }
     await logAudit(auth.currentUser, 'edit_member', { memberId: original.id, flatChanged });
+
+    // Pets store the owner's name/tower/flat denormalized (so the
+    // vaccination reminder doesn't need a members lookup per pet) — keep
+    // those in step whenever the source of truth actually changes, or the
+    // reminder card would keep showing a resident's old flat/name after a
+    // legitimate correction or transfer.
+    if (patch.name !== original.name || flatChanged) {
+      try {
+        const ownedPets = (await getDocs(query(collection(db, 'pets'), where('ownerUid', '==', original.uid)))).docs;
+        for (const petDoc of ownedPets) {
+          await updateDoc(doc(db, 'pets', petDoc.id), { ownerName: patch.name, tower, flatNumber });
+        }
+        if (ownedPets.length) await loadPets();
+      } catch (e) { console.warn('Pet denormalization sync failed (non-fatal):', e?.code || e); }
+    }
+
     showToast('Member ki details update ho gayi.', 'success');
     document.getElementById('memberModalBackdrop').classList.remove('open');
     await reloadMembers(); renderMembersTable(); renderOverview(); populateTowerFilter();
@@ -2452,6 +3055,14 @@ document.querySelectorAll('[data-ptab]').forEach(btn => btn.addEventListener('cl
   document.getElementById('paymentsDefaultersPanel').style.display = btn.dataset.ptab === 'defaulters' ? 'block' : 'none';
 }));
 
+document.querySelectorAll('[data-ftab]').forEach(btn => btn.addEventListener('click', () => {
+  document.querySelectorAll('[data-ftab]').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('financialsReconPanel').style.display = btn.dataset.ftab === 'recon' ? 'block' : 'none';
+  document.getElementById('financialsBudgetPanel').style.display = btn.dataset.ftab === 'budget' ? 'block' : 'none';
+  document.getElementById('financialsClosingPanel').style.display = btn.dataset.ftab === 'closing' ? 'block' : 'none';
+}));
+
 function renderPendingPayments() {
   updateNavBadges();
   const rows = allPayments.filter(p => p.status === 'pending_approval' || p.status === 'pending_verification');
@@ -2550,7 +3161,7 @@ function renderAllPayments() {
   if (term) {
     rows = rows.filter(p => `${p.residentName} ${p.flatNumber} ${p.receiptNumber || ''}`.toLowerCase().includes(term));
   }
-  const badge = { pending_approval: 'badge-warning', pending_verification: 'badge-warning', verified: 'badge-success', rejected: 'badge-danger' };
+  const badge = { pending_approval: 'badge-warning', pending_verification: 'badge-warning', verified: 'badge-success', rejected: 'badge-danger', voided: 'badge-neutral' };
   const body = document.getElementById('allPaymentsBody');
   const pager = document.getElementById('allPaymentsPager');
 
@@ -2589,6 +3200,28 @@ document.getElementById('exportPaymentsBtn').addEventListener('click', () => {
   })), 'payments.xlsx', 'Payments');
 });
 
+document.getElementById('downloadIncomeExpBtn')?.addEventListener('click', async () => {
+  const btn = document.getElementById('downloadIncomeExpBtn');
+  btn.disabled = true;
+  try {
+    let society;
+    try {
+      const societySnap = await getDoc(doc(db, 'settings', 'society'));
+      society = societySnap.exists() ? societySnap.data() : { fullName: SOCIETY.fullName, regNumber: '' };
+    } catch (e) { society = { fullName: SOCIETY.fullName, regNumber: '' }; }
+    await generateIncomeExpenditurePDF({
+      payments: allPayments, expenses: allExpenses, society,
+      financialYear: selectedFY, logoDataUrl: window.__MHM_LOGO
+    });
+    await logAudit(auth.currentUser, 'download_income_expenditure', { financialYear: selectedFY });
+  } catch (err) {
+    console.error('Income & Expenditure PDF failed:', err);
+    showToast('Statement download nahi ho paayi. Dobara try karein.', 'error');
+  } finally {
+    btn.disabled = false;
+  }
+});
+
 function openPaymentDetail(id) {
   const p = allPayments.find(x => x.id === id);
   if (!p) return;
@@ -2618,13 +3251,53 @@ function renderPaymentDetailView(p) {
         <button class="btn btn-danger btn-sm" id="rejectPayBtn">✕ Reject</button>` : ''}
       ${can('verifyPayments') ? `
         <button class="btn btn-outline btn-sm" id="editPayBtn">✎ Edit (galti theek karein)</button>
-        <button class="btn btn-ghost btn-sm t-danger" id="deletePayBtn">🗑 Delete Entry</button>` : ''}
+        ${p.status === 'verified'
+          ? `<button class="btn btn-ghost btn-sm t-danger" id="voidPayBtn">⊘ Void Payment</button>`
+          : `<button class="btn btn-ghost btn-sm t-danger" id="deletePayBtn">🗑 Delete Entry</button>`}` : ''}
     </div>
   `;
   document.getElementById('verifyBtn')?.addEventListener('click', () => verifyPayment(p.id));
   document.getElementById('rejectPayBtn')?.addEventListener('click', () => rejectPayment(p.id));
   document.getElementById('editPayBtn')?.addEventListener('click', () => renderPaymentDetailEdit(p));
   document.getElementById('deletePayBtn')?.addEventListener('click', () => deletePaymentEntry(p));
+  document.getElementById('voidPayBtn')?.addEventListener('click', () => voidPaymentEntry(p));
+}
+
+// Voiding a VERIFIED payment — the rules no longer permit hard-deleting one
+// (see firestore.rules for the reasoning: a receipt may already be in
+// someone's hands, and the record has already moved money in the books).
+// This keeps the document, exactly as it was, and adds a status + reason
+// that every dues/fund calculation already excludes automatically — they
+// all filter on status === 'verified' specifically, so 'voided' falls out
+// of every total with no separate exclusion logic needed anywhere else.
+async function voidPaymentEntry(p) {
+  const reason = prompt(`"${p.residentName}" ka ${formatINR(p.amount)} payment void karne ki wajah likhein:`);
+  if (reason === null) return;
+  if (!reason.trim()) { showToast('Void karne ki wajah likhna zaroori hai.', 'error'); return; }
+  if (!confirm(`Void karne ke baad yeh payment kisi ke dues mein count nahi hoga. Confirm karein?`)) return;
+  try {
+    await updateDoc(doc(db, 'payments', p.id), {
+      status: 'voided', voidReason: reason.trim(),
+      voidedBy: auth.currentUser?.email || currentAdmin.email, voidedAt: serverTimestamp()
+    });
+    // The public receipt (what verify.html shows for a QR scan) is updated,
+    // not deleted — someone checking an old receipt should see "VOIDED",
+    // which is more protective against a stale/fraudulent reuse than a
+    // generic "not found" would be.
+    if (p.publicToken) {
+      try {
+        await updateDoc(doc(db, 'receiptsPublic', p.publicToken), { status: 'Voided' });
+      } catch (e2) { console.warn('receiptsPublic void-sync failed (non-fatal):', e2?.code || e2); }
+    }
+    await logAudit(auth.currentUser, 'void_payment', { paymentId: p.id, amount: p.amount, residentName: p.residentName, reason: reason.trim() });
+    showToast('Payment void ho gaya.', 'success');
+    document.getElementById('paymentDetailModalBackdrop').classList.remove('open');
+    await reloadPayments(); renderPendingPayments(); renderAllPayments(); renderOverview(); renderDefaulters();
+  } catch (err) {
+    console.error('Void payment failed:', err);
+    const code = err?.code || '';
+    showToast(`Void nahi ho paaya${code ? ` (${code})` : ''}.`, 'error');
+  }
 }
 
 // Correction form — lets the Treasurer fix a genuine data-entry mistake
@@ -2700,7 +3373,7 @@ async function submitPaymentEdit(e, original) {
 }
 
 async function deletePaymentEntry(p) {
-  if (!confirm(`${p.residentName} (${p.flatNumber}) ki ${formatINR(p.amount)} ki entry poori tarah delete karein?\n\nYeh wapas nahi ho sakta. Agar receipt ban chuka hai, woh bhi verify hona band ho jaayega.`)) return;
+  if (!confirm(`${p.residentName} (${p.flatNumber}) ki ${formatINR(p.amount)} ki entry poori tarah delete karein?\n\nYeh sirf abhi tak verify nahi hui entries ke liye hai — isse kisi ka dues affected nahi hai. Yeh wapas nahi ho sakta.`)) return;
   try {
     await deleteDoc(doc(db, 'payments', p.id));
     if (p.publicToken) {
@@ -2991,7 +3664,7 @@ function renderDefaulters() {
 
   const noRate = !maintenanceSettings?.rates?.[selectedFY];
   if (noRate) {
-    body.innerHTML = `<tr><td colspan="5" class="t-muted">
+    body.innerHTML = `<tr><td colspan="6" class="t-muted">
       FY ${escapeHtml(selectedFY)} ka maintenance rate set nahi hai, isliye bakaya calculate nahi ho sakta.
       Settings &rarr; Maintenance Rate mein jaakar rate daalein.</td></tr>`;
     if (totalEl) totalEl.textContent = '';
@@ -3005,17 +3678,58 @@ function renderDefaulters() {
       : 'Sab flats ka bhugtan poora hai';
   }
 
-  body.innerHTML = rows.map(({ m, d }) => `
+  const canDispute = can('verifyPayments');
+  body.innerHTML = rows.map(({ m, d }) => {
+    const health = maintenanceHealthStatus(m, allPayments, selectedFY, maintenanceSettings);
+    return `
     <tr>
       <td data-label="Resident">${escapeHtml(m.name)}</td>
       <td data-label="Flat / Tower">${escapeHtml(m.flatNumber)} / ${escapeHtml(m.tower)}</td>
       <td data-label="Outstanding"><b class="t-danger">${formatINR(d.outstanding)}</b>
         <span class="t-muted" style="font-size:11.5px;"> of ${formatINR(d.expected)}</span></td>
-      <td data-label="Status"><span class="badge ${DUES_BADGE[d.status]}">${escapeHtml(DUES_LABEL[d.status])}</span></td>
+      <td data-label="Health">${health.icon} ${escapeHtml(health.label)}
+        ${health.level === 'disputed' && m.duesDisputedReason ? `<div class="t-muted" style="font-size:11px;">${escapeHtml(m.duesDisputedReason)}</div>` : ''}</td>
       <td data-label="Remind"><a class="btn btn-outline btn-sm" target="_blank" rel="noopener"
         href="${waLink(m.mobile, defaulterReminderText(m, d))}">WhatsApp</a></td>
-    </tr>
-  `).join('') || '<tr><td colspan="5" class="t-muted">No outstanding dues for this FY</td></tr>';
+      <td data-label="">${canDispute ? `<button class="btn btn-outline btn-sm" data-toggle-dispute="${m.id}">${health.level === 'disputed' ? 'Un-dispute' : 'Mark Disputed'}</button>` : ''}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="6" class="t-muted">No outstanding dues for this FY</td></tr>';
+
+  document.querySelectorAll('[data-toggle-dispute]').forEach(btn => btn.addEventListener('click', () => toggleDuesDispute(btn.dataset.toggleDispute)));
+}
+
+// Marking dues "Disputed" takes it out of the automatic paid/unpaid/overdue
+// grading entirely (see maintenanceHealthStatus()) — for the genuine edge
+// case where a resident's payment is under review (bounced cheque, wrong
+// amount claimed, a receipt they say exists but the treasurer hasn't found
+// yet) and the automatic "3+ months overdue" label would be actively
+// misleading until it's sorted out.
+async function toggleDuesDispute(memberId) {
+  const m = allMembers.find(x => x.id === memberId);
+  if (!m) return;
+  const nowDisputed = !m.duesDisputed;
+  let reason = '';
+  if (nowDisputed) {
+    reason = prompt(`"${m.name}" ke dues ko disputed mark karne ki wajah likhein:`) || '';
+    if (!reason.trim()) return showToast('Wajah likhna zaroori hai.', 'error');
+  } else if (!confirm(`"${m.name}" ke dues ko normal grading mein wapas laayein?`)) {
+    return;
+  }
+  try {
+    await updateDoc(doc(db, 'members', memberId), {
+      duesDisputed: nowDisputed,
+      duesDisputedReason: nowDisputed ? reason.trim() : '',
+      duesDisputedBy: nowDisputed ? currentAdmin.email : null,
+      duesDisputedAt: nowDisputed ? serverTimestamp() : null
+    });
+    await logAudit(auth.currentUser, nowDisputed ? 'mark_dues_disputed' : 'unmark_dues_disputed', { memberId, name: m.name });
+    showToast(nowDisputed ? 'Dues disputed mark ho gaye.' : 'Wapas normal grading mein aa gaya.', 'success');
+    await reloadMembers(); renderDefaulters(); renderOverview();
+  } catch (err) {
+    console.error('Toggle dues dispute failed:', err);
+    const code = err?.code || '';
+    showToast(`Save nahi ho paaya${code ? ` (${code})` : ''}.`, 'error');
+  }
 }
 document.getElementById('emailDefaultersBtn').addEventListener('click', () => {
   const emails = outstandingMembers().map(x => x.m.email).filter(Boolean).join(',');
@@ -3075,6 +3789,520 @@ async function loadContentPanels() {
     }
   }));
 }
+
+const CAL_TYPE_ICON = { festival: '🎉', meeting: '🗓️', maintenance: '🔧', shutdown: '⚡', event: '🎊', other: '📌' };
+
+// Society calendar — festivals, meetings, maintenance work, shutdowns, all
+// in one list. Deliberately a separate collection from /events/ (the
+// fee-collection feature): that one is about money and gated to
+// Treasurer/Super Admin, this one is purely informational and gated to
+// office-bearers the same way Notices is. Sorted so what's coming up next
+// is always at the top, regardless of when it was added.
+async function loadCalendarPanel() {
+  const canEdit = can('approveMembers');
+  const addForm = document.getElementById('calendarForm');
+  if (addForm) addForm.style.display = canEdit ? 'block' : 'none';
+
+  let entries = [];
+  try {
+    entries = (await getDocs(collection(db, 'calendarEvents'))).docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch (e) { console.warn('Calendar read failed:', e?.code || e); }
+  entries.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+
+  const list = document.getElementById('calendarEditList');
+  if (!list) return;
+  list.innerHTML = entries.map(c => `
+    <div class="list-edit-item">
+      <div>
+        <b style="font-size:13.5px;">${CAL_TYPE_ICON[c.type] || '📌'} ${escapeHtml(c.title)}</b>
+        <div class="t-muted" style="font-size:12px;">${c.date ? fmtDate({ toDate: () => new Date(c.date) }) : '—'}${c.description ? ' · ' + escapeHtml(c.description) : ''}</div>
+      </div>
+      ${canEdit ? `<button class="btn btn-danger btn-sm" data-del-calendar="${c.id}">Delete</button>` : ''}
+    </div>`).join('') || '<p class="t-muted" style="font-size:13px;">Calendar mein abhi kuch nahi hai.</p>';
+
+  document.querySelectorAll('[data-del-calendar]').forEach(b => b.addEventListener('click', async () => {
+    if (!confirm('Yeh calendar entry delete karein?')) return;
+    try {
+      await deleteDoc(doc(db, 'calendarEvents', b.dataset.delCalendar));
+      await logAudit(auth.currentUser, 'delete_calendar_entry', { id: b.dataset.delCalendar });
+      loadCalendarPanel();
+    } catch (err) {
+      console.error('Delete calendar entry failed:', err);
+      const code = err?.code || '';
+      showToast(`Delete nahi ho paaya${code ? ` (${code})` : ''}.`, 'error');
+    }
+  }));
+}
+document.getElementById('calendarForm')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const f = e.target;
+  const btn = f.querySelector('button[type="submit"]');
+  const title = f.title.value.trim();
+  const dateVal = f.date.value;
+  if (!title) return showToast('Title zaroori hai.', 'error');
+  if (!dateVal) return showToast('Date chunna zaroori hai.', 'error');
+  btn.disabled = true;
+  try {
+    await addDoc(collection(db, 'calendarEvents'), {
+      title, date: dateVal, type: f.type.value, description: f.description.value.trim(),
+      addedBy: currentAdmin.email, createdAt: serverTimestamp()
+    });
+    await logAudit(auth.currentUser, 'add_calendar_entry', { title, date: dateVal, type: f.type.value });
+    showToast('Calendar mein add ho gaya.', 'success');
+    f.reset();
+    loadCalendarPanel();
+  } catch (err) {
+    console.error('Add calendar entry failed:', err);
+    const code = err?.code || '';
+    showToast(`Add nahi ho paaya${code ? ` (${code})` : ''}.`, 'error');
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+/* ---- Polls --------------------------------------------------------------
+   A poll's integrity (one vote per member) is enforced by firestore.rules —
+   the vote document's ID IS the voter's uid, so this admin code never has
+   to police that itself. What this code owns: creating the poll shape the
+   rules expect (options as a list, startTime/endTime as real Timestamps —
+   NOT strings, since the rules compare request.time against them directly),
+   and tallying results from the votes subcollection on demand. */
+function addPollOptionRow(container, value = '') {
+  const row = document.createElement('div');
+  row.className = 'poll-opt-row';
+  row.innerHTML = `<input type="text" class="poll-opt-input" maxlength="150" placeholder="Option" value="${escapeHtml(value)}"><button type="button" class="fm-remove" aria-label="Remove option">✕</button>`;
+  row.querySelector('.fm-remove').addEventListener('click', () => {
+    // Never let the editor go below 2 rows — a poll needs at least 2 options,
+    // and hitting zero rows is confusing more than useful.
+    if (container.querySelectorAll('.poll-opt-row').length > 2) row.remove();
+    else showToast('Kam se kam 2 options zaroori hain.', 'error');
+  });
+  container.appendChild(row);
+}
+function collectPollOptions(container) {
+  return [...container.querySelectorAll('.poll-opt-input')].map(i => i.value.trim()).filter(Boolean);
+}
+function resetPollOptionsEditor() {
+  const editor = document.getElementById('pollOptionsEditor');
+  if (!editor) return;
+  editor.innerHTML = '';
+  addPollOptionRow(editor); addPollOptionRow(editor);
+}
+resetPollOptionsEditor();
+document.getElementById('pollOptionAdd')?.addEventListener('click', () => {
+  const editor = document.getElementById('pollOptionsEditor');
+  if (editor && editor.querySelectorAll('.poll-opt-row').length < 10) addPollOptionRow(editor);
+  else showToast('Zyada se zyada 10 options.', 'error');
+});
+
+document.getElementById('pollForm')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const f = e.target;
+  const btn = f.querySelector('button[type="submit"]');
+  const question = f.question.value.trim();
+  const options = collectPollOptions(document.getElementById('pollOptionsEditor'));
+  const startDate = f.start.value ? new Date(f.start.value) : null;
+  const endDate = f.end.value ? new Date(f.end.value) : null;
+
+  if (!question) return showToast('Question zaroori hai.', 'error');
+  if (options.length < 2) return showToast('Kam se kam 2 options bharein.', 'error');
+  if (!startDate || !endDate || Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) return showToast('Start aur End time sahi bharein.', 'error');
+  if (endDate <= startDate) return showToast('End time, Start time ke baad hona chahiye.', 'error');
+
+  btn.disabled = true;
+  try {
+    await addDoc(collection(db, 'polls'), {
+      question, options, startTime: startDate, endTime: endDate,
+      createdBy: currentAdmin.email, createdAt: serverTimestamp()
+    });
+    await logAudit(auth.currentUser, 'create_poll', { question, optionCount: options.length });
+    showToast('Poll shuru ho gaya.', 'success');
+    f.reset();
+    resetPollOptionsEditor();
+    loadPollsPanel();
+  } catch (err) {
+    console.error('Create poll failed:', err);
+    const code = err?.code || '';
+    showToast(`Poll banaya nahi ja saka${code ? ` (${code})` : ''}.`, 'error');
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+function pollStatus(poll) {
+  const now = new Date();
+  const start = poll.startTime?.toDate ? poll.startTime.toDate() : new Date(poll.startTime);
+  const end = poll.endTime?.toDate ? poll.endTime.toDate() : new Date(poll.endTime);
+  if (now < start) return { label: 'Upcoming', cls: 'badge-neutral' };
+  if (now > end) return { label: 'Closed', cls: 'badge-danger' };
+  return { label: 'Active', cls: 'badge-success' };
+}
+
+async function loadPollsPanel() {
+  const canEdit = can('approveMembers');
+  const createForm = document.getElementById('pollForm');
+  if (createForm) createForm.style.display = canEdit ? 'block' : 'none';
+
+  let polls = [];
+  try {
+    polls = (await getDocs(collection(db, 'polls'))).docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch (e) { console.warn('Polls read failed:', e?.code || e); }
+  polls.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+
+  const list = document.getElementById('pollsList');
+  if (!list) return;
+  list.innerHTML = polls.map(p => {
+    const st = pollStatus(p);
+    const start = p.startTime?.toDate ? p.startTime.toDate() : new Date(p.startTime);
+    const end = p.endTime?.toDate ? p.endTime.toDate() : new Date(p.endTime);
+    return `
+    <div class="list-edit-item" style="flex-direction:column; align-items:stretch; gap:8px;">
+      <div class="spread">
+        <div><b style="font-size:13.5px;">${escapeHtml(p.question)}</b>
+          <div class="t-muted" style="font-size:11.5px;">${fmtDate({ toDate: () => start })} → ${fmtDate({ toDate: () => end })}</div>
+        </div>
+        <span class="badge ${st.cls}">${st.label}</span>
+      </div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button class="btn btn-outline btn-sm" data-poll-results="${p.id}">Results Dekhein</button>
+        ${canEdit ? `<button class="btn btn-danger btn-sm" data-del-poll="${p.id}">Delete</button>` : ''}
+      </div>
+      <div id="pollResults-${p.id}" style="display:none;"></div>
+    </div>`;
+  }).join('') || '<p class="t-muted" style="font-size:13px;">Abhi koi poll nahi hai.</p>';
+
+  document.querySelectorAll('[data-poll-results]').forEach(b => b.addEventListener('click', async () => {
+    const pollId = b.dataset.pollResults;
+    const box = document.getElementById(`pollResults-${pollId}`);
+    if (box.style.display !== 'none') { box.style.display = 'none'; return; }
+    const poll = polls.find(p => p.id === pollId);
+    box.style.display = 'block';
+    box.innerHTML = '<p class="t-muted" style="font-size:12px;">Loading…</p>';
+    try {
+      const votes = (await getDocs(collection(db, 'polls', pollId, 'votes'))).docs.map(d => d.data());
+      const counts = {};
+      poll.options.forEach(o => { counts[o] = 0; });
+      votes.forEach(v => { if (v.option in counts) counts[v.option]++; });
+      const total = votes.length;
+      box.innerHTML = `
+        <div class="t-muted" style="font-size:11.5px; margin-bottom:6px;">${total} vote${total === 1 ? '' : 's'} total</div>
+        ${poll.options.map(o => {
+          const pct = total ? Math.round((counts[o] / total) * 100) : 0;
+          return `<div style="margin-bottom:6px;">
+            <div class="spread" style="font-size:12.5px; margin-bottom:2px;"><span>${escapeHtml(o)}</span><span class="mono">${counts[o]} · ${pct}%</span></div>
+            <div style="height:6px; background:var(--paper-dark,#eee); border-radius:4px; overflow:hidden;"><div style="height:100%; width:${pct}%; background:var(--gold-500,#C9A227);"></div></div>
+          </div>`;
+        }).join('')}
+      `;
+    } catch (err) {
+      console.error('Load poll results failed:', err);
+      box.innerHTML = `<p class="t-muted" style="font-size:12px;">Results load nahi hue${err?.code ? ` (${err.code})` : ''}.</p>`;
+    }
+  }));
+
+  document.querySelectorAll('[data-del-poll]').forEach(b => b.addEventListener('click', async () => {
+    if (!confirm('Yeh poll delete karein? Saare votes bhi chale jayenge.')) return;
+    try {
+      await deleteDoc(doc(db, 'polls', b.dataset.delPoll));
+      await logAudit(auth.currentUser, 'delete_poll', { id: b.dataset.delPoll });
+      loadPollsPanel();
+    } catch (err) {
+      console.error('Delete poll failed:', err);
+      const code = err?.code || '';
+      showToast(`Delete nahi ho paaya${code ? ` (${code})` : ''}.`, 'error');
+    }
+  }));
+}
+
+/* ---- Bank Reconciliation -------------------------------------------------
+   Bank statement transactions are entered by hand (this app has no PDF/CSV
+   bank-statement parser), then linked one-by-one to the portal record they
+   correspond to. A transaction can be Matched (linked to a real payment or
+   expense), Ignored (a genuine bank-only line — interest, charges — that
+   will never have a portal counterpart), or left Unmatched. Reconciliation
+   % below counts both Matched and Ignored as "accounted for". */
+const RECON_BADGE = {
+  matched: '<span class="badge badge-success">Matched</span>',
+  ignored: '<span class="badge badge-neutral">Ignored</span>'
+};
+function reconStatusBadge(t) { return RECON_BADGE[t.status] || '<span class="badge badge-warning">Unmatched</span>'; }
+
+async function loadBankReconciliation() {
+  let txs = [];
+  try {
+    txs = (await getDocs(collection(db, 'bankTransactions'))).docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch (e) { console.warn('Bank transactions read failed:', e?.code || e); }
+  txs.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  window.__bankTxs = txs;
+  renderBankReconciliation();
+  // Refreshes the whole Overview, not just the Treasurer Dashboard tile —
+  // Command Center's "Bank Unmatched" pill reads window.__bankTxs too, and
+  // wasn't ready the first time Overview rendered.
+  renderOverview();
+}
+
+function renderBankReconciliation() {
+  const txs = window.__bankTxs || [];
+  const accountedFor = txs.filter(t => t.status === 'matched' || t.status === 'ignored').length;
+  const total = txs.length;
+  document.getElementById('reconMatchedPct').textContent = total ? `${Math.round((accountedFor / total) * 100)}%` : '—';
+  document.getElementById('reconMatchedCount').textContent = accountedFor;
+  document.getElementById('reconUnmatchedCount').textContent = total - accountedFor;
+
+  document.getElementById('bankTxBody').innerHTML = txs.map(t => `
+    <tr>
+      <td data-label="Date">${fmtDate({ toDate: () => new Date(t.date) })}</td>
+      <td data-label="Description">${escapeHtml(t.description)}</td>
+      <td data-label="Type">${t.type === 'credit' ? '↓ Credit' : '↑ Debit'}</td>
+      <td data-label="Amount"><b>${formatINR(t.amount)}</b></td>
+      <td data-label="Status">${reconStatusBadge(t)}
+        ${t.status === 'matched' && t.matchedLabel ? `<div class="t-muted" style="font-size:11px; margin-top:2px;">${escapeHtml(t.matchedLabel)}</div>` : ''}
+      </td>
+      <td data-label="Actions" style="white-space:nowrap;">
+        ${(!t.status || t.status === 'unmatched')
+          ? `<button class="btn btn-outline btn-sm" data-match-tx="${t.id}">Match</button> <button class="btn btn-outline btn-sm" data-ignore-tx="${t.id}">Ignore</button>`
+          : `<button class="btn btn-outline btn-sm" data-unmatch-tx="${t.id}">Undo</button>`}
+        <button class="btn btn-danger btn-sm" data-del-tx="${t.id}">Delete</button>
+      </td>
+    </tr>
+    <tr id="matchCandidates-${t.id}" style="display:none;"><td colspan="6"></td></tr>
+  `).join('') || '<tr><td colspan="6" class="t-muted">Koi bank transaction nahi joड़ी gayi.</td></tr>';
+
+  document.querySelectorAll('[data-match-tx]').forEach(b => b.addEventListener('click', () => showMatchCandidates(b.dataset.matchTx)));
+  document.querySelectorAll('[data-ignore-tx]').forEach(b => b.addEventListener('click', () => setTxStatus(b.dataset.ignoreTx, 'ignored')));
+  document.querySelectorAll('[data-unmatch-tx]').forEach(b => b.addEventListener('click', () => setTxStatus(b.dataset.unmatchTx, 'unmatched', true)));
+  document.querySelectorAll('[data-del-tx]').forEach(b => b.addEventListener('click', async () => {
+    if (!confirm('Yeh bank transaction delete karein?')) return;
+    try {
+      await deleteDoc(doc(db, 'bankTransactions', b.dataset.delTx));
+      await logAudit(auth.currentUser, 'delete_bank_tx', { id: b.dataset.delTx });
+      await loadBankReconciliation();
+    } catch (err) {
+      console.error('Delete bank tx failed:', err);
+      showToast(`Delete nahi ho paaya${err?.code ? ` (${err.code})` : ''}.`, 'error');
+    }
+  }));
+}
+
+// Candidates are drawn from allPayments (for a credit) or allExpenses (for a
+// debit), sorted by how close their amount is to the bank line — the exact
+// amount is almost always right there at the top. Already-matched records
+// are excluded so the same payment can't be linked to two different bank
+// lines.
+function buildMatchCandidates(tx) {
+  const alreadyMatched = new Set((window.__bankTxs || []).filter(t => t.status === 'matched' && t.matchedRef).map(t => `${t.matchedRef.col}/${t.matchedRef.id}`));
+  if (tx.type === 'credit') {
+    return allPayments.filter(p => p.status === 'verified' && !alreadyMatched.has(`payments/${p.id}`))
+      .map(p => ({ col: 'payments', id: p.id, label: `${p.residentName} — Flat ${p.flatNumber} — ${p.receiptNumber || p.status}`, amount: p.amount }))
+      .sort((a, b) => Math.abs(a.amount - tx.amount) - Math.abs(b.amount - tx.amount))
+      .slice(0, 8);
+  }
+  return allExpenses.filter(e => e.status !== 'pending_approval' && e.status !== 'rejected' && !alreadyMatched.has(`expenses/${e.id}`))
+    .map(e => ({ col: 'expenses', id: e.id, label: `${e.description} — ${e.category || '—'}`, amount: e.amount }))
+    .sort((a, b) => Math.abs(a.amount - tx.amount) - Math.abs(b.amount - tx.amount))
+    .slice(0, 8);
+}
+
+function showMatchCandidates(txId) {
+  // Only one row's candidate list open at a time, so the table doesn't grow unbounded.
+  document.querySelectorAll('[id^="matchCandidates-"]').forEach(row => { row.style.display = 'none'; row.querySelector('td').innerHTML = ''; });
+  const tx = (window.__bankTxs || []).find(t => t.id === txId);
+  const row = document.getElementById(`matchCandidates-${txId}`);
+  if (!tx || !row) return;
+  const candidates = buildMatchCandidates(tx);
+  row.querySelector('td').innerHTML = candidates.length
+    ? `<div style="padding:10px; background:var(--paper,#FAF8F3); border-radius:8px;">
+        <div class="t-muted" style="font-size:11.5px; margin-bottom:8px;">${tx.type === 'credit' ? 'Matching payments' : 'Matching expenses'} (amount ke hisaab se sabse kareeb pehle):</div>
+        ${candidates.map((c, i) => `<div class="spread" style="font-size:12.5px; padding:5px 0; border-bottom:1px solid #eee;"><span>${escapeHtml(c.label)} — ${formatINR(c.amount)}</span><button class="btn btn-primary btn-sm" data-pick-candidate="${i}">Link Karein</button></div>`).join('')}
+      </div>`
+    : `<div style="padding:10px; background:var(--paper,#FAF8F3); border-radius:8px;" class="t-muted" style="font-size:12.5px;">Koi milta-julta ${tx.type === 'credit' ? 'payment' : 'expense'} nahi mila.</div>`;
+  row.style.display = 'table-row';
+  row.querySelectorAll('[data-pick-candidate]').forEach(btn => btn.addEventListener('click', () => {
+    const c = candidates[Number(btn.dataset.pickCandidate)];
+    matchTransaction(txId, c);
+  }));
+}
+
+async function matchTransaction(txId, candidate) {
+  try {
+    await updateDoc(doc(db, 'bankTransactions', txId), {
+      status: 'matched',
+      matchedRef: { col: candidate.col, id: candidate.id },
+      matchedLabel: candidate.label,
+      matchedBy: currentAdmin.email, matchedAt: serverTimestamp()
+    });
+    await logAudit(auth.currentUser, 'match_bank_tx', { txId, matchedTo: `${candidate.col}/${candidate.id}` });
+    showToast('Match ho gaya.', 'success');
+    await loadBankReconciliation();
+  } catch (err) {
+    console.error('Match failed:', err);
+    showToast(`Match nahi ho paaya${err?.code ? ` (${err.code})` : ''}.`, 'error');
+  }
+}
+async function setTxStatus(txId, status, clearMatch = false) {
+  try {
+    const patch = { status };
+    if (clearMatch) { patch.matchedRef = null; patch.matchedLabel = null; }
+    await updateDoc(doc(db, 'bankTransactions', txId), patch);
+    await logAudit(auth.currentUser, 'update_bank_tx_status', { txId, status });
+    await loadBankReconciliation();
+  } catch (err) {
+    console.error('Update tx status failed:', err);
+    showToast(`Update nahi ho paaya${err?.code ? ` (${err.code})` : ''}.`, 'error');
+  }
+}
+document.getElementById('bankTxForm')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const f = e.target;
+  const btn = f.querySelector('button[type="submit"]');
+  const amount = Number(f.amount.value);
+  if (!f.date.value) return showToast('Date zaroori hai.', 'error');
+  if (!Number.isFinite(amount) || amount <= 0) return showToast('Sahi amount daalein.', 'error');
+  if (!f.description.value.trim()) return showToast('Description zaroori hai.', 'error');
+  btn.disabled = true;
+  try {
+    await addDoc(collection(db, 'bankTransactions'), {
+      date: f.date.value, amount, description: f.description.value.trim(), type: f.type.value,
+      status: 'unmatched', addedBy: currentAdmin.email, createdAt: serverTimestamp()
+    });
+    await logAudit(auth.currentUser, 'add_bank_tx', { amount, type: f.type.value });
+    showToast('Bank transaction jud gaya.', 'success');
+    f.reset();
+    await loadBankReconciliation();
+  } catch (err) {
+    console.error('Add bank tx failed:', err);
+    showToast(`Add nahi ho paaya${err?.code ? ` (${err.code})` : ''}.`, 'error');
+  } finally { btn.disabled = false; }
+});
+
+/* ---- Budget vs Actual -----------------------------------------------------
+   One document per financial year, holding every category's planned amount
+   as a map — reading/writing the whole map at once instead of one document
+   per category keeps a budget update to a single write. */
+async function loadBudgetPanel() {
+  document.getElementById('budgetFYLabel').textContent = selectedFY;
+  const catSel = document.getElementById('budget-category');
+  if (catSel) catSel.innerHTML = EXPENSE_CATEGORIES.map(c => `<option>${escapeHtml(c)}</option>`).join('');
+
+  let categories = {};
+  try {
+    const snap = await getDoc(doc(db, 'budgets', selectedFY));
+    categories = snap.exists() ? (snap.data().categories || {}) : {};
+  } catch (e) { console.warn('Budget read failed:', e?.code || e); }
+  window.__budgetCategories = categories;
+  renderBudgetTable();
+}
+function renderBudgetTable() {
+  const budgets = window.__budgetCategories || {};
+  const actualByCategory = {};
+  expenseSummary(allExpenses, selectedFY).categories.forEach(c => { actualByCategory[c.name] = c.amount; });
+
+  const allCats = [...new Set([...Object.keys(budgets), ...Object.keys(actualByCategory)])].sort();
+  document.getElementById('budgetBody').innerHTML = allCats.map(cat => {
+    const budgetAmt = budgets[cat] || 0;
+    const actualAmt = actualByCategory[cat] || 0;
+    const variance = budgetAmt - actualAmt;
+    return `<tr>
+      <td data-label="Category">${escapeHtml(cat)}</td>
+      <td data-label="Budget">${formatINR(budgetAmt)}</td>
+      <td data-label="Actual">${formatINR(actualAmt)}</td>
+      <td data-label="Variance"><span style="color:${variance >= 0 ? 'var(--success,#1E7D4B)' : 'var(--danger,#C0392B)'}">${variance >= 0 ? '+' : '−'}${formatINR(Math.abs(variance))}</span></td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="4" class="t-muted">Abhi koi budget set nahi hua.</td></tr>';
+}
+document.getElementById('budgetForm')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const f = e.target;
+  const btn = f.querySelector('button[type="submit"]');
+  const category = f.category.value;
+  const amount = Number(f.amount.value);
+  if (!Number.isFinite(amount) || amount < 0) return showToast('Sahi amount daalein.', 'error');
+  btn.disabled = true;
+  try {
+    const updated = { ...(window.__budgetCategories || {}), [category]: amount };
+    await setDoc(doc(db, 'budgets', selectedFY), { categories: updated, updatedBy: currentAdmin.email, updatedAt: serverTimestamp() }, { merge: true });
+    await logAudit(auth.currentUser, 'set_budget', { fy: selectedFY, category, amount });
+    showToast('Budget save ho gaya.', 'success');
+    f.reset();
+    await loadBudgetPanel();
+  } catch (err) {
+    console.error('Set budget failed:', err);
+    showToast(`Save nahi ho paaya${err?.code ? ` (${err.code})` : ''}.`, 'error');
+  } finally { btn.disabled = false; }
+});
+
+/* ---- Monthly Financial Closing --------------------------------------------
+   A checklist, not a hard lock: closing a month here is a formal
+   "the committee signs off that this month's books are done" record — it
+   does NOT retroactively block further edits to that month's data (doing
+   that correctly would need every write rule in this project to check a
+   record's date against the closures collection, a much bigger change).
+   What it does give: a permanent, undeletable timestamp of when the
+   Treasurer considered the month done, and whether every check passed at
+   that moment. */
+async function loadClosingPanel() {
+  const now = new Date();
+  const currentYM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  document.getElementById('closingMonthLabel').textContent = `"${now.toLocaleString('en-IN', { month: 'long', year: 'numeric' })}" Close Karein`;
+
+  let closures = [];
+  try {
+    closures = (await getDocs(collection(db, 'monthClosures'))).docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch (e) { console.warn('Closures read failed:', e?.code || e); }
+  closures.sort((a, b) => b.id.localeCompare(a.id));
+
+  const alreadyClosed = closures.some(c => c.id === currentYM);
+  const pendingPayments = allPayments.filter(p => p.status === 'pending_approval' || p.status === 'pending_verification').length;
+  const pendingExpenses = allExpenses.filter(e => e.status === 'pending_approval').length;
+  const unmatchedBankTx = (window.__bankTxs || []).filter(t => !t.status || t.status === 'unmatched').length;
+
+  const checks = [
+    { label: 'Saare payments verify ho chuke hain', ok: pendingPayments === 0, detail: pendingPayments > 0 ? `${pendingPayments} pending` : null },
+    { label: 'Saare expense requests approve/reject ho chuke hain', ok: pendingExpenses === 0, detail: pendingExpenses > 0 ? `${pendingExpenses} pending` : null },
+    { label: 'Bank reconciliation poori hai', ok: unmatchedBankTx === 0, detail: unmatchedBankTx > 0 ? `${unmatchedBankTx} unmatched` : null }
+  ];
+  const allOk = checks.every(c => c.ok);
+
+  document.getElementById('closingChecklist').innerHTML = checks.map(c => `
+    <div class="spread" style="font-size:13px; padding:6px 0; border-bottom:1px solid #eee;">
+      <span>${c.ok ? '✅' : '⚠️'} ${escapeHtml(c.label)}</span>
+      ${c.detail ? `<span class="t-muted" style="font-size:11.5px;">${escapeHtml(c.detail)}</span>` : ''}
+    </div>`).join('');
+
+  const closeBtn = document.getElementById('closeMonthBtn');
+  closeBtn.dataset.ym = currentYM;
+  closeBtn.dataset.allOk = allOk;
+  if (alreadyClosed) {
+    closeBtn.disabled = true;
+    closeBtn.textContent = `${currentYM} pehle se closed hai`;
+  } else {
+    closeBtn.disabled = false;
+    closeBtn.textContent = 'Mahina Close Karein';
+  }
+
+  document.getElementById('closedMonthsList').innerHTML = closures.map(c => `
+    <div class="list-edit-item">
+      <div><b style="font-size:13px;">${escapeHtml(c.id)}</b><div class="t-muted" style="font-size:11.5px;">Closed by ${escapeHtml(c.closedBy || '—')} on ${fmtDate(c.closedAt)}${c.allChecksOk === false ? ' · kuch checks pending the' : ''}</div></div>
+    </div>`).join('') || '<p class="t-muted" style="font-size:13px;">Abhi koi mahina close nahi hua.</p>';
+}
+document.getElementById('closeMonthBtn')?.addEventListener('click', async (e) => {
+  const btn = e.currentTarget;
+  const ym = btn.dataset.ym;
+  const allOk = btn.dataset.allOk === 'true';
+  if (!confirm(`${ym} ko close karein?${allOk ? '' : ' Kuch checklist items abhi bhi pending hain.'} Yeh wapas nahi hoga.`)) return;
+  btn.disabled = true;
+  try {
+    await setDoc(doc(db, 'monthClosures', ym), { closedBy: currentAdmin.email, closedAt: serverTimestamp(), allChecksOk: allOk });
+    await logAudit(auth.currentUser, 'close_month', { yearMonth: ym, allChecksOk: allOk });
+    showToast(`${ym} close ho gaya.`, 'success');
+    await loadClosingPanel();
+  } catch (err) {
+    console.error('Close month failed:', err);
+    showToast(`Close nahi ho paaya${err?.code ? ` (${err.code})` : ''}.`, 'error');
+    btn.disabled = false;
+  }
+});
+
 /* ---- Documents & forms -------------------------------------------------
    A document can be either an uploaded file or an external link. The link
    route exists so the committee can publish documents even before Firebase
@@ -3313,7 +4541,7 @@ async function confirmImport() {
           uid: null, name: row.name, fatherHusbandName: row.fatherHusbandName, tower: row.tower, flatNumber: row.flat,
           mobile: row.mobile, email: row.email, residentType: row.residentType, address: '', nomineeName: '', nomineeRelation: '',
           dob: row.dob || null, anniversary: row.anniversary || null, familyMembers: row.familyMembers || [],
-          photoURL: '', idDocURL: '', declarationAccepted: true, memberID, status: 'approved', role: 'resident',
+          photoURL: '', declarationAccepted: true, memberID, status: 'approved', role: 'resident',
           source: 'bulk_import', createdAt: serverTimestamp(), updatedAt: serverTimestamp()
         });
         count++;
@@ -3384,9 +4612,21 @@ document.getElementById('zipExportBtn').addEventListener('click', async () => {
     }
 
     const zip = new window.JSZip();
+    const failed = [];
     for (const f of files) {
       if (f.blob) { zip.file(f.name, f.blob); tick(); continue; }
-      try { const b = await fetch(f.url).then(r => r.blob()); zip.file(f.name, b); } catch (e) {}
+      try {
+        const resp = await fetch(f.url);
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        zip.file(f.name, await resp.blob());
+      } catch (e) {
+        // Kept out of the zip rather than aborting the whole export over one
+        // broken file — but silently dropping it was the actual bug: the
+        // final count used to claim every planned file made it in, when some
+        // genuinely didn't.
+        failed.push(f.name);
+        console.warn('ZIP file fetch failed, skipped:', f.name, e?.message || e);
+      }
       tick();
     }
     statusEl.textContent = 'Compressing…';
@@ -3394,8 +4634,11 @@ document.getElementById('zipExportBtn').addEventListener('click', async () => {
     const a = document.createElement('a');
     a.href = URL.createObjectURL(zipBlob); a.download = `MHMRWS-${monthVal}.zip`; a.click();
     URL.revokeObjectURL(a.href);
-    await logAudit(auth.currentUser, 'zip_export', { month: monthVal, fileCount: files.length });
-    statusEl.textContent = `Done — ${files.length} files zipped.`;
+    const successCount = files.length - failed.length;
+    await logAudit(auth.currentUser, 'zip_export', { month: monthVal, fileCount: successCount, failedCount: failed.length, failed });
+    statusEl.textContent = failed.length
+      ? `ZIP ban gaya — ${successCount}/${files.length} files. Fail: ${failed.join(', ')}`
+      : `Done — ${successCount} files zipped.`;
   } catch (err) {
     console.error('ZIP export failed:', err);
     const code = err?.code || '';
@@ -3546,6 +4789,11 @@ document.getElementById('maintenanceForm')?.addEventListener('submit', async (e)
     if (v !== '' && v != null && Number.isFinite(Number(v))) byTower[t] = Number(v);
   });
 
+  // Captured before anything is overwritten, purely so the audit log can
+  // show what changed, not just what it changed to.
+  const previousDefaultRate = maintenanceSettings.rates?.[fy]?.default ?? null;
+  const previousMembershipFeeForLog = maintenanceSettings.membershipFee ?? null;
+
   const rates = { ...(maintenanceSettings.rates || {}) };
   rates[fy] = Object.keys(byTower).length ? { default: def, byTower } : { default: def };
 
@@ -3564,7 +4812,11 @@ document.getElementById('maintenanceForm')?.addEventListener('submit', async (e)
   if (btn) btn.disabled = true;
   try {
     await setDoc(doc(db, 'settings', 'maintenance'), settingsPatch, { merge: true });
-    await logAudit(auth.currentUser, 'update_maintenance_rate', { fy, default: def, byTower, membershipFee });
+    await logAudit(auth.currentUser, 'update_maintenance_rate', {
+      fy, default: def, byTower, membershipFee,
+      previousDefault: previousDefaultRate,
+      previousMembershipFee: settingsPatch.membershipFee != null ? previousMembershipFeeForLog : null
+    });
     maintenanceSettings = { ...maintenanceSettings, rates, ...(settingsPatch.membershipFee != null ? { membershipFee: settingsPatch.membershipFee } : {}) };
     renderMaintSummary();
     renderDefaulters();
@@ -3664,20 +4916,58 @@ document.getElementById('encryptPendingBtn').addEventListener('click', async () 
    which this static-hosted setup does not have. Rather than pretend, this
    makes forgetting hard: the age is always on screen, and past 30 days it
    turns into a warning the committee cannot miss. */
+// Every collection here is the society's own source-of-truth data — worth
+// restoring if this Firebase project were ever lost. Deliberately NOT
+// included: counters (internal sequence state, meaningless on its own),
+// flatClaims/membersPublic/publicFinancialSummary/receiptsPublic (all
+// mechanically derived FROM members/payments/expenses, and get rebuilt the
+// moment the app runs again — backing up a derived copy alongside its
+// source just risks the two disagreeing after a restore). auditLogs is
+// also left out for now: it only grows, never shrinks, and at a few years
+// of history could make every single backup noticeably slower to build for
+// a record that's already durably stored in Firestore itself.
 async function collectBackupBundle() {
-  const [notices, committee, documents, expenses] = await Promise.all([
+  const [notices, committee, documents, expenses, events, admins, bankTransactions,
+         budgetDocs, calendarEvents, monthClosures, pets, polls] = await Promise.all([
     getDocs(collection(db, 'notices')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
     getDocs(collection(db, 'committee')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
     getDocs(collection(db, 'documents')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
-    getDocs(collection(db, 'expenses')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => [])
+    getDocs(collection(db, 'expenses')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
+    getDocs(collection(db, 'events')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
+    getDocs(collection(db, 'admins')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
+    getDocs(collection(db, 'bankTransactions')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
+    getDocs(collection(db, 'budgets')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
+    getDocs(collection(db, 'calendarEvents')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
+    getDocs(collection(db, 'monthClosures')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
+    getDocs(collection(db, 'pets')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
+    getDocs(collection(db, 'polls')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => [])
   ]);
+  let settingsDocs = [];
+  try {
+    const [society, maintenance, payment] = await Promise.all([
+      getDoc(doc(db, 'settings', 'society')), getDoc(doc(db, 'settings', 'maintenance')), getDoc(doc(db, 'settings', 'payment'))
+    ]);
+    if (society.exists()) settingsDocs.push({ id: 'society', ...society.data() });
+    if (maintenance.exists()) settingsDocs.push({ id: 'maintenance', ...maintenance.data() });
+    if (payment.exists()) settingsDocs.push({ id: 'payment', ...payment.data() });
+  } catch (e) { console.warn('Settings backup fetch failed:', e?.code || e); }
+
   return {
     members: serializeForExport(allMembers),
     payments: serializeForExport(allPayments),
     expenses: serializeForExport(expenses),
+    events: serializeForExport(events),
     notices: serializeForExport(notices),
     committee: serializeForExport(committee),
-    documents: serializeForExport(documents)
+    documents: serializeForExport(documents),
+    admins: serializeForExport(admins),
+    bankTransactions: serializeForExport(bankTransactions),
+    budgets: serializeForExport(budgetDocs),
+    calendarEvents: serializeForExport(calendarEvents),
+    monthClosures: serializeForExport(monthClosures),
+    pets: serializeForExport(pets),
+    polls: serializeForExport(polls),
+    settings: serializeForExport(settingsDocs)
   };
 }
 
@@ -3839,7 +5129,7 @@ document.getElementById('addAdminForm').addEventListener('submit', async (e) => 
         uid: newUid, name: f.name.value.trim(), fatherHusbandName: '', tower,
         flatNumber, mobile: f.mobile.value.trim(), email: f.email.value.trim(),
         occupation: '', residentType: 'owner', address: '', nomineeName: '', nomineeRelation: '',
-        photoURL: '', idDocURL: '', declarationAccepted: true, memberID, publicToken,
+        photoURL: '', declarationAccepted: true, memberID, publicToken,
         status: 'approved', role: 'resident',
         source: 'admin_created', createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
         approvedBy: currentAdmin.email, approvedAt: serverTimestamp()
@@ -3886,7 +5176,7 @@ document.getElementById('registerResidentForm').addEventListener('submit', async
     if (held.exists()) throw new Error(`Tower ${tower}, Flat ${flatNumber} pehle se kisi aur member ke naam par hai.`);
 
     const secondaryApp = initializeApp(firebaseConfig, 'Secondary_' + Date.now());
-    let newUid, photoURL = '', idDocURL = '';
+    let newUid, photoURL = '';
     try {
       const secondaryAuth = getAuth(secondaryApp);
       const cred = await createUserWithEmailAndPassword(secondaryAuth, f.email.value.trim(), f.password.value);
@@ -3896,20 +5186,15 @@ document.getElementById('registerResidentForm').addEventListener('submit', async
       // upload path — the admin's OWN session can never satisfy that for
       // someone else's folder. Uploading here, while the secondary app is
       // still signed in AS the new resident (before signOut below), is what
-      // makes these uploads pass the same rules a resident's own upload does.
-      // Both files are optional — skip a file entirely rather than trying to
-      // upload nothing (which would look like a failed upload it never was).
+      // makes this upload pass the same rules a resident's own upload does.
+      // Optional — skip entirely rather than trying to upload nothing
+      // (which would look like a failed upload it never was).
       try {
         const secondaryStorage = getStorage(secondaryApp);
         if (f.photo.files[0]) {
           const pr = storageRef(secondaryStorage, `photos/${newUid}/photo_${Date.now()}`);
           await uploadBytes(pr, f.photo.files[0]);
           photoURL = await getDownloadURL(pr);
-        }
-        if (f.idDoc.files[0]) {
-          const dr = storageRef(secondaryStorage, `documents/${newUid}/iddoc_${Date.now()}`);
-          await uploadBytes(dr, f.idDoc.files[0]);
-          idDocURL = await getDownloadURL(dr);
         }
       } catch (upErr) {
         // A storage hiccup shouldn't lose the whole registration — the office
@@ -3935,7 +5220,7 @@ document.getElementById('registerResidentForm').addEventListener('submit', async
       residentType: f.residentType.value, address: f.address.value.trim(),
       nomineeName: f.nomineeName.value.trim(), nomineeRelation: f.nomineeRelation.value.trim(),
       dob: f.dob.value || null, anniversary: f.anniversary.value || null, familyMembers,
-      photoURL, idDocURL, declarationAccepted: true, memberID, publicToken,
+      photoURL, declarationAccepted: true, memberID, publicToken,
       status: 'approved', role: 'resident',
       source: 'admin_registered', createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
       approvedBy: currentAdmin.email, approvedAt: serverTimestamp()
@@ -3949,12 +5234,32 @@ document.getElementById('registerResidentForm').addEventListener('submit', async
     });
     await batch.commit();
 
-    await logAudit(auth.currentUser, 'register_resident', { email: f.email.value.trim(), memberID, tower, flatNumber });
+    // Pets are their own documents, saved after the member exists (so
+    // ownerUid has a real uid to point at) — same non-blocking resilience
+    // as the public registration flow: a pet-save hiccup doesn't undo an
+    // already-successful resident registration.
+    const pets = rrPetsEditor ? collectPets(rrPetsEditor) : [];
+    let petSaveFailed = false;
+    for (const pet of pets) {
+      try {
+        await addDoc(collection(db, 'pets'), {
+          ...pet, ownerUid: newUid, ownerName: f.name.value.trim(), tower, flatNumber,
+          createdAt: serverTimestamp(), updatedAt: serverTimestamp()
+        });
+      } catch (petErr) {
+        console.warn('Pet save failed:', petErr?.code || petErr);
+        petSaveFailed = true;
+      }
+    }
+
+    await logAudit(auth.currentUser, 'register_resident', { email: f.email.value.trim(), memberID, tower, flatNumber, petsAdded: pets.length });
     showToast(
       photoFailed
         ? `Resident register ho gaya (Member ID: ${memberID}) — lekin photo upload nahi ho payi. Baad mein "Edit Master Data" se add kar sakte hain.`
+        : petSaveFailed
+        ? `Resident register ho gaya (Member ID: ${memberID}) — lekin pet details save nahi ho payi.`
         : `Resident register ho gaya — Member ID: ${memberID}`,
-      photoFailed ? 'error' : 'success'
+      (photoFailed || petSaveFailed) ? 'error' : 'success'
     );
     document.getElementById('registerResidentModalBackdrop').classList.remove('open');
     await reloadMembers(); renderMembersTable(); renderOverview(); populateTowerFilter();

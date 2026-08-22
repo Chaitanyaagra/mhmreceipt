@@ -109,10 +109,19 @@ function renderNotFound(reason) {
 }
 
 function renderVerified(data) {
-  sealBox.innerHTML = '<span style="font-size:30px;color:var(--success);">✓</span>';
-  stateTitle.textContent = 'Verified Receipt';
-  stateTitle.style.color = 'var(--success)';
-  stateSub.textContent = 'Yeh receipt MHMRWS ke official record se match karti hai.';
+  // The document existing is not the same as the receipt still being good —
+  // a voided payment's receiptsPublic doc is kept (not deleted) specifically
+  // so this page can say VOIDED here, which is more protective against
+  // someone reusing an old receipt than a generic "not found" would be.
+  const isVoided = data.status === 'Voided';
+  sealBox.innerHTML = isVoided
+    ? '<span style="font-size:30px;color:var(--danger,#C0392B);">⊘</span>'
+    : '<span style="font-size:30px;color:var(--success);">✓</span>';
+  stateTitle.textContent = isVoided ? 'Voided Receipt' : 'Verified Receipt';
+  stateTitle.style.color = isVoided ? 'var(--danger,#C0392B)' : 'var(--success)';
+  stateSub.textContent = isVoided
+    ? 'Yeh receipt void kar di gayi hai — ab valid nahi hai.'
+    : 'Yeh receipt MHMRWS ke official record se match karti hai.';
   details.style.display = 'block';
   details.innerHTML = `
     <div class="vrow"><span>Receipt No.</span><span class="mono">${escapeHtml(data.receiptNumber)}</span></div>
@@ -121,7 +130,7 @@ function renderVerified(data) {
     <div class="vrow"><span>Amount</span><span>${formatINR(data.amount)}</span></div>
     <div class="vrow"><span>Financial Year</span><span>${escapeHtml(data.financialYear || '—')}</span></div>
     <div class="vrow"><span>Date</span><span>${fmtDate(data.verifiedAt)}</span></div>
-    <div class="vrow"><span>Status</span><span class="t-success">✓ Verified</span></div>
+    <div class="vrow"><span>Status</span><span class="${isVoided ? 't-danger' : 't-success'}">${isVoided ? '⊘ Voided' : '✓ Verified'}</span></div>
   `;
 }
 

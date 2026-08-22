@@ -221,6 +221,42 @@ export function duesFor(member, payments, financialYear, maintenanceSettings) {
   return { expected, paid, outstanding, status };
 }
 
+/**
+ * A severity read on one member's maintenance standing — richer than the
+ * plain paid/unpaid duesFor() status, for a defaulters list a treasurer can
+ * triage at a glance instead of treating every unpaid member the same.
+ *
+ * This maintenance rate is a single amount for the WHOLE financial year
+ * (expectedDue() above), not a monthly bill — there's no per-month due date
+ * to count "months behind" against the way a rent ledger would. So instead
+ * of months-overdue, severity among unpaid members is read off how far into
+ * the financial year we've gotten with nothing paid at all: unpaid two
+ * months after the FY opened is routine; unpaid with the year mostly gone
+ * is the case that actually needs escalating.
+ *
+ * "Disputed" is never inferred — it only appears when a treasurer has
+ * explicitly flagged the member's dues as under review (member.duesDisputed),
+ * which the automatic paid/unpaid math should never override.
+ */
+export function maintenanceHealthStatus(member, payments, financialYear, maintenanceSettings) {
+  if (member?.duesDisputed) return { level: 'disputed', label: 'Disputed', icon: '⚫' };
+  const d = duesFor(member, payments, financialYear, maintenanceSettings);
+  if (d.status === 'no_rate') return { level: 'no_rate', label: 'Rate Not Set', icon: '⚪', ...d };
+  if (d.outstanding === 0) return { level: 'current', label: 'Paid Current', icon: '🟢', ...d };
+  if (d.status === 'partial') return { level: 'partial', label: 'Partially Paid', icon: '🟡', ...d };
+
+  // From here, status is 'unpaid' (paid === 0) — grade by how much of the
+  // FY has passed. FY is assumed to start 1 April, matching
+  // currentFinancialYear() elsewhere in this file.
+  const fyStartYear = parseInt(String(financialYear).split('-')[0], 10);
+  const fyStart = new Date(fyStartYear, 3, 1);
+  const now = new Date();
+  const monthsIn = (now.getFullYear() - fyStart.getFullYear()) * 12 + (now.getMonth() - fyStart.getMonth());
+  if (monthsIn <= 2) return { level: 'due', label: 'Due', icon: '🟡', ...d };
+  if (monthsIn <= 5) return { level: 'reminder', label: '1–2 Months', icon: '🟠', ...d };
+  return { level: 'serious', label: '3+ Months', icon: '🔴', ...d };
+}
+
 /* ---------------------------------------------------------------------- */
 /*  One-time membership fee                                                 */
 /*                                                                          */
@@ -352,7 +388,16 @@ export const EXPENSE_MODES = ['cash', 'cheque', 'bank', 'upi'];
 
 /** Totals for one financial year, plus a per-category breakdown. */
 export function expenseSummary(expenses, financialYear) {
-  const rows = (expenses || []).filter(e => e.financialYear === financialYear);
+  // Only money that's actually final counts as "spent": approved expenses,
+  // and anything written before the Approval Workflow existed (no status
+  // field at all — treated as legacy-approved). A pending request or a
+  // rejected one must NOT inflate this total, or Fund Balance and the
+  // Treasurer Dashboard would understate what's really available.
+  const rows = (expenses || []).filter(e =>
+    e.financialYear === financialYear
+    && e.status !== 'pending_approval'
+    && e.status !== 'rejected'
+  );
   const total = rows.reduce((s, e) => s + (Number(e.amount) || 0), 0);
 
   const byCategory = {};
@@ -383,6 +428,49 @@ export function fundPosition(payments, expenses, financialYear) {
     .reduce((s, p) => s + (Number(p.amount) || 0), 0);
   const spent = expenseSummary(expenses, financialYear).total;
   return { collected, spent, balance: collected - spent };
+}
+
+// Cash-in-hand always means physical currency the treasurer is personally
+// holding; every other mode (cheque, UPI, netbanking, bank transfer)
+// eventually settles into the bank account, so it counts as "bank" for this
+// split even though a cheque takes a few days to clear. That's a
+// reasonable approximation without a real bank-reconciliation feed —
+// exact only once Bank Reconciliation (a separate, larger feature) exists
+// to match against the actual statement.
+const CASH_MODE = 'cash';
+
+/** Treasurer Dashboard figures — cash/bank split (across all verified
+ * payments and all recorded expenses ever, not scoped to one FY, since a
+ * balance is a running total) plus this-calendar-month collection and
+ * spend. Deliberately does NOT compute "outstanding maintenance" here —
+ * that needs the members list and maintenance rates, which this
+ * payments/expenses-only helper doesn't have; callers already have
+ * outstandingMembers() for that and should combine the two. */
+export function treasurerDashboardStats(payments, expenses) {
+  const verified = (payments || []).filter(p => p.status === 'verified');
+  // Same approved-or-legacy filter as expenseSummary() — a pending or
+  // rejected expense request hasn't actually left the account yet.
+  const finalExpenses = (expenses || []).filter(e => e.status !== 'pending_approval' && e.status !== 'rejected');
+  const cashIn = verified.filter(p => p.mode === CASH_MODE).reduce((s, p) => s + (Number(p.amount) || 0), 0);
+  const bankIn = verified.filter(p => p.mode !== CASH_MODE).reduce((s, p) => s + (Number(p.amount) || 0), 0);
+  const cashOut = finalExpenses.filter(e => e.mode === CASH_MODE).reduce((s, e) => s + (Number(e.amount) || 0), 0);
+  const bankOut = finalExpenses.filter(e => e.mode !== CASH_MODE).reduce((s, e) => s + (Number(e.amount) || 0), 0);
+
+  const now = new Date();
+  const inThisMonth = (tsLike) => {
+    const d = tsLike?.toDate ? tsLike.toDate() : (tsLike ? new Date(tsLike) : null);
+    return d && d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+  };
+  const thisMonthCollection = verified.filter(p => inThisMonth(p.verifiedAt || p.submittedAt)).reduce((s, p) => s + (Number(p.amount) || 0), 0);
+  const thisMonthExpenses = finalExpenses.filter(e => inThisMonth(e.date)).reduce((s, e) => s + (Number(e.amount) || 0), 0);
+
+  return {
+    cashBalance: cashIn - cashOut,
+    bankBalance: bankIn - bankOut,
+    totalBalance: (cashIn - cashOut) + (bankIn - bankOut),
+    thisMonthCollection, thisMonthExpenses,
+    monthSurplus: thisMonthCollection - thisMonthExpenses
+  };
 }
 
 /** Validates an expense before it is written. Mirrors the security rules. */
@@ -827,6 +915,143 @@ export async function generateStatementPDF({ payments, member, society, financia
 
   if (save) {
     deliverPdf(pdf, `Statement-${member?.flatNumber || 'MHMRWS'}-FY${financialYear}.pdf`);
+    return null;
+  }
+  return pdf.output('blob');
+}
+
+/** Society-wide Income & Expenditure statement for a financial year — the
+ * document a treasurer hands to the AGM or a CA, not a single resident's
+ * receipt trail. Mirrors generateStatementPDF's exact visual language (same
+ * navy header, gold accents, table style) so the two documents look like
+ * they came from the same portal, but reshapes the content: income broken
+ * down by payment type (maintenance / membership / event) instead of a
+ * payment-by-payment ledger, and expenditure by category — matching how a
+ * committee actually thinks about "where the money came from and went",
+ * not a raw transaction log. */
+export async function generateIncomeExpenditurePDF({ payments, expenses, society, financialYear, logoDataUrl, save = true }) {
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({ unit: 'pt', format: 'a4' });
+  const W = pdf.internal.pageSize.getWidth();
+  const marginX = 48;
+
+  const verified = (payments || []).filter(p => p.status === 'verified' && p.financialYear === financialYear);
+  const incomeByType = {};
+  verified.forEach(p => {
+    const k = p.type === 'membership' ? 'Membership Fees' : p.type === 'event' ? 'Event Collections' : 'Maintenance';
+    incomeByType[k] = (incomeByType[k] || 0) + (Number(p.amount) || 0);
+  });
+  const incomeRows = Object.entries(incomeByType).sort((a, b) => b[1] - a[1]);
+  const totalIncome = incomeRows.reduce((s, [, amt]) => s + amt, 0);
+
+  const expSummary = expenseSummary(expenses, financialYear);
+  const expenseRows = expSummary.categories;   // already sorted, largest first
+  const totalExpenditure = expSummary.total;
+  const net = totalIncome - totalExpenditure;
+
+  const drawHeader = async () => {
+    pdf.setFillColor(10, 27, 51);
+    pdf.rect(0, 0, W, 100, 'F');
+    if (logoDataUrl) {
+      try {
+        const sealImg = await sealOnWhiteDisc(logoDataUrl);
+        if (sealImg) {
+          const cx = marginX + 26, cy = 50, r = 27;
+          pdf.setFillColor(255, 255, 255); pdf.circle(cx, cy, r, 'F');
+          pdf.addImage(sealImg, 'JPEG', cx - r * 0.94, cy - r * 0.94, r * 1.88, r * 1.88);
+          pdf.setDrawColor(228, 199, 101); pdf.setLineWidth(1); pdf.circle(cx, cy, r, 'S');
+        }
+      } catch (e) {/* statement is still valid without the seal */}
+    }
+    pdf.setTextColor(255, 255, 255);
+    pdf.setFont('times', 'bold'); pdf.setFontSize(18);
+    pdf.text(society.fullName || 'Resident Welfare Society', marginX + 64, 46);
+    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(10);
+    pdf.text(`Reg. No: ${society.regNumber || '—'}`, marginX + 64, 62);
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(11);
+    pdf.text('INCOME & EXPENDITURE STATEMENT', W - marginX, 46, { align: 'right' });
+    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9);
+    pdf.text(`For the Financial Year ${financialYear}`, W - marginX, 62, { align: 'right' });
+  };
+  await drawHeader();
+
+  let y = 128;
+  const colLabel = marginX, colAmount = W - marginX;
+
+  const sectionHeading = (text) => {
+    pdf.setFillColor(245, 246, 250);
+    pdf.rect(marginX, y, W - marginX * 2, 22, 'F');
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(9.5); pdf.setTextColor(70, 80, 102);
+    pdf.text(text, colLabel + 8, y + 15);
+    y += 22;
+  };
+  const dataRow = (label, amount, opts = {}) => {
+    if (y > 760) { pdf.addPage(); y = 60; }
+    pdf.setFont('helvetica', opts.bold ? 'bold' : 'normal');
+    pdf.setFontSize(10.5); pdf.setTextColor(16, 25, 43);
+    pdf.text(label, colLabel + 8, y + 16);
+    pdf.text(formatINR(amount), colAmount - 8, y + 16, { align: 'right' });
+    pdf.setDrawColor(236, 239, 245); pdf.setLineWidth(0.5);
+    pdf.line(marginX, y + 22, W - marginX, y + 22);
+    y += 24;
+  };
+  const subtotalRow = (label, amount) => {
+    pdf.setFillColor(250, 247, 235);
+    pdf.rect(marginX, y, W - marginX * 2, 24, 'F');
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(10.5); pdf.setTextColor(16, 25, 43);
+    pdf.text(label, colLabel + 8, y + 16);
+    pdf.text(formatINR(amount), colAmount - 8, y + 16, { align: 'right' });
+    y += 34;
+  };
+
+  // INCOME
+  sectionHeading('INCOME');
+  if (incomeRows.length) incomeRows.forEach(([label, amt]) => dataRow(label, amt));
+  else dataRow('No verified income recorded for this FY', 0);
+  subtotalRow('TOTAL INCOME', totalIncome);
+
+  // EXPENDITURE
+  sectionHeading('EXPENDITURE');
+  if (expenseRows.length) expenseRows.forEach(c => dataRow(c.name, c.amount));
+  else dataRow('No expenses recorded for this FY', 0);
+  subtotalRow('TOTAL EXPENDITURE', totalExpenditure);
+
+  // Net surplus/deficit band — same gold-on-navy treatment as the payment
+  // statement's total band, so the two documents read as one family.
+  if (y > 700) { pdf.addPage(); y = 60; }
+  pdf.setFillColor(10, 27, 51);
+  pdf.roundedRect(marginX, y, W - marginX * 2, 46, 8, 8, 'F');
+  pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9); pdf.setTextColor(228, 199, 101);
+  pdf.text(net >= 0 ? 'NET SURPLUS' : 'NET DEFICIT', marginX + 16, y + 20);
+  pdf.setFont('times', 'bold'); pdf.setFontSize(18); pdf.setTextColor(255, 255, 255);
+  pdf.text(formatINR(Math.abs(net)), W - marginX - 16, y + 30, { align: 'right' });
+  pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8); pdf.setTextColor(180, 190, 205);
+  pdf.text('Income minus Expenditure for the year', marginX + 16, y + 34);
+  y += 70;
+
+  // Signature blocks — this is the one document in the portal meant to be
+  // physically signed and read out at an AGM, so it gets the three blank
+  // signature lines a printed financial statement traditionally carries.
+  if (y > 700) { pdf.addPage(); y = 60; }
+  const sigW = (W - marginX * 2 - 40) / 3;
+  ['President', 'Treasurer', 'Secretary'].forEach((role, i) => {
+    const x = marginX + i * (sigW + 20);
+    pdf.setDrawColor(160, 170, 190); pdf.setLineWidth(0.6);
+    pdf.line(x, y + 36, x + sigW, y + 36);
+    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9); pdf.setTextColor(124, 135, 156);
+    pdf.text(role, x, y + 50);
+  });
+  y += 80;
+
+  // Footer
+  pdf.setDrawColor(226, 230, 239); pdf.setLineWidth(0.6);
+  pdf.line(marginX, y, W - marginX, y);
+  pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8.5); pdf.setTextColor(124, 135, 156);
+  pdf.text('This is a system-generated statement from the MHMRWS Digital Portal, for AGM presentation and internal record.', marginX, y + 16);
+  pdf.text(`Generated on ${fmtDate(new Date())}. Figures are drawn from verified payments and recorded expenses only.`, marginX, y + 28);
+
+  if (save) {
+    deliverPdf(pdf, `Income-Expenditure-FY${financialYear}.pdf`);
     return null;
   }
   return pdf.output('blob');
@@ -1558,6 +1783,150 @@ export function collectFamilyMembers(container) {
       dob: row.querySelector('.fm-dob').value || null
     }))
     .filter((fm) => fm.name);
+}
+
+/* ---------------------------------------------------------------------- */
+/*  Pet registration editor                                               */
+/*                                                                          */
+/*  Only Name and Species are required — a resident registering a pet     */
+/*  rarely has the vet's exact contact number or the microchip number     */
+/*  memorised on the spot, and blocking the whole registration on that    */
+/*  would just mean the pet never gets recorded at all. Everything else   */
+/*  (vaccination dates especially) can be filled in later from "My Pets". */
+/* ---------------------------------------------------------------------- */
+function petCardHTML(pet = {}) {
+  const sel = (v, want) => (v === want ? ' selected' : '');
+  const chk = (v) => (v ? ' checked' : '');
+  return `
+  <div class="pet-card">
+    <div class="pet-card-header">
+      <b>🐾 Pet</b>
+      <button type="button" class="fm-remove pet-remove" aria-label="Remove this pet">✕</button>
+    </div>
+    <div class="form-2col">
+      <div class="field"><label>Pet Name</label><input class="pet-name" maxlength="80" value="${escapeHtml(pet.name || '')}"></div>
+      <div class="field"><label>Species</label>
+        <select class="pet-species">
+          <option value="dog"${sel(pet.species, 'dog')}>Dog</option>
+          <option value="cat"${sel(pet.species, 'cat')}>Cat</option>
+          <option value="bird"${sel(pet.species, 'bird')}>Bird</option>
+          <option value="other"${sel(pet.species, 'other')}>Other</option>
+        </select>
+      </div>
+    </div>
+    <div class="field pet-species-other-wrap" style="display:${pet.species === 'other' ? 'block' : 'none'};">
+      <label>Species — please specify</label><input class="pet-species-other" maxlength="60" value="${escapeHtml(pet.speciesOther || '')}">
+    </div>
+    <div class="form-2col">
+      <div class="field"><label>Breed <span class="t-muted" style="font-weight:400;">(optional)</span></label><input class="pet-breed" maxlength="80" value="${escapeHtml(pet.breed || '')}"></div>
+      <div class="field"><label>Gender</label>
+        <select class="pet-gender">
+          <option value="male"${sel(pet.gender, 'male')}>Male</option>
+          <option value="female"${sel(pet.gender, 'female')}>Female</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-2col">
+      <div class="field"><label>Age <span class="t-muted" style="font-weight:400;">(optional)</span></label><input class="pet-age" maxlength="30" placeholder="e.g. 2 years" value="${escapeHtml(pet.age || '')}"></div>
+      <div class="field"><label>Colour / ID Marks <span class="t-muted" style="font-weight:400;">(optional)</span></label><input class="pet-colour" maxlength="150" value="${escapeHtml(pet.colourMarks || '')}"></div>
+    </div>
+    <div class="field"><label>Microchip No. <span class="t-muted" style="font-weight:400;">(if available)</span></label><input class="pet-microchip" maxlength="60" value="${escapeHtml(pet.microchipNo || '')}"></div>
+
+    <div class="pet-section-label">Vaccination Details</div>
+    <div class="form-2col">
+      <div class="field"><label>Veterinary Doctor <span class="t-muted" style="font-weight:400;">(optional)</span></label><input class="pet-vet-name" maxlength="100" value="${escapeHtml(pet.vetDoctorName || '')}"></div>
+      <div class="field"><label>Clinic / Hospital <span class="t-muted" style="font-weight:400;">(optional)</span></label><input class="pet-clinic-name" maxlength="100" value="${escapeHtml(pet.clinicName || '')}"></div>
+    </div>
+    <div class="form-2col">
+      <div class="field"><label>Vet Contact Number <span class="t-muted" style="font-weight:400;">(optional)</span></label><input class="pet-vet-contact" type="tel" maxlength="15" value="${escapeHtml(pet.vetContactNumber || '')}"></div>
+      <div class="field"><label>Last Vaccination Date</label><input class="pet-last-vax" type="date" value="${escapeHtml(pet.lastVaccinationDate || '')}"></div>
+    </div>
+    <div class="field">
+      <label>Next Vaccination Due Date</label><input class="pet-next-vax" type="date" value="${escapeHtml(pet.nextVaccinationDue || '')}">
+      <div class="hint">Is date ke aas-paas aapko re-vaccination ka reminder milega.</div>
+    </div>
+    <div class="pet-cert-checks">
+      <label class="checkbox-row"><input type="checkbox" class="pet-cert-rabies"${chk(pet.hasAntiRabiesCert)}> Anti-Rabies Vaccination Certificate hai</label>
+      <label class="checkbox-row"><input type="checkbox" class="pet-cert-annual"${chk(pet.hasAnnualVaccinationRecord)}> Annual Vaccination Record hai</label>
+      <label class="checkbox-row"><input type="checkbox" class="pet-cert-health"${chk(pet.hasVetHealthCert)}> Veterinary Health Certificate hai</label>
+      <label class="checkbox-row"><input type="checkbox" class="pet-cert-sterilization"${chk(pet.hasSterilizationCert)}> Sterilization Certificate hai (agar applicable)</label>
+    </div>
+
+    <div class="pet-section-label">Emergency Contact (is pet ke liye)</div>
+    <div class="form-2col">
+      <div class="field"><label>Contact Person <span class="t-muted" style="font-weight:400;">(optional)</span></label><input class="pet-emg-name" maxlength="100" value="${escapeHtml(pet.emergencyContactName || '')}"></div>
+      <div class="field"><label>Relationship <span class="t-muted" style="font-weight:400;">(optional)</span></label><input class="pet-emg-relation" maxlength="60" value="${escapeHtml(pet.emergencyContactRelation || '')}"></div>
+    </div>
+    <div class="field"><label>Mobile Number <span class="t-muted" style="font-weight:400;">(optional)</span></label><input class="pet-emg-mobile" type="tel" maxlength="15" value="${escapeHtml(pet.emergencyContactMobile || '')}"></div>
+  </div>`;
+}
+
+function wirePetCard(card) {
+  const speciesSel = card.querySelector('.pet-species');
+  const otherWrap = card.querySelector('.pet-species-other-wrap');
+  speciesSel.addEventListener('change', () => {
+    otherWrap.style.display = speciesSel.value === 'other' ? 'block' : 'none';
+  });
+  card.querySelector('.pet-remove').addEventListener('click', () => card.remove());
+}
+
+/* Renders existing pets (or nothing, if the resident has none yet) into
+   `container` and wires each card's species-toggle + remove button. */
+export function initPetsEditor(container, existing = []) {
+  container.innerHTML = existing.map(petCardHTML).join('');
+  container.querySelectorAll('.pet-card').forEach(wirePetCard);
+}
+
+export function addPetCard(container) {
+  container.insertAdjacentHTML('beforeend', petCardHTML());
+  wirePetCard(container.lastElementChild);
+}
+
+/* Reads every pet card back into an array of plain objects, dropping any
+   card left completely nameless (an accidentally-added empty card should
+   not become a pet with no name in the database). */
+export function collectPets(container) {
+  return [...container.querySelectorAll('.pet-card')]
+    .map((card) => ({
+      name: card.querySelector('.pet-name').value.trim(),
+      species: card.querySelector('.pet-species').value,
+      speciesOther: card.querySelector('.pet-species-other').value.trim(),
+      breed: card.querySelector('.pet-breed').value.trim(),
+      gender: card.querySelector('.pet-gender').value,
+      age: card.querySelector('.pet-age').value.trim(),
+      colourMarks: card.querySelector('.pet-colour').value.trim(),
+      microchipNo: card.querySelector('.pet-microchip').value.trim(),
+      vetDoctorName: card.querySelector('.pet-vet-name').value.trim(),
+      clinicName: card.querySelector('.pet-clinic-name').value.trim(),
+      vetContactNumber: card.querySelector('.pet-vet-contact').value.trim(),
+      lastVaccinationDate: card.querySelector('.pet-last-vax').value || null,
+      nextVaccinationDue: card.querySelector('.pet-next-vax').value || null,
+      hasAntiRabiesCert: card.querySelector('.pet-cert-rabies').checked,
+      hasAnnualVaccinationRecord: card.querySelector('.pet-cert-annual').checked,
+      hasVetHealthCert: card.querySelector('.pet-cert-health').checked,
+      hasSterilizationCert: card.querySelector('.pet-cert-sterilization').checked,
+      emergencyContactName: card.querySelector('.pet-emg-name').value.trim(),
+      emergencyContactRelation: card.querySelector('.pet-emg-relation').value.trim(),
+      emergencyContactMobile: card.querySelector('.pet-emg-mobile').value.trim()
+    }))
+    .filter((p) => p.name);
+}
+
+/* Vaccination-due status for one pet, relative to today: overdue (past the
+   due date), due soon (within the next 30 days), or fine. Mirrors the shape
+   duesFor()/pollStatus() use elsewhere — a status string plus whatever the
+   caller needs to display. Pets with no nextVaccinationDue set simply have
+   nothing to report; that is not the same as being overdue. */
+export function petVaccinationStatus(pet) {
+  if (!pet.nextVaccinationDue) return { status: 'unknown', daysUntil: null };
+  const due = new Date(pet.nextVaccinationDue);
+  if (Number.isNaN(due.getTime())) return { status: 'unknown', daysUntil: null };
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  due.setHours(0, 0, 0, 0);
+  const daysUntil = Math.round((due - today) / 86400000);
+  if (daysUntil < 0) return { status: 'overdue', daysUntil };
+  if (daysUntil <= 30) return { status: 'due_soon', daysUntil };
+  return { status: 'fine', daysUntil };
 }
 
 /* ---------------------------------------------------------------------- */

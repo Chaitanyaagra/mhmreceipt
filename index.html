@@ -10,7 +10,7 @@
      What this buys: an injected <script src="https://evil.example/x.js"> will
      not load, and stolen data cannot be POSTed anywhere except the endpoints
      listed in connect-src. That is the realistic attack against a page that
-     handles Aadhaar uploads and payment records.
+     handles payment proof uploads and resident photo IDs.
 
      What it does NOT buy: script-src still has 'unsafe-inline', because every
      page here is built from inline module scripts and inline style attributes. Removing that needs the inline scripts moved into their
@@ -1035,6 +1035,34 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
   </div>
 </section>
 
+<section id="societyCalendar">
+  <div class="wrap">
+    <div class="section-head" style="margin-bottom:22px;">
+      <div class="rule-gold"></div>
+      <div class="eyebrow">What's Coming Up</div>
+      <h2 style="font-size:25px; margin-top:9px;">Society Calendar</h2>
+    </div>
+    <div id="calendarList" class="card card-pad">
+      <div class="skeleton" style="height:56px; margin-bottom:12px;"></div>
+      <div class="skeleton" style="height:56px;"></div>
+    </div>
+  </div>
+</section>
+
+<section id="activePolls">
+  <div class="wrap">
+    <div class="section-head" style="margin-bottom:22px;">
+      <div class="rule-gold"></div>
+      <div class="eyebrow">Have Your Say</div>
+      <h2 style="font-size:25px; margin-top:9px;">Active Polls</h2>
+    </div>
+    <div id="pollsList" class="card card-pad">
+      <div class="skeleton" style="height:56px; margin-bottom:12px;"></div>
+      <div class="skeleton" style="height:56px;"></div>
+    </div>
+  </div>
+</section>
+
 <section class="community engrave" id="community">
   <div class="wrap">
     <div class="section-head reveal">
@@ -1202,20 +1230,26 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
             <div class="fm-editor" id="regFamilyEditor"></div>
             <button type="button" class="btn btn-outline btn-sm fm-add-btn" id="regFamilyAdd">+ Family Member Jodein</button>
           </div>
+
+          <div class="field">
+            <label>Kya aapke paas pet hai?</label>
+            <div class="pet-toggle-row">
+              <label class="checkbox-row"><input type="radio" name="hasPet" value="yes" id="reg-hasPet-yes"> Haan</label>
+              <label class="checkbox-row"><input type="radio" name="hasPet" value="no" id="reg-hasPet-no" checked> Nahi</label>
+            </div>
+          </div>
+          <div id="regPetsWrap" style="display:none;">
+            <div class="pet-section-label" style="border-top:none; padding-top:0; margin-top:0;">Pet Registration</div>
+            <div id="regPetsEditor"></div>
+            <button type="button" class="btn btn-outline btn-sm fm-add-btn" id="regPetAdd">+ Ek Aur Pet Jodein</button>
+          </div>
         </fieldset>
 
         <fieldset>
-          <legend>Uploads</legend>
-          <div class="form-2col">
-            <div class="field">
-              <label for="fld-photo-12">Photo <span class="t-muted" style="font-weight:400;">(optional)</span></label>
-              <input type="file" name="photo" accept="image/*" id="fld-photo-12">
-            </div>
-            <div class="field">
-              <label for="fld-idDoc-13">Aadhaar / PAN <span class="t-muted" style="font-weight:400;">(optional)</span></label>
-              <input type="file" name="idDoc" accept="image/*,.pdf" id="fld-idDoc-13">
-              <div class="upload-hint">Jaanbujh kar optional rakha gaya hai — neeche wajah dekhein. Access sirf aapko aur committee ko.</div>
-            </div>
+          <legend>Upload</legend>
+          <div class="field">
+            <label for="fld-photo-12">Photo <span class="t-muted" style="font-weight:400;">(optional)</span></label>
+            <input type="file" name="photo" accept="image/*" id="fld-photo-12">
           </div>
         </fieldset>
 
@@ -1229,7 +1263,7 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
 
         <div class="final-only">
           <p class="t-muted" style="font-size:12px; line-height:1.6; margin-bottom:14px;">
-            🔒 Aapki jaankari (mobile, email, DOB, family details, Aadhaar/PAN) sirf society ke committee members ko dikhti hai —
+            🔒 Aapki jaankari (mobile, email, DOB, family details) sirf society ke committee members ko dikhti hai —
             membership verify karne, maintenance calculate karne, aur birthday/anniversary wish karne ke liye. Kabhi public nahi hoti.
             Flat bechte/khali karte waqt aap apna personal data erase karwa sakte hain.
             <button type="button" class="link-btn" id="openPrivacyPolicyBtnReg">Poori Privacy Policy padhein</button>
@@ -1366,6 +1400,24 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
   </div>
 </div>
 
+<!-- Pet add/edit — one modal for both: adding starts it with a single blank
+     pet-card, editing starts it pre-filled with that pet's saved data. The
+     same petCardHTML()/collectPets() app-common.js helpers the registration
+     form uses render the card here too, so the two never drift apart into
+     two different pet forms with different fields. -->
+<div class="modal-backdrop no-print" id="petModalBackdrop">
+  <div class="modal">
+    <div class="modal-head"><h3 style="font-size:16.5px;" id="petModalTitle">Pet Add Karein</h3><button class="icon-btn" id="closePetModal">✕</button></div>
+    <div class="modal-body">
+      <form id="petEditForm">
+        <input type="hidden" id="pet-editing-id" value="">
+        <div id="petModalEditor"></div>
+        <button class="btn btn-primary btn-block" type="submit">Save Karein</button>
+      </form>
+    </div>
+  </div>
+</div>
+
 <!-- Privacy Policy — full text, opened from the registration form's privacy
      notice. Static content, no Firebase needed, so it can open even before
      login and even if the SDK is slow to load. -->
@@ -1373,8 +1425,8 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
   <div class="modal">
     <div class="modal-head"><h3 style="font-size:16.5px;">Privacy Policy</h3><button class="icon-btn" id="closePrivacyPolicyModal">✕</button></div>
     <div class="modal-body" style="font-size:13px; line-height:1.7;">
-      <p><b>Hum kya data lete hain:</b> Naam, mobile, email, address, photo, Aadhaar/PAN (optional), Date of Birth, Anniversary, family members ke naam/rishta/DOB, aur aapki payment history.</p>
-      <p><b>Kyun lete hain:</b> Membership verify karne, maintenance bill banane, gate/security ke liye photo ID, aur birthday/anniversary par wish karne ke liye. Aadhaar/PAN sirf identity confirm karne ke liye — kahin aur share nahi hoti.</p>
+      <p><b>Hum kya data lete hain:</b> Naam, mobile, email, address, photo, Date of Birth, Anniversary, family members ke naam/rishta/DOB, aur aapki payment history.</p>
+      <p><b>Kyun lete hain:</b> Membership verify karne, maintenance bill banane, gate/security ke liye photo ID, aur birthday/anniversary par wish karne ke liye.</p>
       <p><b>Kaun dekh sakta hai:</b> Sirf society ke committee members (jo admin panel mein login karte hain) — kabhi public nahi dikhaya jaata. Aapka apna data sirf aapko aur committee ko dikhta hai.</p>
       <p><b>Kitne time tak:</b> Jab tak aap society ke resident hain. Financial records (payment receipts) audit ke liye lambe samay tak rakhe jaate hain, jaisa kanoon maang karta hai.</p>
       <p><b>Aapke adhikar:</b> Aap "My Profile" se apna data khud dekh/edit kar sakte hain. Flat bechte ya khali karte waqt, aap committee se apna personal data (mobile, email, family details, photo, ID) erase karwa sakte hain — sirf naam, flat number, aur financial history (audit ke liye zaroori) surakshit rehti hai.</p>
@@ -1675,11 +1727,11 @@ import {
   showToast, escapeHtml, fmtDate, formatINR, currentFinancialYear,
   generateReceiptPDF, printReceipt, validatePayment, validateRegistration,
   generateMembershipCard, duesFor, DUES_LABEL, DUES_BADGE,
-  expenseSummary, fundPosition,
   generateStatementPDF, skeletonList, emptyState, showFieldError, clearFieldErrors,
   membershipDue, membershipFeeAmount, paymentDetails, eventDue,
   waShareText, downloadImageFromUrl,
-  initFamilyMembersEditor, addFamilyMemberRow, collectFamilyMembers
+  initFamilyMembersEditor, addFamilyMemberRow, collectFamilyMembers,
+  initPetsEditor, addPetCard, collectPets, petVaccinationStatus
 } from './app-common.js';
 
 /* Branding, the year stamp and the committee fallback are handled by the
@@ -1722,6 +1774,24 @@ const regFamilyEditor = document.getElementById('regFamilyEditor');
 if (regFamilyEditor) {
   initFamilyMembersEditor(regFamilyEditor);
   document.getElementById('regFamilyAdd')?.addEventListener('click', () => addFamilyMemberRow(regFamilyEditor));
+}
+
+// Pet registration — starts with zero cards (unlike family members, which
+// starts with one blank row): "no pet" is the common case, and showing an
+// empty pet card by default would make every registrant scroll past fields
+// that don't apply to them. The first card appears only once "Haan" is
+// actually chosen.
+const regPetsEditor = document.getElementById('regPetsEditor');
+const regPetsWrap = document.getElementById('regPetsWrap');
+if (regPetsEditor && regPetsWrap) {
+  document.getElementById('regPetAdd')?.addEventListener('click', () => addPetCard(regPetsEditor));
+  document.querySelectorAll('input[name="hasPet"]').forEach(radio => {
+    radio.addEventListener('change', () => {
+      const showPets = document.querySelector('input[name="hasPet"]:checked')?.value === 'yes';
+      regPetsWrap.style.display = showPets ? 'block' : 'none';
+      if (showPets && !regPetsEditor.querySelector('.pet-card')) addPetCard(regPetsEditor);
+    });
+  });
 }
 
 /* ---- Stepped registration (progressive enhancement) ----------------------
@@ -1892,9 +1962,8 @@ registerForm.addEventListener('submit', async (e) => {
     cred = await createUserWithEmailAndPassword(auth, email, f.password.value);
     const uid = cred.user.uid;
 
-    let photoURL = '', idDocURL = '';
+    let photoURL = '';
     if (f.photo.files[0]) photoURL = await uploadFile(`photos/${uid}/photo_${Date.now()}`, f.photo.files[0]);
-    if (f.idDoc.files[0]) idDocURL = await uploadFile(`documents/${uid}/iddoc_${Date.now()}`, f.idDoc.files[0]);
 
     await setDoc(doc(db, 'members', uid), {
       uid,
@@ -1913,7 +1982,7 @@ registerForm.addEventListener('submit', async (e) => {
       dob: f.dob.value || null,
       anniversary: f.anniversary.value || null,
       familyMembers: regFamilyEditor ? collectFamilyMembers(regFamilyEditor) : [],
-      photoURL, idDocURL,
+      photoURL,
       declarationAccepted: true,
       memberID: null,
       status: 'pending',
@@ -1922,8 +1991,31 @@ registerForm.addEventListener('submit', async (e) => {
       updatedAt: serverTimestamp()
     });
 
+    // Pets are their own documents (not embedded in the member record) so
+    // the vaccination-reminder job can query across all of them directly.
+    // Saved AFTER the member write succeeds — if this part fails, the
+    // registration itself has already gone through, so the resident is told
+    // to add the pet again from "My Pets" rather than losing their whole
+    // registration over it.
+    const pets = regPetsEditor ? collectPets(regPetsEditor) : [];
+    let petSaveFailed = false;
+    for (const pet of pets) {
+      try {
+        await addDoc(collection(db, 'pets'), {
+          ...pet, ownerUid: uid, ownerName: f.name.value.trim(),
+          tower: f.tower.value.trim(), flatNumber: f.flatNumber.value.trim(),
+          createdAt: serverTimestamp(), updatedAt: serverTimestamp()
+        });
+      } catch (petErr) {
+        console.warn('Pet save failed:', petErr?.code || petErr);
+        petSaveFailed = true;
+      }
+    }
+
     if (f.photo.files[0] && !photoURL) {
       showToast('Registration jama ho gaya, lekin photo upload nahi ho payi. Office se photo add karwa lein.', 'error');
+    } else if (petSaveFailed) {
+      showToast('Registration jama ho gaya, lekin pet details save nahi ho payi. Login karke "My Pets" se dobara add karein.', 'error');
     } else {
       showSuccess('Registration ho gaya!', 'Admin approval ke baad aapki Member ID ban jayegi. Aap ab login kar sakte hain.');
     }
@@ -1986,6 +2078,7 @@ onAuthStateChanged(auth, async (user) => {
     dash.classList.remove('fade-in'); void dash.offsetWidth; dash.classList.add('fade-in');
     window.scrollTo(0, 0);
     await loadDashboard(user.uid);
+    loadPolls();
   } else {
     window.__loggedIn = false;
     document.body.classList.remove('logged-in');
@@ -1994,6 +2087,7 @@ onAuthStateChanged(auth, async (user) => {
     navBtn.onclick = () => window.__goToPortal('login');
     portal.style.display = 'block';
     dash.style.display = 'none';
+    loadPolls();
   }
 });
 
@@ -2078,6 +2172,13 @@ async function loadDashboard(uid) {
         <div class="detail-line"><span>Family Members</span><span>${(currentMember.familyMembers && currentMember.familyMembers.length) ? currentMember.familyMembers.length : '—'}</span></div>
         <button class="btn btn-outline btn-sm" id="editProfileBtn" style="margin-top:10px;">✎ Edit Profile</button>
       </div>
+      <div class="card card-pad">
+        <div class="spread" style="margin-bottom:12px;">
+          <h3 style="font-size:16px;">My Pets</h3>
+          <button class="btn btn-outline btn-sm" id="addPetBtn">+ Add a Pet</button>
+        </div>
+        <div id="myPetsList"><p class="t-muted" style="font-size:13px;">Loading…</p></div>
+      </div>
       ${(!currentMember.dob && !(currentMember.familyMembers && currentMember.familyMembers.length)) ? `
       <div class="card card-pad" style="grid-column:1/-1; background:var(--gold-glow,rgba(201,162,39,.08)); border-color:var(--gold-500,#C9A227);">
         <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
@@ -2100,9 +2201,98 @@ async function loadDashboard(uid) {
     document.getElementById('downloadStatementBtn')?.addEventListener('click', downloadStatement);
     document.getElementById('editProfileBtn')?.addEventListener('click', openProfileModal);
     document.getElementById('fillProfileNudgeBtn')?.addEventListener('click', openProfileModal);
+    document.getElementById('addPetBtn')?.addEventListener('click', () => openPetModal());
     await loadPayments(uid);
+    await loadMyPets(uid);
   }
 }
+
+/* My Pets — every pet this resident owns, with a vaccination-status colour
+   so an overdue or soon-due pet doesn't need opening the edit modal just to
+   notice. A single where('ownerUid','==',uid) query, no orderBy combined
+   with it, so this never needs a composite index the way the old payments
+   query did before that got fixed. */
+async function loadMyPets(uid) {
+  const el = document.getElementById('myPetsList');
+  if (!el) return;
+  try {
+    const rows = (await getDocs(query(collection(db, 'pets'), where('ownerUid', '==', uid)))).docs.map(d => ({ id: d.id, ...d.data() }));
+    window.__myPets = rows;
+    renderMyPets();
+  } catch (e) {
+    console.warn('Pets load failed:', e?.code || e);
+    el.innerHTML = emptyState('Pets load nahi hue', 'Page refresh karke dobara try karein.', { compact: true });
+    window.__translate(el);
+  }
+}
+const PET_ICON = { dog: '🐕', cat: '🐈', bird: '🐦', other: '🐾' };
+function renderMyPets() {
+  const el = document.getElementById('myPetsList');
+  const rows = window.__myPets || [];
+  if (!rows.length) {
+    el.innerHTML = '<p class="t-muted" style="font-size:13px;">Abhi koi pet register nahi hai.</p>';
+    return;
+  }
+  el.innerHTML = rows.map((pet, i) => {
+    const st = petVaccinationStatus(pet);
+    const vaxNote = st.status === 'overdue'
+      ? `<span style="color:var(--danger,#C0392B);">Vaccination ${Math.abs(st.daysUntil)} din overdue</span>`
+      : st.status === 'due_soon'
+      ? `<span style="color:var(--gold-700,#8F7115);">Vaccination ${st.daysUntil} din mein due</span>`
+      : st.status === 'fine'
+      ? `Vaccination ${st.daysUntil} din mein due`
+      : 'Vaccination date set nahi hai';
+    return `
+    <div class="detail-line" style="align-items:flex-start;">
+      <span>${PET_ICON[pet.species] || '🐾'} <b>${escapeHtml(pet.name)}</b><br><span class="t-muted" style="font-size:12px;">${vaxNote}</span></span>
+      <button type="button" class="btn btn-outline btn-sm" data-edit-pet="${i}">Edit</button>
+    </div>`;
+  }).join('');
+  el.querySelectorAll('[data-edit-pet]').forEach(b => b.addEventListener('click', () => openPetModal(rows[Number(b.dataset.editPet)].id)));
+}
+
+function openPetModal(petId = null) {
+  const editor = document.getElementById('petModalEditor');
+  const existing = petId ? (window.__myPets || []).find(p => p.id === petId) : null;
+  document.getElementById('pet-editing-id').value = petId || '';
+  document.getElementById('petModalTitle').textContent = existing ? 'Pet Edit Karein' : 'Pet Add Karein';
+  initPetsEditor(editor, existing ? [existing] : [{}]);
+  document.getElementById('petModalBackdrop').classList.add('open');
+}
+document.getElementById('closePetModal')?.addEventListener('click', () =>
+  document.getElementById('petModalBackdrop').classList.remove('open'));
+
+document.getElementById('petEditForm')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = e.target.querySelector('button[type="submit"]');
+  const editor = document.getElementById('petModalEditor');
+  const editingId = document.getElementById('pet-editing-id').value;
+  const pets = collectPets(editor);
+  if (!pets.length) { showToast('Pet ka naam aur species zaroori hai.', 'error'); return; }
+  const pet = pets[0];
+  btn.disabled = true;
+  try {
+    if (editingId) {
+      await updateDoc(doc(db, 'pets', editingId), { ...pet, updatedAt: serverTimestamp() });
+      showToast('Pet details update ho gayi.', 'success');
+    } else {
+      await addDoc(collection(db, 'pets'), {
+        ...pet, ownerUid: currentUser.uid, ownerName: currentMember.name,
+        tower: currentMember.tower, flatNumber: currentMember.flatNumber,
+        createdAt: serverTimestamp(), updatedAt: serverTimestamp()
+      });
+      showToast('Pet add ho gaya.', 'success');
+    }
+    document.getElementById('petModalBackdrop').classList.remove('open');
+    await loadMyPets(currentUser.uid);
+  } catch (err) {
+    console.error('Save pet failed:', err);
+    const code = err?.code || '';
+    showToast(`Pet save nahi ho paaya${code ? ` (${code})` : ''}.`, 'error');
+  } finally {
+    btn.disabled = false;
+  }
+});
 
 /* My Profile — a resident editing their own contact/family info. Deliberately
    does NOT expose name, owner/tenant type, or tower/flat: those go through
@@ -2840,6 +3030,178 @@ function renderNotices() {
   window.__translate(listEl);
 }
 
+const CAL_TYPE_ICON = { festival: '🎉', meeting: '🗓️', maintenance: '🔧', shutdown: '⚡', event: '🎊', other: '📌' };
+
+// Deliberately fetches every calendarEvents doc with no where()/orderBy() at
+// all, then filters to "today onward" and sorts in JS. A single-field
+// orderBy alone wouldn't need a composite index here, but the whole point of
+// keeping this identical to the loadPayments() fix earlier is: a page that
+// never asks Firestore to filter-and-sort together can never be the one
+// that silently breaks because an index was never created in the Console.
+// The list a resident cares about is small enough that client-side
+// filtering costs nothing worth optimizing away.
+async function loadCalendar() {
+  const el = document.getElementById('calendarList');
+  if (el && !el.dataset.loaded) el.innerHTML = skeletonList(2);
+  try {
+    const rows = (await getDocs(collection(db, 'calendarEvents'))).docs.map(d => d.data());
+    const today = new Date().toISOString().slice(0, 10);
+    window.__calendarEntries = rows
+      .filter(c => c.date && c.date >= today)
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .slice(0, 8);
+    renderCalendar();
+  } catch (e) {
+    window.__calendarEntries = null;
+    el.innerHTML = emptyState('Calendar load nahi hua', 'Internet check karke page refresh karein.', { compact: true });
+    window.__translate(el);
+  }
+}
+function renderCalendar() {
+  const el = document.getElementById('calendarList');
+  el.dataset.loaded = '1';
+  const rows = window.__calendarEntries;
+  if (!rows || !rows.length) {
+    el.innerHTML = emptyState('Abhi kuch upcoming nahi hai', 'Naye events, maintenance aur meetings yahan dikhenge.', { compact: true });
+    window.__translate(el);
+    return;
+  }
+  const lang = document.documentElement.lang === 'hi' ? 'hi' : 'en';
+  el.innerHTML = rows.map(c => {
+    const d = new Date(c.date);
+    const day = String(d.getDate()).padStart(2, '0');
+    const mon = d.toLocaleString(lang === 'hi' ? 'hi-IN' : 'en-IN', { month: 'short' });
+    return `
+      <div class="notice-item">
+        <div class="notice-date" data-no-translate><div class="d">${day}</div><div class="m">${escapeHtml(mon)}</div></div>
+        <div class="notice-body">
+          <h4 data-no-translate>${CAL_TYPE_ICON[c.type] || '📌'} ${escapeHtml(c.title)}</h4>
+          ${c.description ? `<p data-no-translate>${escapeHtml(c.description)}</p>` : ''}
+        </div>
+      </div>`;
+  }).join('');
+  window.__translate(el);
+}
+
+/* ---- Active Polls ---------------------------------------------------
+   Voting integrity lives entirely in firestore.rules (the vote doc's ID is
+   the voter's own uid, so a second vote can only ever hit "already exists"
+   — see the rules file for the full reasoning). This code's job is just:
+   show what's currently open, let a signed-in approved resident cast one
+   vote per poll, and show them the result once they have. Not logged in?
+   They still see the question, just with a "login to vote" nudge instead
+   of clickable options — the poll itself is public read. */
+async function loadPolls() {
+  const el = document.getElementById('pollsList');
+  if (el && !el.dataset.loaded) el.innerHTML = skeletonList(2);
+  try {
+    const rows = (await getDocs(collection(db, 'polls'))).docs.map(d => ({ id: d.id, ...d.data() }));
+    const now = new Date();
+    window.__activePolls = rows.filter(p => {
+      const start = p.startTime?.toDate ? p.startTime.toDate() : new Date(p.startTime);
+      const end = p.endTime?.toDate ? p.endTime.toDate() : new Date(p.endTime);
+      return now >= start && now <= end;
+    });
+    await renderPolls();
+  } catch (e) {
+    window.__activePolls = null;
+    el.innerHTML = emptyState('Polls load nahi hue', 'Internet check karke page refresh karein.', { compact: true });
+    window.__translate(el);
+  }
+}
+async function renderPollResults(pollId, poll, box) {
+  box.innerHTML = '<p class="t-muted" style="font-size:12px;">Loading…</p>';
+  try {
+    const votes = (await getDocs(collection(db, 'polls', pollId, 'votes'))).docs.map(d => d.data());
+    const counts = {};
+    poll.options.forEach(o => { counts[o] = 0; });
+    votes.forEach(v => { if (v.option in counts) counts[v.option]++; });
+    const total = votes.length;
+    box.innerHTML = `
+      <div class="t-muted" style="font-size:11.5px; margin-bottom:6px;">${total} vote${total === 1 ? '' : 's'} so far</div>
+      ${poll.options.map(o => {
+        const pct = total ? Math.round((counts[o] / total) * 100) : 0;
+        return `<div style="margin-bottom:6px;">
+          <div class="spread" style="font-size:12.5px; margin-bottom:2px;"><span>${escapeHtml(o)}</span><span class="mono">${counts[o]} · ${pct}%</span></div>
+          <div style="height:6px; background:#eee; border-radius:4px; overflow:hidden;"><div style="height:100%; width:${pct}%; background:var(--gold-500,#C9A227);"></div></div>
+        </div>`;
+      }).join('')}
+    `;
+  } catch (e) { box.innerHTML = ''; }
+}
+async function renderPolls() {
+  const el = document.getElementById('pollsList');
+  el.dataset.loaded = '1';
+  const polls = window.__activePolls;
+  if (!polls || !polls.length) {
+    el.innerHTML = emptyState('Abhi koi active poll nahi', 'Naye polls yahan dikhenge.', { compact: true });
+    window.__translate(el);
+    return;
+  }
+
+  // For each active poll, quietly check whether the signed-in resident has
+  // already voted, so the right UI (vote buttons vs results) shows on first
+  // paint instead of flickering from one to the other.
+  const items = await Promise.all(polls.map(async (p) => {
+    if (!currentUser) return { poll: p, hasVoted: false, myOption: null, loggedOut: true };
+    try {
+      const voteSnap = await getDoc(doc(db, 'polls', p.id, 'votes', currentUser.uid));
+      return { poll: p, hasVoted: voteSnap.exists(), myOption: voteSnap.exists() ? voteSnap.data().option : null };
+    } catch (e) {
+      // Can't tell — default to showing vote buttons; a genuine repeat
+      // attempt is still safely rejected by the rules either way.
+      return { poll: p, hasVoted: false, myOption: null };
+    }
+  }));
+
+  el.innerHTML = items.map(({ poll, hasVoted, myOption, loggedOut }) => {
+    if (loggedOut) {
+      return `<div class="card card-pad" style="margin-bottom:14px;">
+        <h4 style="margin-bottom:6px;">${escapeHtml(poll.question)}</h4>
+        <p class="t-muted" style="font-size:12.5px;">Vote karne ke liye login karein.</p>
+      </div>`;
+    }
+    if (hasVoted) {
+      return `<div class="card card-pad" style="margin-bottom:14px;">
+        <h4 style="margin-bottom:6px;">${escapeHtml(poll.question)}</h4>
+        <p class="t-muted" style="font-size:12.5px; margin-bottom:8px;">Aapne vote diya: <b>${escapeHtml(myOption)}</b></p>
+        <div id="pollResBox-${poll.id}"></div>
+      </div>`;
+    }
+    return `<div class="card card-pad" style="margin-bottom:14px;" data-poll-id="${poll.id}">
+      <h4 style="margin-bottom:10px;">${escapeHtml(poll.question)}</h4>
+      ${poll.options.map(o => `<button type="button" class="btn btn-outline btn-sm poll-vote-btn" data-option="${escapeHtml(o)}" style="display:block; width:100%; text-align:left; margin-bottom:6px;">${escapeHtml(o)}</button>`).join('')}
+    </div>`;
+  }).join('');
+  window.__translate(el);
+
+  el.querySelectorAll('.poll-vote-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const card = btn.closest('[data-poll-id]');
+      const pollId = card.dataset.pollId;
+      const option = btn.dataset.option;
+      card.querySelectorAll('.poll-vote-btn').forEach(b => { b.disabled = true; });
+      try {
+        await setDoc(doc(db, 'polls', pollId, 'votes', currentUser.uid), {
+          option, votedAt: serverTimestamp()
+        });
+        showToast('Aapka vote darj ho gaya!', 'success');
+        await loadPolls();
+      } catch (err) {
+        console.error('Vote failed:', err);
+        const code = err?.code || '';
+        showToast(`Vote nahi ho paaya${code ? ` (${code})` : ''}.`, 'error');
+        card.querySelectorAll('.poll-vote-btn').forEach(b => { b.disabled = false; });
+      }
+    });
+  });
+
+  items.filter(i => i.hasVoted).forEach(({ poll }) => {
+    const box = document.getElementById(`pollResBox-${poll.id}`);
+    if (box) renderPollResults(poll.id, poll, box);
+  });
+}
+
 /* Plain-text version of a notice for a WhatsApp message: title, body, the
    society name, and the attachment link if there is one. Uses whichever
    language the portal is currently in. */
@@ -2860,32 +3222,31 @@ async function loadAccounts() {
   const el = document.getElementById('accountsPanel');
   const fy = currentFinancialYear();
   try {
-    // Both collections are world-readable by design: this is the society's
-    // own money and the same figures appear in the audited accounts.
-    const [expSnap, paySnap] = await Promise.all([
-      getDocs(query(collection(db, 'expenses'), where('financialYear', '==', fy))),
-      getDocs(query(collection(db, 'payments'), where('financialYear', '==', fy)))
-    ]);
-    const expenses = expSnap.docs.map(d => d.data());
-    const payments = paySnap.docs.map(d => d.data());
-    const pos = fundPosition(payments, expenses, fy);
-    const summary = expenseSummary(expenses, fy);
-
-    if (!expenses.length && !pos.collected) {
+    // Reads the ONE aggregate summary the admin app keeps in sync, not the
+    // raw expenses/payments collections — those are member- and
+    // admin-scoped respectively, so an anonymous visitor's browser was
+    // never actually able to query them directly for this. This is what
+    // makes the figures below real instead of a permission-denied that
+    // quietly fell back to "no accounts published".
+    const snap = await getDoc(doc(db, 'publicFinancialSummary', fy));
+    if (!snap.exists()) {
       el.innerHTML = '<div class="empty" style="padding:38px 12px;"><p>No accounts have been published for this year yet.</p></div>';
       window.__translate(el); return;
     }
+    const s = snap.data();
+    const balance = Number(s.balance) || 0;
+    const categories = Array.isArray(s.categories) ? s.categories : [];
 
     el.innerHTML = `
       <div class="fund-row">
-        <div class="fund-card"><div class="lbl">Collected &middot; FY ${escapeHtml(fy)}</div><div class="amt">${formatINR(pos.collected)}</div></div>
-        <div class="fund-card spend"><div class="lbl">Spent</div><div class="amt">${formatINR(pos.spent)}</div></div>
-        <div class="fund-card balance ${pos.balance < 0 ? 'negative' : ''}"><div class="lbl">Balance</div><div class="amt">${formatINR(pos.balance)}</div></div>
+        <div class="fund-card"><div class="lbl">Collected &middot; FY ${escapeHtml(fy)}</div><div class="amt">${formatINR(s.collected)}</div></div>
+        <div class="fund-card spend"><div class="lbl">Spent</div><div class="amt">${formatINR(s.spent)}</div></div>
+        <div class="fund-card balance ${balance < 0 ? 'negative' : ''}"><div class="lbl">Balance</div><div class="amt">${formatINR(balance)}</div></div>
       </div>
-      ${summary.categories.length ? `
+      ${categories.length ? `
       <div class="spend-list">
         <h3 style="font-size:15.5px; margin-bottom:14px;">Spending by head</h3>
-        ${summary.categories.map(c => `
+        ${categories.map(c => `
           <div class="spend-row">
             <div class="top">
               <span class="nm">${escapeHtml(c.name)}</span>
@@ -2983,6 +3344,8 @@ async function loadStats() {
 }
 
 loadNotices();
+loadCalendar();
+loadPolls();
 loadAccounts();
 loadDownloads();
 loadCommittee();
