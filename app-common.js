@@ -78,7 +78,6 @@ export const LIMITS = {
   nameMax: 100,
   towerMax: 50,
   flatMax: 30,
-  addressMax: 500,
   utrMin: 6,
   utrMax: 22
 };
@@ -91,17 +90,17 @@ export const PAYMENT_MODES = ['cash', 'cheque', 'upi', 'netbanking'];
  */
 export function validatePayment({ amount, mode, utr, isOffline }) {
   const amt = Number(amount);
-  if (!Number.isFinite(amt)) return 'Amount ek valid number hona chahiye.';
-  if (amt < LIMITS.amountMin) return 'Amount kam se kam ₹1 hona chahiye.';
-  if (amt > LIMITS.amountMax) return `Amount ₹${LIMITS.amountMax.toLocaleString('en-IN')} se zyada nahi ho sakta. Itni badi rakam ke liye office se sampark karein.`;
-  if (Math.round(amt * 100) !== amt * 100) return 'Amount mein do se zyada decimal nahi ho sakte.';
-  if (!PAYMENT_MODES.includes(mode)) return 'Payment mode valid nahi hai.';
+  if (!Number.isFinite(amt)) return 'Amount must be a valid number.';
+  if (amt < LIMITS.amountMin) return 'Amount must be at least ₹1.';
+  if (amt > LIMITS.amountMax) return `Amount cannot exceed ₹${LIMITS.amountMax.toLocaleString('en-IN')}. Please contact the office for amounts this large.`;
+  if (Math.round(amt * 100) !== amt * 100) return 'Amount cannot have more than two decimal places.';
+  if (!PAYMENT_MODES.includes(mode)) return 'Invalid payment mode.';
   if (!isOffline) {
     const t = String(utr || '').trim();
-    if (!t) return 'UTR / Transaction ID zaroori hai.';
-    if (!/^[a-zA-Z0-9]+$/.test(t)) return 'UTR / Transaction ID mein sirf letters aur numbers ho sakte hain.';
+    if (!t) return 'UTR / Transaction ID is required.';
+    if (!/^[a-zA-Z0-9]+$/.test(t)) return 'UTR / Transaction ID can only contain letters and numbers.';
     if (t.length < LIMITS.utrMin || t.length > LIMITS.utrMax)
-      return `UTR / Transaction ID ${LIMITS.utrMin}-${LIMITS.utrMax} characters ka hona chahiye.`;
+      return `UTR / Transaction ID must be ${LIMITS.utrMin}-${LIMITS.utrMax} characters long.`;
   }
   return null;
 }
@@ -121,53 +120,49 @@ export function validateRegistration(f) {
   const mobile = val('mobile');
   const email = val('email');
   const occupation = val('occupation');
-  const address = val('address');
   const nomineeName = val('nomineeName');
   const nomineeRelation = val('nomineeRelation');
   const residentType = val('residentType');
 
-  if (!name) return { field: 'name', message: 'Naam zaroori hai.' };
-  if (name.length > LIMITS.nameMax) return { field: 'name', message: `Naam ${LIMITS.nameMax} characters se lamba nahi ho sakta.` };
+  if (!name) return { field: 'name', message: 'Name is required.' };
+  if (name.length > LIMITS.nameMax) return { field: 'name', message: `Name cannot be longer than ${LIMITS.nameMax} characters.` };
   // \p{M} matters here: Devanagari matras (ा ि ो) are Unicode *Marks*, not
   // Letters, so without it every Hindi name would be rejected.
-  if (!/^[\p{L}\p{M}\s.'-]+$/u.test(name)) return { field: 'name', message: 'Naam mein sirf akshar, space, aur . \' - ho sakte hain.' };
+  if (!/^[\p{L}\p{M}\s.'-]+$/u.test(name)) return { field: 'name', message: "Name can only contain letters, spaces, and . ' -" };
 
-  if (!father) return { field: 'fatherHusbandName', message: 'Pita / Pati ka naam zaroori hai.' };
-  if (father.length > LIMITS.nameMax) return { field: 'fatherHusbandName', message: 'Pita / Pati ka naam bahut lamba hai.' };
-  if (!/^[\p{L}\p{M}\s.'-]+$/u.test(father)) return { field: 'fatherHusbandName', message: 'Pita / Pati ke naam mein sirf akshar aur space ho sakte hain.' };
+  if (!father) return { field: 'fatherHusbandName', message: "Father's / Husband's name is required." };
+  if (father.length > LIMITS.nameMax) return { field: 'fatherHusbandName', message: "Father's / Husband's name is too long." };
+  if (!/^[\p{L}\p{M}\s.'-]+$/u.test(father)) return { field: 'fatherHusbandName', message: "Father's / Husband's name can only contain letters and spaces." };
 
-  if (!tower) return { field: 'tower', message: 'Tower chunna zaroori hai.' };
-  if (!TOWER_PLAN[tower]) return { field: 'tower', message: 'Tower valid nahi hai.' };
-  if (!flat) return { field: 'flatNumber', message: 'Flat number chunna zaroori hai.' };
-  if (!isValidFlat(tower, flat)) return { field: 'flatNumber', message: `Flat ${flat} Tower ${tower} mein maujood nahi hai.` };
+  if (!tower) return { field: 'tower', message: 'Please select a tower.' };
+  if (!TOWER_PLAN[tower]) return { field: 'tower', message: 'Invalid tower.' };
+  if (!flat) return { field: 'flatNumber', message: 'Please select a flat number.' };
+  if (!isValidFlat(tower, flat)) return { field: 'flatNumber', message: `Flat ${flat} does not exist in Tower ${tower}.` };
 
   // Indian mobile numbers begin 6, 7, 8 or 9 — this rejects landlines and
   // the common habit of typing a 0 or +91 prefix into the field.
-  if (!/^[0-9]{10}$/.test(mobile)) return { field: 'mobile', message: 'Mobile number theek 10 ankon ka hona chahiye (bina 0 ya +91 ke).' };
-  if (!/^[6-9]/.test(mobile)) return { field: 'mobile', message: 'Mobile number 6, 7, 8 ya 9 se shuru hona chahiye.' };
+  if (!/^[0-9]{10}$/.test(mobile)) return { field: 'mobile', message: 'Mobile number must be exactly 10 digits (without a leading 0 or +91).' };
+  if (!/^[6-9]/.test(mobile)) return { field: 'mobile', message: 'Mobile number must start with 6, 7, 8, or 9.' };
 
-  if (!email) return { field: 'email', message: 'Email zaroori hai.' };
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { field: 'email', message: 'Email address sahi format mein nahi hai.' };
+  if (!email) return { field: 'email', message: 'Email is required.' };
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { field: 'email', message: 'Email address is not in a valid format.' };
 
-  if (!occupation) return { field: 'occupation', message: 'Occupation zaroori hai.' };
-  if (occupation.length > 100) return { field: 'occupation', message: 'Occupation bahut lamba hai.' };
-  if (!residentType) return { field: 'residentType', message: 'Owner ya Tenant chunna zaroori hai.' };
-  if (!['owner', 'tenant'].includes(residentType)) return { field: 'residentType', message: 'Owner / Tenant valid nahi hai.' };
+  if (!occupation) return { field: 'occupation', message: 'Occupation is required.' };
+  if (occupation.length > 100) return { field: 'occupation', message: 'Occupation is too long.' };
+  if (!residentType) return { field: 'residentType', message: 'Please select Owner or Tenant.' };
+  if (!['owner', 'tenant'].includes(residentType)) return { field: 'residentType', message: 'Invalid Owner/Tenant selection.' };
 
-  if (!address) return { field: 'address', message: 'Address zaroori hai.' };
-  if (address.length > LIMITS.addressMax) return { field: 'address', message: 'Address bahut lamba hai.' };
-
-  if (!nomineeName) return { field: 'nomineeName', message: 'Nominee ka naam zaroori hai.' };
-  if (!/^[\p{L}\p{M}\s.'-]+$/u.test(nomineeName)) return { field: 'nomineeName', message: 'Nominee ke naam mein sirf akshar aur space ho sakte hain.' };
-  if (!nomineeRelation) return { field: 'nomineeRelation', message: 'Nominee se sambandh zaroori hai.' };
+  if (!nomineeName) return { field: 'nomineeName', message: 'Nominee name is required.' };
+  if (!/^[\p{L}\p{M}\s.'-]+$/u.test(nomineeName)) return { field: 'nomineeName', message: 'Nominee name can only contain letters and spaces.' };
+  if (!nomineeRelation) return { field: 'nomineeRelation', message: 'Relationship to nominee is required.' };
 
   // Photo and Aadhaar/PAN are both deliberately NOT required — some residents
   // don't have a photo ready at registration time; the office can add it
   // later from the member's edit screen, same as the ID document already was.
 
-  if (f.password.value.length < 6) return { field: 'password', message: 'Password kam se kam 6 characters ka hona chahiye.' };
-  if (f.password.value !== f.confirmPassword.value) return { field: 'confirmPassword', message: 'Password match nahi kar raha.' };
-  if (!f.declaration.checked) return { field: 'declaration', message: 'Aage badhne ke liye declaration par tick karein.' };
+  if (f.password.value.length < 6) return { field: 'password', message: 'Password must be at least 6 characters.' };
+  if (f.password.value !== f.confirmPassword.value) return { field: 'confirmPassword', message: 'Passwords do not match.' };
+  if (!f.declaration.checked) return { field: 'declaration', message: 'Please check the declaration to continue.' };
   return null;
 }
 
@@ -278,10 +273,17 @@ export const DEFAULT_MEMBERSHIP_FEE = 1100;
 export const PAYMENT_DEFAULTS = {
   accountName: 'MAX HEIGHTS MAJESTIC RESIDENT WLFR SOC',
   bankName: 'HDFC Bank',
-  accountNumber: '50200123261579',
+  // Deliberately NOT hardcoded: this file is a static asset served to every
+  // visitor's browser regardless of any Firestore rule, so a real account
+  // number or IFSC placed here would be exposed even if Firestore locked
+  // paymentPrivate down perfectly. The real values live only in
+  // settings/paymentPrivate, configured once from the admin Settings page —
+  // an empty string here just means "not configured yet" instead of
+  // silently showing what looks like a valid, real account.
+  accountNumber: '',
   accountType: 'Current Account',
-  ifsc: 'HDFC0003774',
-  branch: 'VISHWAKARMA INDUSTRIAL AREA',
+  ifsc: '',
+  branch: '',
   officeAddress: 'Basement, Max Heights Majestic, GH 03 Suncity Township, Sikar Rd, Jaipur, Rajasthan 302048',
   upiId: ''
 };
@@ -390,13 +392,14 @@ export const EXPENSE_MODES = ['cash', 'cheque', 'bank', 'upi'];
 export function expenseSummary(expenses, financialYear) {
   // Only money that's actually final counts as "spent": approved expenses,
   // and anything written before the Approval Workflow existed (no status
-  // field at all — treated as legacy-approved). A pending request or a
-  // rejected one must NOT inflate this total, or Fund Balance and the
-  // Treasurer Dashboard would understate what's really available.
+  // field at all — treated as legacy-approved). A pending request, a
+  // rejected one, or one later voided must NOT inflate this total, or Fund
+  // Balance and the Treasurer Dashboard would overstate what's really gone.
   const rows = (expenses || []).filter(e =>
     e.financialYear === financialYear
     && e.status !== 'pending_approval'
     && e.status !== 'rejected'
+    && e.status !== 'voided'
   );
   const total = rows.reduce((s, e) => s + (Number(e.amount) || 0), 0);
 
@@ -476,13 +479,13 @@ export function treasurerDashboardStats(payments, expenses) {
 /** Validates an expense before it is written. Mirrors the security rules. */
 export function validateExpense({ description, amount, category, mode, paidTo }) {
   const amt = Number(amount);
-  if (!String(description || '').trim()) return 'Kharche ka vivaran zaroori hai.';
-  if (String(description).length > 200) return 'Vivaran bahut lamba hai.';
-  if (!Number.isFinite(amt) || amt <= 0) return 'Sahi amount daalein.';
-  if (amt > 10000000) return 'Amount ₹1,00,00,000 se zyada nahi ho sakta.';
-  if (!EXPENSE_CATEGORIES.includes(category)) return 'Category valid nahi hai.';
-  if (!EXPENSE_MODES.includes(mode)) return 'Payment mode valid nahi hai.';
-  if (String(paidTo || '').length > 120) return 'Kise diya — yeh naam bahut lamba hai.';
+  if (!String(description || '').trim()) return 'Expense description is required.';
+  if (String(description).length > 200) return 'Description is too long.';
+  if (!Number.isFinite(amt) || amt <= 0) return 'Please enter a valid amount.';
+  if (amt > 10000000) return 'Amount cannot exceed ₹1,00,00,000.';
+  if (!EXPENSE_CATEGORIES.includes(category)) return 'Invalid category.';
+  if (!EXPENSE_MODES.includes(mode)) return 'Invalid payment mode.';
+  if (String(paidTo || '').length > 120) return 'Paid To name is too long.';
   return null;
 }
 
@@ -546,6 +549,26 @@ export function escapeHtml(str) {
   return String(str ?? '').replace(/[&<>"']/g, (c) => HTML_ESCAPES[c]);
 }
 
+/* escapeHtml alone makes a URL safe to PRINT (can't break out of the href
+   attribute) but says nothing about what the URL actually DOES — an admin
+   pasting `javascript:alert(document.cookie)` as a bill link or document
+   URL would escape just fine and still execute when another admin clicks
+   it. This is checked at save time (not just render time) precisely so a
+   bad value can't slip through some future render site that forgets to
+   re-check it — the data itself is never allowed to carry a dangerous
+   scheme in the first place. Returns '' for anything that isn't a
+   well-formed absolute http(s) URL. */
+export function sanitizeUrl(url) {
+  if (typeof url !== 'string') return '';
+  const trimmed = url.trim();
+  if (!trimmed) return '';
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.protocol === 'https:' || parsed.protocol === 'http:') return trimmed;
+  } catch { /* not a well-formed absolute URL at all */ }
+  return '';
+}
+
 export function debounce(fn, delay = 300) {
   let t;
   return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), delay); };
@@ -598,6 +621,40 @@ export async function generateReceiptNumber(financialYear) {
   return `MHMRWS-${yearPart}-${seq}`;
 }
 
+/**
+ * Allocates the next receipt number AND performs the caller's own
+ * payment/receipt writes in the SAME Firestore transaction as the counter
+ * increment, instead of two separate operations.
+ *
+ * Without this, generateReceiptNumber() commits and returns on its own —
+ * if the browser loses its connection in the gap right after that but
+ * before the payment/receiptsPublic batch commits, the number it just
+ * allocated is permanently burned (the counter has moved on, but no
+ * payment record ever carries that number). Wrapping both in one
+ * transaction makes them succeed or fail together: either the resident's
+ * payment is verified AND that exact number is on it, or neither the
+ * counter nor anything else moved at all.
+ *
+ * writeFn receives (tx, receiptNumber) and must call tx.set/tx.update for
+ * whatever payment and receiptsPublic documents this specific call site
+ * needs — it must NOT perform any tx.get() of its own (Firestore
+ * transactions require every read to happen before any write, and the
+ * counter read here already claims that slot).
+ */
+export async function generateReceiptNumberAtomic(financialYear, writeFn) {
+  const yearPart = financialYear.split('-')[0];
+  const counterRef = doc(db, 'counters', `receipt_${financialYear}`);
+  return runTransaction(db, async (tx) => {
+    const counterSnap = await tx.get(counterRef);
+    const current = counterSnap.exists() ? (counterSnap.data().value || 0) : 0;
+    const seq = current + 1;
+    const receiptNumber = `MHMRWS-${yearPart}-${String(seq).padStart(6, '0')}`;
+    tx.set(counterRef, { value: seq, updatedAt: serverTimestamp() }, { merge: true });
+    writeFn(tx, receiptNumber);
+    return receiptNumber;
+  });
+}
+
 /* ---------------------------------------------------------------------- */
 /*  Public verification tokens                                             */
 /*                                                                          */
@@ -615,6 +672,23 @@ export async function generateReceiptNumber(financialYear) {
 export function newPublicToken() {
   const bytes = crypto.getRandomValues(new Uint8Array(16));
   return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+/* A user-chosen filename has no business becoming part of a Storage object
+   key — not because Cloud Storage keys can be path-traversed (they're flat
+   opaque strings, not real filesystem paths), but because a name with
+   unusual characters, an excessive length, or something that happens to
+   look like a control string is still something the app never needed to
+   trust in the first place. This keeps only the extension (and only if it
+   looks like one — 1-8 alphanumeric characters) and replaces the rest with
+   the same random token used for public verification links. The original
+   name, if worth keeping for display, is the caller's job to store
+   separately as plain data (e.g. an originalName field), never as part of
+   the key. */
+export function safeStorageFilename(originalName) {
+  const match = /\.([a-zA-Z0-9]{1,8})$/.exec(String(originalName || ''));
+  const ext = match ? `.${match[1].toLowerCase()}` : '';
+  return newPublicToken() + ext;
 }
 
 /* Records issued before the token change are still keyed by their sequential
@@ -1143,9 +1217,9 @@ export function startIdleLogout({ onLogout, warnAfterMs = 25 * 60 * 1000, graceM
     banner = document.createElement('div');
     banner.className = 'session-banner';
     banner.setAttribute('role', 'alertdialog');
-    banner.innerHTML = `<span>Suraksha ke liye aapko <b class="sec">${left}</b> second mein logout kiya jaayega.</span>
-      <button class="stay">Logged in rahein</button>
-      <button class="out">Abhi logout</button>`;
+    banner.innerHTML = `<span>For your security, you'll be logged out in <b class="sec">${left}</b> seconds.</span>
+      <button class="stay">Stay Logged In</button>
+      <button class="out">Log Out Now</button>`;
     document.body.appendChild(banner);
     banner.querySelector('.stay').onclick = () => { clearBanner(); reset(); };
     banner.querySelector('.out').onclick = doLogout;
@@ -1570,7 +1644,7 @@ export async function downloadImageFromUrl(url, filename) {
 /*  Excel export / import (uses SheetJS — window.XLSX)                    */
 /* ---------------------------------------------------------------------- */
 export function exportToExcel(rows, filename = 'export.xlsx', sheetName = 'Sheet1') {
-  if (!rows || !rows.length) { showToast('Export karne ke liye koi data nahi mila.', 'error'); return; }
+  if (!rows || !rows.length) { showToast('No data found to export.', 'error'); return; }
   const ws = window.XLSX.utils.json_to_sheet(rows);
   const wb = window.XLSX.utils.book_new();
   window.XLSX.utils.book_append_sheet(wb, ws, sheetName);
@@ -1695,7 +1769,7 @@ async function driveUploadJSON(token, folderId, filename, jsonData) {
  */
 export async function backupToDrive(clientId, collectionsBundle) {
   if (!clientId || clientId.startsWith('REPLACE_WITH')) {
-    throw new Error('Google OAuth Client ID abhi configure nahi hua hai. SETUP-GUIDE.md ka Step 5 dekhein.');
+    throw new Error('Google OAuth Client ID is not configured yet. See Step 5 of SETUP-GUIDE.md.');
   }
   const token = await getDriveToken(clientId);
   const rootId = await driveFindOrCreateFolder(token, 'MHMRWS');
@@ -1843,16 +1917,16 @@ function petCardHTML(pet = {}) {
     </div>
     <div class="field">
       <label>Next Vaccination Due Date</label><input class="pet-next-vax" type="date" value="${escapeHtml(pet.nextVaccinationDue || '')}">
-      <div class="hint">Is date ke aas-paas aapko re-vaccination ka reminder milega.</div>
+      <div class="hint">You'll get a reminder around this date to re-vaccinate.</div>
     </div>
     <div class="pet-cert-checks">
-      <label class="checkbox-row"><input type="checkbox" class="pet-cert-rabies"${chk(pet.hasAntiRabiesCert)}> Anti-Rabies Vaccination Certificate hai</label>
-      <label class="checkbox-row"><input type="checkbox" class="pet-cert-annual"${chk(pet.hasAnnualVaccinationRecord)}> Annual Vaccination Record hai</label>
-      <label class="checkbox-row"><input type="checkbox" class="pet-cert-health"${chk(pet.hasVetHealthCert)}> Veterinary Health Certificate hai</label>
-      <label class="checkbox-row"><input type="checkbox" class="pet-cert-sterilization"${chk(pet.hasSterilizationCert)}> Sterilization Certificate hai (agar applicable)</label>
+      <label class="checkbox-row"><input type="checkbox" class="pet-cert-rabies"${chk(pet.hasAntiRabiesCert)}> I have the Anti-Rabies Vaccination Certificate</label>
+      <label class="checkbox-row"><input type="checkbox" class="pet-cert-annual"${chk(pet.hasAnnualVaccinationRecord)}> I have the Annual Vaccination Record</label>
+      <label class="checkbox-row"><input type="checkbox" class="pet-cert-health"${chk(pet.hasVetHealthCert)}> I have the Veterinary Health Certificate</label>
+      <label class="checkbox-row"><input type="checkbox" class="pet-cert-sterilization"${chk(pet.hasSterilizationCert)}> I have the Sterilization Certificate (if applicable)</label>
     </div>
 
-    <div class="pet-section-label">Emergency Contact (is pet ke liye)</div>
+    <div class="pet-section-label">Emergency Contact (for this pet)</div>
     <div class="form-2col">
       <div class="field"><label>Contact Person <span class="t-muted" style="font-weight:400;">(optional)</span></label><input class="pet-emg-name" maxlength="100" value="${escapeHtml(pet.emergencyContactName || '')}"></div>
       <div class="field"><label>Relationship <span class="t-muted" style="font-weight:400;">(optional)</span></label><input class="pet-emg-relation" maxlength="60" value="${escapeHtml(pet.emergencyContactRelation || '')}"></div>

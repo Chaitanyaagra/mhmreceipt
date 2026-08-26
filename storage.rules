@@ -64,6 +64,16 @@ service firebase.storage {
       allow delete: if isAdmin() || request.auth.uid == uid;
     }
 
+    // Complaint attachment — a photo of the actual issue (leak, broken
+    // fixture, etc.). Same owner-or-admin shape as petPhotos/ above.
+    match /complaintPhotos/{uid}/{fileName} {
+      allow read: if isAdmin() || request.auth.uid == uid;
+      allow create, update: if request.auth.uid == uid
+                   && request.resource.size < 8 * 1024 * 1024
+                   && isImagePdfOrEncrypted();
+      allow delete: if isAdmin() || request.auth.uid == uid;
+    }
+
     // Aadhaar / PAN uploads — owner + admins only, never public.
     // Files here may additionally be AES-256-GCM encrypted client-side
     // before upload (see app-common.js encryptFile()) for defense in depth.

@@ -193,10 +193,17 @@ service cloud.firestore {
     // both win — the loser's transaction fails.
     match /flatClaims/{claimId} {
       allow read: if isAdmin();
-      allow create, update: if canApproveMembers()
-                            && isNonEmptyString(request.resource.data.memberDocId, 200)
-                            && isNonEmptyString(request.resource.data.tower, 50)
-                            && isNonEmptyString(request.resource.data.flatNumber, 30);
+      allow create: if canApproveMembers()
+                    && isNonEmptyString(request.resource.data.memberDocId, 200)
+                    && isNonEmptyString(request.resource.data.tower, 50)
+                    && isNonEmptyString(request.resource.data.flatNumber, 30);
+      // No update: every legitimate reassignment in the app is a delete of
+      // the old claim followed by a create of a new one inside a checked
+      // transaction, never an in-place edit of who holds an existing claim.
+      // Allowing update here would let a client bypass that transaction's
+      // "is this flat actually vacant" check and directly overwrite one
+      // member's claim to point at another.
+      allow update: if false;
       // Released when a member is rejected or deactivated, so the flat can be
       // claimed by whoever moves in next.
       allow delete: if canApproveMembers();
@@ -375,6 +382,37 @@ service cloud.firestore {
       allow delete: if (isSignedIn() && resource.data.ownerUid == request.auth.uid) || isAdmin();
     }
 
+    // ---- Complaints / Tickets -----------------------------------------------
+    // A resident's own complaints, read/write scoped to them plus the
+    // committee (office-bearers, same tier as Notices/Content — this is
+    // community management, not a Treasurer-specific concern). Once a
+    // complaint reaches resolved/closed, the ORIGINAL resident may add
+    // exactly one thing back — a 1–5 satisfaction rating — and nothing
+    // else; diff().affectedKeys().hasOnly([...]) is what makes "only the
+    // rating" an enforced fact rather than a UI convention a modified
+    // client could ignore.
+    match /complaints/{complaintId} {
+      allow read: if isAdmin() || (isSignedIn() && resource.data.raisedByUid == request.auth.uid);
+      allow create: if isSignedIn()
+                    && request.resource.data.raisedByUid == request.auth.uid
+                    && isApprovedMember()
+                    && isNonEmptyString(request.resource.data.title, 200)
+                    && isNonEmptyString(request.resource.data.description, 2000)
+                    && request.resource.data.category in
+                       ['security', 'housekeeping', 'maintenance', 'electrical', 'plumbing', 'noise', 'parking', 'other']
+                    && request.resource.data.status == 'open';
+      allow update: if (canApproveMembers() && unchanged('raisedByUid'))
+                    || (
+                      isSignedIn() && isOwner(resource.data.raisedByUid)
+                      && resource.data.status in ['resolved', 'closed']
+                      && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['satisfactionRating', 'updatedAt'])
+                      && request.resource.data.satisfactionRating is int
+                      && request.resource.data.satisfactionRating >= 1
+                      && request.resource.data.satisfactionRating <= 5
+                    );
+      allow delete: if isAdmin();
+    }
+
     match /calendarEvents/{calId} {
       allow read: if true;
       allow create, update: if canApproveMembers()
@@ -403,6 +441,15 @@ service cloud.firestore {
       let poll = get(/databases/$(database)/documents/polls/$(pollId)).data;
       return request.time >= poll.startTime && request.time <= poll.endTime;
     }
+    // A client-side dropdown only ever offers the poll's real options, but a
+    // modified client could submit any string — "option is string" alone
+    // would accept a vote for something that was never on the ballot. This
+    // re-fetches the same poll doc pollIsOpen() already reads and checks the
+    // submitted value is actually one of its options.
+    function optionIsValid(pollId, option) {
+      let poll = get(/databases/$(database)/documents/polls/$(pollId)).data;
+      return option in poll.options;
+    }
     match /polls/{pollId} {
       allow read: if true;
       allow create, update: if canApproveMembers()
@@ -416,10 +463,19 @@ service cloud.firestore {
       allow delete: if canApproveMembers();
 
       match /votes/{voterUid} {
-        allow read: if isSignedIn();
+        // Only the voter's own read and admin tallying are allowed — any
+        // signed-in resident being able to read this previously meant one
+        // resident could look up exactly how another specific resident
+        // voted, which defeats the point of a vote. Restricting reads this
+        // way doesn't make votes anonymous FROM the admin (admin still
+        // reads every vote to tally results, since there's no server-side
+        // aggregation in a static-hosted app), but it closes the far more
+        // exposed gap: resident-to-resident visibility.
+        allow read: if isOwner(voterUid) || isAdmin();
         allow create: if isOwner(voterUid)
                       && isApprovedMember()
                       && request.resource.data.option is string
+                      && optionIsValid(pollId, request.resource.data.option)
                       && pollIsOpen(pollId);
         allow update, delete: if false;   // a cast vote is final
       }
@@ -454,7 +510,15 @@ service cloud.firestore {
     // the resident portal shows bank details and each flat's dues before
     // anyone signs in.
     match /settings/{settingId} {
-      allow read: if true;
+      // paymentPrivate carries the bank account number, IFSC and branch —
+      // fine for an approved resident deciding how to pay, but there is no
+      // reason a completely anonymous visitor querying Firestore directly
+      // should be able to read the society's own bank account number. Every
+      // other settings doc (society info, the public UPI ID / QR / account
+      // holder name residents need to recognize before paying, maintenance
+      // rates) stays genuinely public — this is deliberately the one
+      // narrow exception, not a general lockdown.
+      allow read: if settingId == 'paymentPrivate' ? isSignedIn() : true;
       allow write: if canVerifyPayments();
     }
 
@@ -484,7 +548,9 @@ service cloud.firestore {
       allow update: if canVerifyPayments()
                     && isValidAmount(request.resource.data.amount)
                     && isNonEmptyString(request.resource.data.receiptNumber, 40)
-                    && unchanged('receiptNumber');
+                    && unchanged('receiptNumber')
+                    && unchanged('residentName') && unchanged('flatNumber')
+                    && unchanged('tower') && unchanged('financialYear');
       allow delete: if canVerifyPayments();
     }
 
@@ -529,10 +595,29 @@ service cloud.firestore {
       // addedBy/addedAt are locked: they record who originally raised this
       // entry and when, which an edit — even a correction — must not be
       // able to quietly rewrite.
+      //
+      // Once approved, an expense is real spent money, not a draft — the
+      // financial facts (amount/category/description/FY) lock the same way
+      // a verified payment's do. The one thing still allowed from there is
+      // marking it voided, which requires a reason, mirroring how a
+      // verified payment can only be voided, never quietly edited back to
+      // looking like it never happened.
       allow update: if canVerifyPayments()
                     && (absentOrNull(resource.data, 'addedBy') || unchanged('addedBy'))
-                    && (absentOrNull(resource.data, 'addedAt') || unchanged('addedAt'));
-      allow delete: if canVerifyPayments();
+                    && (absentOrNull(resource.data, 'addedAt') || unchanged('addedAt'))
+                    && (
+                      !(absentOrNull(resource.data, 'status') || resource.data.status == 'approved')
+                      || (unchanged('amount') && unchanged('category') && unchanged('description') && unchanged('financialYear'))
+                    )
+                    && (request.resource.data.status != 'voided' || isNonEmptyString(request.resource.data.voidReason, 300));
+      // Hard delete only for a request that never became real money — once
+      // approved (or already voided, which is itself a permanent record of
+      // the reversal), it stays in the ledger forever. A missing status
+      // (legacy expense, predates this workflow) counts as approved here
+      // too, for the same reason the update lock above does.
+      allow delete: if canVerifyPayments()
+                    && !(absentOrNull(resource.data, 'status') || resource.data.status == 'approved')
+                    && resource.data.status != 'voided';
     }
 
     // ---- Bank Reconciliation -----------------------------------------------
@@ -551,10 +636,18 @@ service cloud.firestore {
     // instead of silently empty for anyone who isn't an admin).
     match /publicFinancialSummary/{fy} {
       allow read: if true;
+      // Type-checking alone (is number) would still accept internally
+      // inconsistent figures — collected: 5, spent: 0, balance: 999 — since
+      // rules can't independently re-sum the payments/expenses collections
+      // the way a backend could. What rules CAN do is enforce the one
+      // relationship that must always hold between these three numbers,
+      // which catches an accidental miscalculation even though it can't
+      // catch a wrong "collected" figure that's merely self-consistent.
       allow create, update: if canVerifyPayments()
                             && request.resource.data.collected is number
                             && request.resource.data.spent is number
-                            && request.resource.data.balance is number;
+                            && request.resource.data.balance is number
+                            && request.resource.data.balance == request.resource.data.collected - request.resource.data.spent;
       allow delete: if false;
     }
 
@@ -564,7 +657,12 @@ service cloud.firestore {
                             && request.resource.data.amount is number
                             && request.resource.data.amount > 0
                             && request.resource.data.type in ['credit', 'debit'];
-      allow delete: if canVerifyPayments();
+      // A matched transaction is reconciliation history — deleting it would
+      // silently erase the record that a specific payment/expense was
+      // confirmed against the bank statement. Unmatched or ignored entries
+      // (a bad import, a duplicate paste) carry no such history and stay
+      // freely deletable for cleanup.
+      allow delete: if canVerifyPayments() && resource.data.status != 'matched';
     }
 
     // ---- Budget vs Actual ---------------------------------------------------
@@ -576,7 +674,10 @@ service cloud.firestore {
     match /budgets/{fy} {
       allow read: if true;
       allow create, update: if canVerifyPayments() && request.resource.data.categories is map;
-      allow delete: if canVerifyPayments();
+      // Categories can already be added, changed, or zeroed out via update —
+      // there's no case where losing the whole FY's budget record is the
+      // right fix for a mistake, only editing it is.
+      allow delete: if false;
     }
 
     // ---- Monthly Financial Closing ------------------------------------------

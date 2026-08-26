@@ -962,3 +962,8 @@ body.logged-in #dashboard{ min-height:calc(100vh - 66px); padding-top:26px; }
 .pet-section-label{ font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.03em; color:var(--ink-500,#6B7385); margin:14px 0 8px; padding-top:10px; border-top:1px dashed var(--line,#E2E6EF); }
 .pet-cert-checks{ display:flex; flex-direction:column; gap:6px; margin-bottom:4px; }
 .pet-toggle-row{ display:flex; gap:20px; margin-bottom:4px; }
+
+/* Complaint satisfaction rating — plain-text stars, not default button boxes. */
+.cplt-rate-row{ font-size:12.5px; color:var(--ink-500,#6B7385); }
+.cplt-star{ background:none; border:none; cursor:pointer; font-size:16px; padding:0 1px; color:var(--gold-500,#C9A227); line-height:1; vertical-align:middle; }
+.cplt-star:hover{ transform:scale(1.15); }

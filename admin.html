@@ -224,6 +224,7 @@
   <g id="a-calendar"><rect x="3.5" y="4.5" width="17" height="16" rx="2.4" stroke="currentColor" stroke-width="1.7" fill="none"/><path d="M3.5 9h17M8 2.5v4M16 2.5v4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="15.5" cy="14.5" r="2" fill="currentColor"/></g>
   <g id="a-polls"><path d="M4 20.5V13M10 20.5V7M16 20.5V10.5M20 20.5V4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></g>
   <g id="a-financials"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7" fill="none"/><path d="M12 7v10M9.2 14.5c0 1.4 1.25 2.3 2.8 2.3s2.8-.8 2.8-2.1c0-3-5.6-1.6-5.6-4.4 0-1.3 1.25-2.1 2.8-2.1s2.8.9 2.8 2.1" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" fill="none"/></g>
+  <g id="a-complaints"><path d="M4 5.5h16v11H9.5L5 20v-3.5H4z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" fill="none"/><path d="M12 8.5v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="14.7" r="1" fill="currentColor"/></g>
   <g id="a-expenses"><path d="M12 2.6v18.8M8.2 6.2h6a2.8 2.8 0 010 5.6H9.8a2.8 2.8 0 000 5.6h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" fill="none"/></g>
   <g id="a-content"><path d="M3.5 9.5h3.2L14 5.2v13.6L6.7 14.5H3.5z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" fill="none"/><path d="M17.4 9.2a4.2 4.2 0 010 5.6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" fill="none"/></g>
   <g id="a-importExport"><path d="M20 11.2A8 8 0 006.3 6.1M4 12.8a8 8 0 0013.7 5.1" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" fill="none"/><path d="M20 4.6v6.6h-6.6M4 19.4v-6.6h6.6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" fill="none"/></g>
@@ -268,7 +269,7 @@
       </div>
     </div>
     <div class="usearch-wrap" id="usearchWrap">
-      <input type="search" id="universalSearch" placeholder="Sab kuch dhoondhein…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="Search members, payments, events, expenses">
+      <input type="search" id="universalSearch" placeholder="Search everything…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="Search members, payments, events, expenses">
       <div class="usearch-results" id="usearchResults"></div>
     </div>
     <nav class="side-nav" id="sideNav">
@@ -279,6 +280,7 @@
       <button data-view="expenses"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-expenses"/></svg></span> Expenses</button>
       <button data-view="content"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-content"/></svg></span> Notices &amp; Committee</button>
       <button data-view="calendar"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-calendar"/></svg></span> Calendar</button>
+      <button data-view="complaints"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-complaints"/></svg></span> Complaints</button>
       <button data-view="polls"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-polls"/></svg></span> Polls</button>
       <button data-view="financials"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-financials"/></svg></span> Financials</button>
       <button data-view="importExport"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-importExport"/></svg></span> Import / Export</button>
@@ -288,7 +290,7 @@
     </nav>
     <div class="sidebar-foot">
       <div class="admin-chip"><b id="adminName">—</b><span id="adminRole">—</span></div>
-      <button class="link-btn" id="changePasswordBtn" style="display:block; text-align:center; color:rgba(255,255,255,.72); margin-bottom:8px; width:100%;">Password Badlein</button>
+      <button class="link-btn" id="changePasswordBtn" style="display:block; text-align:center; color:rgba(255,255,255,.72); margin-bottom:8px; width:100%;">Change Password</button>
       <button class="btn btn-outline on-dark btn-sm btn-block" id="logoutBtn">Logout</button>
     </div>
   </aside>
@@ -301,9 +303,9 @@
     <div id="storageWarning" class="notice-banner" style="display:none;">
       <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#a-cloud"/></svg>
       <div>
-        <b>Firebase Storage abhi set up nahi hai.</b>
-        Registration, payment aur receipts sab chalenge — par <b>photo aur payment screenshot upload nahi honge</b>.
-        Enable karne ke liye Firebase Console mein Blaze plan par jaana hoga (SETUP-GUIDE.md dekhein).
+        <b>Firebase Storage is not set up yet.</b>
+        Registration, payments, and receipts will all work — but <b>photo and payment screenshot uploads won't</b>.
+        Enable it from the Firebase Console on the Blaze plan (see SETUP-GUIDE.md).
       </div>
     </div>
 
@@ -332,11 +334,12 @@
         <div style="display:flex; align-items:flex-start; gap:12px;">
           <div style="font-size:22px; line-height:1;">⚠️</div>
           <div>
-            <b style="font-size:13.5px;">Firestore Rules purani lag rahi hain</b>
+            <b style="font-size:13.5px;">Firestore Rules Look Out of Date</b>
             <p style="font-size:12.5px; margin-top:4px; color:var(--ink-700,#3A4256);">
-              Ek naya feature ka data padhne mein permission error aa raha hai — iska matlab aksar yeh hota hai ki Firebase Console mein
-              latest <code>firestore.rules</code> publish nahi hui hai. Firebase Console → Firestore Database → Rules mein jaakar,
-              is zip ki <code>firestore.rules</code> file poori copy-paste karke Publish karein.
+              A permission error occurred reading data for a new feature — this usually means the
+              latest <code>firestore.rules</code> hasn't been published in the Firebase Console. Go to
+              Firebase Console → Firestore Database → Rules, copy-paste this zip's <code>firestore.rules</code> file
+              in full, and Publish it.
             </p>
           </div>
         </div>
@@ -352,7 +355,7 @@
            recurring-expense schedule respectively). -->
       <div class="card card-pad" id="treasurerDashCard" style="display:none; margin-bottom:20px;">
         <h3 style="font-size:15px; margin-bottom:4px;">💰 Treasurer Dashboard</h3>
-        <p class="t-muted" style="font-size:12px; margin-bottom:16px;">Financial position, ek nazar mein.</p>
+        <p class="t-muted" style="font-size:12px; margin-bottom:16px;">Financial position, at a glance.</p>
         <div class="td-grid" id="treasurerDashGrid"></div>
       </div>
 
@@ -364,7 +367,7 @@
             <div class="ms-eyebrow">This Month</div>
             <div class="ms-month" id="msMonthLabel">—</div>
           </div>
-          <button class="btn btn-outline btn-sm" id="msWhatsAppBtn" title="Summary WhatsApp par bhejein">Share</button>
+          <button class="btn btn-outline btn-sm" id="msWhatsAppBtn" title="Send summary via WhatsApp">Share</button>
         </div>
         <div class="ms-grid">
           <div class="ms-item"><div class="ms-num" id="msCollected">—</div><div class="ms-lbl">Collected</div></div>
@@ -381,7 +384,7 @@
            nothing to celebrate today, so it never sits there empty. -->
       <div class="card card-pad celeb-card" id="celebCard" style="display:none;">
         <h3 style="font-size:14.5px; margin-bottom:4px;">🎉 Aaj Birthday / Anniversary</h3>
-        <p class="t-muted" style="font-size:12px; margin-bottom:10px;">Ek click mein RWA WhatsApp se wish bhejein.</p>
+        <p class="t-muted" style="font-size:12px; margin-bottom:10px;">Send a wish via the RWA WhatsApp in one click.</p>
         <div class="celeb-list" id="celebList"></div>
       </div>
 
@@ -389,8 +392,8 @@
            message can be arranged ahead of time instead of same-day. Hidden
            entirely when nothing is coming up, same as the "today" card. -->
       <div class="card card-pad celeb-card" id="celebUpcomingCard" style="display:none;">
-        <h3 style="font-size:14.5px; margin-bottom:4px;">📅 Agle 7 Din</h3>
-        <p class="t-muted" style="font-size:12px; margin-bottom:10px;">Pehle se plan karne ke liye.</p>
+        <h3 style="font-size:14.5px; margin-bottom:4px;">📅 Next 7 Days</h3>
+        <p class="t-muted" style="font-size:12px; margin-bottom:10px;">So you can plan ahead.</p>
         <div class="celeb-list" id="celebUpcomingList"></div>
       </div>
 
@@ -403,7 +406,7 @@
            first via petVaccinationStatus()'s daysUntil. -->
       <div class="card card-pad celeb-card" id="petVaxCard" style="display:none;">
         <h3 style="font-size:14.5px; margin-bottom:4px;">💉 Pet Vaccination Reminders</h3>
-        <p class="t-muted" style="font-size:12px; margin-bottom:10px;">Overdue aur agle 30 din mein due.</p>
+        <p class="t-muted" style="font-size:12px; margin-bottom:10px;">Overdue and due within the next 30 days.</p>
         <div class="celeb-list" id="petVaxList"></div>
       </div>
 
@@ -427,7 +430,7 @@
         <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
           <div>
             <h3 style="font-size:14.5px; margin-bottom:4px;">Income &amp; Expenditure Statement</h3>
-            <p class="t-muted" style="font-size:12.5px;">AGM ke liye ya CA ko dene ke liye — poore saal ka collection vs kharcha, ek PDF mein.</p>
+            <p class="t-muted" style="font-size:12.5px;">For the AGM or your CA — the full year's collection vs expenses, in one PDF.</p>
           </div>
           <button class="btn btn-navy btn-sm" id="downloadIncomeExpBtn"><svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#a-doc"/></svg>Download PDF (Selected FY)</button>
         </div>
@@ -487,7 +490,7 @@
       </div>
       <div id="paymentsAllPanel" style="display:none;">
         <div class="toolbar">
-          <input class="grow" id="paymentSearch" type="search" placeholder="Naam, flat ya receipt no. se dhoondhein…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+          <input class="grow" id="paymentSearch" type="search" placeholder="Search by name, flat, or receipt no.…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
         </div>
         <div class="table-wrap responsive">
           <table><thead><tr><th>Resident</th><th>Flat</th><th>Amount</th><th>Mode</th><th>Status</th><th>Receipt No.</th><th>Date</th><th>Actions</th></tr></thead>
@@ -497,6 +500,7 @@
       </div>
       <div id="paymentsDefaultersPanel" style="display:none;">
         <div class="toolbar"><span id="defaultersTotal" class="mono" style="font-size:12.5px; color:var(--ink-600);"></span></div>
+        <div id="defaultersAging" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px;"></div>
         <div class="toolbar"><button class="btn btn-outline btn-sm" id="emailDefaultersBtn"><svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#a-mail"/></svg>Email All (BCC)</button>
         <span class="t-muted" style="font-size:12.5px;">for FY selected in Overview</span></div>
         <div class="table-wrap responsive">
@@ -514,15 +518,15 @@
            uses "Generate Demand" to raise it against every approved member.
            Hidden for view-only roles (e.g. President) by renderEvents(). -->
       <div class="card card-pad" id="eventCreateCard" style="margin-bottom:20px;">
-        <h3 style="font-size:14.5px; margin-bottom:14px;">Naya Event / Fee banayein</h3>
+        <h3 style="font-size:14.5px; margin-bottom:14px;">Create New Event / Fee</h3>
         <form id="eventForm" class="form-grid">
           <input type="hidden" name="eventId">
-          <div class="field"><label for="ev-name">Event ka naam</label><input id="ev-name" name="name" placeholder="e.g. Diwali Celebration 2026" required></div>
+          <div class="field"><label for="ev-name">Event Name</label><input id="ev-name" name="name" placeholder="e.g. Diwali Celebration 2026" required></div>
           <div class="field"><label for="ev-fee">Fee per member (₹)</label><input id="ev-fee" name="feeAmount" type="number" min="1" step="1" placeholder="e.g. 500" required></div>
           <div class="field"><label for="ev-fy">Financial Year</label><select id="ev-fy" name="fy"></select></div>
-          <div class="field"><label for="ev-note">Note (optional)</label><input id="ev-note" name="note" placeholder="Members ko dikhega"></div>
+          <div class="field"><label for="ev-note">Note (optional)</label><input id="ev-note" name="note" placeholder="Shown to members"></div>
           <div style="grid-column:1/-1; display:flex; gap:10px;">
-            <button class="btn btn-primary btn-sm" type="submit">Event Save karein</button>
+            <button class="btn btn-primary btn-sm" type="submit">Save Event</button>
             <button class="btn btn-outline btn-sm" type="button" id="eventFormReset">Clear</button>
           </div>
         </form>
@@ -585,8 +589,8 @@
         </table>
       </div>
       <p class="t-sub" style="font-size:12.3px; margin-top:12px;">
-        Yeh kharche residents ko bhi dikhte hain — society ka paisa hai, aur yahi figures audited accounts mein bhi jaate hain.
-        Vendor ke naam bhi dikhenge, isliye vahi likhein jo AGM mein bata sakein.
+        Residents can see these expenses too — it's the society's money, and these figures also go into the audited accounts.
+        Vendor names are visible too, so write what you would be comfortable stating at the AGM.
       </p>
     </div>
 
@@ -600,7 +604,7 @@
         </div>
         <div class="card card-pad">
           <div class="spread" style="margin-bottom:6px;"><h3 style="font-size:15px;">Documents &amp; Forms</h3><button class="btn btn-primary btn-sm" id="addDocBtn">+ Add Document</button></div>
-          <p class="t-sub" style="font-size:12.5px; margin-bottom:14px;">Bylaws, AGM minutes, audited accounts, NOC forms — residents ise Downloads section mein dekhenge.</p>
+          <p class="t-sub" style="font-size:12.5px; margin-bottom:14px;">Bylaws, AGM minutes, audited accounts, NOC forms — residents will see these in the Downloads section.</p>
           <div id="docsEditList"></div>
         </div>
         <div class="card card-pad">
@@ -632,13 +636,30 @@
               </div>
             </div>
             <div class="field"><label for="cal-desc">Description <span class="t-muted" style="font-weight:400;">(optional)</span></label><textarea name="description" id="cal-desc" rows="2" maxlength="500"></textarea></div>
-            <button class="btn btn-primary" type="submit">Calendar Mein Jodein</button>
+            <button class="btn btn-primary" type="submit">Add to Calendar</button>
           </form>
         </div>
         <div class="card card-pad">
           <h3 style="font-size:15px; margin-bottom:14px;">Upcoming &amp; Recent</h3>
           <div id="calendarEditList"></div>
         </div>
+      </div>
+    </div>
+
+    <!-- ---------------- COMPLAINTS ---------------- -->
+    <div class="view-panel" id="view-complaints">
+      <div class="topbar"><h2 class="view-title">Complaints</h2></div>
+      <div class="tab-strip">
+        <button data-cptab="open" class="active">Open</button>
+        <button data-cptab="in_progress">In Progress</button>
+        <button data-cptab="resolved">Resolved</button>
+        <button data-cptab="all">All</button>
+      </div>
+      <div class="table-wrap responsive">
+        <table>
+          <thead><tr><th>Resident</th><th>Flat</th><th>Category</th><th>Title</th><th>Status</th><th>Raised On</th></tr></thead>
+          <tbody id="complaintsBody"><tr><td colspan="6" class="t-muted">Loading…</td></tr></tbody>
+        </table>
       </div>
     </div>
 
@@ -649,17 +670,17 @@
         <div class="card card-pad">
           <h3 style="font-size:15px; margin-bottom:14px;">Create Poll</h3>
           <form id="pollForm">
-            <div class="field"><label for="poll-question">Question</label><input name="question" id="poll-question" required maxlength="300" placeholder="e.g. Kya humein naya gym equipment lena chahiye?"></div>
+            <div class="field"><label for="poll-question">Question</label><input name="question" id="poll-question" required maxlength="300" placeholder="e.g. Should we buy new gym equipment?"></div>
             <div class="field">
-              <label>Options <span class="t-muted" style="font-weight:400;">(kam se kam 2)</span></label>
+              <label>Options <span class="t-muted" style="font-weight:400;">(at least 2)</span></label>
               <div class="fm-editor" id="pollOptionsEditor"></div>
-              <button type="button" class="btn btn-outline btn-sm fm-add-btn" id="pollOptionAdd">+ Option Jodein</button>
+              <button type="button" class="btn btn-outline btn-sm fm-add-btn" id="pollOptionAdd">+ Add Option</button>
             </div>
             <div class="form-2col">
               <div class="field"><label for="poll-start">Start</label><input type="datetime-local" name="start" id="poll-start" required></div>
               <div class="field"><label for="poll-end">End</label><input type="datetime-local" name="end" id="poll-end" required></div>
             </div>
-            <button class="btn btn-primary" type="submit">Poll Shuru Karein</button>
+            <button class="btn btn-primary" type="submit">Start Poll</button>
           </form>
         </div>
         <div class="card card-pad">
@@ -686,22 +707,22 @@
           <div class="card card-pad stat-card"><div class="num" id="reconUnmatchedCount">—</div><div class="lbl">Unmatched</div></div>
         </div>
         <div class="card card-pad" style="margin-bottom:20px;">
-          <h3 style="font-size:14.5px; margin-bottom:12px;">Bank Transaction Jodein</h3>
+          <h3 style="font-size:14.5px; margin-bottom:12px;">Add Bank Transaction</h3>
           <form id="bankTxForm">
             <div class="form-2col">
               <div class="field"><label for="btx-date">Date</label><input type="date" name="date" id="btx-date" required></div>
               <div class="field"><label for="btx-amount">Amount</label><input type="number" name="amount" id="btx-amount" min="1" step="1" required></div>
             </div>
             <div class="form-2col">
-              <div class="field"><label for="btx-desc">Description (bank statement se)</label><input name="description" id="btx-desc" required maxlength="200"></div>
+              <div class="field"><label for="btx-desc">Description (from bank statement)</label><input name="description" id="btx-desc" required maxlength="200"></div>
               <div class="field"><label for="btx-type">Type</label>
                 <select name="type" id="btx-type">
-                  <option value="credit">Credit (paisa aaya)</option>
-                  <option value="debit">Debit (paisa gaya)</option>
+                  <option value="credit">Credit (money in)</option>
+                  <option value="debit">Debit (money out)</option>
                 </select>
               </div>
             </div>
-            <button class="btn btn-primary btn-sm" type="submit">Jodein</button>
+            <button class="btn btn-primary btn-sm" type="submit">Add</button>
           </form>
         </div>
         <div class="table-wrap responsive">
@@ -715,11 +736,11 @@
       <!-- Budget vs Actual -->
       <div id="financialsBudgetPanel" style="display:none;">
         <div class="card card-pad" style="margin-bottom:20px;">
-          <h3 style="font-size:14.5px; margin-bottom:12px;">Category Budget Set Karein — FY <span id="budgetFYLabel"></span></h3>
+          <h3 style="font-size:14.5px; margin-bottom:12px;">Set Category Budget — FY <span id="budgetFYLabel"></span></h3>
           <form id="budgetForm">
             <div class="form-2col">
               <div class="field"><label for="budget-category">Category</label><select name="category" id="budget-category"></select></div>
-              <div class="field"><label for="budget-amount">Saal Bhar Ka Budget</label><input type="number" name="amount" id="budget-amount" min="0" step="1000" required></div>
+              <div class="field"><label for="budget-amount">Annual Budget</label><input type="number" name="amount" id="budget-amount" min="0" step="1000" required></div>
             </div>
             <button class="btn btn-primary btn-sm" type="submit">Save Budget</button>
           </form>
@@ -735,12 +756,12 @@
       <!-- Monthly Financial Closing -->
       <div id="financialsClosingPanel" style="display:none;">
         <div class="card card-pad" style="margin-bottom:20px;">
-          <h3 style="font-size:14.5px; margin-bottom:4px;" id="closingMonthLabel">Close karein</h3>
-          <p class="t-muted" style="font-size:12.5px; margin-bottom:14px;">Yeh checklist confirm karti hai ki mahine ka data poora hai, phir mahina "closed" mark ho jaata hai.</p>
+          <h3 style="font-size:14.5px; margin-bottom:4px;" id="closingMonthLabel">Close Month</h3>
+          <p class="t-muted" style="font-size:12.5px; margin-bottom:14px;">This checklist confirms the month's data is complete, then marks the month "closed".</p>
           <div id="closingChecklist"></div>
-          <button class="btn btn-primary btn-sm" id="closeMonthBtn" style="margin-top:14px;">Mahina Close Karein</button>
+          <button class="btn btn-primary btn-sm" id="closeMonthBtn" style="margin-top:14px;">Close Month</button>
         </div>
-        <h3 style="font-size:14.5px; margin-bottom:12px;">Pehle Se Closed Mahine</h3>
+        <h3 style="font-size:14.5px; margin-bottom:12px;">Previously Closed Months</h3>
         <div id="closedMonthsList"></div>
       </div>
     </div>
@@ -803,9 +824,9 @@
         <div class="card card-pad">
           <h3 style="font-size:15px; margin-bottom:6px;">Maintenance Rate</h3>
           <p class="t-sub" style="font-size:12.8px; margin-bottom:14px;">
-            Yeh rate tay karta hai ki har flat par kitna bakaya hai. Iske bina system ko
-            pata nahi chalta ki kisne poora diya aur kisne aadha — aur Defaulters report
-            khaali reh jaati hai.
+            This rate determines how much each flat owes. Without it, the system
+            has no way of knowing who has paid in full and who's paid half — and
+            the Defaulters report stays empty.
           </p>
           <form id="maintenanceForm">
             <div class="field"><label>Financial Year</label>
@@ -813,7 +834,7 @@
             </div>
             <div class="field"><label>Amount per flat (₹)</label>
               <input name="defaultRate" type="number" min="0" step="1" placeholder="e.g. 2400">
-              <div class="hint">Saare towers par lagega, jab tak neeche override na ho.</div>
+              <div class="hint">Applies to all towers unless overridden below.</div>
             </div>
             <details style="margin-bottom:14px;">
               <summary style="cursor:pointer; font-size:13px; font-weight:600; color:var(--navy-800);">
@@ -824,7 +845,7 @@
             <div class="field" style="border-top:1px solid var(--line); padding-top:14px;">
               <label>One-Time Membership Fee (₹)</label>
               <input name="membershipFee" type="number" min="0" step="1" placeholder="1100">
-              <div class="hint">Har naye member se ek baar li jaane wali joining fee. Khaali chhodne par default ₹1100.</div>
+              <div class="hint">A one-time joining fee charged to every new member. Defaults to ₹1100 if left blank.</div>
             </div>
             <button class="btn btn-primary btn-block" type="submit">Save Maintenance Rate</button>
           </form>
@@ -844,14 +865,28 @@
             <button class="btn btn-outline btn-sm" id="downloadBackupBtn">Download backup file</button>
           </div>
           <p class="t-sub" style="font-size:12.4px; margin-bottom:16px;">
-            Yeh ek JSON file aapke computer par download kar deta hai — Drive setup ki zaroorat nahi.
-            Har mahine ek baar leke kisi safe jagah rakh dein.
+            This downloads a JSON file to your computer — no Drive setup needed.
+            Take one once a month and keep it somewhere safe.
           </p>
           <hr style="border:none; border-top:1px solid var(--line); margin:0 0 16px;">
           <h3 style="font-size:15px; margin-bottom:6px;">Google Drive Backup</h3>
           <p class="t-sub" style="font-size:12.8px; margin-bottom:14px;">Exports Members, Payments, Notices &amp; Committee as JSON to <span class="mono">MHMRWS/Database</span> in your Google Drive. Requires one-time OAuth setup — see SETUP-GUIDE.md Step 5.</p>
           <button class="btn btn-primary btn-block" id="backupNowBtn"><svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#a-cloud"/></svg>Backup Now</button>
           <div id="backupStatus" class="t-sub" style="font-size:12.5px; margin-top:12px;"></div>
+        </div>
+        <div class="card card-pad" id="dataHealthCard">
+          <h3 style="font-size:15px; margin-bottom:6px;">Data Health Check</h3>
+          <p class="t-sub" style="font-size:12.8px; margin-bottom:14px;">
+            Firestore has no foreign-key enforcement — nothing stops a payment,
+            pet, or complaint from quietly pointing at a member record that no
+            longer exists (most often after a manual data-erase or an old
+            member being cleaned up by hand). This scans for exactly that. It
+            only reports what it finds — nothing here is changed or deleted
+            automatically, since the right fix for each one depends on why it
+            happened.
+          </p>
+          <button class="btn btn-outline btn-block" id="runHealthCheckBtn">Run Check</button>
+          <div id="healthCheckResults" style="margin-top:14px;"></div>
         </div>
       </div>
     </div>
@@ -910,8 +945,8 @@
     <div class="view-panel" id="view-auditLog">
       <div class="topbar"><h2 class="view-title">Activity Log</h2></div>
       <p class="t-sub" style="font-size:12.5px; margin:-6px 0 14px;">
-        Committee ke actions ka record. Yeh browser se likha jaata hai, isliye ise
-        reference ke liye istemal karein — kisi vivaad mein proof ke taur par nahi.
+        A record of committee actions. This is written from the browser, so treat it as a
+        reference — not as proof in a dispute.
       </p>
       <div class="table-wrap">
         <table><thead><tr><th>Time</th><th>User</th><th>Action</th><th>Details</th></tr></thead>
@@ -960,7 +995,7 @@
         </div>
         <div class="form-2col">
           <div class="field"><label for="rr-mobile">Mobile Number</label><input name="mobile" id="rr-mobile" type="tel" maxlength="10" required></div>
-          <div class="field"><label for="rr-email">Email (login ke liye)</label><input name="email" id="rr-email" type="email" required></div>
+          <div class="field"><label for="rr-email">Email (for login)</label><input name="email" id="rr-email" type="email" required></div>
         </div>
         <div class="form-2col">
           <div class="field"><label for="rr-occupation">Occupation</label><input name="occupation" id="rr-occupation" maxlength="100"></div>
@@ -970,7 +1005,6 @@
             </select>
           </div>
         </div>
-        <div class="field"><label for="rr-address">Address</label><textarea name="address" id="rr-address" rows="2" maxlength="500"></textarea></div>
         <div class="form-2col">
           <div class="field"><label for="rr-nomineeName">Nominee Name</label><input name="nomineeName" id="rr-nomineeName" maxlength="100"></div>
           <div class="field"><label for="rr-nomineeRelation">Nominee Relation</label><input name="nomineeRelation" id="rr-nomineeRelation" maxlength="60"></div>
@@ -982,19 +1016,19 @@
         <div class="field">
           <label>Family Members <span class="t-muted" style="font-weight:400;">(optional)</span></label>
           <div class="fm-editor" id="rrFamilyEditor"></div>
-          <button type="button" class="btn btn-outline btn-sm fm-add-btn" id="rrFamilyAdd">+ Family Member Jodein</button>
+          <button type="button" class="btn btn-outline btn-sm fm-add-btn" id="rrFamilyAdd">+ Add Family Member</button>
         </div>
         <div class="field">
-          <label>Kya resident ke paas pet hai?</label>
+          <label>Does the resident have a pet?</label>
           <div class="pet-toggle-row">
-            <label class="checkbox-row"><input type="radio" name="rr-hasPet" value="yes" id="rr-hasPet-yes"> Haan</label>
-            <label class="checkbox-row"><input type="radio" name="rr-hasPet" value="no" id="rr-hasPet-no" checked> Nahi</label>
+            <label class="checkbox-row"><input type="radio" name="rr-hasPet" value="yes" id="rr-hasPet-yes"> Yes</label>
+            <label class="checkbox-row"><input type="radio" name="rr-hasPet" value="no" id="rr-hasPet-no" checked> No</label>
           </div>
         </div>
         <div id="rrPetsWrap" style="display:none;">
           <div class="pet-section-label" style="border-top:none; padding-top:0; margin-top:0;">Pet Registration</div>
           <div id="rrPetsEditor"></div>
-          <button type="button" class="btn btn-outline btn-sm fm-add-btn" id="rrPetAdd">+ Ek Aur Pet Jodein</button>
+          <button type="button" class="btn btn-outline btn-sm fm-add-btn" id="rrPetAdd">+ Add Another Pet</button>
         </div>
         <div class="field">
           <label for="rr-photo">Photo <span class="t-muted" style="font-weight:400;">(optional)</span></label>
@@ -1002,20 +1036,20 @@
         </div>
         <div class="form-2col">
           <div class="field"><label for="rr-password">Login Password</label><input name="password" id="rr-password" type="password" required minlength="6">
-            <div class="hint">Yeh resident ko unke email ke saath share karein — isse woh portal mein login kar sakte hain.</div>
+            <div class="hint">Share this with the resident along with their email — this lets them log in to the portal.</div>
           </div>
           <div class="field"><label for="rr-confirmPassword">Confirm Password</label><input name="confirmPassword" id="rr-confirmPassword" type="password" required minlength="6"></div>
         </div>
         <p class="t-muted" style="font-size:12px; line-height:1.6; margin-bottom:14px;">
-          🔒 Yeh jaankari (mobile, email, DOB, family details) sirf committee members ko dikhti hai — kabhi public nahi.
-          Resident ise "My Profile" se khud dekh/edit kar sakta hai, aur flat khali karte waqt personal data erase karwa sakta hai.
-          <button type="button" class="link-btn" id="openPrivacyPolicyBtnAdmin">Poori Privacy Policy padhein</button>
+          🔒 This information (mobile, email, DOB, family details) is visible only to committee members — never made public.
+          The resident can view/edit it themselves from "My Profile", and can have their personal data erased when they vacate the flat.
+          <button type="button" class="link-btn" id="openPrivacyPolicyBtnAdmin">Read the Full Privacy Policy</button>
         </p>
         <label class="checkbox-row" style="margin-bottom:16px;">
           <input type="checkbox" name="declaration" id="rr-declaration" required>
-          <span>Main confirm karta/karti hoon ki upar di gayi jaankari is resident ne khud provide ki hai aur sahi hai.</span>
+          <span>I confirm that the information above was provided by the resident themselves and is accurate.</span>
         </label>
-        <button class="btn btn-primary btn-block" type="submit">Resident Register Karein</button>
+        <button class="btn btn-primary btn-block" type="submit">Register Resident</button>
       </form>
     </div>
   </div>
@@ -1028,11 +1062,11 @@
   <div class="modal">
     <div class="modal-head"><h3 style="font-size:16.5px;">Privacy Policy</h3><button class="icon-btn" id="closePrivacyPolicyModal">✕</button></div>
     <div class="modal-body" style="font-size:13px; line-height:1.7;">
-      <p><b>Hum kya data lete hain:</b> Naam, mobile, email, address, photo, Date of Birth, Anniversary, family members ke naam/rishta/DOB, aur payment history.</p>
-      <p><b>Kyun lete hain:</b> Membership verify karne, maintenance bill banane, gate/security ke liye photo ID, aur birthday/anniversary par wish karne ke liye.</p>
-      <p><b>Kaun dekh sakta hai:</b> Sirf society ke committee members (admin panel login) — kabhi public nahi dikhaya jaata.</p>
-      <p><b>Kitne time tak:</b> Jab tak resident society mein hai. Financial records audit ke liye lambe samay tak rakhe jaate hain, jaisa kanoon maang karta hai.</p>
-      <p><b>Resident ke adhikar:</b> Woh "My Profile" se apna data khud dekh/edit kar sakte hain. Flat bechte/khali karte waqt, committee unka personal data (mobile, email, family details, photo, ID) erase kar sakti hai — sirf naam, flat number, aur financial history surakshit rehti hai.</p>
+      <p><b>What data we collect:</b> Name, mobile, email, photo, Date of Birth, Anniversary, family members' names/relation/DOB, and payment history.</p>
+      <p><b>Why we collect it:</b> To verify membership, generate maintenance bills, provide a photo ID for gate/security, and send birthday/anniversary wishes.</p>
+      <p><b>Who can see it:</b> Only the society's committee members (admin panel login) — it is never shown publicly.</p>
+      <p><b>How long we keep it:</b> For as long as the resident is with the society. Financial records are kept longer for audit purposes, as required by law.</p>
+      <p><b>Resident's rights:</b> They can view/edit their own data from "My Profile". When they sell or vacate their flat, the committee can erase their personal data (mobile, email, family details, photo, ID) — only their name, flat number, and financial history are retained.</p>
     </div>
   </div>
 </div>
@@ -1041,6 +1075,13 @@
   <div class="modal">
     <div class="modal-head"><h3 style="font-size:16.5px;">Payment Details</h3><button class="icon-btn" id="closePaymentDetailModal">✕</button></div>
     <div class="modal-body" id="paymentDetailModalBody"></div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="complaintDetailModalBackdrop">
+  <div class="modal">
+    <div class="modal-head"><h3 style="font-size:16.5px;">Complaint Details</h3><button class="icon-btn" id="closeComplaintDetailModal">✕</button></div>
+    <div class="modal-body" id="complaintDetailModalBody"></div>
   </div>
 </div>
 
@@ -1055,9 +1096,9 @@
       <form id="recordPaymentForm">
         <div class="field">
           <label for="rpMember">Member</label>
-          <input list="rpMemberList" id="rpMember" placeholder="Naam, flat ya Member ID se dhoondhein" autocomplete="off" required>
+          <input list="rpMemberList" id="rpMember" placeholder="Search by name, flat, or Member ID" autocomplete="off" required>
           <datalist id="rpMemberList"></datalist>
-          <div class="hint" id="rpMemberHint">Sirf approved members hi list mein hain.</div>
+          <div class="hint" id="rpMemberHint">Only approved members appear in this list.</div>
         </div>
         <div class="form-2col">
           <div class="field">
@@ -1093,10 +1134,10 @@
         </div>
         <div class="field">
           <label for="rpNote">Note (optional)</label>
-          <input type="text" id="rpNote" placeholder="e.g. office counter par cash liya" maxlength="120">
+          <input type="text" id="rpNote" placeholder="e.g. cash taken at office counter" maxlength="120">
         </div>
         <div class="callout callout-info" style="font-size:12.5px;">
-          Yeh payment turant <b>verified</b> maani jaayegi aur receipt ban jayega — kyunki paisa aapko mil chuka hai (ya aapne confirm kar liya hai).
+          This payment will be marked <b>verified</b> immediately and a receipt generated — because the money has already reached you (or you have confirmed it).
         </div>
         <button class="btn btn-primary btn-block" type="submit" id="rpSubmit">Record &amp; Issue Receipt</button>
       </form>
@@ -1127,7 +1168,7 @@
     <div class="modal-body">
       <form id="expenseForm">
         <input type="hidden" name="expenseId" id="expExpenseId">
-        <div class="field"><label for="expDesc">Kis cheez ka kharcha</label>
+        <div class="field"><label for="expDesc">What was this expense for</label>
           <input id="expDesc" name="description" required maxlength="200" placeholder="e.g. Guard salary — July 2026"></div>
         <div class="form-2col">
           <div class="field"><label for="expAmount">Amount (₹)</label>
@@ -1145,14 +1186,14 @@
           </div>
         </div>
         <div class="form-2col">
-          <div class="field"><label for="expPaidTo">Kise diya</label>
+          <div class="field"><label for="expPaidTo">Paid To</label>
             <input id="expPaidTo" name="paidTo" maxlength="120" placeholder="e.g. ABC Security Services"></div>
           <div class="field"><label for="expRef">Cheque / UTR No.</label>
             <input id="expRef" name="reference" maxlength="40"></div>
         </div>
-        <div class="field"><label for="expBill">Bill ka link <span class="t-muted" style="font-weight:400;">(optional)</span></label>
+        <div class="field"><label for="expBill">Bill link <span class="t-muted" style="font-weight:400;">(optional)</span></label>
           <input id="expBill" name="billLink" type="url" placeholder="https://drive.google.com/...">
-          <div class="hint">Bill ka Drive link daal dein toh audit ke waqt dhoondhna nahi padega.</div>
+          <div class="hint">Add the bill's Drive link so it's easy to find during an audit.</div>
         </div>
         <button class="btn btn-primary btn-block" type="submit" id="expenseSaveBtn">Save Expense</button>
       </form>
@@ -1174,11 +1215,11 @@
         </div>
         <div class="field"><label for="docFile">Upload file</label>
           <input type="file" id="docFile" name="file" accept=".pdf,.doc,.docx,.xls,.xlsx,image/*">
-          <div class="hint">Firebase Storage set up nahi hai? Neeche link daal dein — dono mein se koi ek zaroori hai.</div>
+          <div class="hint">Firebase Storage not set up? Add a link below instead — one of the two is required.</div>
         </div>
         <div class="field"><label for="docLink">…or paste a link</label>
           <input id="docLink" name="link" type="url" placeholder="https://drive.google.com/...">
-          <div class="hint">Google Drive ya kisi bhi public link se kaam chal jayega.</div>
+          <div class="hint">A Google Drive link or any public link will work.</div>
         </div>
         <button class="btn btn-primary btn-block" type="submit">Save Document</button>
       </form>
@@ -1242,7 +1283,7 @@ import {
   initializeApp, deleteApp
 } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
 import {
-  getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, createUserWithEmailAndPassword, sendPasswordResetEmail
+  getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, createUserWithEmailAndPassword, sendPasswordResetEmail, deleteUser
 } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
 import {
   doc, getDoc, setDoc, updateDoc, deleteDoc, addDoc, collection, getDocs, query, where, orderBy, serverTimestamp, limit,
@@ -1253,7 +1294,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-storage.js";
 import {
   showToast, escapeHtml, fmtDate, fmtDateTime, formatINR, currentFinancialYear, financialYearOptions,
-  generateMemberId, generateReceiptNumber, logAudit, generateReceiptPDF, generateIncomeExpenditurePDF, exportToExcel, parseExcelFile,
+  generateMemberId, generateReceiptNumber, generateReceiptNumberAtomic, logAudit, generateReceiptPDF, generateIncomeExpenditurePDF, exportToExcel, parseExcelFile, PAYMENT_DEFAULTS, sanitizeUrl, safeStorageFilename,
   encryptFile, decryptToBlob, backupToDrive, waLink, waShareText, serializeForExport,
   newPublicToken, publicKeyForMember,
   TOWER_IDS, TOWER_PLAN, flatsForTower, isValidFlat,
@@ -1272,6 +1313,15 @@ let currentAdmin = null;
 let allMembers = [];
 let allPayments = [];
 let allPets = [];
+// republishPublicSummary() reads allPayments/allExpenses, so a transient
+// network failure that leaves either one stale or zeroed must never feed
+// into what gets published to the public Accounts page. These track
+// "did the most recent read actually succeed" independently of what's
+// currently sitting in allPayments/allExpenses.
+let paymentsLoadedOk = false;
+let expensesLoadedOk = false;
+let allComplaints = [];
+let complaintFilter = 'open';
 
 /* Diagnostic helper — run window.__mhmDebugPermissions() from the browser
    console (F12) while logged into the admin panel. Prints exactly what
@@ -1329,13 +1379,13 @@ const ROLE_LABELS = {
   secretary: 'Secretary', jointsecretary: 'Joint Secretary', treasurer: 'Treasurer'
 };
 const ROLE_NAV = {
-  superadmin: ['overview','members','payments','events','expenses','content','calendar','polls','financials','importExport','settings','adminUsers','auditLog'],
+  superadmin: ['overview','members','payments','events','expenses','content','calendar','complaints','polls','financials','importExport','settings','adminUsers','auditLog'],
   // Office-bearers can see where the money went even though only the
   // Treasurer may record it — that visibility is the point of the ledger.
-  president: ['overview','members','events','expenses','content','calendar','polls','auditLog'],
-  vicepresident: ['overview','members','events','expenses','content','calendar','polls','auditLog'],
-  secretary: ['overview','members','events','expenses','content','calendar','polls','auditLog'],
-  jointsecretary: ['overview','members','events','expenses','content','calendar','polls','auditLog'],
+  president: ['overview','members','events','expenses','content','calendar','complaints','polls','auditLog'],
+  vicepresident: ['overview','members','events','expenses','content','calendar','complaints','polls','auditLog'],
+  secretary: ['overview','members','events','expenses','content','calendar','complaints','polls','auditLog'],
+  jointsecretary: ['overview','members','events','expenses','content','calendar','complaints','polls','auditLog'],
   treasurer: ['overview','members','payments','events','expenses','calendar','financials','importExport','auditLog']
 };
 const ACTION_PERMS = {
@@ -1361,7 +1411,7 @@ document.getElementById('adminLoginForm').addEventListener('submit', async (e) =
   try {
     await signInWithEmailAndPassword(auth, f.email.value.trim(), f.password.value);
   } catch (err) {
-    errEl.textContent = 'Email ya password galat hai.';
+    errEl.textContent = 'Incorrect email or password.';
     errEl.style.display = 'block';
   } finally { btn.disabled = false; }
 });
@@ -1384,11 +1434,11 @@ document.getElementById('changePasswordBtn')?.addEventListener('click', async (e
   btn.disabled = true;
   try {
     await sendPasswordResetEmail(auth, email);
-    showToast(`Password reset link ${email} par bhej diya gaya hai.`, 'success');
+    showToast(`Password reset link sent to ${email}.`, 'success');
   } catch (err) {
     console.error('Password reset email failed:', err);
     const code = err?.code || '';
-    showToast(`Reset link nahi bhej paaye${code ? ` (${code})` : ''}.`, 'error');
+    showToast(`Could not send reset link${code ? ` (${code})` : ''}.`, 'error');
   } finally {
     btn.disabled = false;
   }
@@ -1401,20 +1451,20 @@ document.getElementById('adminForgotPassword')?.addEventListener('click', async 
   e.preventDefault();
   const errEl = document.getElementById('loginError');
   const typed = document.querySelector('#adminLoginForm [name="email"]').value.trim();
-  const email = typed || prompt('Apni admin email daalein — reset link us par bheja jayega:');
+  const email = typed || prompt('Enter your admin email — the reset link will be sent there:');
   if (!email) return;
   errEl.style.display = 'none';
   try {
     await sendPasswordResetEmail(auth, email.trim());
     errEl.style.color = '';
     errEl.classList.remove('t-danger');
-    errEl.textContent = `Reset link ${email.trim()} par bhej diya gaya — apna inbox (aur spam) check karein.`;
+    errEl.textContent = `Reset link sent to ${email.trim()} — check your inbox (and spam folder).`;
     errEl.style.color = '#137a4b';
     errEl.style.display = 'block';
   } catch (err) {
     errEl.classList.add('t-danger');
     errEl.style.color = '';
-    errEl.textContent = 'Reset link nahi bhej paaye — email sahi hai ya nahi jaanch lein.';
+    errEl.textContent = 'Could not send reset link — please check the email is correct.';
     errEl.style.display = 'block';
   }
 });
@@ -1446,7 +1496,7 @@ function resetIdleTimer() {
   if (!currentAdmin) return;          // only runs while an admin is signed in
   idleWarnTimer = setTimeout(() => {
     idleWarnToastShown = true;
-    showToast('1 minute mein session apne aap band ho jayega. Continue karne ke liye kahin bhi click karein.', 'error');
+    showToast('Your session will automatically end in 1 minute. Click anywhere to continue.', 'error');
   }, IDLE_WARN_MS);
   idleTimer = setTimeout(endIdleSession, IDLE_LIMIT_MS);
 }
@@ -1458,7 +1508,7 @@ function resetIdleTimer() {
 if (sessionStorage.getItem('mhmrws-timed-out')) {
   sessionStorage.removeItem('mhmrws-timed-out');
   const errEl = document.getElementById('loginError');
-  errEl.textContent = 'Inactivity ke kaaran session band ho gaya tha. Dobara login karein.';
+  errEl.textContent = 'Your session ended due to inactivity. Please log in again.';
   errEl.style.display = 'block';
 }
 
@@ -1470,14 +1520,14 @@ onAuthStateChanged(auth, async (user) => {
   } catch (e) {
     console.error('Admin lookup failed:', e);
     const errEl = document.getElementById('loginError');
-    errEl.textContent = `Admin record load nahi ho paaya${e?.code ? ` (${e.code})` : ''} — internet check karke page refresh karein.`;
+    errEl.textContent = `Could not load admin record${e?.code ? ` (${e.code})` : ''} — check your connection and refresh the page.`;
     errEl.style.display = 'block';
     return;
   }
   if (!adminSnap.exists()) {
     await signOut(auth);
     const errEl = document.getElementById('loginError');
-    errEl.textContent = 'Yeh account admin panel access nahi rakhta.';
+    errEl.textContent = 'This account does not have admin panel access.';
     errEl.style.display = 'block';
     return;
   }
@@ -1497,7 +1547,7 @@ onAuthStateChanged(auth, async (user) => {
     await bootData();
   } catch (e) {
     console.error('bootData failed:', e);
-    showToast(`Panel poori tarah load nahi ho paaya${e?.code ? ` (${e.code})` : ''} — page refresh karein.`, 'error');
+    showToast(`Panel could not fully load${e?.code ? ` (${e.code})` : ''} — please refresh the page.`, 'error');
   }
 });
 
@@ -1638,7 +1688,7 @@ function performUniversalSearch(term) {
   usearchActions = [];
   const nonEmpty = groups.filter(g => g.items.length);
   if (!nonEmpty.length) {
-    results.innerHTML = `<div class="usearch-empty">Kuch nahi mila "${escapeHtml(term)}" ke liye</div>`;
+    results.innerHTML = `<div class="usearch-empty">No results for "${escapeHtml(term)}"</div>`;
   } else {
     results.innerHTML = nonEmpty.map(g => `
       <div class="usearch-group-label">${escapeHtml(g.label)}</div>
@@ -1693,6 +1743,7 @@ async function bootData() {
   loadCalendarPanel();
   loadPollsPanel();
   loadPets();
+  loadComplaints();
   // Closing's checklist reads window.__bankTxs, which loadBankReconciliation()
   // sets — sequenced explicitly so closing never checks that count before
   // it's actually loaded.
@@ -1710,15 +1761,17 @@ async function reloadMembers() {
     allMembers = (await getDocs(collection(db, 'members'))).docs.map(d => ({ id: d.id, ...d.data() }));
   } catch (e) {
     console.warn('Members read failed:', e?.code || e);
-    showToast(`Members list load nahi ho payi${e?.code ? ` (${e.code})` : ''} — page refresh karke dobara try karein.`, 'error');
+    showToast(`Could not load members list${e?.code ? ` (${e.code})` : ''} — please refresh the page and try again.`, 'error');
   }
 }
 async function reloadPayments() {
   try {
     allPayments = (await getDocs(collection(db, 'payments'))).docs.map(d => ({ id: d.id, ...d.data() }));
+    paymentsLoadedOk = true;
   } catch (e) {
+    paymentsLoadedOk = false;
     console.warn('Payments read failed:', e?.code || e);
-    showToast(`Payments list load nahi ho payi${e?.code ? ` (${e.code})` : ''} — page refresh karke dobara try karein.`, 'error');
+    showToast(`Could not load payments list${e?.code ? ` (${e.code})` : ''} — please refresh the page and try again.`, 'error');
   }
   republishPublicSummary();
 }
@@ -1735,6 +1788,13 @@ async function reloadPayments() {
 // than showing an error the person can't do anything about.
 async function republishPublicSummary() {
   if (!can('verifyPayments')) return;
+  // A read failure on EITHER source must not feed into what gets published —
+  // that's the actual bug this guards against: allExpenses briefly reads as
+  // [] after a dropped connection, and without this check the public
+  // Accounts page would have shown "spent: 0" until the next successful
+  // load happened to overwrite it. Skipping the publish here just leaves
+  // whatever was last correctly published in place.
+  if (!paymentsLoadedOk || !expensesLoadedOk) return;
   try {
     const fy = currentFinancialYear();
     const pos = fundPosition(allPayments, allExpenses, fy);
@@ -1772,9 +1832,9 @@ function reconTileValue() {
 }
 function reconTileNote() {
   const txs = window.__bankTxs;
-  if (!txs || !txs.length) return 'Bank transactions abhi jodi nahi gayi';
+  if (!txs || !txs.length) return 'No bank transactions added yet';
   const unmatched = txs.filter(t => !t.status || t.status === 'unmatched').length;
-  return unmatched > 0 ? `${unmatched} unmatched` : 'Sab match ho gaya';
+  return unmatched > 0 ? `${unmatched} unmatched` : 'All matched';
 }
 
 // Command Center — everything currently waiting on someone, as one row of
@@ -1791,10 +1851,12 @@ function renderCommandCenter(pendingMemberCount, pendingPaymentCount) {
   const pendingExpenseCount = allExpenses.filter(e => e.status === 'pending_approval').length;
   const unmatchedBankCount = (window.__bankTxs || []).filter(t => !t.status || t.status === 'unmatched').length;
   const petVaxCount = allPets.filter(p => ['overdue', 'due_soon'].includes(petVaccinationStatus(p).status)).length;
+  const openComplaintCount = allComplaints.filter(c => c.status === 'open').length;
 
   const pills = [
     { count: pendingPaymentCount, label: 'Payments Pending', show: can('verifyPayments'), go: () => switchView('payments') },
     { count: pendingMemberCount, label: 'Member Approvals', show: can('approveMembers'), go: () => switchView('members') },
+    { count: openComplaintCount, label: 'Open Complaints', show: can('approveMembers'), go: () => switchView('complaints') },
     { count: pendingExpenseCount, label: 'Expense Approvals', show: can('recordExpenses'), go: () => switchView('expenses') },
     { count: unmatchedBankCount, label: 'Bank Unmatched', show: can('verifyPayments'), go: () => switchView('financials') },
     // Lives on Overview itself (not a separate tab), so this scrolls to it
@@ -1833,7 +1895,7 @@ function renderTreasurerDashboard() {
 
   document.getElementById('treasurerDashGrid').innerHTML = [
     tile('Bank Balance', formatINR(stats.bankBalance), 'Cheque + UPI + Netbanking'),
-    tile('Cash Balance', formatINR(stats.cashBalance), 'Hand mein cash'),
+    tile('Cash Balance', formatINR(stats.cashBalance), 'Cash on hand'),
     tile('Collection (Is Month)', formatINR(stats.thisMonthCollection)),
     tile('Expenses (Is Month)', formatINR(stats.thisMonthExpenses)),
     tile('Outstanding Maintenance', formatINR(outstandingTotal), `${outstanding.length} member${outstanding.length === 1 ? '' : 's'} — FY ${selectedFY}`),
@@ -1842,7 +1904,7 @@ function renderTreasurerDashboard() {
       `<span style="color:${stats.monthSurplus >= 0 ? 'var(--success,#1E7D4B)' : 'var(--danger,#C0392B)'}">${formatINR(Math.abs(stats.monthSurplus))}</span>`
     ),
     tile('Bank Reconciliation', reconTileValue(), reconTileNote()),
-    tile('Upcoming Bills', '—', 'Recurring expenses abhi track nahi hote')
+    tile('Upcoming Bills', '—', 'Recurring expenses are not tracked yet')
   ].join('');
 }
 
@@ -1946,7 +2008,7 @@ function renderCelebrations() {
             <div class="celeb-name">${escapeHtml(en.name)}${en.relation ? ` <span class="t-muted" style="font-weight:400;">(${escapeHtml(en.relation)} of ${escapeHtml(en.memberName)})</span>` : ''}</div>
             <div class="celeb-sub">${en.kind === 'anniversary' ? 'Anniversary' : 'Birthday'} · Flat ${escapeHtml(en.flat)}</div>
           </div>
-          <a class="btn btn-primary btn-sm" data-celeb-wa="${i}" target="_blank" rel="noopener">WhatsApp Bhejein</a>
+          <a class="btn btn-primary btn-sm" data-celeb-wa="${i}" target="_blank" rel="noopener">Send WhatsApp</a>
         </div>
       `).join('');
       list.querySelectorAll('[data-celeb-wa]').forEach((a) => {
@@ -1971,7 +2033,7 @@ function renderCelebrations() {
           <div class="celeb-icon">${en.kind === 'anniversary' ? '🎉' : '🎂'}</div>
           <div class="celeb-info">
             <div class="celeb-name">${escapeHtml(en.name)}${en.relation ? ` <span class="t-muted" style="font-weight:400;">(${escapeHtml(en.relation)} of ${escapeHtml(en.memberName)})</span>` : ''}</div>
-            <div class="celeb-sub">${en.kind === 'anniversary' ? 'Anniversary' : 'Birthday'} · Flat ${escapeHtml(en.flat)} · ${en.daysAway} din mein</div>
+            <div class="celeb-sub">${en.kind === 'anniversary' ? 'Anniversary' : 'Birthday'} · Flat ${escapeHtml(en.flat)} · ${en.daysAway} days</div>
           </div>
           <a class="btn btn-outline btn-sm" data-celeb-up-wa="${i}" target="_blank" rel="noopener">WhatsApp</a>
         </div>
@@ -1996,6 +2058,117 @@ async function loadPets() {
   // Command Center's Pet Vaccinations pill also depends on allPets, and
   // wasn't ready the first time renderOverview() ran.
   renderOverview();
+}
+
+/* ---- Complaints / Tickets -------------------------------------------------
+   Status flows one-way in normal use: open → in_progress → resolved/rejected.
+   A resident can add exactly one thing back once it's resolved/closed — a
+   1–5 satisfaction rating — which firestore.rules enforces directly (see
+   the rules file), not just a UI convention here. */
+const COMPLAINT_CATEGORY_LABEL = {
+  security: 'Security', housekeeping: 'Housekeeping', maintenance: 'Maintenance',
+  electrical: 'Electrical', plumbing: 'Plumbing', noise: 'Noise', parking: 'Parking', other: 'Other'
+};
+const COMPLAINT_STATUS_BADGE = { open: 'badge-warning', in_progress: 'badge-neutral', resolved: 'badge-success', closed: 'badge-success', rejected: 'badge-danger' };
+const COMPLAINT_STATUS_LABEL = { open: 'Open', in_progress: 'In Progress', resolved: 'Resolved', closed: 'Closed', rejected: 'Rejected' };
+
+async function loadComplaints() {
+  try {
+    allComplaints = (await getDocs(collection(db, 'complaints'))).docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch (e) {
+    console.warn('Complaints read failed:', e?.code || e);
+    allComplaints = [];
+  }
+  renderComplaints();
+  renderOverview();
+}
+
+function renderComplaints() {
+  const body = document.getElementById('complaintsBody');
+  if (!body) return;
+  let rows = allComplaints;
+  if (complaintFilter === 'open') rows = rows.filter(c => c.status === 'open');
+  else if (complaintFilter === 'in_progress') rows = rows.filter(c => c.status === 'in_progress');
+  else if (complaintFilter === 'resolved') rows = rows.filter(c => ['resolved', 'closed'].includes(c.status));
+  // 'all' — no filter.
+  rows = [...rows].sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+
+  body.innerHTML = rows.map(c => `
+    <tr style="cursor:pointer;" data-open-complaint="${c.id}">
+      <td data-label="Resident">${escapeHtml(c.raisedByName || '—')}</td>
+      <td data-label="Flat">${escapeHtml(c.tower || '—')}-${escapeHtml(c.flatNumber || '—')}</td>
+      <td data-label="Category">${escapeHtml(COMPLAINT_CATEGORY_LABEL[c.category] || c.category || '—')}</td>
+      <td data-label="Title">${escapeHtml(c.title)}</td>
+      <td data-label="Status"><span class="badge ${COMPLAINT_STATUS_BADGE[c.status] || 'badge-neutral'}">${escapeHtml(COMPLAINT_STATUS_LABEL[c.status] || c.status)}</span></td>
+      <td data-label="Raised On">${fmtDate(c.createdAt)}</td>
+    </tr>`).join('') || `<tr><td colspan="6" class="t-muted">No complaints.</td></tr>`;
+
+  document.querySelectorAll('[data-open-complaint]').forEach(tr => tr.addEventListener('click', () => openComplaintDetail(tr.dataset.openComplaint)));
+}
+document.querySelectorAll('[data-cptab]').forEach(btn => btn.addEventListener('click', () => {
+  document.querySelectorAll('[data-cptab]').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  complaintFilter = btn.dataset.cptab;
+  renderComplaints();
+}));
+
+function openComplaintDetail(id) {
+  const c = allComplaints.find(x => x.id === id);
+  if (!c) return;
+  const body = document.getElementById('complaintDetailModalBody');
+  const canManage = can('approveMembers');
+  const isOpenState = !['resolved', 'closed', 'rejected'].includes(c.status);
+  body.innerHTML = `
+    <div class="spread" style="margin-bottom:10px;">
+      <b style="font-size:15px;">${escapeHtml(c.title)}</b>
+      <span class="badge ${COMPLAINT_STATUS_BADGE[c.status] || 'badge-neutral'}">${escapeHtml(COMPLAINT_STATUS_LABEL[c.status] || c.status)}</span>
+    </div>
+    <div class="detail-line"><span>Resident</span><span>${escapeHtml(c.raisedByName || '—')}</span></div>
+    <div class="detail-line"><span>Flat</span><span>${escapeHtml(c.tower || '—')}-${escapeHtml(c.flatNumber || '—')}</span></div>
+    <div class="detail-line"><span>Category</span><span>${escapeHtml(COMPLAINT_CATEGORY_LABEL[c.category] || c.category || '—')}</span></div>
+    <div class="detail-line"><span>Raised On</span><span>${fmtDate(c.createdAt)}</span></div>
+    <div style="margin:12px 0;"><div class="t-muted" style="font-size:12px; margin-bottom:4px;">Description</div><p style="font-size:13.5px; white-space:pre-wrap;">${escapeHtml(c.description)}</p></div>
+    ${c.photoURL ? `<img src="${escapeHtml(c.photoURL)}" alt="" style="max-width:100%; border-radius:8px; margin-bottom:12px;">` : ''}
+    ${c.resolutionNote ? `<div style="margin-bottom:12px;"><div class="t-muted" style="font-size:12px; margin-bottom:4px;">Resolution Note</div><p style="font-size:13.5px;">${escapeHtml(c.resolutionNote)}</p></div>` : ''}
+    ${c.satisfactionRating ? `<div class="t-muted" style="font-size:12.5px; margin-bottom:12px;">Resident Rating: ${'⭐'.repeat(c.satisfactionRating)}</div>` : ''}
+    ${canManage && isOpenState ? `
+      <div class="field"><label for="complaintStatusSelect">Update Status</label>
+        <select id="complaintStatusSelect">
+          <option value="open" ${c.status === 'open' ? 'selected' : ''}>Open</option>
+          <option value="in_progress" ${c.status === 'in_progress' ? 'selected' : ''}>In Progress</option>
+          <option value="resolved">Resolved</option>
+          <option value="rejected">Rejected</option>
+        </select>
+      </div>
+      <div class="field"><label for="complaintNote">Note <span class="t-muted" style="font-weight:400;">(optional, shown to the resident)</span></label><textarea id="complaintNote" rows="2" maxlength="500"></textarea></div>
+      <button class="btn btn-primary btn-block" id="complaintStatusSaveBtn">Save</button>
+    ` : ''}
+  `;
+  document.getElementById('complaintStatusSaveBtn')?.addEventListener('click', () => {
+    const newStatus = document.getElementById('complaintStatusSelect').value;
+    const note = document.getElementById('complaintNote').value.trim();
+    updateComplaintStatus(id, newStatus, note);
+  });
+  document.getElementById('complaintDetailModalBackdrop').classList.add('open');
+}
+document.getElementById('closeComplaintDetailModal')?.addEventListener('click', () =>
+  document.getElementById('complaintDetailModalBackdrop').classList.remove('open'));
+
+async function updateComplaintStatus(id, newStatus, note) {
+  try {
+    const patch = { status: newStatus, updatedAt: serverTimestamp() };
+    if (note) patch.resolutionNote = note;
+    if (['resolved', 'closed'].includes(newStatus)) patch.resolvedAt = serverTimestamp();
+    await updateDoc(doc(db, 'complaints', id), patch);
+    await logAudit(auth.currentUser, 'update_complaint_status', { complaintId: id, newStatus });
+    showToast('Complaint status updated.', 'success');
+    document.getElementById('complaintDetailModalBackdrop').classList.remove('open');
+    await loadComplaints();
+  } catch (err) {
+    console.error('Update complaint failed:', err);
+    const code = err?.code || '';
+    showToast(`Could not save${code ? ` (${code})` : ''}.`, 'error');
+  }
 }
 
 const PET_ICON = { dog: '🐕', cat: '🐈', bird: '🐦', other: '🐾' };
@@ -2032,10 +2205,10 @@ function renderPetVaxReminders() {
         <div class="celeb-name">${escapeHtml(pet.name)} <span class="t-muted" style="font-weight:400;">(${escapeHtml(pet.ownerName || '—')})</span></div>
         <div class="celeb-sub">
           Flat ${escapeHtml(pet.flatNumber || '—')} ·
-          ${st.status === 'overdue' ? `<span style="color:var(--danger,#C0392B);">${Math.abs(st.daysUntil)} din overdue</span>` : `${st.daysUntil} din mein due`}
+          ${st.status === 'overdue' ? `<span style="color:var(--danger,#C0392B);">${Math.abs(st.daysUntil)} days overdue</span>` : `Due in ${st.daysUntil} days`}
         </div>
       </div>
-      ${mobile ? `<a class="btn btn-primary btn-sm" data-petvax-wa="${i}" target="_blank" rel="noopener">WhatsApp Bhejein</a>` : '<span class="t-muted" style="font-size:11.5px;">Mobile nahi mila</span>'}
+      ${mobile ? `<a class="btn btn-primary btn-sm" data-petvax-wa="${i}" target="_blank" rel="noopener">Send WhatsApp</a>` : '<span class="t-muted" style="font-size:11.5px;">No mobile number found</span>'}
     </div>`;
   }).join('');
   list.querySelectorAll('[data-petvax-wa]').forEach(a => {
@@ -2147,7 +2320,7 @@ function renderEvents() {
   const createCard = document.getElementById('eventCreateCard');
   if (createCard) createCard.style.display = canManage ? 'block' : 'none';
   if (!allEvents.length) {
-    tbody.innerHTML = '<tr><td colspan="6" class="t-muted">Abhi koi event nahi.' + (canManage ? ' Upar form se banayein.' : '') + '</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="t-muted">No events yet.' + (canManage ? ' Use the form above to create one.' : '') + '</td></tr>';
     return;
   }
   tbody.innerHTML = allEvents.map(ev => {
@@ -2206,22 +2379,22 @@ function editEvent(id) {
 async function deleteEvent(id) {
   const ev = allEvents.find(e => e.id === id);
   if (!ev) return;
-  if (!confirm(`"${ev.name}" event delete karein? (Iske purane payments records rahenge.)`)) return;
+  if (!confirm(`Delete the "${ev.name}" event? (Its past payment records will remain.)`)) return;
   try {
     await deleteDoc(doc(db, 'events', id));
     await logAudit('event_delete', { eventId: id, name: ev.name });
-    showToast('Event delete ho gaya.', 'success');
+    showToast('Event deleted.', 'success');
     await reloadEvents(); renderEvents();
-  } catch (e) { showToast('Delete nahi ho paaya.', 'error'); }
+  } catch (e) { showToast('Could not delete.', 'error'); }
 }
 
 async function setEventActive(id, active) {
   try {
     await updateDoc(doc(db, 'events', id), { active, updatedAt: serverTimestamp() });
     await logAudit(active ? 'event_reopen' : 'event_close', { eventId: id });
-    showToast(active ? 'Event dobara active ho gaya.' : 'Event band kar diya.', 'success');
+    showToast(active ? 'Event reactivated.' : 'Event closed.', 'success');
     await reloadEvents(); renderEvents();
-  } catch (e) { showToast('Update nahi ho paaya.', 'error'); }
+  } catch (e) { showToast('Could not update.', 'error'); }
 }
 
 /* "Generate Demand" — marks the event so residents start seeing the fee. The
@@ -2232,24 +2405,24 @@ async function generateEventDemand(id) {
   const ev = allEvents.find(e => e.id === id);
   if (!ev) return;
   const approvedCount = allMembers.filter(m => m.status === 'approved').length;
-  if (!confirm(`"${ev.name}" ke liye ${formatINR(ev.feeAmount)} ki demand ${approvedCount} approved members ko bhejein?\n\nSabko apne payment screen par yeh fee dikhne lagegi.`)) return;
+  if (!confirm(`Send a demand of ${formatINR(ev.feeAmount)} for "${ev.name}" to ${approvedCount} approved members?\n\nThis fee will appear on everyone's payment screen.`)) return;
   try {
     await updateDoc(doc(db, 'events', id), {
       demandGenerated: true, active: true,
       demandGeneratedAt: serverTimestamp(), demandGeneratedBy: currentAdmin.email
     });
     await logAudit('event_demand', { eventId: id, name: ev.name, fee: ev.feeAmount, members: approvedCount });
-    showToast(`Demand generate ho gayi — ${approvedCount} members ko dikhne lagegi.`, 'success');
+    showToast(`Demand generated — will appear for ${approvedCount} members.`, 'success');
     await reloadEvents(); renderEvents();
-  } catch (e) { showToast('Demand generate nahi ho paayi.', 'error'); }
+  } catch (e) { showToast('Could not generate demand.', 'error'); }
 }
 
 document.getElementById('eventForm')?.addEventListener('submit', async (e) => {
   e.preventDefault();
-  if (!can('manageEvents')) { showToast('Sirf Treasurer/Super Admin event bana sakte hain.', 'error'); return; }
+  if (!can('manageEvents')) { showToast('Only Treasurer/Super Admin can create events.', 'error'); return; }
   const f = e.target;
   const fee = Number(f.feeAmount.value);
-  if (!f.name.value.trim() || !(fee > 0)) { showToast('Naam aur sahi fee daalein.', 'error'); return; }
+  if (!f.name.value.trim() || !(fee > 0)) { showToast('Please enter a name and a valid fee.', 'error'); return; }
   const data = {
     name: f.name.value.trim(),
     feeAmount: fee,
@@ -2260,19 +2433,19 @@ document.getElementById('eventForm')?.addEventListener('submit', async (e) => {
   try {
     if (f.eventId.value) {
       await updateDoc(doc(db, 'events', f.eventId.value), data);
-      showToast('Event update ho gaya.', 'success');
+      showToast('Event updated.', 'success');
     } else {
       data.createdAt = serverTimestamp();
       data.createdBy = currentAdmin.email;
       data.demandGenerated = false;
       data.active = true;
       await addDoc(collection(db, 'events'), data);
-      showToast('Event save ho gaya. Ab "Generate Demand" dabayein.', 'success');
+      showToast('Event saved. Now click "Generate Demand".', 'success');
     }
     f.reset(); f.eventId.value = '';
     populateEventFY();
     await reloadEvents(); renderEvents();
-  } catch (err) { showToast('Save nahi ho paaya.', 'error'); }
+  } catch (err) { showToast('Could not save.', 'error'); }
 });
 document.getElementById('eventFormReset')?.addEventListener('click', () => {
   const f = document.getElementById('eventForm'); f.reset(); f.eventId.value = ''; populateEventFY();
@@ -2290,22 +2463,52 @@ async function reloadExpenses() {
   try {
     allExpenses = (await getDocs(query(collection(db, 'expenses'), orderBy('date', 'desc'))))
       .docs.map(d => ({ id: d.id, ...d.data() }));
+    expensesLoadedOk = true;
   } catch (e) {
     allExpenses = [];
+    expensesLoadedOk = false;
     console.error('Expenses read failed:', e?.code || e);
-    showToast(`Kharche load nahi hue${e?.code ? ` (${e.code})` : ''} — yeh khaali list nahi hai, refresh karein.`, 'error');
+    showToast(`Could not load expenses${e?.code ? ` (${e.code})` : ''} — this is not an empty list, please refresh.`, 'error');
   }
   republishPublicSummary();
 }
 
 const EXPENSE_STATUS_BADGE = {
   pending_approval: '<span class="badge badge-warning">Pending</span>',
-  rejected: '<span class="badge badge-danger">Rejected</span>'
+  rejected: '<span class="badge badge-danger">Rejected</span>',
+  voided: '<span class="badge badge-neutral">Voided</span>'
 };
 // A missing status is a legacy expense (written before this workflow
 // existed) — treated as approved, same as the filter in expenseSummary().
 function expenseStatusBadge(e) {
   return EXPENSE_STATUS_BADGE[e.status] || '<span class="badge badge-success">Approved</span>';
+}
+
+// Voiding is the only way to reverse an approved expense — firestore.rules
+// locks amount/category/description/financialYear once approved, and
+// blocks hard-delete entirely, so this is the sole path back for a genuine
+// mistake (wrong amount entered, duplicate entry, expense that turned out
+// not to apply). The reason is mandatory and shows on the ledger row, same
+// as a voided payment.
+async function voidExpenseEntry(e) {
+  if (!e) return;
+  const reason = prompt(`Reason for voiding "${e.description}" (${formatINR(e.amount)}):`);
+  if (reason === null) return;
+  if (!reason.trim()) { showToast('A reason is required to void an expense.', 'error'); return; }
+  if (!confirm(`Once voided, this will no longer count toward spending. Confirm?`)) return;
+  try {
+    await updateDoc(doc(db, 'expenses', e.id), {
+      status: 'voided', voidReason: reason.trim(),
+      voidedBy: auth.currentUser?.email || currentAdmin.email, voidedAt: serverTimestamp()
+    });
+    await logAudit(auth.currentUser, 'void_expense', { id: e.id, description: e.description, amount: e.amount, reason: reason.trim() });
+    showToast('Expense voided.', 'success');
+    await reloadExpenses(); renderExpenses(); renderOverview();
+  } catch (err) {
+    console.error('Void expense failed:', err);
+    const code = err?.code || '';
+    showToast(`Could not void${code ? ` (${code})` : ''}.`, 'error');
+  }
 }
 
 function renderExpenses() {
@@ -2333,21 +2536,36 @@ function renderExpenses() {
   // Main ledger shows everything EXCEPT pending requests — those live in
   // their own card above so they don't get lost among finalised entries.
   const rows = allExpenses.filter(e => e.financialYear === fy && e.status !== 'pending_approval');
-  document.getElementById('expensesBody').innerHTML = rows.map(e => `
+  document.getElementById('expensesBody').innerHTML = rows.map(e => {
+    const isApproved = !e.status || e.status === 'approved';  // no-status = legacy-approved, same convention as expenseSummary()
+    const isVoided = e.status === 'voided';
+    let actions = '<span class="t-muted" style="font-size:12px;">view only</span>';
+    if (canApprove) {
+      if (isVoided) {
+        actions = '<span class="t-muted" style="font-size:12px;">voided</span>';
+      } else if (isApproved) {
+        actions = `<button class="btn btn-outline btn-sm" data-void-exp="${e.id}">Void</button>`;
+      } else {
+        actions = `<div style="display:flex; gap:6px;"><button class="btn btn-outline btn-sm" data-edit-exp="${e.id}">Edit</button><button class="btn btn-danger btn-sm" data-del-exp="${e.id}">Delete</button></div>`;
+      }
+    }
+    return `
     <tr>
       <td data-label="Date">${fmtDate(e.date)}</td>
       <td data-label="Description">${escapeHtml(e.description)}</td>
       <td data-label="Category">${escapeHtml(e.category || '—')}</td>
       <td data-label="Paid To">${escapeHtml(e.paidTo || '—')}${e.billLink ? ` <a href="${escapeHtml(e.billLink)}" target="_blank" rel="noopener" style="text-decoration:underline;">bill</a>` : ''}</td>
       <td data-label="Amount"><b>${formatINR(e.amount)}</b></td>
-      <td data-label="Status">${expenseStatusBadge(e)}</td>
-      <td data-label="Actions">${canApprove ? `<div style="display:flex; gap:6px;"><button class="btn btn-outline btn-sm" data-edit-exp="${e.id}">Edit</button><button class="btn btn-danger btn-sm" data-del-exp="${e.id}">Delete</button></div>` : '<span class="t-muted" style="font-size:12px;">view only</span>'}</td>
-    </tr>`).join('') || `<tr><td colspan="7" class="t-muted">FY ${escapeHtml(fy)} mein abhi koi kharcha darj nahi hai.</td></tr>`;
+      <td data-label="Status">${expenseStatusBadge(e)}${isVoided && e.voidReason ? `<div class="t-muted" style="font-size:11px;">${escapeHtml(e.voidReason)}</div>` : ''}</td>
+      <td data-label="Actions">${actions}</td>
+    </tr>`;
+  }).join('') || `<tr><td colspan="7" class="t-muted">No expenses recorded for FY ${escapeHtml(fy)} yet.</td></tr>`;
 
   document.querySelectorAll('[data-edit-exp]').forEach(b => b.addEventListener('click', () => openExpenseModal(allExpenses.find(x => x.id === b.dataset.editExp))));
+  document.querySelectorAll('[data-void-exp]').forEach(b => b.addEventListener('click', () => voidExpenseEntry(allExpenses.find(x => x.id === b.dataset.voidExp))));
   document.querySelectorAll('[data-del-exp]').forEach(b => b.addEventListener('click', async () => {
     const e = allExpenses.find(x => x.id === b.dataset.delExp);
-    if (!confirm(`"${e?.description}" (${formatINR(e?.amount)}) hata dein?`)) return;
+    if (!confirm(`Delete "${e?.description}" (${formatINR(e?.amount)})?`)) return;
     b.disabled = true;
     try {
       await deleteDoc(doc(db, 'expenses', b.dataset.delExp));
@@ -2356,7 +2574,7 @@ function renderExpenses() {
     } catch (err) {
       console.error('Delete expense failed:', err);
       const code = err?.code || '';
-      showToast(`Kharcha delete nahi ho paaya${code ? ` (${code})` : ''}.`, 'error');
+      showToast(`Could not delete expense${code ? ` (${code})` : ''}.`, 'error');
       b.disabled = false;
     }
   }));
@@ -2393,18 +2611,18 @@ function renderExpenses() {
 async function decideExpenseRequest(id, decision) {
   const e = allExpenses.find(x => x.id === id);
   const verb = decision === 'approved' ? 'Approve' : 'Reject';
-  if (!confirm(`"${e?.description}" (${formatINR(e?.amount)}) ko ${decision === 'approved' ? 'approve' : 'reject'} karein?`)) return;
+  if (!confirm(`${decision === 'approved' ? 'Approve' : 'Reject'} "${e?.description}" (${formatINR(e?.amount)})?`)) return;
   try {
     await updateDoc(doc(db, 'expenses', id), {
       status: decision, decidedBy: currentAdmin.email, decidedAt: serverTimestamp()
     });
     await logAudit(auth.currentUser, decision === 'approved' ? 'approve_expense' : 'reject_expense', { id, description: e?.description, amount: e?.amount });
-    showToast(`Request ${decision === 'approved' ? 'approve' : 'reject'} ho gayi.`, 'success');
+    showToast(`Request ${decision === 'approved' ? 'approved' : 'rejected'}.`, 'success');
     await reloadExpenses(); renderExpenses(); renderOverview();
   } catch (err) {
     console.error(`${verb} expense failed:`, err);
     const code = err?.code || '';
-    showToast(`${verb} nahi ho paaya${code ? ` (${code})` : ''}.`, 'error');
+    showToast(`Could not ${verb.toLowerCase()}${code ? ` (${code})` : ''}.`, 'error');
   }
 }
 
@@ -2454,7 +2672,7 @@ document.getElementById('expenseForm')?.addEventListener('submit', async (e) => 
   if (err) return showToast(err, 'error');
 
   const when = new Date(f.date.value);
-  if (Number.isNaN(when.getTime())) return showToast('Sahi date chunein.', 'error');
+  if (Number.isNaN(when.getTime())) return showToast('Please select a valid date.', 'error');
   // The financial year is derived from the expense date, not from whatever
   // year happens to be selected on screen — otherwise a backdated entry
   // would land in the wrong year's accounts.
@@ -2467,12 +2685,12 @@ document.getElementById('expenseForm')?.addEventListener('submit', async (e) => 
       await updateDoc(doc(db, 'expenses', editingId), {
         ...payload,
         reference: f.reference.value.trim(),
-        billLink: f.billLink.value.trim(),
+        billLink: sanitizeUrl(f.billLink.value),
         date: when, financialYear: fy,
         updatedBy: currentAdmin.email, updatedAt: serverTimestamp()
       });
       await logAudit(auth.currentUser, 'edit_expense', { id: editingId, ...payload, financialYear: fy });
-      showToast('Kharcha update ho gaya.', 'success');
+      showToast('Expense updated.', 'success');
     } else {
       // Status is decided by the SUBMITTER'S actual permission, not by
       // which button they clicked — Treasurer/Super Admin's entry is final
@@ -2483,14 +2701,14 @@ document.getElementById('expenseForm')?.addEventListener('submit', async (e) => 
       await addDoc(collection(db, 'expenses'), {
         ...payload,
         reference: f.reference.value.trim(),
-        billLink: f.billLink.value.trim(),
+        billLink: sanitizeUrl(f.billLink.value),
         date: when, financialYear: fy,
         status: isDirect ? 'approved' : 'pending_approval',
         requestedBy: isDirect ? null : currentAdmin.email,
         addedBy: currentAdmin.email, addedAt: serverTimestamp()
       });
       await logAudit(auth.currentUser, isDirect ? 'add_expense' : 'request_expense', { ...payload, financialYear: fy });
-      showToast(isDirect ? `Kharcha FY ${fy} mein add ho gaya.` : 'Request bhej di gayi — Treasurer approval ka wait karein.', 'success');
+      showToast(isDirect ? `Expense added to FY ${fy}.` : 'Request sent — waiting for Treasurer approval.', 'success');
     }
     document.getElementById('expenseModalBackdrop').classList.remove('open');
     f.reset();
@@ -2499,9 +2717,9 @@ document.getElementById('expenseForm')?.addEventListener('submit', async (e) => 
     console.error('Save expense failed:', err2);
     const code = err2?.code || '';
     if (code === 'permission-denied') {
-      showToast(`Permission denied (${code}) — role sahi hone ke baad bhi aa sakta hai. Yeh exact error Super Admin ko bhej dein.`, 'error');
+      showToast(`Permission denied (${code}) — this can happen even after the role is correct. Please send this exact error to the Super Admin.`, 'error');
     } else {
-      showToast(`Kharcha save nahi ho paaya${code ? ` (${code})` : ''}.`, 'error');
+      showToast(`Could not save expense${code ? ` (${code})` : ''}.`, 'error');
     }
   } finally { btn.disabled = false; }
 });
@@ -2572,7 +2790,7 @@ function renderMembersTable() {
   const pager = document.getElementById('membersPager');
 
   if (!rows.length) {
-    body.innerHTML = `<tr><td colspan="6">${emptyState('Koi member nahi mila', 'In filters ke saath koi resident nahi hai.', { compact: true })}</td></tr>`;
+    body.innerHTML = `<tr><td colspan="6">${emptyState('No members found', 'No residents match these filters.', { compact: true })}</td></tr>`;
     if (pager) pager.innerHTML = '';
     return;
   }
@@ -2602,8 +2820,8 @@ function renderMembersTable() {
 }
 // A filter change should always return to page 1, else you can land on an empty page.
 // Some browsers autofill the search box with a saved email/username despite
-// autocomplete="off", which then filters every member out ("Koi member nahi
-// mila"). Clear it once on load so the list always starts unfiltered.
+// autocomplete="off", which then filters every member out ("No members
+// found"). Clear it once on load so the list always starts unfiltered.
 (() => {
   const ms = document.getElementById('memberSearch');
   if (ms && ms.value) ms.value = '';
@@ -2667,7 +2885,7 @@ function renderMemberDetailView(m) {
     <div style="margin:16px 0; display:flex; gap:10px; flex-wrap:wrap;">
       ${m.idDocURL ? `<button class="btn btn-outline btn-sm" id="viewDocBtn">${m.idDocEncrypted ? '<svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#a-unlock"/></svg>Decrypt &amp; View ID Doc' : '<svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#a-doc"/></svg>View ID Doc'}</button>` : '<span class="t-muted" style="font-size:12.5px;">No ID document uploaded.</span>'}
     </div>
-    ${m.status === 'inactive' && m.dataErasedAt ? `<p class="t-muted" style="font-size:12px; margin-bottom:10px;">🔒 Personal data erase ho chuka hai (${fmtDate(m.dataErasedAt)}) — sirf naam, flat aur financial history surakshit hai.</p>` : ''}
+    ${m.status === 'inactive' && m.dataErasedAt ? `<p class="t-muted" style="font-size:12px; margin-bottom:10px;">🔒 Personal data has been erased (${fmtDate(m.dataErasedAt)}) — only name, flat, and financial history are retained.</p>` : ''}
     <div class="action-row" style="flex-wrap:wrap;">
       ${m.status === 'pending' && can('approveMembers') ? `<button class="btn btn-primary btn-sm" id="approveBtn">✓ Approve</button><button class="btn btn-danger btn-sm" id="rejectBtn">✕ Reject</button>` : ''}
       ${m.status === 'approved' && can('approveMembers') ? `<button class="btn btn-danger btn-sm" id="deactivateBtn">Deactivate Member</button>` : ''}
@@ -2703,11 +2921,11 @@ async function erasePersonalData(m) {
   } catch (e) { console.warn('Pet lookup before erase failed:', e?.code || e); }
 
   if (!confirm(
-    `${m.name} (${m.tower}-${m.flatNumber}) ka personal data poori tarah erase karein?\n\n` +
-    `ERASE HOGA: mobile, email, address, DOB, anniversary, family members, nominee details, photo, ID document` +
-    `${ownedPets.length ? `, aur ${ownedPets.length} pet record${ownedPets.length === 1 ? '' : 's'} (${ownedPets.map(p => p.name).join(', ')})` : ''}.\n` +
-    `SURAKSHIT RAHEGA: naam, flat, Member ID, aur poora payment/kharcha history (audit ke liye zaroori).\n\n` +
-    `Yeh wapas nahi ho sakta.`
+    `Permanently erase ${m.name}'s (${m.tower}-${m.flatNumber}) personal data?\n\n` +
+    `WILL BE ERASED: mobile, email, DOB, anniversary, family members, nominee details, photo, ID document` +
+    `${ownedPets.length ? `, and ${ownedPets.length} pet record${ownedPets.length === 1 ? '' : 's'} (${ownedPets.map(p => p.name).join(', ')})` : ''}.\n` +
+    `WILL BE RETAINED: name, flat, Member ID, and the full payment/expense history (needed for audit).\n\n` +
+    `This cannot be undone.`
   )) return;
   try {
     if (m.photoURL) {
@@ -2728,13 +2946,13 @@ async function erasePersonalData(m) {
       updatedAt: serverTimestamp()
     });
     await logAudit(auth.currentUser, 'erase_personal_data', { memberId: m.id, name: m.name, flat: `${m.tower}-${m.flatNumber}`, petsDeleted: ownedPets.length });
-    showToast('Personal data erase ho gaya. Financial history surakshit hai.', 'success');
+    showToast('Personal data erased. Financial history has been retained.', 'success');
     document.getElementById('memberModalBackdrop').classList.remove('open');
     await reloadMembers(); renderMembersTable(); renderOverview(); await loadPets();
   } catch (err) {
     console.error('Erase personal data failed:', err);
     const code = err?.code || '';
-    showToast(`Erase nahi ho paaya${code ? ` (${code})` : ''}.`, 'error');
+    showToast(`Could not erase${code ? ` (${code})` : ''}.`, 'error');
   }
 }
 
@@ -2769,7 +2987,6 @@ function renderMemberEditForm(m) {
           </select>
         </div>
       </div>
-      <div class="field"><label for="me-address">Address</label><textarea name="address" id="me-address" rows="2" maxlength="500">${escapeHtml(m.address || '')}</textarea></div>
       <div class="form-2col">
         <div class="field"><label for="me-nomineeName">Nominee Name</label><input name="nomineeName" id="me-nomineeName" maxlength="100" value="${escapeHtml(m.nomineeName || '')}"></div>
         <div class="field"><label for="me-nomineeRelation">Nominee Relation</label><input name="nomineeRelation" id="me-nomineeRelation" maxlength="60" value="${escapeHtml(m.nomineeRelation || '')}"></div>
@@ -2781,7 +2998,7 @@ function renderMemberEditForm(m) {
       <div class="field">
         <label>Family Members</label>
         <div class="fm-editor" id="meFamilyEditor"></div>
-        <button type="button" class="btn btn-outline btn-sm fm-add-btn" id="meFamilyAdd">+ Family Member Jodein</button>
+        <button type="button" class="btn btn-outline btn-sm fm-add-btn" id="meFamilyAdd">+ Add Family Member</button>
       </div>
       <div style="display:flex; gap:10px; margin-top:6px;">
         <button class="btn btn-primary btn-sm" type="submit">Save Changes</button>
@@ -2811,14 +3028,14 @@ async function submitMemberEdit(e, original) {
   const btn = f.querySelector('button[type="submit"]');
   const tower = f.tower.value.trim();
   const flatNumber = f.flatNumber.value.trim();
-  if (!tower || !flatNumber) { showToast('Tower aur Flat chunna zaroori hai.', 'error'); return; }
+  if (!tower || !flatNumber) { showToast('Please select a Tower and Flat.', 'error'); return; }
   const flatChanged = original.status === 'approved' && (tower !== original.tower || flatNumber !== original.flatNumber);
 
   const patch = {
     name: f.name.value.trim(), fatherHusbandName: f.fatherHusbandName.value.trim(),
     tower, flatNumber, mobile: f.mobile.value.trim(), email: f.email.value.trim(),
     occupation: f.occupation.value.trim(), residentType: f.residentType.value,
-    address: f.address.value.trim(), nomineeName: f.nomineeName.value.trim(), nomineeRelation: f.nomineeRelation.value.trim(),
+    nomineeName: f.nomineeName.value.trim(), nomineeRelation: f.nomineeRelation.value.trim(),
     dob: f.dob.value || null, anniversary: f.anniversary.value || null,
     familyMembers: collectFamilyMembers(document.getElementById('meFamilyEditor')),
     updatedAt: serverTimestamp()
@@ -2836,7 +3053,7 @@ async function submitMemberEdit(e, original) {
       const existing = await getDoc(newClaimRef);
       if (existing.exists() && existing.data().memberDocId !== original.id) {
         const holder = allMembers.find(x => x.id === existing.data().memberDocId);
-        showToast(`Tower ${tower}, Flat ${flatNumber} pehle se ${holder?.name || 'kisi aur member'} ke naam par hai.`, 'error');
+        showToast(`Tower ${tower}, Flat ${flatNumber} is already registered to ${holder?.name || 'another member'}.`, 'error');
         btn.disabled = false;
         return;
       }
@@ -2881,16 +3098,16 @@ async function submitMemberEdit(e, original) {
       } catch (e) { console.warn('Pet denormalization sync failed (non-fatal):', e?.code || e); }
     }
 
-    showToast('Member ki details update ho gayi.', 'success');
+    showToast('Member details updated.', 'success');
     document.getElementById('memberModalBackdrop').classList.remove('open');
     await reloadMembers(); renderMembersTable(); renderOverview(); populateTowerFilter();
   } catch (err) {
     if (err.message === 'FLAT_TAKEN') {
-      showToast('Yeh flat abhi-abhi kisi aur ko allot ho gaya. Page refresh karke dobara dekhein.', 'error');
+      showToast('This flat was just allotted to someone else. Please refresh the page and try again.', 'error');
     } else {
       console.error('Edit member failed:', err);
       const code = err?.code || '';
-      showToast(`Save nahi ho paaya${code ? ` (${code})` : ''}.`, 'error');
+      showToast(`Could not save${code ? ` (${code})` : ''}.`, 'error');
     }
   } finally {
     btn.disabled = false;
@@ -2899,7 +3116,7 @@ async function submitMemberEdit(e, original) {
 
 async function openMemberDoc(m) {
   if (!m.idDocEncrypted) { window.open(m.idDocURL, '_blank'); return; }
-  const pass = prompt('Vault passphrase daalein:');
+  const pass = prompt('Enter the vault passphrase:');
   if (!pass) return;
   try {
     const blob = await fetch(m.idDocURL).then(r => r.blob());
@@ -2907,7 +3124,7 @@ async function openMemberDoc(m) {
     const url = URL.createObjectURL(decrypted);
     window.open(url, '_blank');
     setTimeout(() => URL.revokeObjectURL(url), 60000);
-  } catch (e) { showToast('Decrypt fail — passphrase galat ho sakta hai.', 'error'); }
+  } catch (e) { showToast('Decryption failed — the passphrase may be incorrect.', 'error'); }
 }
 
 /* One flat, one member. Firestore has no unique index, so uniqueness is bought
@@ -2930,7 +3147,7 @@ async function approveMember(id) {
   // Console) would otherwise fail the transaction with an opaque
   // permission-denied. Catch it here with a message that says what to fix.
   if (!String(m.tower || '').trim() || !String(m.flatNumber || '').trim()) {
-    showToast('Is member ka Tower/Flat number missing hai — pehle unka profile edit karke theek karein.', 'error');
+    showToast('This member is missing a Tower/Flat number — please fix it from their profile edit first.', 'error');
     return;
   }
 
@@ -2942,8 +3159,8 @@ async function approveMember(id) {
   // the two pre-checks (getDoc + generateMemberId) sat OUTSIDE the try block,
   // so if either of them threw, the error was never caught: no toast, no
   // console message the person could act on, just a button that looked like
-  // it did nothing. That silent-failure shape is exactly "approve nahi ho
-  // raha" with no visible error.
+  // it did nothing. That silent-failure shape is exactly "approve isn't
+  // working" with no visible error.
   try {
     const claimRef = doc(db, 'flatClaims', flatClaimId(m.tower, m.flatNumber));
 
@@ -2952,7 +3169,7 @@ async function approveMember(id) {
     const existing = await getDoc(claimRef);
     if (existing.exists() && existing.data().memberDocId !== id) {
       const holder = allMembers.find(x => x.id === existing.data().memberDocId);
-      showToast(`Tower ${m.tower}, Flat ${m.flatNumber} pehle se ${holder?.name || 'kisi aur member'} ke naam par hai. Pehle unhe deactivate karein.`, 'error');
+      showToast(`Tower ${m.tower}, Flat ${m.flatNumber} is already registered to ${holder?.name || 'another member'}. Please deactivate them first.`, 'error');
       return;
     }
 
@@ -2986,18 +3203,18 @@ async function approveMember(id) {
     await reloadMembers(); renderMembersTable(); renderOverview(); populateTowerFilter();
   } catch (err) {
     if (err.message === 'FLAT_TAKEN') {
-      showToast('Yeh flat abhi-abhi kisi aur ko allot ho gaya. Page refresh karke dobara dekhein.', 'error');
+      showToast('This flat was just allotted to someone else. Please refresh the page and try again.', 'error');
     } else {
       console.error('Approve member failed:', err);
       const code = err?.code || '';
-      showToast(`Approve nahi ho paaya${code ? ` (${code})` : ''} — kuch bhi save nahi hua. Yeh exact error Super Admin/developer ko bhej dein.`, 'error');
+      showToast(`Could not approve${code ? ` (${code})` : ''} — nothing was saved. Please send this exact error to the Super Admin/developer.`, 'error');
     }
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = '\u2713 Approve'; }
   }
 }
 async function rejectMember(id) {
-  const reason = prompt('Reject karne ki wajah:');
+  const reason = prompt('Reason for rejection:');
   if (reason === null) return;
   const m = allMembers.find(x => x.id === id) || {};
   try {
@@ -3009,17 +3226,17 @@ async function rejectMember(id) {
     if (m.tower && m.flatNumber) batch.delete(doc(db, 'flatClaims', flatClaimId(m.tower, m.flatNumber)));
     await batch.commit();
     await logAudit(auth.currentUser, 'reject_member', { id, reason });
-    showToast('Registration reject kar diya gaya.', 'success');
+    showToast('Registration has been rejected.', 'success');
     document.getElementById('memberModalBackdrop').classList.remove('open');
     await reloadMembers(); renderMembersTable(); renderOverview();
   } catch (err) {
     console.error('Reject member failed:', err);
     const code = err?.code || '';
-    showToast(`Reject nahi ho paaya${code ? ` (${code})` : ''}. Dobara try karein.`, 'error');
+    showToast(`Could not reject${code ? ` (${code})` : ''}. Please try again.`, 'error');
   }
 }
 async function deactivateMember(id) {
-  const reason = prompt('Deactivate karne ki wajah (history surakshit rahegi):');
+  const reason = prompt('Reason for deactivating (history will be retained):');
   if (reason === null) return;
   const m = allMembers.find(x => x.id === id) || {};
   try {
@@ -3034,13 +3251,13 @@ async function deactivateMember(id) {
     if (m.tower && m.flatNumber) batch.delete(doc(db, 'flatClaims', flatClaimId(m.tower, m.flatNumber)));
     await batch.commit();
     await logAudit(auth.currentUser, 'deactivate_member', { id, reason });
-    showToast('Member deactivate ho gaya.', 'success');
+    showToast('Member deactivated.', 'success');
     document.getElementById('memberModalBackdrop').classList.remove('open');
     await reloadMembers(); renderMembersTable(); renderOverview();
   } catch (err) {
     console.error('Deactivate member failed:', err);
     const code = err?.code || '';
-    showToast(`Deactivate nahi ho paaya${code ? ` (${code})` : ''}. Dobara try karein.`, 'error');
+    showToast(`Could not deactivate${code ? ` (${code})` : ''}. Please try again.`, 'error');
   }
 }
 
@@ -3115,7 +3332,7 @@ document.getElementById('bulkVerifyBtn')?.addEventListener('click', () => {
 // payment does not stop the rest, matching the resilient pattern used for
 // bulk member import — the summary at the end says exactly what happened.
 async function bulkVerifyPayments(ids) {
-  if (!confirm(`${ids.length} payments verify karein? Har ek ke liye receipt ban jayega.`)) return;
+  if (!confirm(`Verify ${ids.length} payments? A receipt will be generated for each.`)) return;
   const btn = document.getElementById('bulkVerifyBtn');
   if (btn) { btn.disabled = true; btn.textContent = 'Verifying…'; }
   let done = 0;
@@ -3124,18 +3341,17 @@ async function bulkVerifyPayments(ids) {
     const p = allPayments.find(x => x.id === id);
     if (!p) continue;
     try {
-      const receiptNumber = await generateReceiptNumber(p.financialYear);
       const publicToken = newPublicToken();
-      const batch = writeBatch(db);
-      batch.update(doc(db, 'payments', id), {
-        status: 'verified', receiptNumber, publicToken,
-        verifiedAt: serverTimestamp(), verifiedBy: auth.currentUser?.email || currentAdmin.email
+      const receiptNumber = await generateReceiptNumberAtomic(p.financialYear, (tx, receiptNumber) => {
+        tx.update(doc(db, 'payments', id), {
+          status: 'verified', receiptNumber, publicToken,
+          verifiedAt: serverTimestamp(), verifiedBy: auth.currentUser?.email || currentAdmin.email
+        });
+        tx.set(doc(db, 'receiptsPublic', publicToken), {
+          receiptNumber, residentName: p.residentName, flatNumber: p.flatNumber, tower: p.tower,
+          amount: p.amount, financialYear: p.financialYear, verifiedAt: serverTimestamp(), status: 'Verified'
+        });
       });
-      batch.set(doc(db, 'receiptsPublic', publicToken), {
-        receiptNumber, residentName: p.residentName, flatNumber: p.flatNumber, tower: p.tower,
-        amount: p.amount, financialYear: p.financialYear, verifiedAt: serverTimestamp(), status: 'Verified'
-      });
-      await batch.commit();
       await logAudit(auth.currentUser, 'verify_payment', { paymentId: id, receiptNumber, amount: p.amount, bulk: true });
       done++;
     } catch (e) {
@@ -3144,9 +3360,9 @@ async function bulkVerifyPayments(ids) {
     }
   }
   if (failed.length) {
-    showToast(`${done} verify ho gaye, ${failed.length} fail (${failed.map(f => f.name).join(', ')}). Inhe ek-ek karke try karein.`, 'error');
+    showToast(`${done} verified, ${failed.length} failed (${failed.map(f => f.name).join(', ')}). Please try these one at a time.`, 'error');
   } else {
-    showToast(`${done} payments verify ho gaye — receipts ban gaye.`, 'success');
+    showToast(`${done} payments verified — receipts generated.`, 'success');
   }
   if (btn) { btn.disabled = false; btn.textContent = '✓ Verify Selected'; }
   await reloadPayments(); renderPendingPayments(); renderAllPayments(); renderOverview(); renderDefaulters();
@@ -3166,7 +3382,7 @@ function renderAllPayments() {
   const pager = document.getElementById('allPaymentsPager');
 
   if (!rows.length) {
-    body.innerHTML = `<tr><td colspan="8">${emptyState(term ? 'Koi payment nahi mila' : 'Abhi tak koi payment nahi', term ? 'Is naam/flat/receipt se koi payment nahi mila.' : 'Verify ki gayi aur pending — sabhi payments yahan aayenge.', { compact: true })}</td></tr>`;
+    body.innerHTML = `<tr><td colspan="8">${emptyState(term ? 'No payments found' : 'No payments yet', term ? 'No payment matches that name/flat/receipt.' : 'Verified and pending payments will all appear here.', { compact: true })}</td></tr>`;
     if (pager) pager.innerHTML = '';
     return;
   }
@@ -3216,7 +3432,7 @@ document.getElementById('downloadIncomeExpBtn')?.addEventListener('click', async
     await logAudit(auth.currentUser, 'download_income_expenditure', { financialYear: selectedFY });
   } catch (err) {
     console.error('Income & Expenditure PDF failed:', err);
-    showToast('Statement download nahi ho paayi. Dobara try karein.', 'error');
+    showToast('Could not download statement. Please try again.', 'error');
   } finally {
     btn.disabled = false;
   }
@@ -3250,7 +3466,7 @@ function renderPaymentDetailView(p) {
         <button class="btn btn-primary btn-sm" id="verifyBtn">✓ Verify &amp; Issue Receipt</button>
         <button class="btn btn-danger btn-sm" id="rejectPayBtn">✕ Reject</button>` : ''}
       ${can('verifyPayments') ? `
-        <button class="btn btn-outline btn-sm" id="editPayBtn">✎ Edit (galti theek karein)</button>
+        <button class="btn btn-outline btn-sm" id="editPayBtn">✎ Edit (fix a mistake)</button>
         ${p.status === 'verified'
           ? `<button class="btn btn-ghost btn-sm t-danger" id="voidPayBtn">⊘ Void Payment</button>`
           : `<button class="btn btn-ghost btn-sm t-danger" id="deletePayBtn">🗑 Delete Entry</button>`}` : ''}
@@ -3271,32 +3487,39 @@ function renderPaymentDetailView(p) {
 // all filter on status === 'verified' specifically, so 'voided' falls out
 // of every total with no separate exclusion logic needed anywhere else.
 async function voidPaymentEntry(p) {
-  const reason = prompt(`"${p.residentName}" ka ${formatINR(p.amount)} payment void karne ki wajah likhein:`);
+  const reason = prompt(`Reason for voiding ${p.residentName}'s ${formatINR(p.amount)} payment:`);
   if (reason === null) return;
-  if (!reason.trim()) { showToast('Void karne ki wajah likhna zaroori hai.', 'error'); return; }
-  if (!confirm(`Void karne ke baad yeh payment kisi ke dues mein count nahi hoga. Confirm karein?`)) return;
+  if (!reason.trim()) { showToast('A reason is required to void a payment.', 'error'); return; }
+  if (!confirm(`Once voided, this payment will no longer count toward anyone's dues. Confirm?`)) return;
   try {
-    await updateDoc(doc(db, 'payments', p.id), {
-      status: 'voided', voidReason: reason.trim(),
-      voidedBy: auth.currentUser?.email || currentAdmin.email, voidedAt: serverTimestamp()
+    // Both writes now share one transaction — previously the payment status
+    // and its public receipt were updated as two independent calls, so a
+    // failure between them could leave the admin's own list correctly
+    // showing "voided" while the public QR-scanned receipt still said
+    // "Verified". Same category of gap as the receipt-counter issue, just
+    // without a counter to burn: two related writes that must both happen
+    // or neither should.
+    await runTransaction(db, async (tx) => {
+      tx.update(doc(db, 'payments', p.id), {
+        status: 'voided', voidReason: reason.trim(),
+        voidedBy: auth.currentUser?.email || currentAdmin.email, voidedAt: serverTimestamp()
+      });
+      // The public receipt (what verify.html shows for a QR scan) is updated,
+      // not deleted — someone checking an old receipt should see "VOIDED",
+      // which is more protective against a stale/fraudulent reuse than a
+      // generic "not found" would be.
+      if (p.publicToken) {
+        tx.update(doc(db, 'receiptsPublic', p.publicToken), { status: 'Voided' });
+      }
     });
-    // The public receipt (what verify.html shows for a QR scan) is updated,
-    // not deleted — someone checking an old receipt should see "VOIDED",
-    // which is more protective against a stale/fraudulent reuse than a
-    // generic "not found" would be.
-    if (p.publicToken) {
-      try {
-        await updateDoc(doc(db, 'receiptsPublic', p.publicToken), { status: 'Voided' });
-      } catch (e2) { console.warn('receiptsPublic void-sync failed (non-fatal):', e2?.code || e2); }
-    }
     await logAudit(auth.currentUser, 'void_payment', { paymentId: p.id, amount: p.amount, residentName: p.residentName, reason: reason.trim() });
-    showToast('Payment void ho gaya.', 'success');
+    showToast('Payment voided.', 'success');
     document.getElementById('paymentDetailModalBackdrop').classList.remove('open');
     await reloadPayments(); renderPendingPayments(); renderAllPayments(); renderOverview(); renderDefaulters();
   } catch (err) {
     console.error('Void payment failed:', err);
     const code = err?.code || '';
-    showToast(`Void nahi ho paaya${code ? ` (${code})` : ''}.`, 'error');
+    showToast(`Could not void${code ? ` (${code})` : ''}.`, 'error');
   }
 }
 
@@ -3313,8 +3536,8 @@ function renderPaymentDetailEdit(p) {
   body.innerHTML = `
     <form id="paymentEditForm">
       <p class="t-muted" style="font-size:12.5px; margin-bottom:14px;">
-        ${escapeHtml(p.residentName)} · ${escapeHtml(p.flatNumber)} ke is entry mein galti theek karein.
-        ${p.receiptNumber ? `Receipt <b>${escapeHtml(p.receiptNumber)}</b> waisa hi rahega — sirf figures update hongi.` : ''}
+        Fix a mistake on this entry for ${escapeHtml(p.residentName)} · ${escapeHtml(p.flatNumber)}.
+        ${p.receiptNumber ? `Receipt <b>${escapeHtml(p.receiptNumber)}</b> stays the same — only the figures will update.` : ''}
       </p>
       <div class="field"><label for="pe-amount">Amount (₹)</label><input id="pe-amount" name="amount" type="number" min="1" step="1" value="${p.amount}" required></div>
       <div class="form-2col">
@@ -3323,7 +3546,7 @@ function renderPaymentDetailEdit(p) {
       </div>
       <div class="field"><label for="pe-fy">Financial Year</label><select id="pe-fy" name="financialYear"></select></div>
       <div class="field"><label for="pe-utr">UTR / Cheque No. (optional)</label><input id="pe-utr" name="utrOrChequeNo" value="${escapeHtml(p.utrOrChequeNo || '')}" maxlength="40"></div>
-      <div class="field"><label for="pe-remarks">Remarks (optional, kyun badla note karein)</label><input id="pe-remarks" name="remarks" value="${escapeHtml(p.remarks || '')}" maxlength="500" placeholder="e.g. Amount galat type ho gaya tha"></div>
+      <div class="field"><label for="pe-remarks">Remarks (optional, note why this was changed)</label><input id="pe-remarks" name="remarks" value="${escapeHtml(p.remarks || '')}" maxlength="500" placeholder="e.g. Amount was mistyped"></div>
       <div style="display:flex; gap:10px; margin-top:6px;">
         <button class="btn btn-primary btn-sm" type="submit">Save Correction</button>
         <button class="btn btn-outline btn-sm" type="button" id="cancelPayEdit">Cancel</button>
@@ -3341,54 +3564,54 @@ async function submitPaymentEdit(e, original) {
   const f = e.target;
   const btn = f.querySelector('button[type="submit"]');
   const amount = Number(f.amount.value);
-  if (!Number.isFinite(amount) || amount <= 0) { showToast('Sahi amount daalein.', 'error'); return; }
+  if (!Number.isFinite(amount) || amount <= 0) { showToast('Please enter a valid amount.', 'error'); return; }
   const patch = {
     amount, mode: f.mode.value, type: f.type.value, financialYear: f.financialYear.value,
     utrOrChequeNo: f.utrOrChequeNo.value.trim(), remarks: f.remarks.value.trim() || null
   };
   if (btn) btn.disabled = true;
   try {
-    await updateDoc(doc(db, 'payments', original.id), patch);
-    // Keep the public receipt in sync so a QR scan shows the corrected figure,
-    // not the original mistake — only when this payment actually has one.
-    if (original.receiptNumber && original.publicToken) {
-      try {
-        await updateDoc(doc(db, 'receiptsPublic', original.publicToken), { amount, receiptNumber: original.receiptNumber });
-      } catch (e2) { console.warn('Public receipt sync failed:', e2?.code || e2); }
-    }
+    await runTransaction(db, async (tx) => {
+      tx.update(doc(db, 'payments', original.id), patch);
+      // Keep the public receipt in sync so a QR scan shows the corrected figure,
+      // not the original mistake — only when this payment actually has one.
+      if (original.receiptNumber && original.publicToken) {
+        tx.update(doc(db, 'receiptsPublic', original.publicToken), { amount, receiptNumber: original.receiptNumber });
+      }
+    });
     await logAudit(auth.currentUser, 'edit_payment', {
       paymentId: original.id, before: { amount: original.amount, mode: original.mode, type: original.type, financialYear: original.financialYear },
       after: patch
     });
-    showToast('Payment entry update ho gayi.', 'success');
+    showToast('Payment entry updated.', 'success');
     document.getElementById('paymentDetailModalBackdrop').classList.remove('open');
     await reloadPayments(); renderPendingPayments(); renderAllPayments(); renderOverview(); renderDefaulters();
   } catch (err) {
     console.error('Edit payment failed:', err);
     const code = err?.code || '';
-    showToast(`Correction save nahi ho paayi${code ? ` (${code})` : ''}.`, 'error');
+    showToast(`Could not save correction${code ? ` (${code})` : ''}.`, 'error');
   } finally {
     if (btn) btn.disabled = false;
   }
 }
 
 async function deletePaymentEntry(p) {
-  if (!confirm(`${p.residentName} (${p.flatNumber}) ki ${formatINR(p.amount)} ki entry poori tarah delete karein?\n\nYeh sirf abhi tak verify nahi hui entries ke liye hai — isse kisi ka dues affected nahi hai. Yeh wapas nahi ho sakta.`)) return;
+  if (!confirm(`Permanently delete this ${formatINR(p.amount)} entry for ${p.residentName} (${p.flatNumber})?\n\nThis only applies to entries that haven't been verified yet — it won't affect anyone's dues. This cannot be undone.`)) return;
   try {
-    await deleteDoc(doc(db, 'payments', p.id));
-    if (p.publicToken) {
-      try { await deleteDoc(doc(db, 'receiptsPublic', p.publicToken)); } catch (e2) { console.warn('Public receipt cleanup failed:', e2?.code || e2); }
-    }
+    await runTransaction(db, async (tx) => {
+      tx.delete(doc(db, 'payments', p.id));
+      if (p.publicToken) tx.delete(doc(db, 'receiptsPublic', p.publicToken));
+    });
     await logAudit(auth.currentUser, 'delete_payment', {
       paymentId: p.id, residentName: p.residentName, flatNumber: p.flatNumber, amount: p.amount, receiptNumber: p.receiptNumber || null
     });
-    showToast('Payment entry delete ho gayi.', 'success');
+    showToast('Payment entry deleted.', 'success');
     document.getElementById('paymentDetailModalBackdrop').classList.remove('open');
     await reloadPayments(); renderPendingPayments(); renderAllPayments(); renderOverview(); renderDefaulters();
   } catch (err) {
     console.error('Delete payment failed:', err);
     const code = err?.code || '';
-    showToast(`Delete nahi ho paaya${code ? ` (${code})` : ''}.`, 'error');
+    showToast(`Could not delete${code ? ` (${code})` : ''}.`, 'error');
   }
 }
 document.getElementById('closePaymentDetailModal').addEventListener('click', () => document.getElementById('paymentDetailModalBackdrop').classList.remove('open'));
@@ -3427,42 +3650,38 @@ document.getElementById('rpType')?.addEventListener('change', (e) => {
   document.getElementById('rpFYWrap').style.display = e.target.value === 'membership' ? 'none' : 'block';
 });
 
-/* Verification was four independent round trips: bump the counter, update the
-   payment, write the public receipt, log it. Lose the connection between any
-   two and the society is left with a payment marked verified whose printed QR
-   resolves to "receipt not found" — or a burned receipt number and no receipt.
-   The payment record and its public counterpart now commit as one write.
-
-   (The counter still has to be bumped first, because Firestore cannot batch a
-   transaction with a batch. A crash in that gap costs a gap in the receipt
-   sequence, which is inert; the case that actually hurt — a verified payment
-   with no verifiable receipt — is now impossible.) */
+/* Verification used to be several independent round trips: bump the
+   counter, update the payment, write the public receipt, log it. Lose the
+   connection between any two and the society is left with a payment marked
+   verified whose printed QR resolves to "receipt not found" — or a burned
+   receipt number and no receipt at all. generateReceiptNumberAtomic() now
+   does the counter increment and both writes as one transaction, so either
+   the payment is verified with a matching public receipt, or nothing here
+   changed and the admin can just try again. */
 async function verifyPayment(id) {
   const p = allPayments.find(x => x.id === id);
   if (!p) return;
   const btn = document.getElementById('verifyBtn');
   if (btn) { btn.disabled = true; btn.textContent = 'Verifying…'; }
   try {
-    const receiptNumber = await generateReceiptNumber(p.financialYear);
     const publicToken = newPublicToken();
-
-    const batch = writeBatch(db);
-    batch.update(doc(db, 'payments', id), {
-      status: 'verified', receiptNumber, publicToken,
-      // Use the LIVE Firebase Auth email, not the (possibly stale) email cached
-      // on the admins/{uid} doc — the two can drift apart (case, a later email
-      // change) and this field is compared against request.auth.token.email
-      // server-side on the record-payment path, so any mismatch there fails.
-      verifiedAt: serverTimestamp(), verifiedBy: auth.currentUser?.email || currentAdmin.email
+    const receiptNumber = await generateReceiptNumberAtomic(p.financialYear, (tx, receiptNumber) => {
+      tx.update(doc(db, 'payments', id), {
+        status: 'verified', receiptNumber, publicToken,
+        // Use the LIVE Firebase Auth email, not the (possibly stale) email cached
+        // on the admins/{uid} doc — the two can drift apart (case, a later email
+        // change) and this field is compared against request.auth.token.email
+        // server-side on the record-payment path, so any mismatch there fails.
+        verifiedAt: serverTimestamp(), verifiedBy: auth.currentUser?.email || currentAdmin.email
+      });
+      // Keyed by the random token: a resident scanning their own QR resolves it
+      // instantly, and nobody can walk the receipt numbers to total up what the
+      // society has collected and from whom.
+      tx.set(doc(db, 'receiptsPublic', publicToken), {
+        receiptNumber, residentName: p.residentName, flatNumber: p.flatNumber, tower: p.tower,
+        amount: p.amount, financialYear: p.financialYear, verifiedAt: serverTimestamp(), status: 'Verified'
+      });
     });
-    // Keyed by the random token: a resident scanning their own QR resolves it
-    // instantly, and nobody can walk the receipt numbers to total up what the
-    // society has collected and from whom.
-    batch.set(doc(db, 'receiptsPublic', publicToken), {
-      receiptNumber, residentName: p.residentName, flatNumber: p.flatNumber, tower: p.tower,
-      amount: p.amount, financialYear: p.financialYear, verifiedAt: serverTimestamp(), status: 'Verified'
-    });
-    await batch.commit();
 
     await logAudit(auth.currentUser, 'verify_payment', { paymentId: id, receiptNumber, amount: p.amount });
     showToast(`Verified! Receipt: ${receiptNumber}`, 'success');
@@ -3471,23 +3690,23 @@ async function verifyPayment(id) {
   } catch (e) {
     console.error('Verify payment failed:', e);
     const code = e?.code || '';
-    showToast(`Verify nahi ho paaya${code ? ` (${code})` : ''} — payment jaisa tha waisa hi hai. Dobara try karein.`, 'error');
+    showToast(`Could not verify${code ? ` (${code})` : ''} — the payment is unchanged. Please try again.`, 'error');
     if (btn) { btn.disabled = false; btn.textContent = '\u2713 Verify & Issue Receipt'; }
   }
 }
 async function rejectPayment(id) {
-  const reason = prompt('Reject karne ki wajah:');
+  const reason = prompt('Reason for rejection:');
   if (reason === null) return;
   try {
     await updateDoc(doc(db, 'payments', id), { status: 'rejected', remarks: reason });
     await logAudit(auth.currentUser, 'reject_payment', { paymentId: id, reason });
-    showToast('Payment reject kar diya gaya.', 'success');
+    showToast('Payment has been rejected.', 'success');
     document.getElementById('paymentDetailModalBackdrop').classList.remove('open');
     await reloadPayments(); renderPendingPayments(); renderAllPayments();
   } catch (err) {
     console.error('Reject payment failed:', err);
     const code = err?.code || '';
-    showToast(`Payment reject nahi ho paaya${code ? ` (${code})` : ''}.`, 'error');
+    showToast(`Could not reject payment${code ? ` (${code})` : ''}.`, 'error');
   }
 }
 
@@ -3505,7 +3724,7 @@ async function rejectPayment(id) {
 let recordPaymentInFlight = false;
 
 function openRecordPaymentModal() {
-  if (!can('verifyPayments')) { showToast('Iske liye aapke paas permission nahi hai.', 'error'); return; }
+  if (!can('verifyPayments')) { showToast('You do not have permission for this.', 'error'); return; }
   const f = document.getElementById('recordPaymentForm');
   f.reset();
   document.getElementById('rpChequeWrap').style.display = 'none';
@@ -3540,10 +3759,10 @@ function resolveRecordMember(raw) {
 async function submitRecordPayment(e) {
   e.preventDefault();
   if (recordPaymentInFlight) return;
-  if (!can('verifyPayments')) { showToast('Permission nahi hai.', 'error'); return; }
+  if (!can('verifyPayments')) { showToast('Permission denied.', 'error'); return; }
 
   const member = resolveRecordMember(document.getElementById('rpMember').value.trim());
-  if (!member) { showToast('Member list se sahi member chunein.', 'error'); return; }
+  if (!member) { showToast('Please select a valid member from the list.', 'error'); return; }
 
   const type = document.getElementById('rpType').value;
   const mode = document.getElementById('rpMode').value;
@@ -3553,56 +3772,54 @@ async function submitRecordPayment(e) {
   const refNo = document.getElementById('rpCheque').value.trim();
   const note = document.getElementById('rpNote').value.trim();
 
-  if (!Number.isFinite(amount) || amount <= 0) { showToast('Sahi amount daalein.', 'error'); return; }
-  if (mode === 'cheque' && !refNo) { showToast('Cheque number daalein.', 'error'); return; }
-  if ((mode === 'upi' || mode === 'netbanking') && !refNo) { showToast('UTR / Transaction ID daalein.', 'error'); return; }
+  if (!Number.isFinite(amount) || amount <= 0) { showToast('Please enter a valid amount.', 'error'); return; }
+  if (mode === 'cheque' && !refNo) { showToast('Please enter the cheque number.', 'error'); return; }
+  if ((mode === 'upi' || mode === 'netbanking') && !refNo) { showToast('Please enter the UTR / Transaction ID.', 'error'); return; }
 
   const btn = document.getElementById('rpSubmit');
   recordPaymentInFlight = true;
   btn.disabled = true; btn.textContent = 'Recording…';
   try {
-    const receiptNumber = await generateReceiptNumber(fy);
     const publicToken = newPublicToken();
-
-    // One atomic write: the verified payment + its public receipt record.
-    const batch = writeBatch(db);
     const payRef = doc(collection(db, 'payments'));
-    batch.set(payRef, {
-      memberUid: member.uid,
-      memberID: member.memberID || null,
-      residentName: member.name,
-      flatNumber: member.flatNumber,
-      tower: member.tower,
-      amount,
-      type,                                  // 'maintenance' | 'membership'
-      financialYear: fy,
-      mode,                                  // 'cash' | 'cheque'
-      utrOrChequeNo: (mode === 'cheque' || mode === 'upi' || mode === 'netbanking') ? refNo : '',
-      paymentProofURL: '',
-      status: 'verified',                    // money already received at the office
-      receiptNumber,
-      publicToken,
-      recordedByAdmin: true,                 // distinguishes office-entered payments
-      remarks: note || null,
-      submittedAt: serverTimestamp(),
-      verifiedAt: serverTimestamp(),
-      // MUST equal request.auth.token.email exactly — the security rule for
-      // this create path checks that. currentAdmin.email comes from the
-      // admins/{uid} Firestore doc, which can silently drift from the actual
-      // login email (case difference, doc typed by hand, email changed later).
-      // auth.currentUser.email is the live, guaranteed-matching value.
-      verifiedBy: auth.currentUser?.email || currentAdmin.email
+
+    const receiptNumber = await generateReceiptNumberAtomic(fy, (tx, receiptNumber) => {
+      tx.set(payRef, {
+        memberUid: member.uid,
+        memberID: member.memberID || null,
+        residentName: member.name,
+        flatNumber: member.flatNumber,
+        tower: member.tower,
+        amount,
+        type,                                  // 'maintenance' | 'membership'
+        financialYear: fy,
+        mode,                                  // 'cash' | 'cheque'
+        utrOrChequeNo: (mode === 'cheque' || mode === 'upi' || mode === 'netbanking') ? refNo : '',
+        paymentProofURL: '',
+        status: 'verified',                    // money already received at the office
+        receiptNumber,
+        publicToken,
+        recordedByAdmin: true,                 // distinguishes office-entered payments
+        remarks: note || null,
+        submittedAt: serverTimestamp(),
+        verifiedAt: serverTimestamp(),
+        // MUST equal request.auth.token.email exactly — the security rule for
+        // this create path checks that. currentAdmin.email comes from the
+        // admins/{uid} Firestore doc, which can silently drift from the actual
+        // login email (case difference, doc typed by hand, email changed later).
+        // auth.currentUser.email is the live, guaranteed-matching value.
+        verifiedBy: auth.currentUser?.email || currentAdmin.email
+      });
+      tx.set(doc(db, 'receiptsPublic', publicToken), {
+        receiptNumber, residentName: member.name, flatNumber: member.flatNumber, tower: member.tower,
+        amount, financialYear: fy, verifiedAt: serverTimestamp(), status: 'Verified'
+      });
     });
-    batch.set(doc(db, 'receiptsPublic', publicToken), {
-      receiptNumber, residentName: member.name, flatNumber: member.flatNumber, tower: member.tower,
-      amount, financialYear: fy, verifiedAt: serverTimestamp(), status: 'Verified'
-    });
-    await batch.commit();
 
     await logAudit(auth.currentUser, 'record_offline_payment', {
       paymentId: payRef.id, memberUid: member.uid, amount, mode, type, receiptNumber
     });
-    showToast(`Payment record ho gaya! Receipt: ${receiptNumber}`, 'success');
+    showToast(`Payment recorded! Receipt: ${receiptNumber}`, 'success');
     document.getElementById('recordPaymentModalBackdrop').classList.remove('open');
     await reloadPayments(); renderPendingPayments(); renderAllPayments(); renderOverview(); renderDefaulters();
   } catch (err) {
@@ -3613,9 +3830,9 @@ async function submitRecordPayment(e) {
       // checks doesn't match (e.g. the login email vs. a stale admin-doc email)
       // — Firestore doesn't say which. Show the raw code so it can be relayed
       // exactly instead of re-diagnosed from scratch every time.
-      showToast(`Permission denied (${code}) — role ya field mismatch ho sakta hai. Yeh exact error Super Admin ko bhej dein.`, 'error');
+      showToast(`Permission denied (${code}) — could be a role or field mismatch. Please send this exact error to the Super Admin.`, 'error');
     } else {
-      showToast(`Payment record nahi ho paaya${code ? ` (${code})` : ''}. Dobara try karein.`, 'error');
+      showToast(`Could not record payment${code ? ` (${code})` : ''}. Please try again.`, 'error');
     }
   } finally {
     recordPaymentInFlight = false;
@@ -3665,8 +3882,8 @@ function renderDefaulters() {
   const noRate = !maintenanceSettings?.rates?.[selectedFY];
   if (noRate) {
     body.innerHTML = `<tr><td colspan="6" class="t-muted">
-      FY ${escapeHtml(selectedFY)} ka maintenance rate set nahi hai, isliye bakaya calculate nahi ho sakta.
-      Settings &rarr; Maintenance Rate mein jaakar rate daalein.</td></tr>`;
+      No maintenance rate is set for FY ${escapeHtml(selectedFY)}, so outstanding dues cannot be calculated.
+      Go to Settings &rarr; Maintenance Rate to set one.</td></tr>`;
     if (totalEl) totalEl.textContent = '';
     return;
   }
@@ -3675,7 +3892,29 @@ function renderDefaulters() {
   if (totalEl) {
     totalEl.textContent = rows.length
       ? `${rows.length} flats  ·  ${formatINR(total)} outstanding`
-      : 'Sab flats ka bhugtan poora hai';
+      : 'All flats are fully paid up';
+  }
+
+  // Aging summary — a treasurer needs "how much is seriously overdue"
+  // before they need any individual resident's name. Buckets mirror
+  // maintenanceHealthStatus()'s own severity levels rather than inventing
+  // a separate day-count scheme, so this always agrees with what the
+  // Health column on each row already says.
+  const agingEl = document.getElementById('defaultersAging');
+  if (agingEl) {
+    const buckets = { due: { label: 'Due / Partial', icon: '🟡', amount: 0, count: 0 },
+      reminder: { label: '1–2 Months', icon: '🟠', amount: 0, count: 0 },
+      serious: { label: '3+ Months', icon: '🔴', amount: 0, count: 0 },
+      disputed: { label: 'Disputed', icon: '⚫', amount: 0, count: 0 } };
+    rows.forEach(({ m, d }) => {
+      const health = maintenanceHealthStatus(m, allPayments, selectedFY, maintenanceSettings);
+      const key = health.level === 'partial' ? 'due' : health.level;
+      if (buckets[key]) { buckets[key].amount += d.outstanding; buckets[key].count++; }
+    });
+    agingEl.innerHTML = Object.values(buckets).filter(b => b.count > 0).map(b => `
+      <div style="display:flex; align-items:center; gap:6px; padding:8px 12px; border-radius:8px; background:var(--paper); border:1px solid var(--line); font-size:12.5px;">
+        <span>${b.icon}</span><b>${formatINR(b.amount)}</b><span class="t-muted">${b.label} · ${b.count} flat${b.count === 1 ? '' : 's'}</span>
+      </div>`).join('') || '';
   }
 
   const canDispute = can('verifyPayments');
@@ -3710,9 +3949,9 @@ async function toggleDuesDispute(memberId) {
   const nowDisputed = !m.duesDisputed;
   let reason = '';
   if (nowDisputed) {
-    reason = prompt(`"${m.name}" ke dues ko disputed mark karne ki wajah likhein:`) || '';
-    if (!reason.trim()) return showToast('Wajah likhna zaroori hai.', 'error');
-  } else if (!confirm(`"${m.name}" ke dues ko normal grading mein wapas laayein?`)) {
+    reason = prompt(`Reason for marking "${m.name}"'s dues as disputed:`) || '';
+    if (!reason.trim()) return showToast('A reason is required.', 'error');
+  } else if (!confirm(`Return "${m.name}"'s dues to normal grading?`)) {
     return;
   }
   try {
@@ -3723,17 +3962,17 @@ async function toggleDuesDispute(memberId) {
       duesDisputedAt: nowDisputed ? serverTimestamp() : null
     });
     await logAudit(auth.currentUser, nowDisputed ? 'mark_dues_disputed' : 'unmark_dues_disputed', { memberId, name: m.name });
-    showToast(nowDisputed ? 'Dues disputed mark ho gaye.' : 'Wapas normal grading mein aa gaya.', 'success');
+    showToast(nowDisputed ? 'Dues marked as disputed.' : 'Returned to normal grading.', 'success');
     await reloadMembers(); renderDefaulters(); renderOverview();
   } catch (err) {
     console.error('Toggle dues dispute failed:', err);
     const code = err?.code || '';
-    showToast(`Save nahi ho paaya${code ? ` (${code})` : ''}.`, 'error');
+    showToast(`Could not save${code ? ` (${code})` : ''}.`, 'error');
   }
 }
 document.getElementById('emailDefaultersBtn').addEventListener('click', () => {
   const emails = outstandingMembers().map(x => x.m.email).filter(Boolean).join(',');
-  if (!emails) return showToast('Koi defaulter email nahi mila.', 'error');
+  if (!emails) return showToast('No defaulter emails found.', 'error');
   const subject = encodeURIComponent('MHMRWS: Maintenance Payment Reminder');
   const bodyText = encodeURIComponent(`Dear Resident,\n\nThis is a reminder that your maintenance payment for FY ${selectedFY} is pending. Kindly complete it via the resident portal at the earliest.\n\nRegards,\nMHMRWS Committee`);
   window.location.href = `mailto:?bcc=${emails}&subject=${subject}&body=${bodyText}`;
@@ -3753,7 +3992,7 @@ async function loadContentPanels() {
       <button class="btn btn-danger btn-sm" data-del-notice="${n.id}">Delete</button>
     </div>`).join('') || '<p class="t-muted" style="font-size:13px;">No notices yet.</p>';
   document.querySelectorAll('[data-del-notice]').forEach(b => b.addEventListener('click', async () => {
-    if (!confirm('Yeh notice delete karein?')) return;
+    if (!confirm('Delete this notice?')) return;
     try {
       await deleteDoc(doc(db, 'notices', b.dataset.delNotice));
       await logAudit(auth.currentUser, 'delete_notice', { id: b.dataset.delNotice });
@@ -3761,7 +4000,7 @@ async function loadContentPanels() {
     } catch (err) {
       console.error('Delete notice failed:', err);
       const code = err?.code || '';
-      showToast(`Notice delete nahi ho paaya${code ? ` (${code})` : ''}.`, 'error');
+      showToast(`Could not delete notice${code ? ` (${code})` : ''}.`, 'error');
     }
   }));
 
@@ -3777,7 +4016,7 @@ async function loadContentPanels() {
       <button class="btn btn-danger btn-sm" data-del-committee="${c.id}">Delete</button>
     </div>`).join('') || '<p class="t-muted" style="font-size:13px;">No committee members yet.</p>';
   document.querySelectorAll('[data-del-committee]').forEach(b => b.addEventListener('click', async () => {
-    if (!confirm('Yeh committee member delete karein?')) return;
+    if (!confirm('Delete this committee member?')) return;
     try {
       await deleteDoc(doc(db, 'committee', b.dataset.delCommittee));
       await logAudit(auth.currentUser, 'delete_committee', { id: b.dataset.delCommittee });
@@ -3785,7 +4024,7 @@ async function loadContentPanels() {
     } catch (err) {
       console.error('Delete committee member failed:', err);
       const code = err?.code || '';
-      showToast(`Committee member delete nahi ho paaya${code ? ` (${code})` : ''}.`, 'error');
+      showToast(`Could not delete committee member${code ? ` (${code})` : ''}.`, 'error');
     }
   }));
 }
@@ -3818,10 +4057,10 @@ async function loadCalendarPanel() {
         <div class="t-muted" style="font-size:12px;">${c.date ? fmtDate({ toDate: () => new Date(c.date) }) : '—'}${c.description ? ' · ' + escapeHtml(c.description) : ''}</div>
       </div>
       ${canEdit ? `<button class="btn btn-danger btn-sm" data-del-calendar="${c.id}">Delete</button>` : ''}
-    </div>`).join('') || '<p class="t-muted" style="font-size:13px;">Calendar mein abhi kuch nahi hai.</p>';
+    </div>`).join('') || '<p class="t-muted" style="font-size:13px;">Nothing on the calendar yet.</p>';
 
   document.querySelectorAll('[data-del-calendar]').forEach(b => b.addEventListener('click', async () => {
-    if (!confirm('Yeh calendar entry delete karein?')) return;
+    if (!confirm('Delete this calendar entry?')) return;
     try {
       await deleteDoc(doc(db, 'calendarEvents', b.dataset.delCalendar));
       await logAudit(auth.currentUser, 'delete_calendar_entry', { id: b.dataset.delCalendar });
@@ -3829,7 +4068,7 @@ async function loadCalendarPanel() {
     } catch (err) {
       console.error('Delete calendar entry failed:', err);
       const code = err?.code || '';
-      showToast(`Delete nahi ho paaya${code ? ` (${code})` : ''}.`, 'error');
+      showToast(`Could not delete${code ? ` (${code})` : ''}.`, 'error');
     }
   }));
 }
@@ -3839,8 +4078,8 @@ document.getElementById('calendarForm')?.addEventListener('submit', async (e) =>
   const btn = f.querySelector('button[type="submit"]');
   const title = f.title.value.trim();
   const dateVal = f.date.value;
-  if (!title) return showToast('Title zaroori hai.', 'error');
-  if (!dateVal) return showToast('Date chunna zaroori hai.', 'error');
+  if (!title) return showToast('Title is required.', 'error');
+  if (!dateVal) return showToast('Please select a date.', 'error');
   btn.disabled = true;
   try {
     await addDoc(collection(db, 'calendarEvents'), {
@@ -3848,13 +4087,13 @@ document.getElementById('calendarForm')?.addEventListener('submit', async (e) =>
       addedBy: currentAdmin.email, createdAt: serverTimestamp()
     });
     await logAudit(auth.currentUser, 'add_calendar_entry', { title, date: dateVal, type: f.type.value });
-    showToast('Calendar mein add ho gaya.', 'success');
+    showToast('Added to calendar.', 'success');
     f.reset();
     loadCalendarPanel();
   } catch (err) {
     console.error('Add calendar entry failed:', err);
     const code = err?.code || '';
-    showToast(`Add nahi ho paaya${code ? ` (${code})` : ''}.`, 'error');
+    showToast(`Could not add${code ? ` (${code})` : ''}.`, 'error');
   } finally {
     btn.disabled = false;
   }
@@ -3875,7 +4114,7 @@ function addPollOptionRow(container, value = '') {
     // Never let the editor go below 2 rows — a poll needs at least 2 options,
     // and hitting zero rows is confusing more than useful.
     if (container.querySelectorAll('.poll-opt-row').length > 2) row.remove();
-    else showToast('Kam se kam 2 options zaroori hain.', 'error');
+    else showToast('At least 2 options are required.', 'error');
   });
   container.appendChild(row);
 }
@@ -3892,7 +4131,7 @@ resetPollOptionsEditor();
 document.getElementById('pollOptionAdd')?.addEventListener('click', () => {
   const editor = document.getElementById('pollOptionsEditor');
   if (editor && editor.querySelectorAll('.poll-opt-row').length < 10) addPollOptionRow(editor);
-  else showToast('Zyada se zyada 10 options.', 'error');
+  else showToast('A maximum of 10 options.', 'error');
 });
 
 document.getElementById('pollForm')?.addEventListener('submit', async (e) => {
@@ -3904,10 +4143,10 @@ document.getElementById('pollForm')?.addEventListener('submit', async (e) => {
   const startDate = f.start.value ? new Date(f.start.value) : null;
   const endDate = f.end.value ? new Date(f.end.value) : null;
 
-  if (!question) return showToast('Question zaroori hai.', 'error');
-  if (options.length < 2) return showToast('Kam se kam 2 options bharein.', 'error');
-  if (!startDate || !endDate || Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) return showToast('Start aur End time sahi bharein.', 'error');
-  if (endDate <= startDate) return showToast('End time, Start time ke baad hona chahiye.', 'error');
+  if (!question) return showToast('Question is required.', 'error');
+  if (options.length < 2) return showToast('Please fill in at least 2 options.', 'error');
+  if (!startDate || !endDate || Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) return showToast('Please enter valid Start and End times.', 'error');
+  if (endDate <= startDate) return showToast('End time must be after Start time.', 'error');
 
   btn.disabled = true;
   try {
@@ -3916,14 +4155,14 @@ document.getElementById('pollForm')?.addEventListener('submit', async (e) => {
       createdBy: currentAdmin.email, createdAt: serverTimestamp()
     });
     await logAudit(auth.currentUser, 'create_poll', { question, optionCount: options.length });
-    showToast('Poll shuru ho gaya.', 'success');
+    showToast('Poll started.', 'success');
     f.reset();
     resetPollOptionsEditor();
     loadPollsPanel();
   } catch (err) {
     console.error('Create poll failed:', err);
     const code = err?.code || '';
-    showToast(`Poll banaya nahi ja saka${code ? ` (${code})` : ''}.`, 'error');
+    showToast(`Could not create poll${code ? ` (${code})` : ''}.`, 'error');
   } finally {
     btn.disabled = false;
   }
@@ -3964,12 +4203,12 @@ async function loadPollsPanel() {
         <span class="badge ${st.cls}">${st.label}</span>
       </div>
       <div style="display:flex; gap:8px; flex-wrap:wrap;">
-        <button class="btn btn-outline btn-sm" data-poll-results="${p.id}">Results Dekhein</button>
+        <button class="btn btn-outline btn-sm" data-poll-results="${p.id}">View Results</button>
         ${canEdit ? `<button class="btn btn-danger btn-sm" data-del-poll="${p.id}">Delete</button>` : ''}
       </div>
       <div id="pollResults-${p.id}" style="display:none;"></div>
     </div>`;
-  }).join('') || '<p class="t-muted" style="font-size:13px;">Abhi koi poll nahi hai.</p>';
+  }).join('') || '<p class="t-muted" style="font-size:13px;">No polls yet.</p>';
 
   document.querySelectorAll('[data-poll-results]').forEach(b => b.addEventListener('click', async () => {
     const pollId = b.dataset.pollResults;
@@ -3996,12 +4235,12 @@ async function loadPollsPanel() {
       `;
     } catch (err) {
       console.error('Load poll results failed:', err);
-      box.innerHTML = `<p class="t-muted" style="font-size:12px;">Results load nahi hue${err?.code ? ` (${err.code})` : ''}.</p>`;
+      box.innerHTML = `<p class="t-muted" style="font-size:12px;">Could not load results${err?.code ? ` (${err.code})` : ''}.</p>`;
     }
   }));
 
   document.querySelectorAll('[data-del-poll]').forEach(b => b.addEventListener('click', async () => {
-    if (!confirm('Yeh poll delete karein? Saare votes bhi chale jayenge.')) return;
+    if (!confirm('Delete this poll? All its votes will be removed too.')) return;
     try {
       await deleteDoc(doc(db, 'polls', b.dataset.delPoll));
       await logAudit(auth.currentUser, 'delete_poll', { id: b.dataset.delPoll });
@@ -4009,7 +4248,7 @@ async function loadPollsPanel() {
     } catch (err) {
       console.error('Delete poll failed:', err);
       const code = err?.code || '';
-      showToast(`Delete nahi ho paaya${code ? ` (${code})` : ''}.`, 'error');
+      showToast(`Could not delete${code ? ` (${code})` : ''}.`, 'error');
     }
   }));
 }
@@ -4066,20 +4305,20 @@ function renderBankReconciliation() {
       </td>
     </tr>
     <tr id="matchCandidates-${t.id}" style="display:none;"><td colspan="6"></td></tr>
-  `).join('') || '<tr><td colspan="6" class="t-muted">Koi bank transaction nahi joड़ी gayi.</td></tr>';
+  `).join('') || '<tr><td colspan="6" class="t-muted">No bank transactions added yet.</td></tr>';
 
   document.querySelectorAll('[data-match-tx]').forEach(b => b.addEventListener('click', () => showMatchCandidates(b.dataset.matchTx)));
   document.querySelectorAll('[data-ignore-tx]').forEach(b => b.addEventListener('click', () => setTxStatus(b.dataset.ignoreTx, 'ignored')));
   document.querySelectorAll('[data-unmatch-tx]').forEach(b => b.addEventListener('click', () => setTxStatus(b.dataset.unmatchTx, 'unmatched', true)));
   document.querySelectorAll('[data-del-tx]').forEach(b => b.addEventListener('click', async () => {
-    if (!confirm('Yeh bank transaction delete karein?')) return;
+    if (!confirm('Delete this bank transaction?')) return;
     try {
       await deleteDoc(doc(db, 'bankTransactions', b.dataset.delTx));
       await logAudit(auth.currentUser, 'delete_bank_tx', { id: b.dataset.delTx });
       await loadBankReconciliation();
     } catch (err) {
       console.error('Delete bank tx failed:', err);
-      showToast(`Delete nahi ho paaya${err?.code ? ` (${err.code})` : ''}.`, 'error');
+      showToast(`Could not delete${err?.code ? ` (${err.code})` : ''}.`, 'error');
     }
   }));
 }
@@ -4112,10 +4351,10 @@ function showMatchCandidates(txId) {
   const candidates = buildMatchCandidates(tx);
   row.querySelector('td').innerHTML = candidates.length
     ? `<div style="padding:10px; background:var(--paper,#FAF8F3); border-radius:8px;">
-        <div class="t-muted" style="font-size:11.5px; margin-bottom:8px;">${tx.type === 'credit' ? 'Matching payments' : 'Matching expenses'} (amount ke hisaab se sabse kareeb pehle):</div>
-        ${candidates.map((c, i) => `<div class="spread" style="font-size:12.5px; padding:5px 0; border-bottom:1px solid #eee;"><span>${escapeHtml(c.label)} — ${formatINR(c.amount)}</span><button class="btn btn-primary btn-sm" data-pick-candidate="${i}">Link Karein</button></div>`).join('')}
+        <div class="t-muted" style="font-size:11.5px; margin-bottom:8px;">${tx.type === 'credit' ? 'Matching payments' : 'Matching expenses'} (closest amount first):</div>
+        ${candidates.map((c, i) => `<div class="spread" style="font-size:12.5px; padding:5px 0; border-bottom:1px solid #eee;"><span>${escapeHtml(c.label)} — ${formatINR(c.amount)}</span><button class="btn btn-primary btn-sm" data-pick-candidate="${i}">Link</button></div>`).join('')}
       </div>`
-    : `<div style="padding:10px; background:var(--paper,#FAF8F3); border-radius:8px;" class="t-muted" style="font-size:12.5px;">Koi milta-julta ${tx.type === 'credit' ? 'payment' : 'expense'} nahi mila.</div>`;
+    : `<div style="padding:10px; background:var(--paper,#FAF8F3); border-radius:8px;" class="t-muted" style="font-size:12.5px;">No matching ${tx.type === 'credit' ? 'payment' : 'expense'} found.</div>`;
   row.style.display = 'table-row';
   row.querySelectorAll('[data-pick-candidate]').forEach(btn => btn.addEventListener('click', () => {
     const c = candidates[Number(btn.dataset.pickCandidate)];
@@ -4132,11 +4371,11 @@ async function matchTransaction(txId, candidate) {
       matchedBy: currentAdmin.email, matchedAt: serverTimestamp()
     });
     await logAudit(auth.currentUser, 'match_bank_tx', { txId, matchedTo: `${candidate.col}/${candidate.id}` });
-    showToast('Match ho gaya.', 'success');
+    showToast('Matched.', 'success');
     await loadBankReconciliation();
   } catch (err) {
     console.error('Match failed:', err);
-    showToast(`Match nahi ho paaya${err?.code ? ` (${err.code})` : ''}.`, 'error');
+    showToast(`Could not match${err?.code ? ` (${err.code})` : ''}.`, 'error');
   }
 }
 async function setTxStatus(txId, status, clearMatch = false) {
@@ -4148,7 +4387,7 @@ async function setTxStatus(txId, status, clearMatch = false) {
     await loadBankReconciliation();
   } catch (err) {
     console.error('Update tx status failed:', err);
-    showToast(`Update nahi ho paaya${err?.code ? ` (${err.code})` : ''}.`, 'error');
+    showToast(`Could not update${err?.code ? ` (${err.code})` : ''}.`, 'error');
   }
 }
 document.getElementById('bankTxForm')?.addEventListener('submit', async (e) => {
@@ -4156,9 +4395,9 @@ document.getElementById('bankTxForm')?.addEventListener('submit', async (e) => {
   const f = e.target;
   const btn = f.querySelector('button[type="submit"]');
   const amount = Number(f.amount.value);
-  if (!f.date.value) return showToast('Date zaroori hai.', 'error');
-  if (!Number.isFinite(amount) || amount <= 0) return showToast('Sahi amount daalein.', 'error');
-  if (!f.description.value.trim()) return showToast('Description zaroori hai.', 'error');
+  if (!f.date.value) return showToast('Date is required.', 'error');
+  if (!Number.isFinite(amount) || amount <= 0) return showToast('Please enter a valid amount.', 'error');
+  if (!f.description.value.trim()) return showToast('Description is required.', 'error');
   btn.disabled = true;
   try {
     await addDoc(collection(db, 'bankTransactions'), {
@@ -4166,12 +4405,12 @@ document.getElementById('bankTxForm')?.addEventListener('submit', async (e) => {
       status: 'unmatched', addedBy: currentAdmin.email, createdAt: serverTimestamp()
     });
     await logAudit(auth.currentUser, 'add_bank_tx', { amount, type: f.type.value });
-    showToast('Bank transaction jud gaya.', 'success');
+    showToast('Bank transaction added.', 'success');
     f.reset();
     await loadBankReconciliation();
   } catch (err) {
     console.error('Add bank tx failed:', err);
-    showToast(`Add nahi ho paaya${err?.code ? ` (${err.code})` : ''}.`, 'error');
+    showToast(`Could not add${err?.code ? ` (${err.code})` : ''}.`, 'error');
   } finally { btn.disabled = false; }
 });
 
@@ -4208,7 +4447,7 @@ function renderBudgetTable() {
       <td data-label="Actual">${formatINR(actualAmt)}</td>
       <td data-label="Variance"><span style="color:${variance >= 0 ? 'var(--success,#1E7D4B)' : 'var(--danger,#C0392B)'}">${variance >= 0 ? '+' : '−'}${formatINR(Math.abs(variance))}</span></td>
     </tr>`;
-  }).join('') || '<tr><td colspan="4" class="t-muted">Abhi koi budget set nahi hua.</td></tr>';
+  }).join('') || '<tr><td colspan="4" class="t-muted">No budget set yet.</td></tr>';
 }
 document.getElementById('budgetForm')?.addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -4216,18 +4455,18 @@ document.getElementById('budgetForm')?.addEventListener('submit', async (e) => {
   const btn = f.querySelector('button[type="submit"]');
   const category = f.category.value;
   const amount = Number(f.amount.value);
-  if (!Number.isFinite(amount) || amount < 0) return showToast('Sahi amount daalein.', 'error');
+  if (!Number.isFinite(amount) || amount < 0) return showToast('Please enter a valid amount.', 'error');
   btn.disabled = true;
   try {
     const updated = { ...(window.__budgetCategories || {}), [category]: amount };
     await setDoc(doc(db, 'budgets', selectedFY), { categories: updated, updatedBy: currentAdmin.email, updatedAt: serverTimestamp() }, { merge: true });
     await logAudit(auth.currentUser, 'set_budget', { fy: selectedFY, category, amount });
-    showToast('Budget save ho gaya.', 'success');
+    showToast('Budget saved.', 'success');
     f.reset();
     await loadBudgetPanel();
   } catch (err) {
     console.error('Set budget failed:', err);
-    showToast(`Save nahi ho paaya${err?.code ? ` (${err.code})` : ''}.`, 'error');
+    showToast(`Could not save${err?.code ? ` (${err.code})` : ''}.`, 'error');
   } finally { btn.disabled = false; }
 });
 
@@ -4243,7 +4482,7 @@ document.getElementById('budgetForm')?.addEventListener('submit', async (e) => {
 async function loadClosingPanel() {
   const now = new Date();
   const currentYM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  document.getElementById('closingMonthLabel').textContent = `"${now.toLocaleString('en-IN', { month: 'long', year: 'numeric' })}" Close Karein`;
+  document.getElementById('closingMonthLabel').textContent = `Close "${now.toLocaleString('en-IN', { month: 'long', year: 'numeric' })}"`;
 
   let closures = [];
   try {
@@ -4259,7 +4498,7 @@ async function loadClosingPanel() {
   const checks = [
     { label: 'Saare payments verify ho chuke hain', ok: pendingPayments === 0, detail: pendingPayments > 0 ? `${pendingPayments} pending` : null },
     { label: 'Saare expense requests approve/reject ho chuke hain', ok: pendingExpenses === 0, detail: pendingExpenses > 0 ? `${pendingExpenses} pending` : null },
-    { label: 'Bank reconciliation poori hai', ok: unmatchedBankTx === 0, detail: unmatchedBankTx > 0 ? `${unmatchedBankTx} unmatched` : null }
+    { label: 'Bank reconciliation complete', ok: unmatchedBankTx === 0, detail: unmatchedBankTx > 0 ? `${unmatchedBankTx} unmatched` : null }
   ];
   const allOk = checks.every(c => c.ok);
 
@@ -4274,31 +4513,31 @@ async function loadClosingPanel() {
   closeBtn.dataset.allOk = allOk;
   if (alreadyClosed) {
     closeBtn.disabled = true;
-    closeBtn.textContent = `${currentYM} pehle se closed hai`;
+    closeBtn.textContent = `${currentYM} is already closed`;
   } else {
     closeBtn.disabled = false;
-    closeBtn.textContent = 'Mahina Close Karein';
+    closeBtn.textContent = 'Close Month';
   }
 
   document.getElementById('closedMonthsList').innerHTML = closures.map(c => `
     <div class="list-edit-item">
       <div><b style="font-size:13px;">${escapeHtml(c.id)}</b><div class="t-muted" style="font-size:11.5px;">Closed by ${escapeHtml(c.closedBy || '—')} on ${fmtDate(c.closedAt)}${c.allChecksOk === false ? ' · kuch checks pending the' : ''}</div></div>
-    </div>`).join('') || '<p class="t-muted" style="font-size:13px;">Abhi koi mahina close nahi hua.</p>';
+    </div>`).join('') || '<p class="t-muted" style="font-size:13px;">No months closed yet.</p>';
 }
 document.getElementById('closeMonthBtn')?.addEventListener('click', async (e) => {
   const btn = e.currentTarget;
   const ym = btn.dataset.ym;
   const allOk = btn.dataset.allOk === 'true';
-  if (!confirm(`${ym} ko close karein?${allOk ? '' : ' Kuch checklist items abhi bhi pending hain.'} Yeh wapas nahi hoga.`)) return;
+  if (!confirm(`Close ${ym}?${allOk ? '' : ' Some checklist items are still pending.'} This cannot be undone.`)) return;
   btn.disabled = true;
   try {
     await setDoc(doc(db, 'monthClosures', ym), { closedBy: currentAdmin.email, closedAt: serverTimestamp(), allChecksOk: allOk });
     await logAudit(auth.currentUser, 'close_month', { yearMonth: ym, allChecksOk: allOk });
-    showToast(`${ym} close ho gaya.`, 'success');
+    showToast(`${ym} closed.`, 'success');
     await loadClosingPanel();
   } catch (err) {
     console.error('Close month failed:', err);
-    showToast(`Close nahi ho paaya${err?.code ? ` (${err.code})` : ''}.`, 'error');
+    showToast(`Could not close${err?.code ? ` (${err.code})` : ''}.`, 'error');
     btn.disabled = false;
   }
 });
@@ -4321,9 +4560,9 @@ async function loadDocuments() {
           <div class="t-muted" style="font-size:12px;">${escapeHtml(d.category || 'Document')} &middot; ${d.source === 'link' ? 'link' : 'uploaded'} &middot; ${fmtDate(d.addedAt)}</div>
         </div>
         <button class="btn btn-danger btn-sm" data-del-doc="${d.id}">Delete</button>
-      </div>`).join('') || '<p class="t-muted" style="font-size:13px;">Abhi koi document nahi hai.</p>';
+      </div>`).join('') || '<p class="t-muted" style="font-size:13px;">No documents yet.</p>';
     el.querySelectorAll('[data-del-doc]').forEach(b => b.addEventListener('click', async () => {
-      if (!confirm('Yeh document hata dein?')) return;
+      if (!confirm('Remove this document?')) return;
       b.disabled = true;
       try {
         await deleteDoc(doc(db, 'documents', b.dataset.delDoc));
@@ -4332,12 +4571,12 @@ async function loadDocuments() {
       } catch (err) {
         console.error('Delete document failed:', err);
         const code = err?.code || '';
-        showToast(`Document delete nahi ho paaya${code ? ` (${code})` : ''}.`, 'error');
+        showToast(`Could not delete document${code ? ` (${code})` : ''}.`, 'error');
         b.disabled = false;
       }
     }));
   } catch (e) {
-    el.innerHTML = '<p class="t-muted" style="font-size:13px;">Documents load nahi ho paaye.</p>';
+    el.innerHTML = '<p class="t-muted" style="font-size:13px;">Could not load documents.</p>';
   }
 }
 
@@ -4351,17 +4590,17 @@ document.getElementById('docForm')?.addEventListener('submit', async (e) => {
   const f = e.target;
   const btn = f.querySelector('button[type="submit"]');
   const file = f.file.files[0];
-  const link = f.link.value.trim();
+  const link = sanitizeUrl(f.link.value);
 
-  if (!file && !link) return showToast('File upload karein ya link daalein — koi ek zaroori hai.', 'error');
-  if (link && !/^https?:\/\//i.test(link)) return showToast('Link http:// ya https:// se shuru hona chahiye.', 'error');
+  if (!file && !link) return showToast('Please upload a file or enter a link — one is required.', 'error');
+  if (f.link.value.trim() && !link) return showToast('Link must be a valid http:// or https:// URL.', 'error');
 
   btn.disabled = true;
   try {
     let url = link, source = 'link';
     if (file) {
       try {
-        const r = storageRef(storage, `publicDocs/${Date.now()}_${file.name}`);
+        const r = storageRef(storage, `publicDocs/${safeStorageFilename(file.name)}`);
         await uploadBytes(r, file);
         url = await getDownloadURL(r);
         source = 'upload';
@@ -4369,10 +4608,10 @@ document.getElementById('docForm')?.addEventListener('submit', async (e) => {
         // Storage unavailable: fall back to the link if one was given,
         // rather than losing what the committee just typed.
         if (!link) {
-          showToast('Upload nahi ho paaya (Storage set up nahi hai). Link daal kar dobara try karein.', 'error');
+          showToast('Upload failed (Storage is not set up). Please enter a link and try again.', 'error');
           btn.disabled = false; return;
         }
-        showToast('Upload nahi ho paaya — link se save kar diya.', 'error');
+        showToast('Upload failed — saved using the link instead.', 'error');
       }
     }
     await addDoc(collection(db, 'documents'), {
@@ -4380,11 +4619,11 @@ document.getElementById('docForm')?.addEventListener('submit', async (e) => {
       url, source, addedAt: serverTimestamp(), addedBy: currentAdmin.email
     });
     await logAudit(auth.currentUser, 'add_document', { title: f.title.value, source });
-    showToast('Document add ho gaya.', 'success');
+    showToast('Document added.', 'success');
     document.getElementById('docModalBackdrop').classList.remove('open');
     f.reset(); loadDocuments();
   } catch (err) {
-    showToast('Document save nahi ho paaya.', 'error');
+    showToast('Could not save document.', 'error');
   } finally { btn.disabled = false; }
 });
 
@@ -4398,7 +4637,7 @@ document.getElementById('noticeForm').addEventListener('submit', async (e) => {
   try {
     let attachmentURL = '';
     if (f.attachment.files[0]) {
-      const r = storageRef(storage, `noticeAttachments/${Date.now()}_${f.attachment.files[0].name}`);
+      const r = storageRef(storage, `noticeAttachments/${safeStorageFilename(f.attachment.files[0].name)}`);
       await uploadBytes(r, f.attachment.files[0]);
       attachmentURL = await getDownloadURL(r);
     }
@@ -4407,7 +4646,7 @@ document.getElementById('noticeForm').addEventListener('submit', async (e) => {
       attachmentURL, postedAt: serverTimestamp(), postedBy: currentAdmin.email
     });
     await logAudit(auth.currentUser, 'add_notice', { title: f.titleEn.value });
-    showToast('Notice post ho gaya.', 'success');
+    showToast('Notice posted.', 'success');
     document.getElementById('noticeModalBackdrop').classList.remove('open');
 
     // A notice nobody sees isn't much use, so offer to push it to the society
@@ -4416,7 +4655,7 @@ document.getElementById('noticeForm').addEventListener('submit', async (e) => {
     const shareBody = f.bodyHi.value || f.bodyEn.value;
     const shareLines = [`📢 ${shareTitle}`, '', shareBody, '', '— Max Heights Majestic RWS'];
     if (attachmentURL) shareLines.push('', attachmentURL);
-    if (confirm('Notice post ho gaya. Ise WhatsApp group par share karein?')) {
+    if (confirm('Notice posted. Share it to the WhatsApp group?')) {
       window.open(waShareText(shareLines.join('\n')), '_blank', 'noopener');
     }
 
@@ -4424,7 +4663,7 @@ document.getElementById('noticeForm').addEventListener('submit', async (e) => {
   } catch (err) {
     console.error('Add notice failed:', err);
     const code = err?.code || '';
-    showToast(`Notice post nahi ho paaya${code ? ` (${code})` : ''}.`, 'error');
+    showToast(`Could not post notice${code ? ` (${code})` : ''}.`, 'error');
   } finally {
     if (btn) btn.disabled = false;
   }
@@ -4439,7 +4678,7 @@ document.getElementById('committeeForm').addEventListener('submit', async (e) =>
   try {
     let photoURL = '';
     if (f.photo.files[0]) {
-      const r = storageRef(storage, `committeePhotos/${Date.now()}_${f.photo.files[0].name}`);
+      const r = storageRef(storage, `committeePhotos/${safeStorageFilename(f.photo.files[0].name)}`);
       await uploadBytes(r, f.photo.files[0]);
       photoURL = await getDownloadURL(r);
     }
@@ -4451,7 +4690,7 @@ document.getElementById('committeeForm').addEventListener('submit', async (e) =>
   } catch (err) {
     console.error('Add committee member failed:', err);
     const code = err?.code || '';
-    showToast(`Committee member save nahi ho paaya${code ? ` (${code})` : ''}.`, 'error');
+    showToast(`Could not save committee member${code ? ` (${code})` : ''}.`, 'error');
   } finally {
     if (btn) btn.disabled = false;
   }
@@ -4502,8 +4741,8 @@ document.getElementById('importFile').addEventListener('change', async (e) => {
     if (!name) errors.push('Missing name');
     if (name.length > 100) errors.push('Name too long');
     if (!tower || !flat) errors.push('Missing tower/flat');
-    else if (!TOWER_PLAN[tower]) errors.push(`Tower "${tower}" valid nahi (A-G hi hain)`);
-    else if (!isValidFlat(tower, flat)) errors.push(`Flat ${flat}, Tower ${tower} mein nahi hai`);
+    else if (!TOWER_PLAN[tower]) errors.push(`Tower "${tower}" is invalid (only A-G exist)`);
+    else if (!isValidFlat(tower, flat)) errors.push(`Flat ${flat} does not exist in Tower ${tower}`);
     if (existingFlats.has(`${tower}|${flat}`)) errors.push('Flat already registered');
     // Catch duplicates within the uploaded file itself, not just against the DB.
     if (seenInFile.has(`${tower}|${flat}`)) errors.push('Duplicate row in file');
@@ -4555,7 +4794,7 @@ async function confirmImport() {
     }
     await logAudit(auth.currentUser, 'bulk_import', { count, failed: failed.length });
     if (failed.length) {
-      showToast(`${count} imported, ${failed.length} FAIL ho gaye (${failed.map(f => f.name).join(', ')}). Inhe dobara try karein.`, 'error');
+      showToast(`${count} imported, ${failed.length} failed (${failed.map(f => f.name).join(', ')}). Please try those again.`, 'error');
     } else {
       showToast(`${count} residents imported. Note: they'll need to register normally with their email to get portal login access.`, 'success');
     }
@@ -4565,7 +4804,7 @@ async function confirmImport() {
     // Something outside the per-row loop itself failed (e.g. the reload after).
     console.error('Bulk import failed:', err);
     const code = err?.code || '';
-    showToast(`Import mein dikkat aayi${code ? ` (${code})` : ''} — ${count} save ho chuke the. List refresh karke check karein.`, 'error');
+    showToast(`Import had a problem${code ? ` (${code})` : ''} — ${count} were already saved. Please refresh the list to check.`, 'error');
   } finally {
     btn.disabled = false; btn.innerHTML = 'Import Valid Rows';
   }
@@ -4573,7 +4812,7 @@ async function confirmImport() {
 
 document.getElementById('zipExportBtn').addEventListener('click', async () => {
   const monthVal = document.getElementById('zipMonth').value; // "YYYY-MM"
-  if (!monthVal) return showToast('Pehle month select karein.', 'error');
+  if (!monthVal) return showToast('Please select a month first.', 'error');
   const statusEl = document.getElementById('zipStatus');
   statusEl.textContent = 'Gathering files…';
   try {
@@ -4637,12 +4876,12 @@ document.getElementById('zipExportBtn').addEventListener('click', async () => {
     const successCount = files.length - failed.length;
     await logAudit(auth.currentUser, 'zip_export', { month: monthVal, fileCount: successCount, failedCount: failed.length, failed });
     statusEl.textContent = failed.length
-      ? `ZIP ban gaya — ${successCount}/${files.length} files. Fail: ${failed.join(', ')}`
+      ? `ZIP created — ${successCount}/${files.length} files. Failed: ${failed.join(', ')}`
       : `Done — ${successCount} files zipped.`;
   } catch (err) {
     console.error('ZIP export failed:', err);
     const code = err?.code || '';
-    statusEl.textContent = `Export fail ho gaya${code ? ` (${code})` : ''} — dobara try karein.`;
+    statusEl.textContent = `Export failed${code ? ` (${code})` : ''} — please try again.`;
   }
 });
 
@@ -4659,17 +4898,9 @@ const SOCIETY_DEFAULTS = {
 
 // Real society bank + office details, used to pre-fill the payment settings
 // form and as the fallback shown to residents until the committee saves its
-// own values. Kept here so a fresh deployment already shows correct details.
-const PAYMENT_DEFAULTS = {
-  accountName: 'MAX HEIGHTS MAJESTIC RESIDENT WLFR SOC',
-  bankName: 'HDFC Bank',
-  accountNumber: '50200123261579',
-  accountType: 'Current Account',
-  ifsc: 'HDFC0003774',
-  branch: 'VISHWAKARMA INDUSTRIAL AREA',
-  officeAddress: 'Basement, Max Heights Majestic, GH 03 Suncity Township, Sikar Rd, Jaipur, Rajasthan 302048',
-  upiId: ''
-};
+// own values. Imported from app-common.js (single source of truth) rather
+// than duplicated here — two independent copies of the same defaults is
+// exactly how one of them ends up stale while the other gets updated.
 
 async function loadSettingsForms() {
   const f = document.getElementById('societySettingsForm');
@@ -4687,13 +4918,20 @@ async function loadSettingsForms() {
   } catch (e) {
     console.warn('Society settings read failed:', e?.code || e);
     f.name.value = SOCIETY_DEFAULTS.name; f.regNumber.value = SOCIETY_DEFAULTS.regNumber; f.address.value = SOCIETY_DEFAULTS.address;
-    showToast(`Society settings load nahi ho paayi${e?.code ? ` (${e.code})` : ''} — defaults dikha rahe hain.`, 'error');
+    showToast(`Could not load society settings${e?.code ? ` (${e.code})` : ''} — showing defaults.`, 'error');
   }
 
   const pf = document.getElementById('paymentSettingsForm');
   try {
-    const paySnap = await getDoc(doc(db, 'settings', 'payment'));
-    const p = paySnap.exists() ? paySnap.data() : {};
+    // Two documents now: settings/payment (public — UPI, QR, account holder
+    // name, bank name) and settings/paymentPrivate (account number, IFSC,
+    // branch — sign-in required to read). The admin form still shows both
+    // together in one place; only the underlying storage split.
+    const [paySnap, privSnap] = await Promise.all([
+      getDoc(doc(db, 'settings', 'payment')),
+      getDoc(doc(db, 'settings', 'paymentPrivate'))
+    ]);
+    const p = { ...(paySnap.exists() ? paySnap.data() : {}), ...(privSnap.exists() ? privSnap.data() : {}) };
     pf.accountName.value   = p.accountName   || PAYMENT_DEFAULTS.accountName;
     pf.upiId.value         = p.upiId         || PAYMENT_DEFAULTS.upiId;
     pf.bankName.value      = p.bankName      || PAYMENT_DEFAULTS.bankName;
@@ -4710,7 +4948,7 @@ async function loadSettingsForms() {
     pf.accountName.value = PAYMENT_DEFAULTS.accountName; pf.upiId.value = PAYMENT_DEFAULTS.upiId; pf.bankName.value = PAYMENT_DEFAULTS.bankName;
     pf.accountNumber.value = PAYMENT_DEFAULTS.accountNumber; pf.accountType.value = PAYMENT_DEFAULTS.accountType; pf.ifsc.value = PAYMENT_DEFAULTS.ifsc;
     pf.branch.value = PAYMENT_DEFAULTS.branch; pf.officeAddress.value = PAYMENT_DEFAULTS.officeAddress;
-    showToast(`Payment settings load nahi ho paayi${e?.code ? ` (${e.code})` : ''} — defaults dikha rahe hain.`, 'error');
+    showToast(`Could not load payment settings${e?.code ? ` (${e.code})` : ''} — showing defaults.`, 'error');
   }
 }
 /* ---- Maintenance rates -------------------------------------------------
@@ -4730,7 +4968,7 @@ async function loadMaintenance() {
     // bill of health instead of a failed read. That's worse than an error
     // that's actually visible.
     console.error('Maintenance rates read failed:', e?.code || e);
-    showToast(`Maintenance rates load nahi hui${e?.code ? ` (${e.code})` : ''} — Defaulters list abhi galat dikh sakti hai. Page refresh karein.`, 'error');
+    showToast(`Could not load maintenance rates${e?.code ? ` (${e.code})` : ''} — the Defaulters list may show incorrect figures right now. Please refresh the page.`, 'error');
   }
 
   const fySel = document.getElementById('maintFY');
@@ -4772,7 +5010,7 @@ function renderMaintSummary() {
   const feeLine = `<div style="margin-top:6px;">One-time membership fee: <b>${formatINR(fee)}</b>${maintenanceSettings?.membershipFee == null ? ' (default)' : ''}</div>`;
   el.innerHTML = (years.length
     ? 'Set for: ' + years.map(y => `FY ${escapeHtml(y)} (${formatINR(maintenanceSettings.rates[y].default || 0)})`).join(', ')
-    : 'Abhi kisi bhi saal ka rate set nahi hai — isliye Defaulters report khaali dikhegi.') + feeLine;
+    : 'No rate is set for any year yet — the Defaulters report will show empty.') + feeLine;
 }
 
 document.getElementById('maintenanceForm')?.addEventListener('submit', async (e) => {
@@ -4781,7 +5019,7 @@ document.getElementById('maintenanceForm')?.addEventListener('submit', async (e)
   const btn = f.querySelector('button[type="submit"]');
   const fy = document.getElementById('maintFY').value;
   const def = Number(f.defaultRate.value);
-  if (!Number.isFinite(def) || def < 0) return showToast('Sahi amount daalein.', 'error');
+  if (!Number.isFinite(def) || def < 0) return showToast('Please enter a valid amount.', 'error');
 
   const byTower = {};
   TOWER_IDS.forEach(t => {
@@ -4804,7 +5042,7 @@ document.getElementById('maintenanceForm')?.addEventListener('submit', async (e)
   let membershipFee = maintenanceSettings.membershipFee;
   if (feeRaw !== '') {
     const fee = Number(feeRaw);
-    if (!Number.isFinite(fee) || fee < 0) return showToast('Membership fee sahi number honi chahiye.', 'error');
+    if (!Number.isFinite(fee) || fee < 0) return showToast('Membership fee must be a valid number.', 'error');
     settingsPatch.membershipFee = fee;
     membershipFee = fee;
   }
@@ -4821,11 +5059,11 @@ document.getElementById('maintenanceForm')?.addEventListener('submit', async (e)
     renderMaintSummary();
     renderDefaulters();
     renderOverview();
-    showToast(`FY ${fy} ka rate save ho gaya.`, 'success');
+    showToast(`Rate for FY ${fy} saved.`, 'success');
   } catch (err) {
     console.error('Save maintenance rate failed:', err);
     const code = err?.code || '';
-    showToast(`Rate save nahi ho paaya${code ? ` (${code})` : ''}.`, 'error');
+    showToast(`Could not save rate${code ? ` (${code})` : ''}.`, 'error');
   } finally {
     if (btn) btn.disabled = false;
   }
@@ -4846,7 +5084,7 @@ document.getElementById('societySettingsForm').addEventListener('submit', async 
   } catch (err) {
     console.error('Save society settings failed:', err);
     const code = err?.code || '';
-    showToast(`Society info save nahi ho paayi${code ? ` (${code})` : ''}.`, 'error');
+    showToast(`Could not save society info${code ? ` (${code})` : ''}.`, 'error');
   } finally {
     if (btn) btn.disabled = false;
   }
@@ -4855,15 +5093,22 @@ document.getElementById('paymentSettingsForm').addEventListener('submit', async 
   e.preventDefault();
   const f = e.target;
   const btn = f.querySelector('button[type="submit"]');
-  const data = {
+  // Split by sensitivity: account number / IFSC / branch go to
+  // paymentPrivate (sign-in required to read); everything a resident needs
+  // to recognize the right recipient before paying — UPI, QR, account
+  // holder name, bank name — plus the office address, stay public.
+  const publicData = {
     accountName: f.accountName.value.trim(),
     upiId: f.upiId.value.trim(),
     bankName: f.bankName.value.trim(),
+    officeAddress: f.officeAddress.value.trim(),
+    updatedAt: serverTimestamp()
+  };
+  const privateData = {
     accountNumber: f.accountNumber.value.trim(),
     accountType: f.accountType.value.trim(),
     ifsc: f.ifsc.value.trim(),
     branch: f.branch.value.trim(),
-    officeAddress: f.officeAddress.value.trim(),
     updatedAt: serverTimestamp()
   };
   if (btn) btn.disabled = true;
@@ -4871,15 +5116,18 @@ document.getElementById('paymentSettingsForm').addEventListener('submit', async 
     if (f.qrImage.files[0]) {
       const r = storageRef(storage, `settings/payment-qr-${Date.now()}`);
       await uploadBytes(r, f.qrImage.files[0]);
-      data.qrCodeImageURL = await getDownloadURL(r);
+      publicData.qrCodeImageURL = await getDownloadURL(r);
     }
-    await setDoc(doc(db, 'settings', 'payment'), data, { merge: true });
+    await Promise.all([
+      setDoc(doc(db, 'settings', 'payment'), publicData, { merge: true }),
+      setDoc(doc(db, 'settings', 'paymentPrivate'), privateData, { merge: true })
+    ]);
     await logAudit(auth.currentUser, 'update_payment_settings', {});
     showToast('Payment settings saved.', 'success');
   } catch (err) {
     console.error('Save payment settings failed:', err);
     const code = err?.code || '';
-    showToast(`Payment settings save nahi ho payi${code ? ` (${code})` : ''} — QR ya bank details save nahi hui, dobara try karein.`, 'error');
+    showToast(`Could not save payment settings${code ? ` (${code})` : ''} — QR or bank details were not saved, please try again.`, 'error');
   } finally {
     if (btn) btn.disabled = false;
   }
@@ -4887,8 +5135,8 @@ document.getElementById('paymentSettingsForm').addEventListener('submit', async 
 
 document.getElementById('encryptPendingBtn').addEventListener('click', async () => {
   const pass = document.getElementById('vaultPassphrase').value;
-  if (!pass) return showToast('Pehle passphrase daalein.', 'error');
-  if (!confirm('Yeh saare pending Aadhaar/PAN uploads ko is passphrase se encrypt kar dega. Passphrase yaad rakhein — bhoolne par documents access nahi ho sakte. Continue?')) return;
+  if (!pass) return showToast('Please enter a passphrase first.', 'error');
+  if (!confirm('This will encrypt all pending Aadhaar/PAN uploads with this passphrase. Remember the passphrase — documents cannot be accessed if it is forgotten. Continue?')) return;
   const targets = allMembers.filter(m => m.idDocURL && !m.idDocEncrypted);
   let done = 0;
   for (const m of targets) {
@@ -4944,12 +5192,14 @@ async function collectBackupBundle() {
   ]);
   let settingsDocs = [];
   try {
-    const [society, maintenance, payment] = await Promise.all([
-      getDoc(doc(db, 'settings', 'society')), getDoc(doc(db, 'settings', 'maintenance')), getDoc(doc(db, 'settings', 'payment'))
+    const [society, maintenance, payment, paymentPrivate] = await Promise.all([
+      getDoc(doc(db, 'settings', 'society')), getDoc(doc(db, 'settings', 'maintenance')),
+      getDoc(doc(db, 'settings', 'payment')), getDoc(doc(db, 'settings', 'paymentPrivate'))
     ]);
     if (society.exists()) settingsDocs.push({ id: 'society', ...society.data() });
     if (maintenance.exists()) settingsDocs.push({ id: 'maintenance', ...maintenance.data() });
     if (payment.exists()) settingsDocs.push({ id: 'payment', ...payment.data() });
+    if (paymentPrivate.exists()) settingsDocs.push({ id: 'paymentPrivate', ...paymentPrivate.data() });
   } catch (e) { console.warn('Settings backup fetch failed:', e?.code || e); }
 
   return {
@@ -4980,6 +5230,106 @@ async function recordBackup(kind, detail) {
   renderBackupAge();
 }
 
+/* ---- Data Health Check ---------------------------------------------------
+   Firestore has no foreign keys, so nothing at the database level stops a
+   payment/pet/complaint from surviving a member's deletion with its
+   ownerUid/memberUid now pointing at nothing. erasePersonalData() closes
+   this for pets specifically (cascading delete) — but that's one path
+   among several ways a dangling reference could appear (a member record
+   edited or removed by hand outside the app, an older bug, direct Firestore
+   console edits). This scans for that class of problem across the
+   collections that reference a member, and — deliberately — only reports
+   what it finds. Auto-fixing would mean guessing which side of a broken
+   reference is the "right" one to keep, which is exactly the kind of
+   judgment call that should stay with a person looking at the specific
+   case, not a script. */
+async function runDataHealthCheck() {
+  const btn = document.getElementById('runHealthCheckBtn');
+  const out = document.getElementById('healthCheckResults');
+  btn.disabled = true; btn.textContent = 'Checking…';
+  out.innerHTML = '';
+  try {
+    const [membersSnap, paymentsSnap, petsSnap, complaintsSnap, flatClaimsSnap, membersPublicSnap] = await Promise.all([
+      getDocs(collection(db, 'members')),
+      getDocs(collection(db, 'payments')),
+      getDocs(collection(db, 'pets')),
+      getDocs(collection(db, 'complaints')),
+      getDocs(collection(db, 'flatClaims')),
+      getDocs(collection(db, 'membersPublic'))
+    ]);
+    const members = membersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const payments = paymentsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const pets = petsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const complaints = complaintsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const flatClaims = flatClaimsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const membersPublicTokens = new Set(membersPublicSnap.docs.map(d => d.id));
+
+    const memberById = new Map(members.map(m => [m.id, m]));
+    const findings = [];  // { severity: 'warn'|'info', text }
+
+    for (const p of payments) {
+      if (p.memberUid && !memberById.has(p.memberUid)) {
+        findings.push({ severity: 'warn', text: `Payment ${p.receiptNumber || p.id} (${formatINR(p.amount)}, ${p.residentName || 'unnamed'}) references member "${p.memberUid}", which no longer exists.` });
+      }
+    }
+    for (const p of pets) {
+      if (p.ownerUid && !memberById.has(p.ownerUid)) {
+        findings.push({ severity: 'warn', text: `Pet "${p.name || p.id}" references owner "${p.ownerUid}", which no longer exists.` });
+      }
+    }
+    for (const c of complaints) {
+      if (c.raisedByUid && !memberById.has(c.raisedByUid)) {
+        findings.push({ severity: 'warn', text: `Complaint "${c.title || c.id}" references resident "${c.raisedByUid}", which no longer exists.` });
+      }
+    }
+    for (const fc of flatClaims) {
+      if (fc.memberDocId && !memberById.has(fc.memberDocId)) {
+        findings.push({ severity: 'warn', text: `Flat claim for Tower ${fc.tower}, Flat ${fc.flatNumber} references member "${fc.memberDocId}", which no longer exists — this flat may be incorrectly shown as taken.` });
+      }
+    }
+    // Reverse check: an approved member should hold a flat claim matching
+    // their own tower/flat — if not, either their registration predates the
+    // flatClaims system or something went wrong during approval.
+    const claimedFlats = new Set(flatClaims.map(fc => `${fc.tower}|${fc.flatNumber}`));
+    for (const m of members) {
+      if (m.status === 'approved' && m.tower && m.flatNumber && !claimedFlats.has(`${m.tower}|${m.flatNumber}`)) {
+        findings.push({ severity: 'info', text: `${m.name || m.id} (Tower ${m.tower}, Flat ${m.flatNumber}) is approved but holds no flat claim — their flat may not correctly block a duplicate registration.` });
+      }
+    }
+    // An approved member's publicToken should have a matching membersPublic
+    // doc — that's what the QR on their membership card actually resolves.
+    for (const m of members) {
+      if (m.status === 'approved' && m.publicToken && !membersPublicTokens.has(m.publicToken)) {
+        findings.push({ severity: 'warn', text: `${m.name || m.id}'s membership card QR (token "${m.publicToken.slice(0, 8)}…") has no matching public record — it would show "not found" if scanned.` });
+      }
+    }
+
+    if (!findings.length) {
+      out.innerHTML = `<div class="empty-state compact"><p>✓ No orphaned references found across ${members.length} members, ${payments.length} payments, ${pets.length} pets, ${complaints.length} complaints and ${flatClaims.length} flat claims.</p></div>`;
+    } else {
+      const warnCount = findings.filter(f => f.severity === 'warn').length;
+      const infoCount = findings.length - warnCount;
+      out.innerHTML = `
+        <p class="t-sub" style="font-size:12.5px; margin-bottom:10px;">${warnCount} to review${infoCount ? `, ${infoCount} informational` : ''}:</p>
+        <div style="display:flex; flex-direction:column; gap:8px; max-height:360px; overflow-y:auto;">
+          ${findings.map(f => `
+            <div style="display:flex; gap:8px; padding:9px 11px; border-radius:8px; background:${f.severity === 'warn' ? 'rgba(192,57,43,.07)' : 'var(--paper)'}; border:1px solid ${f.severity === 'warn' ? 'rgba(192,57,43,.18)' : 'var(--line)'};">
+              <span style="flex-shrink:0;">${f.severity === 'warn' ? '⚠️' : 'ℹ️'}</span>
+              <span style="font-size:12.5px; line-height:1.5;">${escapeHtml(f.text)}</span>
+            </div>`).join('')}
+        </div>`;
+    }
+    await logAudit(auth.currentUser, 'data_health_check', { findingsCount: findings.length });
+  } catch (err) {
+    console.error('Data health check failed:', err);
+    const code = err?.code || '';
+    out.innerHTML = `<p class="t-muted" style="font-size:12.5px;">Could not complete the check${code ? ` (${code})` : ''}. Please try again.</p>`;
+  } finally {
+    btn.disabled = false; btn.textContent = 'Run Check';
+  }
+}
+document.getElementById('runHealthCheckBtn')?.addEventListener('click', runDataHealthCheck);
+
 async function renderBackupAge() {
   const el = document.getElementById('backupAge');
   if (!el) return;
@@ -4996,7 +5346,7 @@ async function renderBackupAge() {
   if (!last) {
     el.innerHTML = `<div class="notice-banner" style="margin:0;">
       <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#a-cloud"/></svg>
-      <div><b>Abhi tak koi backup nahi liya gaya.</b> Society ka poora financial record sirf Firebase par hai.</div>
+      <div><b>No backup has been taken yet.</b> The society's entire financial record exists only on Firebase.</div>
     </div>`;
     return;
   }
@@ -5006,9 +5356,9 @@ async function renderBackupAge() {
   el.innerHTML = `<div class="notice-banner" style="margin:0; ${stale ? '' : 'background:var(--success-bg); border-color:var(--success-line);'}">
     <svg viewBox="0 0 24 24" aria-hidden="true" ${stale ? '' : 'style="color:var(--success)"'}><use href="#a-cloud"/></svg>
     <div>
-      <b>${stale ? `Aakhri backup ${days} din pehle hua tha.` : `Aakhri backup ${days === 0 ? 'aaj' : days + ' din pehle'} hua.`}</b>
-      ${escapeHtml(kind === 'drive' ? 'Google Drive par' : 'File download')}${by ? ' &middot; ' + escapeHtml(by) : ''}
-      ${stale ? '<br>Mahine mein ek baar backup lena chahiye.' : ''}
+      <b>${stale ? `Last backup was ${days} days ago.` : `Last backup was ${days === 0 ? 'today' : days + ' days ago'}.`}</b>
+      ${escapeHtml(kind === 'drive' ? 'To Google Drive' : 'File download')}${by ? ' &middot; ' + escapeHtml(by) : ''}
+      ${stale ? '<br>A backup should be taken at least once a month.' : ''}
     </div>
   </div>`;
 }
@@ -5028,9 +5378,9 @@ document.getElementById('downloadBackupBtn')?.addEventListener('click', async ()
     const counts = Object.entries(bundle).map(([k, v]) => `${k}:${v.length}`).join(', ');
     await logAudit(auth.currentUser, 'backup_download', { counts });
     await recordBackup('download', counts);
-    showToast('Backup file download ho gayi. Ise safe jagah rakhein.', 'success');
+    showToast('Backup file downloaded. Please keep it somewhere safe.', 'success');
   } catch (e) {
-    showToast('Backup nahi ban paayi.', 'error');
+    showToast('Could not create backup.', 'error');
   } finally { btn.disabled = false; }
 });
 
@@ -5042,9 +5392,9 @@ document.getElementById('backupNowBtn').addEventListener('click', async () => {
     await logAudit(auth.currentUser, 'drive_backup', { fileCount: result.files.length });
     await recordBackup('drive', `${result.files.length} files`);
     document.getElementById('backupStatus').innerHTML = `Backed up ${result.files.length} files to <b>${result.folderPath}</b> — ${new Date(result.timestamp).toLocaleString('en-IN')}`;
-    showToast('Google Drive backup safal raha!', 'success');
+    showToast('Google Drive backup succeeded!', 'success');
   } catch (e) {
-    showToast(e.message || 'Backup fail ho gaya.', 'error');
+    showToast(e.message || 'Backup failed.', 'error');
   } finally { btn.disabled = false; btn.innerHTML = `<svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#a-cloud"/></svg>Backup Now`; }
 });
 
@@ -5052,13 +5402,13 @@ document.getElementById('backupNowBtn').addEventListener('click', async () => {
 /*  Admin Users                                                            */
 /* ---------------------------------------------------------------------- */
 async function loadAdmins() {
-  if (!can('manageAdmins')) { document.getElementById('view-adminUsers').innerHTML = '<p class="t-muted">Yeh section sirf Super Admin ke liye hai.</p>'; return; }
+  if (!can('manageAdmins')) { document.getElementById('view-adminUsers').innerHTML = '<p class="t-muted">This section is for Super Admin only.</p>'; return; }
   let admins = [];
   try {
     admins = (await getDocs(collection(db, 'admins'))).docs.map(d => ({ id: d.id, ...d.data() }));
   } catch (e) {
     console.warn('Admins read failed:', e?.code || e);
-    document.getElementById('adminsTableBody').innerHTML = '<tr><td colspan="4" class="t-muted">Admin list load nahi ho paayi — page refresh karein.</td></tr>';
+    document.getElementById('adminsTableBody').innerHTML = '<tr><td colspan="4" class="t-muted">Could not load admin list — please refresh the page.</td></tr>';
     return;
   }
   document.getElementById('adminsTableBody').innerHTML = admins.map(a => `
@@ -5066,17 +5416,17 @@ async function loadAdmins() {
     <td>${a.id !== currentAdmin.uid ? `<button class="btn btn-danger btn-sm" data-remove-admin="${a.id}">Remove</button>` : '<span class="t-muted" style="font-size:12px;">(you)</span>'}</td></tr>
   `).join('');
   document.querySelectorAll('[data-remove-admin]').forEach(b => b.addEventListener('click', async () => {
-    if (!confirm('Is admin ka access hata dein? (Login account chalta rahega, sirf admin-role hatega)')) return;
+    if (!confirm("Remove this admin's access? (Their login account will still work — only the admin role is removed.)")) return;
     b.disabled = true;
     try {
       await deleteDoc(doc(db, 'admins', b.dataset.removeAdmin));
       await logAudit(auth.currentUser, 'remove_admin', { id: b.dataset.removeAdmin });
-      showToast('Admin access hata diya gaya.', 'success');
+      showToast('Admin access removed.', 'success');
       loadAdmins();
     } catch (err) {
       console.error('Remove admin failed:', err);
       const code = err?.code || '';
-      showToast(`Admin access hata nahi paaya${code ? ` (${code})` : ''}.`, 'error');
+      showToast(`Could not remove admin access${code ? ` (${code})` : ''}.`, 'error');
       b.disabled = false;
     }
   }));
@@ -5090,23 +5440,18 @@ document.getElementById('addAdminForm').addEventListener('submit', async (e) => 
   const f = e.target;
   const btn = f.querySelector('button[type="submit"]');
   btn.disabled = true;
+  // Create the new account on a throwaway secondary Firebase app so the
+  // current admin's own session is not replaced. Declared outside the try so
+  // the catch block can still reach the freshly-created user for rollback,
+  // and so the finally can always tear the app down — otherwise each
+  // add-admin would leak an app instance until the page is refreshed.
+  const secondaryApp = initializeApp(firebaseConfig, 'Secondary_' + Date.now());
+  let cred, secondaryAuth;
   try {
-    // Create the new account on a throwaway secondary Firebase app so the
-    // current admin's own session is not replaced. The instance is always torn
-    // down in the finally below — otherwise each add-admin would leak an app
-    // instance (memory + Firebase "duplicate app" console noise) until the
-    // page is refreshed.
-    const secondaryApp = initializeApp(firebaseConfig, 'Secondary_' + Date.now());
-    let newUid;
-    try {
-      const secondaryAuth = getAuth(secondaryApp);
-      const cred = await createUserWithEmailAndPassword(secondaryAuth, f.email.value.trim(), f.password.value);
-      newUid = cred.user.uid;
-      await signOut(secondaryAuth);
-    } finally {
-      // Release the secondary app whether creation succeeded or threw.
-      try { await deleteApp(secondaryApp); } catch (_) {}
-    }
+    secondaryAuth = getAuth(secondaryApp);
+    cred = await createUserWithEmailAndPassword(secondaryAuth, f.email.value.trim(), f.password.value);
+    const newUid = cred.user.uid;
+
     await setDoc(doc(db, 'admins', newUid), { uid: newUid, name: f.name.value.trim(), email: f.email.value.trim(), role: f.role.value, createdAt: serverTimestamp(), createdBy: currentAdmin.email });
 
     let memberID = null;
@@ -5115,7 +5460,7 @@ document.getElementById('addAdminForm').addEventListener('submit', async (e) => 
       const flatNumber = f.flatNumber.value.trim();
       const claimRef = doc(db, 'flatClaims', flatClaimId(tower, flatNumber));
       const held = await getDoc(claimRef);
-      if (held.exists()) throw new Error(`Tower ${tower}, Flat ${flatNumber} pehle se kisi aur member ke naam par hai.`);
+      if (held.exists()) throw new Error(`Tower ${tower}, Flat ${flatNumber} is already assigned to another member.`);
 
       memberID = await generateMemberId();
       const publicToken = newPublicToken();
@@ -5128,7 +5473,7 @@ document.getElementById('addAdminForm').addEventListener('submit', async (e) => 
       batch.set(doc(db, 'members', newUid), {
         uid: newUid, name: f.name.value.trim(), fatherHusbandName: '', tower,
         flatNumber, mobile: f.mobile.value.trim(), email: f.email.value.trim(),
-        occupation: '', residentType: 'owner', address: '', nomineeName: '', nomineeRelation: '',
+        occupation: '', residentType: 'owner', nomineeName: '', nomineeRelation: '',
         photoURL: '', declarationAccepted: true, memberID, publicToken,
         status: 'approved', role: 'resident',
         source: 'admin_created', createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
@@ -5147,66 +5492,72 @@ document.getElementById('addAdminForm').addEventListener('submit', async (e) => 
     }
 
     await logAudit(auth.currentUser, 'add_admin', { email: f.email.value, role: f.role.value, alsoResident: f.alsoResident.checked, memberID });
-    showToast(memberID ? `Admin created — resident login bhi ready hai (${memberID})` : 'Admin account create ho gaya.', 'success');
+    showToast(memberID ? `Admin created — resident login is also ready (${memberID})` : 'Admin account created.', 'success');
     f.reset(); f.alsoResident.checked = true; loadAdmins();
   } catch (err) {
-    showToast(err.message || 'Admin create nahi ho paaya.', 'error');
-  } finally { btn.disabled = false; }
+    // The Auth account is created first; if anything after it fails (a
+    // Firestore write, the flat-claim check, etc.) the account would
+    // otherwise survive with no admin/member record behind it — leaving the
+    // email stuck as "already in use" with no way to log in or retry.
+    if (cred?.user) {
+      try { await deleteUser(cred.user); }
+      catch (e) { console.warn('Could not roll back the half-created admin account:', e); }
+    }
+    showToast(err.message || 'Could not create admin.', 'error');
+  } finally {
+    try { await deleteApp(secondaryApp); } catch (_) {}
+    btn.disabled = false;
+  }
 });
 
 // Admin registering a resident directly — same secondary-app pattern as Add
-// Admin above, but the full resident profile (address, nominee, DOB, family)
+// Admin above, but the full resident profile (nominee, DOB, family)
 // and created already APPROVED with a Member ID, since an admin creating the
 // record implies it doesn't need the usual pending-review step.
 document.getElementById('registerResidentForm').addEventListener('submit', async (e) => {
   e.preventDefault();
-  if (!can('approveMembers')) { showToast('Sirf President/Secretary/Super Admin resident register kar sakte hain.', 'error'); return; }
+  if (!can('approveMembers')) { showToast('Only President/Secretary/Super Admin can register residents.', 'error'); return; }
   const f = e.target;
   const btn = f.querySelector('button[type="submit"]');
   const tower = f.tower.value.trim();
   const flatNumber = f.flatNumber.value.trim();
-  if (!tower || !flatNumber) { showToast('Tower aur Flat chunna zaroori hai.', 'error'); return; }
-  if (f.password.value !== f.confirmPassword.value) { showToast('Password match nahi ho raha.', 'error'); return; }
-  if (!f.declaration.checked) { showToast('Declaration confirm karna zaroori hai.', 'error'); return; }
+  if (!tower || !flatNumber) { showToast('Please select a Tower and Flat.', 'error'); return; }
+  if (f.password.value !== f.confirmPassword.value) { showToast('Passwords do not match.', 'error'); return; }
+  if (!f.declaration.checked) { showToast('Please confirm the declaration.', 'error'); return; }
   btn.disabled = true;
   let photoFailed = false;
+  const secondaryApp = initializeApp(firebaseConfig, 'Secondary_' + Date.now());
+  let cred;
   try {
     const claimRef = doc(db, 'flatClaims', flatClaimId(tower, flatNumber));
     const held = await getDoc(claimRef);
-    if (held.exists()) throw new Error(`Tower ${tower}, Flat ${flatNumber} pehle se kisi aur member ke naam par hai.`);
+    if (held.exists()) throw new Error(`Tower ${tower}, Flat ${flatNumber} is already assigned to another member.`);
 
-    const secondaryApp = initializeApp(firebaseConfig, 'Secondary_' + Date.now());
-    let newUid, photoURL = '';
+    let photoURL = '';
+    const secondaryAuth = getAuth(secondaryApp);
+    cred = await createUserWithEmailAndPassword(secondaryAuth, f.email.value.trim(), f.password.value);
+    const newUid = cred.user.uid;
+
+    // Storage rules require request.auth.uid to match the {uid} in the
+    // upload path — the admin's OWN session can never satisfy that for
+    // someone else's folder. Uploading here, while the secondary app is
+    // still signed in as the new resident, is what makes this upload pass
+    // the same rules a resident's own upload does. Optional — skip entirely
+    // rather than trying to upload nothing (which would look like a failed
+    // upload it never was).
     try {
-      const secondaryAuth = getAuth(secondaryApp);
-      const cred = await createUserWithEmailAndPassword(secondaryAuth, f.email.value.trim(), f.password.value);
-      newUid = cred.user.uid;
-
-      // Storage rules require request.auth.uid to match the {uid} in the
-      // upload path — the admin's OWN session can never satisfy that for
-      // someone else's folder. Uploading here, while the secondary app is
-      // still signed in AS the new resident (before signOut below), is what
-      // makes this upload pass the same rules a resident's own upload does.
-      // Optional — skip entirely rather than trying to upload nothing
-      // (which would look like a failed upload it never was).
-      try {
-        const secondaryStorage = getStorage(secondaryApp);
-        if (f.photo.files[0]) {
-          const pr = storageRef(secondaryStorage, `photos/${newUid}/photo_${Date.now()}`);
-          await uploadBytes(pr, f.photo.files[0]);
-          photoURL = await getDownloadURL(pr);
-        }
-      } catch (upErr) {
-        // A storage hiccup shouldn't lose the whole registration — the office
-        // can add the photo later from the member's edit screen. Same
-        // resilience the public registration form already has.
-        console.warn('Upload failed (continuing without it):', upErr?.code || upErr);
-        if (f.photo.files[0]) photoFailed = true;
+      const secondaryStorage = getStorage(secondaryApp);
+      if (f.photo.files[0]) {
+        const pr = storageRef(secondaryStorage, `photos/${newUid}/photo_${Date.now()}`);
+        await uploadBytes(pr, f.photo.files[0]);
+        photoURL = await getDownloadURL(pr);
       }
-
-      await signOut(secondaryAuth);
-    } finally {
-      try { await deleteApp(secondaryApp); } catch (_) {}
+    } catch (upErr) {
+      // A storage hiccup shouldn't lose the whole registration — the office
+      // can add the photo later from the member's edit screen. Same
+      // resilience the public registration form already has.
+      console.warn('Upload failed (continuing without it):', upErr?.code || upErr);
+      if (f.photo.files[0]) photoFailed = true;
     }
 
     const memberID = await generateMemberId();
@@ -5217,7 +5568,7 @@ document.getElementById('registerResidentForm').addEventListener('submit', async
     batch.set(doc(db, 'members', newUid), {
       uid: newUid, name: f.name.value.trim(), fatherHusbandName: f.fatherHusbandName.value.trim(), tower, flatNumber,
       mobile: f.mobile.value.trim(), email: f.email.value.trim(), occupation: f.occupation.value.trim(),
-      residentType: f.residentType.value, address: f.address.value.trim(),
+      residentType: f.residentType.value,
       nomineeName: f.nomineeName.value.trim(), nomineeRelation: f.nomineeRelation.value.trim(),
       dob: f.dob.value || null, anniversary: f.anniversary.value || null, familyMembers,
       photoURL, declarationAccepted: true, memberID, publicToken,
@@ -5255,19 +5606,27 @@ document.getElementById('registerResidentForm').addEventListener('submit', async
     await logAudit(auth.currentUser, 'register_resident', { email: f.email.value.trim(), memberID, tower, flatNumber, petsAdded: pets.length });
     showToast(
       photoFailed
-        ? `Resident register ho gaya (Member ID: ${memberID}) — lekin photo upload nahi ho payi. Baad mein "Edit Master Data" se add kar sakte hain.`
+        ? `Resident registered (Member ID: ${memberID}) — but the photo could not be uploaded. You can add it later from "Edit Master Data".`
         : petSaveFailed
-        ? `Resident register ho gaya (Member ID: ${memberID}) — lekin pet details save nahi ho payi.`
-        : `Resident register ho gaya — Member ID: ${memberID}`,
+        ? `Resident registered (Member ID: ${memberID}) — but the pet details could not be saved.`
+        : `Resident registered — Member ID: ${memberID}`,
       (photoFailed || petSaveFailed) ? 'error' : 'success'
     );
     document.getElementById('registerResidentModalBackdrop').classList.remove('open');
     await reloadMembers(); renderMembersTable(); renderOverview(); populateTowerFilter();
   } catch (err) {
     console.error('Register resident failed:', err);
+    // Same reasoning as Add Admin above: an Auth account with no member
+    // record behind it is worse than no account, since the resident can
+    // neither register again nor log in.
+    if (cred?.user) {
+      try { await deleteUser(cred.user); }
+      catch (e) { console.warn('Could not roll back the half-created resident account:', e); }
+    }
     const code = err?.code || '';
-    showToast(err.message && !code ? err.message : `Resident register nahi ho paaya${code ? ` (${code})` : ''}.`, 'error');
+    showToast(err.message && !code ? err.message : `Could not register resident${code ? ` (${code})` : ''}.`, 'error');
   } finally {
+    try { await deleteApp(secondaryApp); } catch (_) {}
     btn.disabled = false;
   }
 });

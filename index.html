@@ -390,6 +390,41 @@ section{ padding:76px 0; position:relative; }
 .lang-toggle-header button{ color:rgba(255,255,255,.72); padding:6px 12px; }
 .lang-toggle-header button.active{ background:var(--gradient-saffron); color:var(--navy-950); }
 
+.notif-wrap{ position:relative; }
+.notif-bell{
+  position:relative; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.18);
+  border-radius:10px; width:38px; height:38px; font-size:16px; cursor:pointer;
+  display:grid; place-items:center; color:#fff; line-height:1;
+}
+.notif-bell:hover{ background:rgba(255,255,255,.14); }
+.notif-badge{
+  position:absolute; top:-4px; right:-4px; min-width:16px; height:16px; padding:0 3px;
+  background:var(--danger,#C0392B); color:#fff; font-size:10px; font-weight:700;
+  border-radius:8px; display:grid; place-items:center; font-family:var(--font-mono);
+}
+.notif-panel{
+  display:none; position:absolute; top:calc(100% + 10px); right:0; width:320px; max-width:88vw;
+  max-height:420px; overflow-y:auto; background:#fff; color:var(--navy-950);
+  border-radius:var(--radius-lg); box-shadow:0 18px 44px rgba(10,27,51,.28);
+  border:1px solid rgba(10,27,51,.08); z-index:200;
+}
+.notif-panel.open{ display:block; }
+.notif-panel-head{
+  padding:14px 16px; font-weight:700; font-size:13.5px; border-bottom:1px solid var(--line,#E2E6EF);
+  position:sticky; top:0; background:#fff;
+}
+.notif-item{
+  display:flex; gap:10px; padding:12px 16px; border-bottom:1px solid var(--line,#E2E6EF); cursor:pointer;
+}
+.notif-item:last-child{ border-bottom:none; }
+.notif-item:hover{ background:var(--paper,#FAF8F3); }
+.notif-item .notif-icon{ font-size:16px; flex-shrink:0; }
+.notif-item .notif-text{ font-size:12.8px; line-height:1.45; }
+.notif-item .notif-time{ display:block; font-size:11px; color:var(--ink-400,#8891A3); margin-top:2px; }
+@media (max-width:640px){
+  .notif-panel{ position:fixed; top:auto; bottom:0; left:0; right:0; width:auto; max-width:none; max-height:70vh; border-radius:16px 16px 0 0; }
+}
+
 /* ---------- Payment info panel ---------- */
 .pay-panel{ background:var(--navy-950); color:var(--white); border-radius:var(--radius-lg); padding:26px; }
 .pay-panel h3{ color:var(--white); font-size:16px; margin-bottom:6px; }
@@ -406,7 +441,8 @@ section{ padding:76px 0; position:relative; }
 .community-grid{ display:grid; grid-template-columns:1.25fr .75fr; gap:20px; align-items:stretch; }
 .shot{
   position:relative; border-radius:var(--radius-lg); overflow:hidden;
-  border:1px solid rgba(228,199,101,.22); background:var(--navy-900); min-height:200px;
+  border:1px solid rgba(228,199,101,.22); background:var(--navy-900);
+  min-height:170px; max-height:340px;
 }
 .shot img{
   width:100%; height:100%; object-fit:cover; display:block;
@@ -441,6 +477,12 @@ section{ padding:76px 0; position:relative; }
   position:absolute; left:0; right:0; bottom:0; padding:26px 20px 16px;
   background:linear-gradient(to top, rgba(10,27,51,.94), transparent);
   font-size:12.5px; font-weight:600; letter-spacing:.02em;
+  /* Without an explicit z-index this loses to .shot img's z-index:1 and
+     paints underneath the photo — invisible, not just faint, since the
+     photo is fully opaque. Confirmed via elementFromPoint(): the img, not
+     the figcaption, was the actual top element at the caption's own
+     coordinates. */
+  z-index:2;
 }
 .shot figcaption span{
   display:block; font-family:var(--font-mono); font-size:9.5px; letter-spacing:.12em;
@@ -733,13 +775,13 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
   .benefit-card{ padding:20px; }
 
   .notice-grid{ grid-template-columns:1fr; }
-  .community-grid{ grid-template-columns:1fr; }
+  .community-grid{ grid-template-columns:1fr; gap:12px; }
   .fund-row{ grid-template-columns:1fr; gap:10px; }
   .fund-card{ padding:18px; }
   .fund-card .amt{ font-size:25px; }
   .spend-list{ padding:18px; }
-  .shot-stack{ grid-template-rows:auto auto; }
-  .shot{ min-height:170px; }
+  .shot-stack{ grid-template-rows:auto auto; gap:12px; }
+  .shot{ min-height:130px; }
   .amenity-grid{ grid-template-columns:1fr 1fr; gap:8px; }
   .amenity{ padding:11px; font-size:12.3px; }
   .committee-grid{ grid-template-columns:1fr 1fr; gap:12px; }
@@ -853,6 +895,7 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
     <g id="i-file"><path d="M6 3.5h8l4 4v13H6z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M13.8 3.5V8h4.2M9 12.5h6M9 16h6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></g>
     <g id="i-download"><path d="M12 3.5v11M8 11l4 4 4-4M4.5 19.5h15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></g>
     <g id="i-shield"><path d="M12 2.8l7.5 3v6c0 4.6-3.1 8.4-7.5 9.4-4.4-1-7.5-4.8-7.5-9.4v-6z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M9 12l2.2 2.2L15.4 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <g id="i-alert"><path d="M12 3.5L21.5 20h-19z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M12 9.5v4.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="16.8" r="1.05" fill="currentColor"/></g>
     <g id="i-pool"><path d="M3 17.5c1.6 0 1.6 1.4 3.2 1.4s1.6-1.4 3.2-1.4 1.6 1.4 3.2 1.4 1.6-1.4 3.2-1.4 1.6 1.4 3.2 1.4M7 15.5V6a2.2 2.2 0 014.4 0M13.6 15.5V6A2.2 2.2 0 0118 6M7 9.5h4.4M7 12.6h4.4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></g>
     <g id="i-gym"><path d="M3.5 9.5v5M6.5 7v10M17.5 7v10M20.5 9.5v5M6.5 12h11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></g>
     <g id="i-banquet"><path d="M3 20h18M5 20v-6a7 7 0 0114 0v6M12 7V4M9.5 4h5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></g>
@@ -888,6 +931,15 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
         <button data-lang-btn="hi">हिं</button>
       </div>
       <a href="admin.html" class="btn btn-outline btn-sm on-dark header-admin-btn">Admin</a>
+      <div class="notif-wrap" id="notifWrap" style="display:none;">
+        <button class="notif-bell" id="notifBellBtn" aria-label="Notifications" data-no-translate>
+          🔔<span class="notif-badge" id="notifBadge" style="display:none;">0</span>
+        </button>
+        <div class="notif-panel" id="notifPanel">
+          <div class="notif-panel-head">Notifications</div>
+          <div id="notifList"><p class="t-muted" style="font-size:12.5px; padding:14px;">Loading…</p></div>
+        </div>
+      </div>
       <button class="btn btn-primary btn-sm" id="navAuthBtn">Resident Login</button>
     </div>
   </div>
@@ -1201,7 +1253,7 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
             </div>
             <div class="field"><label for="fld-mobile-5">Mobile Number <i class="req">*</i></label>
               <input name="mobile" type="tel" inputmode="numeric" pattern="[6-9][0-9]{9}" maxlength="10" required placeholder="10-digit mobile" id="fld-mobile-5">
-              <div class="hint">Bina 0 ya +91 ke. 6, 7, 8 ya 9 se shuru hona chahiye.</div>
+              <div class="hint">Without a leading 0 or +91. Must start with 6, 7, 8, or 9.</div>
             </div>
             <div class="field"><label for="fld-email-6">Email <i class="req">*</i></label><input name="email" type="email" required id="fld-email-6"></div>
             <div class="field"><label for="fld-occupation-7">Occupation <i class="req">*</i></label><input name="occupation" required maxlength="100" id="fld-occupation-7"></div>
@@ -1213,7 +1265,6 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
               </select>
             </div>
           </div>
-          <div class="field"><label for="fld-address-9">Address <i class="req">*</i></label><textarea name="address" rows="2" required maxlength="500" id="fld-address-9"></textarea></div>
           <div class="form-2col">
             <div class="field"><label for="fld-nomineeName-10">Nominee Name <i class="req">*</i></label><input name="nomineeName" required maxlength="100" id="fld-nomineeName-10"></div>
             <div class="field"><label for="fld-nomineeRelation-11">Nominee Relation <i class="req">*</i></label><input name="nomineeRelation" required maxlength="60" id="fld-nomineeRelation-11"></div>
@@ -1228,20 +1279,20 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
           <div class="field">
             <label>Family Members <span class="t-muted" style="font-weight:400;">(optional — taaki unhe bhi wish kar sakein)</span></label>
             <div class="fm-editor" id="regFamilyEditor"></div>
-            <button type="button" class="btn btn-outline btn-sm fm-add-btn" id="regFamilyAdd">+ Family Member Jodein</button>
+            <button type="button" class="btn btn-outline btn-sm fm-add-btn" id="regFamilyAdd">+ Add Family Member</button>
           </div>
 
           <div class="field">
-            <label>Kya aapke paas pet hai?</label>
+            <label>Do you have a pet?</label>
             <div class="pet-toggle-row">
-              <label class="checkbox-row"><input type="radio" name="hasPet" value="yes" id="reg-hasPet-yes"> Haan</label>
-              <label class="checkbox-row"><input type="radio" name="hasPet" value="no" id="reg-hasPet-no" checked> Nahi</label>
+              <label class="checkbox-row"><input type="radio" name="hasPet" value="yes" id="reg-hasPet-yes"> Yes</label>
+              <label class="checkbox-row"><input type="radio" name="hasPet" value="no" id="reg-hasPet-no" checked> No</label>
             </div>
           </div>
           <div id="regPetsWrap" style="display:none;">
             <div class="pet-section-label" style="border-top:none; padding-top:0; margin-top:0;">Pet Registration</div>
             <div id="regPetsEditor"></div>
-            <button type="button" class="btn btn-outline btn-sm fm-add-btn" id="regPetAdd">+ Ek Aur Pet Jodein</button>
+            <button type="button" class="btn btn-outline btn-sm fm-add-btn" id="regPetAdd">+ Add Another Pet</button>
           </div>
         </fieldset>
 
@@ -1263,10 +1314,10 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
 
         <div class="final-only">
           <p class="t-muted" style="font-size:12px; line-height:1.6; margin-bottom:14px;">
-            🔒 Aapki jaankari (mobile, email, DOB, family details) sirf society ke committee members ko dikhti hai —
-            membership verify karne, maintenance calculate karne, aur birthday/anniversary wish karne ke liye. Kabhi public nahi hoti.
-            Flat bechte/khali karte waqt aap apna personal data erase karwa sakte hain.
-            <button type="button" class="link-btn" id="openPrivacyPolicyBtnReg">Poori Privacy Policy padhein</button>
+            🔒 Your information (mobile, email, DOB, family details) is visible only to the society's committee members —
+            for verifying membership, calculating maintenance, and sending birthday/anniversary wishes. It is never made public.
+            You can have your personal data erased when you sell or vacate your flat.
+            <button type="button" class="link-btn" id="openPrivacyPolicyBtnReg">Read the Full Privacy Policy</button>
           </p>
           <label class="checkbox-row" style="margin-bottom:20px;">
             <input type="checkbox" name="declaration" required>
@@ -1360,7 +1411,7 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
 <div class="modal-backdrop no-print" id="successModalBackdrop">
   <div class="modal" style="max-width:380px; text-align:center;">
     <div class="modal-body" id="successModalBody"></div>
-    <button class="btn btn-primary btn-block" id="successModalOk" style="margin-top:6px;">Theek hai</button>
+    <button class="btn btn-primary btn-block" id="successModalOk" style="margin-top:6px;">Got it</button>
   </div>
 </div>
 
@@ -1371,7 +1422,7 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
      form. Security rules are the real backstop either way. -->
 <div class="modal-backdrop no-print" id="profileModalBackdrop">
   <div class="modal">
-    <div class="modal-head"><h3 style="font-size:16.5px;">Apni Profile Edit Karein</h3><button class="icon-btn" id="closeProfileModal">✕</button></div>
+    <div class="modal-head"><h3 style="font-size:16.5px;">Edit Your Profile</h3><button class="icon-btn" id="closeProfileModal">✕</button></div>
     <div class="modal-body">
       <form id="profileEditForm">
         <div class="form-2col">
@@ -1379,7 +1430,6 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
           <div class="field"><label for="pf-email">Email</label><input name="email" id="pf-email" type="email" required></div>
         </div>
         <div class="field"><label for="pf-occupation">Occupation</label><input name="occupation" id="pf-occupation" maxlength="100"></div>
-        <div class="field"><label for="pf-address">Address</label><textarea name="address" id="pf-address" rows="2" maxlength="500"></textarea></div>
         <div class="form-2col">
           <div class="field"><label for="pf-nomineeName">Nominee Name</label><input name="nomineeName" id="pf-nomineeName" maxlength="100"></div>
           <div class="field"><label for="pf-nomineeRelation">Nominee Relation</label><input name="nomineeRelation" id="pf-nomineeRelation" maxlength="60"></div>
@@ -1391,10 +1441,10 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
         <div class="field">
           <label>Family Members <span class="t-muted" style="font-weight:400;">(optional — taaki unhe bhi wish kar sakein)</span></label>
           <div class="fm-editor" id="pfFamilyEditor"></div>
-          <button type="button" class="btn btn-outline btn-sm fm-add-btn" id="pfFamilyAdd">+ Family Member Jodein</button>
+          <button type="button" class="btn btn-outline btn-sm fm-add-btn" id="pfFamilyAdd">+ Add Family Member</button>
         </div>
-        <button class="btn btn-primary btn-block" type="submit">Save Karein</button>
-        <button type="button" class="link-btn" id="changePasswordBtn" style="display:block; text-align:center; margin-top:14px; width:100%;">Password Badlein</button>
+        <button class="btn btn-primary btn-block" type="submit">Save</button>
+        <button type="button" class="link-btn" id="changePasswordBtn" style="display:block; text-align:center; margin-top:14px; width:100%;">Change Password</button>
       </form>
     </div>
   </div>
@@ -1407,12 +1457,38 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
      two different pet forms with different fields. -->
 <div class="modal-backdrop no-print" id="petModalBackdrop">
   <div class="modal">
-    <div class="modal-head"><h3 style="font-size:16.5px;" id="petModalTitle">Pet Add Karein</h3><button class="icon-btn" id="closePetModal">✕</button></div>
+    <div class="modal-head"><h3 style="font-size:16.5px;" id="petModalTitle">Add Pet</h3><button class="icon-btn" id="closePetModal">✕</button></div>
     <div class="modal-body">
       <form id="petEditForm">
         <input type="hidden" id="pet-editing-id" value="">
         <div id="petModalEditor"></div>
-        <button class="btn btn-primary btn-block" type="submit">Save Karein</button>
+        <button class="btn btn-primary btn-block" type="submit">Save</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop no-print" id="complaintModalBackdrop">
+  <div class="modal">
+    <div class="modal-head"><h3 style="font-size:16.5px;">Raise a Complaint</h3><button class="icon-btn" id="closeComplaintModal">✕</button></div>
+    <div class="modal-body">
+      <form id="complaintForm">
+        <div class="field"><label for="cplt-category">Category</label>
+          <select name="category" id="cplt-category" required>
+            <option value="security">Security</option>
+            <option value="housekeeping">Housekeeping</option>
+            <option value="maintenance">Maintenance</option>
+            <option value="electrical">Electrical</option>
+            <option value="plumbing">Plumbing</option>
+            <option value="noise">Noise</option>
+            <option value="parking">Parking</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="field"><label for="cplt-title">Title</label><input name="title" id="cplt-title" required maxlength="200" placeholder="e.g. Lift not working in Tower B"></div>
+        <div class="field"><label for="cplt-desc">Description</label><textarea name="description" id="cplt-desc" required rows="4" maxlength="2000"></textarea></div>
+        <div class="field"><label for="cplt-photo">Photo <span class="t-muted" style="font-weight:400;">(optional)</span></label><input type="file" name="photo" id="cplt-photo" accept="image/*"></div>
+        <button class="btn btn-primary btn-block" type="submit">Submit Complaint</button>
       </form>
     </div>
   </div>
@@ -1425,12 +1501,12 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
   <div class="modal">
     <div class="modal-head"><h3 style="font-size:16.5px;">Privacy Policy</h3><button class="icon-btn" id="closePrivacyPolicyModal">✕</button></div>
     <div class="modal-body" style="font-size:13px; line-height:1.7;">
-      <p><b>Hum kya data lete hain:</b> Naam, mobile, email, address, photo, Date of Birth, Anniversary, family members ke naam/rishta/DOB, aur aapki payment history.</p>
-      <p><b>Kyun lete hain:</b> Membership verify karne, maintenance bill banane, gate/security ke liye photo ID, aur birthday/anniversary par wish karne ke liye.</p>
-      <p><b>Kaun dekh sakta hai:</b> Sirf society ke committee members (jo admin panel mein login karte hain) — kabhi public nahi dikhaya jaata. Aapka apna data sirf aapko aur committee ko dikhta hai.</p>
-      <p><b>Kitne time tak:</b> Jab tak aap society ke resident hain. Financial records (payment receipts) audit ke liye lambe samay tak rakhe jaate hain, jaisa kanoon maang karta hai.</p>
-      <p><b>Aapke adhikar:</b> Aap "My Profile" se apna data khud dekh/edit kar sakte hain. Flat bechte ya khali karte waqt, aap committee se apna personal data (mobile, email, family details, photo, ID) erase karwa sakte hain — sirf naam, flat number, aur financial history (audit ke liye zaroori) surakshit rehti hai.</p>
-      <p><b>Sawaal ho to:</b> Society office se sampark karein.</p>
+      <p><b>What data we collect:</b> Name, mobile, email, photo, Date of Birth, Anniversary, family members' names/relation/DOB, and your payment history.</p>
+      <p><b>Why we collect it:</b> To verify membership, generate maintenance bills, provide a photo ID for gate/security, and send birthday/anniversary wishes.</p>
+      <p><b>Who can see it:</b> Only the society's committee members (who log in to the admin panel) — it is never shown publicly. Your own data is visible only to you and the committee.</p>
+      <p><b>How long we keep it:</b> For as long as you're a resident of the society. Financial records (payment receipts) are kept longer for audit purposes, as required by law.</p>
+      <p><b>Your rights:</b> You can view/edit your own data from "My Profile". When you sell or vacate your flat, you can have the committee erase your personal data (mobile, email, family details, photo, ID) — only your name, flat number, and financial history (needed for audit) are retained.</p>
+      <p><b>Questions?</b> Please contact the society office.</p>
     </div>
   </div>
 </div>
@@ -1874,8 +1950,8 @@ function goToStepForField(form, field) { window.__goToStepForField(field); }
 // auth, so it stays here.
 document.getElementById('tabPayBtn').addEventListener('click', (e) => {
   e.preventDefault();
-  if (!currentUser) { showToast('Payment ke liye pehle login karein.', 'error'); window.__goToPortal('login'); return; }
-  if (currentMember?.status !== 'approved') { showToast('Aapka registration abhi approval ka intezaar kar raha hai.', 'error'); return; }
+  if (!currentUser) { showToast('Please log in to make a payment.', 'error'); window.__goToPortal('login'); return; }
+  if (currentMember?.status !== 'approved') { showToast('Your registration is still awaiting approval.', 'error'); return; }
   openPaymentModal();
 });
 
@@ -1888,15 +1964,15 @@ function setLoading(btn, loading) {
 }
 function friendlyAuthError(err) {
   const map = {
-    'auth/invalid-credential': 'Email ya password galat hai.',
-    'auth/wrong-password': 'Password galat hai.',
-    'auth/user-not-found': 'Is email se koi account nahi mila.',
-    'auth/email-already-in-use': 'Is email se pehle se account maujood hai.',
-    'auth/weak-password': 'Password bahut weak hai — kam se kam 6 characters rakhein.',
-    'auth/invalid-email': 'Email address sahi format mein nahi hai.',
-    'auth/too-many-requests': 'Bahut zyada attempts ho gaye. Thodi der baad try karein.'
+    'auth/invalid-credential': 'Incorrect email or password.',
+    'auth/wrong-password': 'Incorrect password.',
+    'auth/user-not-found': 'No account found with this email.',
+    'auth/email-already-in-use': 'An account with this email already exists.',
+    'auth/weak-password': 'Password is too weak — use at least 6 characters.',
+    'auth/invalid-email': 'Email address is not in a valid format.',
+    'auth/too-many-requests': 'Too many attempts. Please try again in a little while.'
   };
-  return map[err.code] || err.message || 'Kuch galat ho gaya, dobara try karein.';
+  return map[err.code] || err.message || 'Something went wrong — please try again.';
 }
 /**
  * Uploads a file and returns its URL, or null if the upload could not be made.
@@ -1975,7 +2051,6 @@ registerForm.addEventListener('submit', async (e) => {
       email,
       occupation: f.occupation.value.trim(),
       residentType: f.residentType.value,
-      address: f.address.value.trim(),
       nomineeName: f.nomineeName.value.trim(),
       nomineeRelation: f.nomineeRelation.value.trim(),
       // Optional — used only to send a birthday/anniversary wish; never required.
@@ -2013,11 +2088,11 @@ registerForm.addEventListener('submit', async (e) => {
     }
 
     if (f.photo.files[0] && !photoURL) {
-      showToast('Registration jama ho gaya, lekin photo upload nahi ho payi. Office se photo add karwa lein.', 'error');
+      showToast('Registration submitted, but the photo could not be uploaded. Please have the office add it.', 'error');
     } else if (petSaveFailed) {
-      showToast('Registration jama ho gaya, lekin pet details save nahi ho payi. Login karke "My Pets" se dobara add karein.', 'error');
+      showToast('Registration submitted, but the pet details could not be saved. Log in and add them again from "My Pets".', 'error');
     } else {
-      showSuccess('Registration ho gaya!', 'Admin approval ke baad aapki Member ID ban jayegi. Aap ab login kar sakte hain.');
+      showSuccess('Registration Complete!', 'Your Member ID will be generated once the committee approves your registration. You can log in now.');
     }
     f.reset();
     showTab('login');
@@ -2053,9 +2128,9 @@ loginForm.addEventListener('submit', async (e) => {
 });
 document.getElementById('forgotPasswordLink').addEventListener('click', async (e) => {
   e.preventDefault();
-  const email = prompt('Password reset link kis email par bhejein?');
+  const email = prompt('Send the reset link to which email?');
   if (!email) return;
-  try { await sendPasswordResetEmail(auth, email); showToast('Reset link bhej diya gaya hai — apna inbox check karein.', 'success'); }
+  try { await sendPasswordResetEmail(auth, email); showToast('Reset link sent — please check your inbox.', 'success'); }
   catch (err) { showToast(friendlyAuthError(err), 'error'); }
 });
 
@@ -2077,8 +2152,10 @@ onAuthStateChanged(auth, async (user) => {
     dash.style.display = 'block';
     dash.classList.remove('fade-in'); void dash.offsetWidth; dash.classList.add('fade-in');
     window.scrollTo(0, 0);
+    document.getElementById('notifWrap').style.display = 'block';
     await loadDashboard(user.uid);
-    loadPolls();
+    await loadPolls();
+    loadNotificationCenter();
   } else {
     window.__loggedIn = false;
     document.body.classList.remove('logged-in');
@@ -2087,6 +2164,8 @@ onAuthStateChanged(auth, async (user) => {
     navBtn.onclick = () => window.__goToPortal('login');
     portal.style.display = 'block';
     dash.style.display = 'none';
+    document.getElementById('notifWrap').style.display = 'none';
+    document.getElementById('notifPanel').classList.remove('open');
     loadPolls();
   }
 });
@@ -2111,10 +2190,10 @@ async function loadDashboard(uid) {
     snap = await getDoc(doc(db, 'members', uid));
   } catch (e) {
     console.warn('Profile read failed:', e?.code || e);
-    content.innerHTML = '<p class="t-muted">Profile abhi load nahi ho paaya — internet check karke page refresh karein.</p>';
+    content.innerHTML = '<p class="t-muted">Could not load your profile right now — check your connection and refresh the page.</p>';
     return;
   }
-  if (!snap.exists()) { content.innerHTML = '<p class="t-muted">Profile record nahi mila. Office se contact karein.</p>'; return; }
+  if (!snap.exists()) { content.innerHTML = '<p class="t-muted">Profile record not found. Please contact the office.</p>'; return; }
   currentMember = snap.data();
   document.getElementById('dashGreeting').textContent = `Welcome, ${currentMember.name.split(' ')[0]}`;
 
@@ -2126,9 +2205,9 @@ async function loadDashboard(uid) {
   };
 
   let statusExtra = '';
-  if (currentMember.status === 'pending') statusExtra = '<p class="t-sub" style="margin-top:12px; font-size:13.5px;">Aapka registration committee ke review mein hai. Approve hone par yahan Member ID dikhega.</p>';
-  if (currentMember.status === 'rejected') statusExtra = `<p class="t-danger" style="margin-top:12px; font-size:13.5px;">Reason: ${escapeHtml(currentMember.rejectionReason || 'Office se contact karein.')}</p>`;
-  if (currentMember.status === 'inactive') statusExtra = '<p class="t-sub" style="margin-top:12px; font-size:13.5px;">Aapki membership deactivate ki gayi hai. Query ke liye office se contact karein.</p>';
+  if (currentMember.status === 'pending') statusExtra = '<p class="t-sub" style="margin-top:12px; font-size:13.5px;">Your registration is under committee review. Your Member ID will appear here once approved.</p>';
+  if (currentMember.status === 'rejected') statusExtra = `<p class="t-danger" style="margin-top:12px; font-size:13.5px;">Reason: ${escapeHtml(currentMember.rejectionReason || 'Please contact the office.')}</p>`;
+  if (currentMember.status === 'inactive') statusExtra = '<p class="t-sub" style="margin-top:12px; font-size:13.5px;">Your membership has been deactivated. Please contact the office with any questions.</p>';
 
   content.className = 'stagger';
   content.innerHTML = `
@@ -2155,7 +2234,7 @@ async function loadDashboard(uid) {
         <div class="spread" style="margin:18px 0 16px; gap:10px; flex-wrap:wrap;">
           <h3 style="font-size:16px;">Payment History</h3>
           <div style="display:flex; gap:8px; flex-wrap:wrap;">
-            <button class="btn btn-outline btn-sm" id="downloadStatementBtn" title="Poore financial year ki receipts ek PDF mein">FY Statement</button>
+            <button class="btn btn-outline btn-sm" id="downloadStatementBtn" title="All receipts for the full financial year in one PDF">FY Statement</button>
             <button class="btn btn-primary btn-sm" id="openPaymentBtn">Make a Payment</button>
           </div>
         </div>
@@ -2179,15 +2258,22 @@ async function loadDashboard(uid) {
         </div>
         <div id="myPetsList"><p class="t-muted" style="font-size:13px;">Loading…</p></div>
       </div>
+      <div class="card card-pad">
+        <div class="spread" style="margin-bottom:12px;">
+          <h3 style="font-size:16px;">My Complaints</h3>
+          <button class="btn btn-outline btn-sm" id="raiseComplaintBtn">+ Raise Complaint</button>
+        </div>
+        <div id="myComplaintsList"><p class="t-muted" style="font-size:13px;">Loading…</p></div>
+      </div>
       ${(!currentMember.dob && !(currentMember.familyMembers && currentMember.familyMembers.length)) ? `
       <div class="card card-pad" style="grid-column:1/-1; background:var(--gold-glow,rgba(201,162,39,.08)); border-color:var(--gold-500,#C9A227);">
         <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
           <div style="font-size:22px;">🎂</div>
           <div style="flex:1; min-width:200px;">
-            <b style="font-size:13.5px;">Apna Birthday add karein!</b>
-            <div class="t-muted" style="font-size:12.5px; margin-top:2px;">Society aapko aur aapke family ko unke birthday/anniversary par WhatsApp par wish karegi — bas apni details bhar dein.</div>
+            <b style="font-size:13.5px;">Add Your Birthday!</b>
+            <div class="t-muted" style="font-size:12.5px; margin-top:2px;">The society will wish you and your family a happy birthday/anniversary on WhatsApp — just fill in your details.</div>
           </div>
-          <button class="btn btn-primary btn-sm" id="fillProfileNudgeBtn">Abhi Bharein</button>
+          <button class="btn btn-primary btn-sm" id="fillProfileNudgeBtn">Fill Now</button>
         </div>
       </div>` : ''}
     </div>` : ''}
@@ -2202,10 +2288,130 @@ async function loadDashboard(uid) {
     document.getElementById('editProfileBtn')?.addEventListener('click', openProfileModal);
     document.getElementById('fillProfileNudgeBtn')?.addEventListener('click', openProfileModal);
     document.getElementById('addPetBtn')?.addEventListener('click', () => openPetModal());
+    document.getElementById('raiseComplaintBtn')?.addEventListener('click', openComplaintModal);
     await loadPayments(uid);
     await loadMyPets(uid);
+    await loadMyComplaints(uid);
   }
 }
+
+/* ---- Notification Center --------------------------------------------
+   No stored notification log — writing one on every payment-verify,
+   complaint-update, etc. would mean touching a dozen admin-side functions
+   across two files for a resident-facing convenience feature. Instead this
+   derives "what's new" by comparing each item's own timestamp against
+   currentMember.notificationsLastSeenAt (a single field on the member's own
+   doc, which they already have write access to). Opening the bell just
+   advances that timestamp — nothing to mark as read one item at a time. */
+async function loadNotificationCenter() {
+  if (!currentUser || !currentMember) return;
+  const lastSeen = currentMember.notificationsLastSeenAt?.toMillis ? currentMember.notificationsLastSeenAt.toMillis() : 0;
+  // Once marked read, an item has no reason to keep showing forever — this
+  // caps how far back the panel looks at all, so it stays a "what's
+  // recently happened" list rather than accumulating every status change
+  // for the lifetime of the membership. Matters most on a brand-new
+  // resident's very first open, where lastSeen is 0 and would otherwise
+  // surface, say, a complaint resolved six months before this feature
+  // even existed.
+  const cutoff = Math.max(lastSeen, Date.now() - 14 * 86400000);
+  const items = [];
+  const toMs = (ts) => ts?.toMillis ? ts.toMillis() : (ts ? new Date(ts).getTime() : 0);
+
+  try {
+    const rows = (await getDocs(query(collection(db, 'payments'), where('memberUid', '==', currentUser.uid)))).docs.map(d => d.data());
+    rows.forEach(p => {
+      const t = toMs(p.verifiedAt) || toMs(p.updatedAt);
+      if (!t || t <= cutoff) return;
+      if (p.status === 'verified') items.push({ icon: '✅', text: `Payment of ${formatINR(p.amount)} was verified.`, time: t });
+      else if (p.status === 'rejected') items.push({ icon: '❌', text: `Payment of ${formatINR(p.amount)} was rejected${p.remarks ? `: ${p.remarks}` : '.'}`, time: t });
+    });
+  } catch (e) { console.warn('Notification payments check failed:', e?.code || e); }
+
+  try {
+    const rows = (await getDocs(query(collection(db, 'complaints'), where('raisedByUid', '==', currentUser.uid)))).docs.map(d => d.data());
+    rows.forEach(c => {
+      const t = toMs(c.updatedAt);
+      if (!t || t <= cutoff || !['resolved', 'in_progress', 'rejected', 'closed'].includes(c.status)) return;
+      items.push({ icon: '📋', text: `Complaint "${c.title}" is now ${COMPLAINT_STATUS_LABEL_R[c.status] || c.status}.`, time: t });
+    });
+  } catch (e) { console.warn('Notification complaints check failed:', e?.code || e); }
+
+  try {
+    const rows = (await getDocs(query(collection(db, 'notices'), orderBy('postedAt', 'desc'), limit(5)))).docs.map(d => d.data());
+    rows.forEach(n => {
+      const t = toMs(n.postedAt);
+      if (t && t > cutoff) items.push({ icon: '📢', text: `New notice: ${n.titleEn}`, time: t });
+    });
+  } catch (e) { console.warn('Notification notices check failed:', e?.code || e); }
+
+  (window.__activePolls || []).forEach(p => {
+    const end = toMs(p.endTime);
+    const daysLeft = (end - Date.now()) / 86400000;
+    // Not gated on lastSeen — an ending-soon poll should keep surfacing
+    // every visit until it closes, not just the first time it qualifies.
+    if (daysLeft >= 0 && daysLeft <= 3) {
+      items.push({ icon: '🗳️', text: `Poll "${p.question}" closes in ${daysLeft < 1 ? 'under a day' : Math.ceil(daysLeft) + ' day' + (Math.ceil(daysLeft) === 1 ? '' : 's')}.`, time: Date.now() });
+    }
+  });
+
+  items.sort((a, b) => b.time - a.time);
+  window.__notificationItems = items;
+  renderNotificationBell(items, lastSeen);
+}
+
+function renderNotificationBell(items, lastSeen) {
+  const unreadCount = items.filter(i => i.time > lastSeen).length;
+  const badge = document.getElementById('notifBadge');
+  if (unreadCount > 0) { badge.textContent = unreadCount > 9 ? '9+' : String(unreadCount); badge.style.display = 'grid'; }
+  else { badge.style.display = 'none'; }
+
+  const list = document.getElementById('notifList');
+  if (!items.length) {
+    list.innerHTML = '<p class="t-muted" style="font-size:12.5px; padding:14px;">Nothing new right now.</p>';
+    return;
+  }
+  list.innerHTML = items.map(i => `
+    <div class="notif-item">
+      <span class="notif-icon">${i.icon}</span>
+      <span class="notif-text">${escapeHtml(i.text)}<span class="notif-time">${fmtRelativeTime(i.time)}</span></span>
+    </div>`).join('');
+}
+
+// A short, human "3h ago" / "2d ago" style stamp — a full date is more than
+// this list needs, and a relative stamp makes "what's new since I last
+// looked" obvious at a glance.
+function fmtRelativeTime(ms) {
+  const diff = Date.now() - ms;
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 7) return `${days}d ago`;
+  return new Date(ms).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+}
+
+document.getElementById('notifBellBtn')?.addEventListener('click', async (e) => {
+  e.stopPropagation();
+  const panel = document.getElementById('notifPanel');
+  const wasOpen = panel.classList.contains('open');
+  panel.classList.toggle('open');
+  if (!wasOpen && currentUser && currentMember) {
+    // Opening the panel is the "mark as read" action — advance the
+    // watermark to now, so everything currently listed stops counting as
+    // unread on the next load, without needing a per-item read flag.
+    try {
+      await updateDoc(doc(db, 'members', currentUser.uid), { notificationsLastSeenAt: serverTimestamp() });
+      currentMember.notificationsLastSeenAt = { toMillis: () => Date.now() };
+      document.getElementById('notifBadge').style.display = 'none';
+    } catch (err) { console.warn('Could not update notification watermark:', err?.code || err); }
+  }
+});
+document.addEventListener('click', (e) => {
+  const wrap = document.getElementById('notifWrap');
+  if (wrap && !wrap.contains(e.target)) document.getElementById('notifPanel')?.classList.remove('open');
+});
 
 /* My Pets — every pet this resident owns, with a vaccination-status colour
    so an overdue or soon-due pet doesn't need opening the edit modal just to
@@ -2221,7 +2427,7 @@ async function loadMyPets(uid) {
     renderMyPets();
   } catch (e) {
     console.warn('Pets load failed:', e?.code || e);
-    el.innerHTML = emptyState('Pets load nahi hue', 'Page refresh karke dobara try karein.', { compact: true });
+    el.innerHTML = emptyState('Could not load pets', 'Please refresh the page and try again.', { compact: true });
     window.__translate(el);
   }
 }
@@ -2230,18 +2436,18 @@ function renderMyPets() {
   const el = document.getElementById('myPetsList');
   const rows = window.__myPets || [];
   if (!rows.length) {
-    el.innerHTML = '<p class="t-muted" style="font-size:13px;">Abhi koi pet register nahi hai.</p>';
+    el.innerHTML = '<p class="t-muted" style="font-size:13px;">No pets registered yet.</p>';
     return;
   }
   el.innerHTML = rows.map((pet, i) => {
     const st = petVaccinationStatus(pet);
     const vaxNote = st.status === 'overdue'
-      ? `<span style="color:var(--danger,#C0392B);">Vaccination ${Math.abs(st.daysUntil)} din overdue</span>`
+      ? `<span style="color:var(--danger,#C0392B);">Vaccination overdue by ${Math.abs(st.daysUntil)} day${Math.abs(st.daysUntil) === 1 ? '' : 's'}</span>`
       : st.status === 'due_soon'
-      ? `<span style="color:var(--gold-700,#8F7115);">Vaccination ${st.daysUntil} din mein due</span>`
+      ? `<span style="color:var(--gold-700,#8F7115);">Vaccination due in ${st.daysUntil} day${st.daysUntil === 1 ? '' : 's'}</span>`
       : st.status === 'fine'
-      ? `Vaccination ${st.daysUntil} din mein due`
-      : 'Vaccination date set nahi hai';
+      ? `Vaccination due in ${st.daysUntil} day${st.daysUntil === 1 ? '' : 's'}`
+      : 'Vaccination date not set';
     return `
     <div class="detail-line" style="align-items:flex-start;">
       <span>${PET_ICON[pet.species] || '🐾'} <b>${escapeHtml(pet.name)}</b><br><span class="t-muted" style="font-size:12px;">${vaxNote}</span></span>
@@ -2255,7 +2461,7 @@ function openPetModal(petId = null) {
   const editor = document.getElementById('petModalEditor');
   const existing = petId ? (window.__myPets || []).find(p => p.id === petId) : null;
   document.getElementById('pet-editing-id').value = petId || '';
-  document.getElementById('petModalTitle').textContent = existing ? 'Pet Edit Karein' : 'Pet Add Karein';
+  document.getElementById('petModalTitle').textContent = existing ? 'Edit Pet' : 'Add Pet';
   initPetsEditor(editor, existing ? [existing] : [{}]);
   document.getElementById('petModalBackdrop').classList.add('open');
 }
@@ -2268,27 +2474,127 @@ document.getElementById('petEditForm')?.addEventListener('submit', async (e) => 
   const editor = document.getElementById('petModalEditor');
   const editingId = document.getElementById('pet-editing-id').value;
   const pets = collectPets(editor);
-  if (!pets.length) { showToast('Pet ka naam aur species zaroori hai.', 'error'); return; }
+  if (!pets.length) { showToast('Pet name and species are required.', 'error'); return; }
   const pet = pets[0];
   btn.disabled = true;
   try {
     if (editingId) {
       await updateDoc(doc(db, 'pets', editingId), { ...pet, updatedAt: serverTimestamp() });
-      showToast('Pet details update ho gayi.', 'success');
+      showToast('Pet details updated.', 'success');
     } else {
       await addDoc(collection(db, 'pets'), {
         ...pet, ownerUid: currentUser.uid, ownerName: currentMember.name,
         tower: currentMember.tower, flatNumber: currentMember.flatNumber,
         createdAt: serverTimestamp(), updatedAt: serverTimestamp()
       });
-      showToast('Pet add ho gaya.', 'success');
+      showToast('Pet added.', 'success');
     }
     document.getElementById('petModalBackdrop').classList.remove('open');
     await loadMyPets(currentUser.uid);
   } catch (err) {
     console.error('Save pet failed:', err);
     const code = err?.code || '';
-    showToast(`Pet save nahi ho paaya${code ? ` (${code})` : ''}.`, 'error');
+    showToast(`Could not save pet${code ? ` (${code})` : ''}.`, 'error');
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+/* ---- My Complaints ---------------------------------------------------
+   A resident's own tickets, newest first. Once resolved/closed, a
+   satisfaction rating can be added — exactly once, exactly that one field —
+   which firestore.rules enforces via diff().affectedKeys(), not just this
+   UI choosing not to show the stars again after they're set. */
+const COMPLAINT_CATEGORY_LABEL_R = {
+  security: 'Security', housekeeping: 'Housekeeping', maintenance: 'Maintenance',
+  electrical: 'Electrical', plumbing: 'Plumbing', noise: 'Noise', parking: 'Parking', other: 'Other'
+};
+const COMPLAINT_STATUS_LABEL_R = { open: 'Open', in_progress: 'In Progress', resolved: 'Resolved', closed: 'Closed', rejected: 'Rejected' };
+async function loadMyComplaints(uid) {
+  const el = document.getElementById('myComplaintsList');
+  if (!el) return;
+  try {
+    const rows = (await getDocs(query(collection(db, 'complaints'), where('raisedByUid', '==', uid)))).docs.map(d => ({ id: d.id, ...d.data() }));
+    rows.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+    window.__myComplaints = rows;
+    renderMyComplaints();
+  } catch (e) {
+    console.warn('Complaints load failed:', e?.code || e);
+    el.innerHTML = emptyState('Could not load complaints', 'Please refresh the page and try again.', { compact: true });
+    window.__translate(el);
+  }
+}
+function renderMyComplaints() {
+  const el = document.getElementById('myComplaintsList');
+  const rows = window.__myComplaints || [];
+  if (!rows.length) {
+    el.innerHTML = '<p class="t-muted" style="font-size:13px;">No complaints yet.</p>';
+    return;
+  }
+  el.innerHTML = rows.map((c, i) => {
+    const canRate = ['resolved', 'closed'].includes(c.status) && !c.satisfactionRating;
+    return `
+    <div class="detail-line" style="align-items:flex-start; flex-direction:column; gap:4px; padding:10px 0;">
+      <div class="spread" style="width:100%;">
+        <span><b>${escapeHtml(c.title)}</b> <span class="t-muted" style="font-size:11.5px;">(${escapeHtml(COMPLAINT_CATEGORY_LABEL_R[c.category] || c.category)})</span></span>
+        <span class="t-muted" style="font-size:12px;">${escapeHtml(COMPLAINT_STATUS_LABEL_R[c.status] || c.status)}</span>
+      </div>
+      ${c.resolutionNote ? `<p class="t-muted" style="font-size:12px; margin:0;">${escapeHtml(c.resolutionNote)}</p>` : ''}
+      ${c.satisfactionRating ? `<div style="font-size:13px;">${'⭐'.repeat(c.satisfactionRating)}</div>` :
+        canRate ? `<div class="cplt-rate-row" data-rate-complaint="${i}">Rate: ${[1,2,3,4,5].map(n => `<button type="button" class="cplt-star" data-star="${n}">☆</button>`).join('')}</div>` : ''}
+    </div>`;
+  }).join('');
+  window.__translate(el);
+  el.querySelectorAll('[data-rate-complaint]').forEach(row => {
+    const complaint = rows[Number(row.dataset.rateComplaint)];
+    row.querySelectorAll('[data-star]').forEach(starBtn => {
+      starBtn.addEventListener('click', () => submitComplaintRating(complaint.id, Number(starBtn.dataset.star)));
+    });
+  });
+}
+async function submitComplaintRating(complaintId, rating) {
+  try {
+    await updateDoc(doc(db, 'complaints', complaintId), { satisfactionRating: rating, updatedAt: serverTimestamp() });
+    showToast('Thank you! Your rating has been recorded.', 'success');
+    await loadMyComplaints(currentUser.uid);
+  } catch (err) {
+    console.error('Submit rating failed:', err);
+    const code = err?.code || '';
+    showToast(`Could not save rating${code ? ` (${code})` : ''}.`, 'error');
+  }
+}
+
+function openComplaintModal() {
+  document.getElementById('complaintForm')?.reset();
+  document.getElementById('complaintModalBackdrop').classList.add('open');
+}
+document.getElementById('closeComplaintModal')?.addEventListener('click', () =>
+  document.getElementById('complaintModalBackdrop').classList.remove('open'));
+
+document.getElementById('complaintForm')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const f = e.target;
+  const btn = f.querySelector('button[type="submit"]');
+  const title = f.title.value.trim();
+  const description = f.description.value.trim();
+  if (!title || !description) return showToast('Title and description are required.', 'error');
+  btn.disabled = true;
+  try {
+    let photoURL = '';
+    if (f.photo.files[0]) photoURL = await uploadFile(`complaintPhotos/${currentUser.uid}/complaint_${Date.now()}`, f.photo.files[0]);
+    await addDoc(collection(db, 'complaints'), {
+      raisedByUid: currentUser.uid, raisedByName: currentMember.name,
+      tower: currentMember.tower, flatNumber: currentMember.flatNumber,
+      category: f.category.value, title, description, photoURL,
+      status: 'open', createdAt: serverTimestamp(), updatedAt: serverTimestamp()
+    });
+    showToast('Complaint submitted. The committee will review it shortly.', 'success');
+    document.getElementById('complaintModalBackdrop').classList.remove('open');
+    await loadMyComplaints(currentUser.uid);
+  } catch (err) {
+    console.error('Submit complaint failed:', err);
+    const code = err?.code || '';
+    showToast(`Could not submit complaint${code ? ` (${code})` : ''}.`, 'error');
   } finally {
     btn.disabled = false;
   }
@@ -2305,7 +2611,6 @@ function openProfileModal() {
   f.mobile.value = currentMember.mobile || '';
   f.email.value = currentMember.email || '';
   f.occupation.value = currentMember.occupation || '';
-  f.address.value = currentMember.address || '';
   f.nomineeName.value = currentMember.nomineeName || '';
   f.nomineeRelation.value = currentMember.nomineeRelation || '';
   f.dob.value = currentMember.dob || '';
@@ -2324,7 +2629,7 @@ document.getElementById('profileEditForm')?.addEventListener('submit', async (e)
   const btn = f.querySelector('button[type="submit"]');
   const patch = {
     mobile: f.mobile.value.trim(), email: f.email.value.trim(),
-    occupation: f.occupation.value.trim(), address: f.address.value.trim(),
+    occupation: f.occupation.value.trim(),
     nomineeName: f.nomineeName.value.trim(), nomineeRelation: f.nomineeRelation.value.trim(),
     dob: f.dob.value || null, anniversary: f.anniversary.value || null,
     familyMembers: collectFamilyMembers(document.getElementById('pfFamilyEditor')),
@@ -2334,13 +2639,13 @@ document.getElementById('profileEditForm')?.addEventListener('submit', async (e)
   try {
     await updateDoc(doc(db, 'members', currentUser.uid), patch);
     Object.assign(currentMember, patch);
-    showToast('Profile update ho gayi.', 'success');
+    showToast('Profile updated.', 'success');
     document.getElementById('profileModalBackdrop').classList.remove('open');
     await loadDashboard(currentUser.uid);
   } catch (err) {
     console.error('Profile update failed:', err);
     const code = err?.code || '';
-    showToast(`Profile save nahi ho payi${code ? ` (${code})` : ''}.`, 'error');
+    showToast(`Could not save profile${code ? ` (${code})` : ''}.`, 'error');
   } finally {
     btn.disabled = false;
   }
@@ -2358,11 +2663,11 @@ document.getElementById('changePasswordBtn')?.addEventListener('click', async (e
   btn.disabled = true;
   try {
     await sendPasswordResetEmail(auth, currentUser.email);
-    showToast(`Password reset link ${currentUser.email} par bhej diya gaya hai.`, 'success');
+    showToast(`Password reset link sent to ${currentUser.email}.`, 'success');
   } catch (err) {
     console.error('Password reset email failed:', err);
     const code = err?.code || '';
-    showToast(`Reset link nahi bhej paaye${code ? ` (${code})` : ''}.`, 'error');
+    showToast(`Could not send reset link${code ? ` (${code})` : ''}.`, 'error');
   } finally {
     btn.disabled = false;
   }
@@ -2376,7 +2681,7 @@ async function downloadStatement(e) {
   const fy = currentFinancialYear();
   const verified = allPaymentRows.filter(p => p.status === 'verified' && p.financialYear === fy);
   if (!verified.length) {
-    showToast(`FY ${fy} mein koi verified payment nahi hai — statement banane ke liye kam se kam ek chahiye.`, 'error');
+    showToast(`No verified payments found for FY ${fy} — at least one is needed to generate a statement.`, 'error');
     return;
   }
   setLoading(btn, true);
@@ -2388,7 +2693,7 @@ async function downloadStatement(e) {
     await generateStatementPDF({ payments: allPaymentRows, member: currentMember, society, financialYear: fy, logoDataUrl });
   } catch (err) {
     console.error(err);
-    showToast('Statement nahi ban paaya. Dobara try karein.', 'error');
+    showToast('Could not generate statement. Please try again.', 'error');
   } finally {
     setLoading(btn, false);
   }
@@ -2402,7 +2707,7 @@ async function downloadCard() {
   // strict corporate proxy stopped them, every later call throws a cryptic
   // destructure error — so check up front and say so plainly.
   if (!window.jspdf || !window.jspdf.jsPDF) {
-    showToast('PDF library load nahi hui — internet check karein ya page refresh karke dobara try karein.', 'error');
+    showToast('PDF library failed to load — check your connection or refresh the page and try again.', 'error');
     return;
   }
 
@@ -2448,7 +2753,7 @@ async function downloadCard() {
     console.error('Membership card error:', e);
     // Show the real reason so a recurring failure is diagnosable, not silent.
     const detail = (e && e.message) ? ` (${e.message})` : '';
-    showToast('Card banane mein dikkat aayi' + detail + '. Dobara try karein.', 'error');
+    showToast('There was a problem creating the card' + detail + '. Please try again.', 'error');
   } finally {
     setLoading(btn, false);
     btn.textContent = 'Download Membership Card';
@@ -2476,7 +2781,7 @@ function renderDues(dues, financialYear) {
     el.innerHTML = `<div class="dues-box"><div class="dues-head">
       <div><div class="lbl">Maintenance &middot; FY ${escapeHtml(financialYear)}</div>
       <div style="font-size:13.5px; color:var(--ink-600); margin-top:4px;">
-        Committee ne abhi is saal ka rate set nahi kiya hai.</div></div>
+        The committee hasn't set a rate for this year yet.</div></div>
     </div></div>`;
     window.__translate?.(el);
     return;
@@ -2554,7 +2859,7 @@ async function loadPayments(uid) {
     rows = [];
     // This is the resident's own money — if we can't load it, say so rather
     // than silently showing "no payments" as if that were the true answer.
-    showToast(`Aapki payment history load nahi ho payi${e?.code ? ` (${e.code})` : ''} — page refresh karke dobara try karein.`, 'error');
+    showToast(`Could not load your payment history${e?.code ? ` (${e.code})` : ''} — please refresh the page and try again.`, 'error');
   }
   allPaymentRows = rows;   // kept for the statement button
 
@@ -2567,7 +2872,7 @@ async function loadPayments(uid) {
   renderDues(currentDues, currentFinancialYear());
 
   if (!rows.length) {
-    list.innerHTML = emptyState('Abhi tak koi payment nahi', 'Aapke verified payments aur receipts yahan dikhenge.', { compact: true });
+    list.innerHTML = emptyState('No payments yet', 'Your verified payments and receipts will appear here.', { compact: true });
     window.__translate(list); return;
   }
 
@@ -2612,7 +2917,7 @@ async function loadPayments(uid) {
     const note = document.createElement('div');
     note.className = 't-muted';
     note.style.cssText = 'font-size:12px; text-align:center; padding:12px 0 2px;';
-    note.textContent = `${listRows.length} recent dikha rahe hain · poori history ke liye "FY Statement" download karein`;
+    note.textContent = `Showing ${listRows.length} recent — download "FY Statement" for the full history`;
     list.appendChild(note);
   }
 
@@ -2641,7 +2946,7 @@ async function loadPayments(uid) {
       try {
         const { society, logoDataUrl } = await loadReceiptContext();
         await generateReceiptPDF({ payment, member: currentMember, society, logoDataUrl });
-      } catch (e) { showToast('Receipt banane mein dikkat aayi.', 'error'); }
+      } catch (e) { showToast('There was a problem creating the receipt.', 'error'); }
       finally { setLoading(btn, false); btn.textContent = 'Download PDF'; }
     });
   });
@@ -2653,7 +2958,7 @@ async function loadPayments(uid) {
       try {
         const { society, logoDataUrl } = await loadReceiptContext();
         await printReceipt({ payment, member: currentMember, society, logoDataUrl });
-      } catch (e) { showToast('Print view taiyaar nahi ho paaya.', 'error'); }
+      } catch (e) { showToast('Could not prepare the print view.', 'error'); }
       finally { setLoading(btn, false); btn.textContent = 'Print'; }
     });
   });
@@ -2667,15 +2972,27 @@ async function openPaymentModal() {
   // nothing to forget, and the answer can never disagree with what the
   // resident's own payment history further down the dashboard already shows.
   const alreadyPending = allPaymentRows.some(p => p.status === 'pending_approval' || p.status === 'pending_verification');
-  if (alreadyPending) { showToast('Aapka ek payment pehle se pending hai — nayi entry ki zaroorat nahi.', 'error'); return; }
+  if (alreadyPending) { showToast('You already have a pending payment — no need for a new entry.', 'error'); return; }
 
   let paySettings;
   try {
-    const paySettingsSnap = await getDoc(doc(db, 'settings', 'payment'));
-    paySettings = paymentDetails(paySettingsSnap.exists() ? paySettingsSnap.data() : {});
+    // Two documents: settings/payment (public) and settings/paymentPrivate
+    // (account number / IFSC / branch — readable here because paying is
+    // only reachable once signed in as an approved resident, which is
+    // exactly the audience paymentPrivate's rule allows).
+    const [paySettingsSnap, privSnap] = await Promise.all([
+      getDoc(doc(db, 'settings', 'payment')),
+      getDoc(doc(db, 'settings', 'paymentPrivate'))
+    ]);
+    paySettings = paymentDetails({
+      ...(paySettingsSnap.exists() ? paySettingsSnap.data() : {}),
+      ...(privSnap.exists() ? privSnap.data() : {})
+    });
   } catch (e) {
-    // Fall back to the built-in society bank defaults so the modal still shows
-    // usable account details even if the settings read fails.
+    // Fall back to whatever PAYMENT_DEFAULTS provides (society name/bank
+    // only — account number and IFSC are deliberately not baked into this
+    // file, so this path shows an incomplete-but-safe set of fields rather
+    // than a fake-looking account, if the settings read itself fails).
     console.warn('Payment settings read failed, using defaults:', e?.code || e);
     paySettings = paymentDetails({});
   }
@@ -2708,14 +3025,14 @@ async function openPaymentModal() {
 
   const membershipHtml = `
     <div class="invoice-card">
-      <div class="invoice-head"><span class="lbl">One-Time Membership Fee</span><span class="fy">Ek baar</span></div>
+      <div class="invoice-head"><span class="lbl">One-Time Membership Fee</span><span class="fy">One-time</span></div>
       <div class="invoice-rows">
         ${membership.paid > 0
           ? `<div class="r"><span class="muted">Membership fee</span><span>${formatINR(membership.fee)}</span></div>
-             <div class="r"><span class="muted">Ab tak jama (verified)</span><span class="paid">− ${formatINR(membership.paid)}</span></div>` : ''}
+             <div class="r"><span class="muted">Paid so far (verified)</span><span class="paid">− ${formatINR(membership.paid)}</span></div>` : ''}
         ${membershipPending
-          ? `<div class="r total"><span>Membership fee ${membership.paid > 0 ? 'bakaya' : 'dena hai'}</span><span class="owe">${formatINR(membership.outstanding)}</span></div>`
-          : `<div class="invoice-clear"><span class="tick">✓ Membership fee (${formatINR(membership.fee)}) clear hai</span></div>`}
+          ? `<div class="r total"><span>Membership fee ${membership.paid > 0 ? 'balance due' : 'due'}</span><span class="owe">${formatINR(membership.outstanding)}</span></div>`
+          : `<div class="invoice-clear"><span class="tick">✓ Membership fee (${formatINR(membership.fee)}) cleared</span></div>`}
       </div>
     </div>`;
 
@@ -2723,16 +3040,16 @@ async function openPaymentModal() {
     <div class="invoice-card">
       <div class="invoice-head"><span class="lbl">Maintenance Invoice</span><span class="fy">FY ${escapeHtml(fy)}</span></div>
       <div class="invoice-rows">
-        <div class="r"><span class="muted">Flat ${escapeHtml(currentMember.flatNumber)} · Tower ${escapeHtml(currentMember.tower)} ka charge</span><span>${formatINR(dues.expected)}</span></div>
-        <div class="r"><span class="muted">Ab tak jama (verified)</span><span class="paid">− ${formatINR(dues.paid)}</span></div>
+        <div class="r"><span class="muted">Flat ${escapeHtml(currentMember.flatNumber)} · Tower ${escapeHtml(currentMember.tower)} charge</span><span>${formatINR(dues.expected)}</span></div>
+        <div class="r"><span class="muted">Paid so far (verified)</span><span class="paid">− ${formatINR(dues.paid)}</span></div>
         ${dues.outstanding > 0
-          ? `<div class="r total"><span>Bakaya (Outstanding)</span><span class="owe">${formatINR(dues.outstanding)}</span></div>`
-          : `<div class="invoice-clear"><span class="tick">✓ FY ${escapeHtml(fy)} ka poora maintenance clear hai</span></div>`}
+          ? `<div class="r total"><span>Outstanding</span><span class="owe">${formatINR(dues.outstanding)}</span></div>`
+          : `<div class="invoice-clear"><span class="tick">✓ FY ${escapeHtml(fy)} maintenance fully cleared</span></div>`}
       </div>
     </div>` : `
     <div class="invoice-card">
       <div class="invoice-head"><span class="lbl">Maintenance Invoice</span><span class="fy">FY ${escapeHtml(fy)}</span></div>
-      <div class="invoice-rows"><div class="r"><span class="muted">Is saal ke liye rate abhi set nahi hua — koi bhi rakam de sakte hain.</span></div></div>
+      <div class="invoice-rows"><div class="r"><span class="muted">Rate not set for this year yet — you can pay any amount.</span></div></div>
     </div>`;
 
   // When membership is still due, let the resident choose which one they are
@@ -2744,8 +3061,8 @@ async function openPaymentModal() {
       <div class="invoice-rows">
         ${ed.paid > 0
           ? `<div class="r"><span class="muted">Event fee</span><span>${formatINR(ed.fee)}</span></div>
-             <div class="r"><span class="muted">Ab tak jama (verified)</span><span class="paid">− ${formatINR(ed.paid)}</span></div>` : ''}
-        <div class="r total"><span>Dena hai</span><span class="owe">${formatINR(ed.outstanding)}</span></div>
+             <div class="r"><span class="muted">Paid so far (verified)</span><span class="paid">− ${formatINR(ed.paid)}</span></div>` : ''}
+        <div class="r total"><span>Amount Due</span><span class="owe">${formatINR(ed.outstanding)}</span></div>
       </div>
     </div>`).join('');
 
@@ -2825,7 +3142,7 @@ function renderPayDetailForm(mode, paySettings, payContext) {
             <img src="${paySettings.qrCodeImageURL}" alt="Payment QR">
             <button type="button" class="qr-download-btn" id="qrDownloadBtn">
               <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 4v11m0 0l-4-4m4 4l4-4M5 19h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              QR Download karein
+              Download QR
             </button>
           ` : '<p class="t-muted" style="font-size:12.5px; margin-bottom:8px;">QR not configured yet — use the details below.</p>'}
           ${paySettings.upiId ? `<div style="font-size:13.4px; margin-bottom:6px;"><b>UPI ID:</b> ${escapeHtml(paySettings.upiId)}</div>` : ''}
@@ -2841,14 +3158,14 @@ function renderPayDetailForm(mode, paySettings, payContext) {
       `}
       <div class="amount-block">
         ${dues.outstanding > 0 ? `
-          <label style="display:block; font-size:11px; font-family:var(--font-mono); letter-spacing:.06em; text-transform:uppercase; color:var(--ink-400); margin-bottom:8px;">Kitna pay karna hai?</label>
+          <label style="display:block; font-size:11px; font-family:var(--font-mono); letter-spacing:.06em; text-transform:uppercase; color:var(--ink-400); margin-bottom:8px;">How much would you like to pay?</label>
           <div class="amount-presets">
             <button type="button" class="amount-preset selected" data-preset="full" data-amt="${dues.outstanding}">
-              <div class="pa-top">Poora bakaya</div>
+              <div class="pa-top">Full amount due</div>
               <div class="pa-amt">${formatINR(dues.outstanding)}</div>
             </button>
             <button type="button" class="amount-preset" data-preset="custom">
-              <div class="pa-top">Alag rakam</div>
+              <div class="pa-top">Different amount</div>
               <div class="pa-amt">Choose</div>
             </button>
           </div>
@@ -2858,8 +3175,8 @@ function renderPayDetailForm(mode, paySettings, payContext) {
           <input type="number" id="payAmount" min="1" required inputmode="numeric"
                  value="${dues.outstanding > 0 ? dues.outstanding : ''}">
           ${dues.outstanding > 0
-            ? `<div class="hint">Poore bakaye se kam bhi de sakte hain — baaki rakam outstanding dikhti rahegi.</div>`
-            : (hasRate ? `<div class="hint">Is saal ka maintenance clear hai. Aap advance ya koi aur payment de sakte hain.</div>` : '')}
+            ? `<div class="hint">You can pay less than the full amount due — the remainder will stay outstanding.</div>`
+            : (hasRate ? `<div class="hint">Maintenance is fully cleared for this year. You can pay in advance or make another payment.</div>` : '')}
         </div>
       </div>
       ${!isOffline ? `<div class="field"><label for="payUtr">UTR / Transaction ID</label><input id="payUtr" required autocapitalize="characters"></div>
@@ -2867,8 +3184,8 @@ function renderPayDetailForm(mode, paySettings, payContext) {
       <button class="btn btn-primary btn-block" id="submitPaymentBtn">${isOffline ? 'Submit — I Will Pay at Office' : 'I Have Paid'}</button>
     </div>
   `;
-  // Preset toggle: "Poora bakaya" locks the amount to the outstanding figure;
-  // "Alag rakam" reveals the editable field. Locking is the default so the
+  // Preset toggle: "Full amount due" locks the amount to the outstanding figure;
+  // "Different amount" reveals the editable field. Locking is the default so the
   // common case — pay exactly what you owe — is one tap with no typing.
   const presets = holder.querySelectorAll('.amount-preset');
   const amtWrap = document.getElementById('amountFieldWrap');
@@ -2900,7 +3217,7 @@ function renderPayDetailForm(mode, paySettings, payContext) {
       try {
         await downloadImageFromUrl(paySettings.qrCodeImageURL, `${SOCIETY.shortName || 'Society'}-Payment-QR.png`);
       } catch (e) {
-        showToast('QR download nahi ho payi — screenshot le lein.', 'error');
+        showToast('Could not download the QR — please take a screenshot instead.', 'error');
       } finally {
         qrBtn.disabled = false;
         qrBtn.innerHTML = original;
@@ -2928,7 +3245,7 @@ async function submitPayment(mode) {
   // An online payment write will just fail on a dropped connection — say so
   // clearly instead of letting it surface as a generic error after a wait.
   if (window.__isOffline && window.__isOffline()) {
-    showToast('Aap offline hain — payment submit karne ke liye internet zaroori hai. Network aane par dobara try karein.', 'error');
+    showToast('You are offline — an internet connection is needed to submit a payment. Please try again once you are back online.', 'error');
     return;
   }
 
@@ -2941,7 +3258,7 @@ async function submitPayment(mode) {
         proofURL = await uploadFile(`paymentProofs/${currentUser.uid}/${Date.now()}`, proofFile);
         // The UTR is what the Treasurer actually verifies against, so a
         // missing screenshot must never stop the payment being recorded.
-        if (!proofURL) showToast('Screenshot upload nahi hui, par payment record ho gayi. UTR se verify ho jayega.', 'error');
+        if (!proofURL) showToast('Screenshot upload failed, but the payment was recorded. It will be verified against the UTR.', 'error');
       }
     }
     await addDoc(collection(db, 'payments'), {
@@ -2966,12 +3283,12 @@ async function submitPayment(mode) {
       submittedAt: serverTimestamp()
     });
     document.getElementById('paymentModalBackdrop').classList.remove('open');
-    showSuccess('Payment ho gaya!', isOffline
-      ? 'Aapka payment record ho gaya. Office confirm karne ke baad receipt milega.'
-      : 'Aapka payment submit ho gaya. Verify hone ke baad receipt milega.');
+    showSuccess('Payment Recorded!', isOffline
+      ? 'Your payment has been recorded. You will get a receipt once the office confirms it.'
+      : 'Your payment has been submitted. You will get a receipt once it is verified.');
     await loadPayments(currentUser.uid);
   } catch (e) {
-    showToast('Kuch galat ho gaya, dobara try karein.', 'error');
+    showToast('Something went wrong — please try again.', 'error');
   } finally { setLoading(btn, false); paymentInFlight = false; }
 }
 document.getElementById('closePaymentModal').addEventListener('click', () => document.getElementById('paymentModalBackdrop').classList.remove('open'));
@@ -2987,7 +3304,7 @@ async function loadNotices() {
     renderNotices();
   } catch (e) {
     window.__notices = null;
-    listEl.innerHTML = emptyState('Notices load nahi ho paaye', 'Internet check karke page refresh karein.', { compact: true });
+    listEl.innerHTML = emptyState('Could not load notices', 'Check your connection and refresh the page.', { compact: true });
     window.__translate(listEl);
   }
 }
@@ -2999,7 +3316,7 @@ function renderNotices() {
   // Guard: without this, switching language on a society with no notices
   // yet would blank the box instead of keeping the empty-state message.
   if (!rows || !rows.length) {
-    listEl.innerHTML = emptyState('Abhi koi notice nahi', 'Committee ke naye notices yahan dikhenge.', { compact: true });
+    listEl.innerHTML = emptyState('No notices yet', 'New notices from the committee will appear here.', { compact: true });
     window.__translate(listEl);
     return;
   }
@@ -3053,7 +3370,7 @@ async function loadCalendar() {
     renderCalendar();
   } catch (e) {
     window.__calendarEntries = null;
-    el.innerHTML = emptyState('Calendar load nahi hua', 'Internet check karke page refresh karein.', { compact: true });
+    el.innerHTML = emptyState('Could not load the calendar', 'Check your connection and refresh the page.', { compact: true });
     window.__translate(el);
   }
 }
@@ -3062,7 +3379,7 @@ function renderCalendar() {
   el.dataset.loaded = '1';
   const rows = window.__calendarEntries;
   if (!rows || !rows.length) {
-    el.innerHTML = emptyState('Abhi kuch upcoming nahi hai', 'Naye events, maintenance aur meetings yahan dikhenge.', { compact: true });
+    el.innerHTML = emptyState('Nothing coming up yet', 'New events, maintenance work, and meetings will appear here.', { compact: true });
     window.__translate(el);
     return;
   }
@@ -3105,7 +3422,7 @@ async function loadPolls() {
     await renderPolls();
   } catch (e) {
     window.__activePolls = null;
-    el.innerHTML = emptyState('Polls load nahi hue', 'Internet check karke page refresh karein.', { compact: true });
+    el.innerHTML = emptyState('Could not load polls', 'Check your connection and refresh the page.', { compact: true });
     window.__translate(el);
   }
 }
@@ -3134,7 +3451,7 @@ async function renderPolls() {
   el.dataset.loaded = '1';
   const polls = window.__activePolls;
   if (!polls || !polls.length) {
-    el.innerHTML = emptyState('Abhi koi active poll nahi', 'Naye polls yahan dikhenge.', { compact: true });
+    el.innerHTML = emptyState('No active polls right now', 'New polls will appear here.', { compact: true });
     window.__translate(el);
     return;
   }
@@ -3158,13 +3475,13 @@ async function renderPolls() {
     if (loggedOut) {
       return `<div class="card card-pad" style="margin-bottom:14px;">
         <h4 style="margin-bottom:6px;">${escapeHtml(poll.question)}</h4>
-        <p class="t-muted" style="font-size:12.5px;">Vote karne ke liye login karein.</p>
+        <p class="t-muted" style="font-size:12.5px;">Log in to vote.</p>
       </div>`;
     }
     if (hasVoted) {
       return `<div class="card card-pad" style="margin-bottom:14px;">
         <h4 style="margin-bottom:6px;">${escapeHtml(poll.question)}</h4>
-        <p class="t-muted" style="font-size:12.5px; margin-bottom:8px;">Aapne vote diya: <b>${escapeHtml(myOption)}</b></p>
+        <p class="t-muted" style="font-size:12.5px; margin-bottom:8px;">You voted: <b>${escapeHtml(myOption)}</b></p>
         <div id="pollResBox-${poll.id}"></div>
       </div>`;
     }
@@ -3185,12 +3502,12 @@ async function renderPolls() {
         await setDoc(doc(db, 'polls', pollId, 'votes', currentUser.uid), {
           option, votedAt: serverTimestamp()
         });
-        showToast('Aapka vote darj ho gaya!', 'success');
+        showToast('Your vote has been recorded!', 'success');
         await loadPolls();
       } catch (err) {
         console.error('Vote failed:', err);
         const code = err?.code || '';
-        showToast(`Vote nahi ho paaya${code ? ` (${code})` : ''}.`, 'error');
+        showToast(`Could not record vote${code ? ` (${code})` : ''}.`, 'error');
         card.querySelectorAll('.poll-vote-btn').forEach(b => { b.disabled = false; });
       }
     });
@@ -3258,7 +3575,7 @@ async function loadAccounts() {
     `;
     window.__translate(el);
   } catch (e) {
-    el.innerHTML = emptyState('Accounts load nahi ho paaye', 'Thodi der baad dobara try karein.', { compact: true });
+    el.innerHTML = emptyState('Could not load accounts', 'Please try again in a little while.', { compact: true });
     window.__translate(el);
   }
 }
@@ -3269,7 +3586,7 @@ async function loadDownloads() {
     const rows = (await getDocs(query(collection(db, 'documents'), orderBy('addedAt', 'desc'))))
       .docs.map(d => d.data());
     if (!rows.length) {
-      el.innerHTML = emptyState('Abhi koi document nahi', 'Bylaws, minutes aur forms yahan publish honge.', { compact: true });
+      el.innerHTML = emptyState('No documents yet', 'Bylaws, minutes, and forms will be published here.', { compact: true });
       window.__translate(el); return;
     }
     el.innerHTML = '<div class="doc-grid">' + rows.map(d => `
@@ -3283,7 +3600,7 @@ async function loadDownloads() {
       </a>`).join('') + '</div>';
     window.__translate(el);
   } catch (e) {
-    el.innerHTML = emptyState('Documents load nahi ho paaye', 'Thodi der baad dobara try karein.', { compact: true });
+    el.innerHTML = emptyState('Could not load documents', 'Please try again in a little while.', { compact: true });
     window.__translate(el);
   }
 }
@@ -3304,26 +3621,33 @@ async function loadSettingsPublic() {
     document.getElementById('contactDetails').innerHTML = `
       <h3 style="font-size:16.5px; margin-bottom:14px;">${escapeHtml(s.name || SOCIETY.fullName)}</h3>
       <div class="contact-line"><svg viewBox="0 0 24 24"><use href="#i-pin"/></svg><span>${escapeHtml(s.address || 'Address not configured yet — set it from the Admin Panel.')}</span></div>
-      <div class="contact-line"><svg viewBox="0 0 24 24"><use href="#i-tel"/></svg><span>${escapeHtml(s.contactPhone || '—')}</span></div>
-      <div class="contact-line"><svg viewBox="0 0 24 24"><use href="#i-mail"/></svg><span>${escapeHtml(s.contactEmail || '—')}</span></div>
+      <div class="contact-line">${s.contactPhone ? `<svg viewBox="0 0 24 24"><use href="#i-tel"/></svg><a href="tel:${escapeHtml(s.contactPhone.replace(/\s+/g, ''))}" style="color:inherit; text-decoration:underline;">${escapeHtml(s.contactPhone)}</a>` : `<svg viewBox="0 0 24 24"><use href="#i-tel"/></svg><span>—</span>`}</div>
+      <div class="contact-line">${s.contactEmail ? `<svg viewBox="0 0 24 24"><use href="#i-mail"/></svg><a href="mailto:${escapeHtml(s.contactEmail)}" style="color:inherit; text-decoration:underline;">${escapeHtml(s.contactEmail)}</a>` : `<svg viewBox="0 0 24 24"><use href="#i-mail"/></svg><span>—</span>`}</div>
       <div class="contact-line"><svg viewBox="0 0 24 24"><use href="#i-shield"/></svg><span>Reg. No: ${escapeHtml(s.regNumber || '—')}</span></div>
+      <div class="contact-line" style="margin-top:10px; padding-top:10px; border-top:1px dashed rgba(10,27,51,.12);">
+        <svg viewBox="0 0 24 24" style="color:var(--danger,#C0392B);"><use href="#i-alert"/></svg>
+        <span>Emergency: <a href="tel:112" style="color:inherit; text-decoration:underline; font-weight:600;">112</a>${s.contactPhone ? ` &nbsp;•&nbsp; RWA Office: <a href="tel:${escapeHtml(s.contactPhone.replace(/\s+/g, ''))}" style="color:inherit; text-decoration:underline; font-weight:600;">${escapeHtml(s.contactPhone)}</a>` : ''}</span>
+      </div>
     `;
     window.__translate(document.getElementById('contactDetails'));
     if (s.address) document.getElementById('mapFrame').src = `https://www.google.com/maps?q=${encodeURIComponent(s.address)}&output=embed`;
   } catch (e) {}
 
   try {
+    // This runs before login, so only settings/payment (public) is fetched
+    // here — settings/paymentPrivate correctly rejects an anonymous read
+    // under the new rules, and account number / IFSC / branch have no
+    // business being visible to a visitor who hasn't even registered yet.
+    // A resident who's actually paying gets the complete picture inside the
+    // signed-in payment modal, which does read paymentPrivate.
     const paySnap = await getDoc(doc(db, 'settings', 'payment'));
     const p = paymentDetails(paySnap.exists() ? paySnap.data() : {});
     document.getElementById('miniPaySettings').innerHTML = `
       ${p.upiId ? `<div class="pay-line"><span>UPI ID</span><span>${escapeHtml(p.upiId)}</span></div>` : ''}
       <div class="pay-line"><span>A/C Holder</span><span>${escapeHtml(p.accountName || '—')}</span></div>
       <div class="pay-line"><span>Bank</span><span>${escapeHtml(p.bankName || '—')}</span></div>
-      <div class="pay-line"><span>A/C No.</span><span>${escapeHtml(p.accountNumber || '—')}</span></div>
-      <div class="pay-line"><span>Type</span><span>${escapeHtml(p.accountType || '—')}</span></div>
-      <div class="pay-line"><span>IFSC</span><span>${escapeHtml(p.ifsc || '—')}</span></div>
-      <div class="pay-line"><span>Branch</span><span>${escapeHtml(p.branch || '—')}</span></div>
       ${p.officeAddress ? `<div class="pay-line"><span>Office</span><span>${escapeHtml(p.officeAddress)}</span></div>` : ''}
+      <div class="pay-line t-muted" style="font-size:12px;"><span>Full account number, IFSC &amp; branch</span><span>Visible after login</span></div>
     `;
     window.__translate(document.getElementById('miniPaySettings'));
   } catch (e) {}
