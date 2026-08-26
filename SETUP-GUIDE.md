@@ -39,7 +39,7 @@ logo-data.js                  Society seal, code ke andar embedded
 - **Site-wide English / Hindi switch** — the EN / हिं toggle in the header translates the entire resident portal, not just notices, and remembers the choice on that device. To add or correct a translation, edit `i18n.js`: entries are keyed by the exact English text as it appears on screen, and anything without an entry simply stays in English, so nothing can break. Names, and terms like UPI / NEFT / QR, are intentionally left untranslated.
 - Search/filter, Financial Year selector, charts, Excel export
 - Bulk Excel import (dry-run validation) aur bulk ZIP document export
-- Role-based Admin Panel (Super Admin / President / Vice President / Secretary / Joint Secretary / Treasurer)
+- Role-based Admin Panel (Super Admin / President / Secretary / Joint Secretary / Treasurer)
 - Immutable Audit Log (kaun, kya, kab, kis IP se)
 - Deactivate Member (soft delete — history kabhi delete nahi hoti)
 - One-click Google Drive backup

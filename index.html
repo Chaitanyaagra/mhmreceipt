@@ -1572,7 +1572,6 @@ document.getElementById('yearNow').textContent = new Date().getFullYear();
    real photos) replace this list entirely once they exist. */
 window.__COMMITTEE_FALLBACK = [
   { name: 'Bhanwar Singh',     role: 'President' },
-  { name: 'Nitin Agrawal',     role: 'Vice President' },
   { name: 'Chaitanya Agrawal', role: 'Secretary' },
   { name: 'Pradeep Poonia',    role: 'Joint Secretary' },
   { name: 'Prakash Kanodia',   role: 'Treasurer' }
@@ -1792,13 +1791,13 @@ import { auth, db, storage, SOCIETY } from './firebase-config.js';
 import {
   createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged,
   signOut, sendPasswordResetEmail, deleteUser
-} from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
+} from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
 import {
   doc, getDoc, setDoc, updateDoc, addDoc, collection, query, where, orderBy, getDocs, serverTimestamp, limit
-} from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+} from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 import {
   ref as storageRef, uploadBytes, getDownloadURL
-} from "https://www.gstatic.com/firebasejs/12.16.0/firebase-storage.js";
+} from "https://www.gstatic.com/firebasejs/12.18.0/firebase-storage.js";
 import {
   showToast, escapeHtml, fmtDate, formatINR, currentFinancialYear,
   generateReceiptPDF, printReceipt, validatePayment, validateRegistration,

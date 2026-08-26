@@ -169,7 +169,6 @@ export const HI = {
   'Governance': 'प्रशासन',
   'Your committee': 'आपकी समिति',
   'President': 'अध्यक्ष',
-  'Vice President': 'उपाध्यक्ष',
   'Secretary': 'सचिव',
   'Joint Secretary': 'सह-सचिव',
   'Treasurer': 'कोषाध्यक्ष',

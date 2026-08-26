@@ -10,7 +10,7 @@ import { TOWER_PLAN, isValidFlat } from './tower-plan.js';
 import { AVATAR_PLACEHOLDER } from './avatar-placeholder.js';
 import {
   doc, getDoc, setDoc, addDoc, collection, runTransaction, serverTimestamp
-} from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+} from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 /* ---------------------------------------------------------------------- */
 /*  Toasts                                                                 */

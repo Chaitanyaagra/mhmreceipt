@@ -50,7 +50,7 @@ service cloud.firestore {
     }
     // Office-bearers who may approve/reject residents.
     function canApproveMembers() {
-      return isAdmin() && adminRole() in ['superadmin', 'president', 'vicepresident', 'secretary', 'jointsecretary'];
+      return isAdmin() && adminRole() in ['superadmin', 'president', 'secretary', 'jointsecretary'];
     }
     // Any signed-in resident whose OWN member doc is currently approved —
     // used to gate voting eligibility, same exists()+get() shape as isAdmin().
@@ -216,7 +216,7 @@ service cloud.firestore {
       // stops anyone from inventing a role string to widen their own access.
       allow create, update: if isSuperAdmin()
                             && request.resource.data.role in
-                               ['superadmin','president','vicepresident','secretary','jointsecretary','treasurer'];
+                               ['superadmin','president','secretary','jointsecretary','treasurer'];
       allow delete: if isSuperAdmin();
     }
 

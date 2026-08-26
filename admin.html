@@ -908,7 +908,6 @@
             <div class="field"><label for="fld-role-16">Committee Post</label>
               <select name="role" required id="fld-role-16">
                 <option value="president">President</option>
-                <option value="vicepresident">Vice President</option>
                 <option value="secretary">Secretary</option>
                 <option value="jointsecretary">Joint Secretary</option>
                 <option value="treasurer">Treasurer</option>
@@ -1281,17 +1280,17 @@ try {
 import { auth, db, storage, firebaseConfig, GOOGLE_OAUTH_CLIENT_ID, SOCIETY } from './firebase-config.js';
 import {
   initializeApp, deleteApp
-} from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
+} from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
 import {
   getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, createUserWithEmailAndPassword, sendPasswordResetEmail, deleteUser
-} from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
+} from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
 import {
   doc, getDoc, setDoc, updateDoc, deleteDoc, addDoc, collection, getDocs, query, where, orderBy, serverTimestamp, limit,
   writeBatch, runTransaction
-} from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+} from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 import {
   ref as storageRef, uploadBytes, getDownloadURL, getStorage, deleteObject
-} from "https://www.gstatic.com/firebasejs/12.16.0/firebase-storage.js";
+} from "https://www.gstatic.com/firebasejs/12.18.0/firebase-storage.js";
 import {
   showToast, escapeHtml, fmtDate, fmtDateTime, formatINR, currentFinancialYear, financialYearOptions,
   generateMemberId, generateReceiptNumber, generateReceiptNumberAtomic, logAudit, generateReceiptPDF, generateIncomeExpenditurePDF, exportToExcel, parseExcelFile, PAYMENT_DEFAULTS, sanitizeUrl, safeStorageFilename,
@@ -1347,7 +1346,7 @@ window.__mhmDebugPermissions = async function () {
     } else {
       const data = snap.data();
       log(`admins/${u.uid} document found. Raw contents: ${JSON.stringify(data)}`);
-      log(`role field exact value: ${JSON.stringify(data.role)}  (must be exactly "superadmin", "treasurer", "president", "vicepresident", "secretary", or "jointsecretary" — check for extra spaces or wrong case)`);
+      log(`role field exact value: ${JSON.stringify(data.role)}  (must be exactly "superadmin", "treasurer", "president", "secretary", or "jointsecretary" — check for extra spaces or wrong case)`);
       log(`email field in this doc: ${JSON.stringify(data.email)}  (compare to the live Auth email above — a mismatch breaks payment-verify, not approve, but is worth checking too)`);
     }
   } catch (e) {
@@ -1375,7 +1374,7 @@ let selectedFY = currentFinancialYear();
 const charts = {};
 
 const ROLE_LABELS = {
-  superadmin: 'Super Admin', president: 'President', vicepresident: 'Vice President',
+  superadmin: 'Super Admin', president: 'President',
   secretary: 'Secretary', jointsecretary: 'Joint Secretary', treasurer: 'Treasurer'
 };
 const ROLE_NAV = {
@@ -1383,17 +1382,16 @@ const ROLE_NAV = {
   // Office-bearers can see where the money went even though only the
   // Treasurer may record it — that visibility is the point of the ledger.
   president: ['overview','members','events','expenses','content','calendar','complaints','polls','auditLog'],
-  vicepresident: ['overview','members','events','expenses','content','calendar','complaints','polls','auditLog'],
   secretary: ['overview','members','events','expenses','content','calendar','complaints','polls','auditLog'],
   jointsecretary: ['overview','members','events','expenses','content','calendar','complaints','polls','auditLog'],
   treasurer: ['overview','members','payments','events','expenses','calendar','financials','importExport','auditLog']
 };
 const ACTION_PERMS = {
-  approveMembers: ['superadmin','president','vicepresident','secretary','jointsecretary'],
+  approveMembers: ['superadmin','president','secretary','jointsecretary'],
   verifyPayments: ['superadmin','treasurer'],
   recordExpenses: ['superadmin','treasurer'],
   manageEvents: ['superadmin','treasurer'],
-  manageContent: ['superadmin','president','vicepresident','secretary','jointsecretary'],
+  manageContent: ['superadmin','president','secretary','jointsecretary'],
   manageAdmins: ['superadmin']
 };
 function can(action) { return (ACTION_PERMS[action] || []).includes(currentAdmin?.role); }
