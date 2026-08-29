@@ -35,11 +35,21 @@ service cloud.firestore {
     // Firestore caches get()/exists() per document per request, so the pair of
     // lookups below costs at most two document reads for a whole evaluation,
     // however many helpers call them.
-    function isAdmin() {
-      return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
-    }
     function adminRole() {
       return get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role;
+    }
+    function isAdmin() {
+      // Existence of an admins/{uid} doc is NOT sufficient on its own. A
+      // record carrying a stale role (e.g. a post the society has since
+      // abolished), a typo'd role, or no role field at all would otherwise
+      // still pass this check — and bare isAdmin() is what gates reading
+      // every resident's record (Aadhaar/PAN included), every payment, and
+      // every poll vote. So the role has to be one the society currently
+      // recognises, matching exactly the list the admins/{uid} write rule
+      // below enforces on creation.
+      return isSignedIn()
+             && exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+             && adminRole() in ['superadmin', 'president', 'secretary', 'jointsecretary', 'treasurer'];
     }
     function isSuperAdmin() {
       return isAdmin() && adminRole() == 'superadmin';
@@ -138,7 +148,7 @@ service cloud.firestore {
             && isOptionalDateString(request.resource.data, 'anniversary')
             && isOptionalFamilyList(request.resource.data, 'familyMembers')
             && isValidMemberStatus(request.resource.data.status)
-            && request.resource.data.residentType in ['owner', 'tenant'];
+            && request.resource.data.residentType in ['owner', 'jointowner', 'tenant'];
       }
 
       allow read: if isOwner(uid) || isAdmin();
@@ -192,7 +202,13 @@ service cloud.firestore {
     // that approves the resident, so two people claiming the same flat cannot
     // both win — the loser's transaction fails.
     match /flatClaims/{claimId} {
-      allow read: if isAdmin();
+      // Public so the registration form can tell a visitor "this flat is
+      // already registered" before they fill out the whole form and create
+      // an account, not just after. The document itself carries no name,
+      // phone, or email — only tower/flatNumber/an opaque member uid/a
+      // timestamp — so this reveals "is flat X occupied", not who lives
+      // there or how to reach them.
+      allow read: if true;
       allow create: if canApproveMembers()
                     && isNonEmptyString(request.resource.data.memberDocId, 200)
                     && isNonEmptyString(request.resource.data.tower, 50)
@@ -511,14 +527,14 @@ service cloud.firestore {
     // anyone signs in.
     match /settings/{settingId} {
       // paymentPrivate carries the bank account number, IFSC and branch —
-      // fine for an approved resident deciding how to pay, but there is no
-      // reason a completely anonymous visitor querying Firestore directly
-      // should be able to read the society's own bank account number. Every
-      // other settings doc (society info, the public UPI ID / QR / account
-      // holder name residents need to recognize before paying, maintenance
-      // rates) stays genuinely public — this is deliberately the one
-      // narrow exception, not a general lockdown.
-      allow read: if settingId == 'paymentPrivate' ? isSignedIn() : true;
+      // fine for an approved resident deciding how to pay, or an admin, but
+      // not for someone who has merely created an account and is still
+      // pending (or was rejected) — isSignedIn() alone let that case
+      // through. Every other settings doc (society info, the public UPI ID
+      // / QR / account holder name residents need to recognize before
+      // paying, maintenance rates) stays genuinely public — this is
+      // deliberately the one narrow exception, not a general lockdown.
+      allow read: if settingId == 'paymentPrivate' ? (isApprovedMember() || isAdmin()) : true;
       allow write: if canVerifyPayments();
     }
 

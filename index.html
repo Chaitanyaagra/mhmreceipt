@@ -743,8 +743,8 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
   .brand-text .full{ font-size:14px; }
 
   nav.main-nav{ display:none; }
-  .tabbar-mobile{ display:block; }
-  body{ padding-bottom:74px; }  /* clearance for the fixed tab bar */
+  body.logged-in .tabbar-mobile{ display:block; }
+  body.logged-in{ padding-bottom:74px; }  /* clearance for the fixed tab bar */
 
   .hero{ padding:44px 0 52px; }
   .hero-grid{ grid-template-columns:1fr; gap:30px; }
@@ -973,8 +973,8 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
         <button class="btn btn-gold on-dark" onclick="window.__goToPortal('login')">Resident Login</button>
       </div>
       <div class="stat-strip">
-        <div class="stat"><b id="statMembers">—</b><span>Registered Members</span></div>
-        <div class="stat"><b id="statTowers">—</b><span>Towers Covered</span></div>
+        <div class="stat"><b id="statMembers">—</b><span>Homes in the Community</span></div>
+        <div class="stat"><b id="statTowers">—</b><span>Residential Towers</span></div>
         <div class="stat"><b>100%</b><span>QR-Verifiable</span></div>
       </div>
       <div class="trust-strip">
@@ -1224,18 +1224,37 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
       </form>
 
       <form id="registerForm" style="display:none;">
+        <div id="regDraftBanner" style="display:none; margin-bottom:16px; padding:12px 14px; border-radius:10px; background:rgba(201,162,39,.08); border:1px solid rgba(201,162,39,.25); font-size:12.5px;">
+          <div style="margin-bottom:8px;">📝 We found a saved draft from your last visit. Continue where you left off?</div>
+          <div style="display:flex; gap:8px;">
+            <button type="button" class="btn btn-primary btn-sm" id="regDraftContinue">Continue Draft</button>
+            <button type="button" class="btn btn-outline btn-sm" id="regDraftDiscard">Start Fresh</button>
+          </div>
+        </div>
         <div class="step-indicator" id="stepIndicator" style="display:none;">
-          <div class="step-dot" data-step="0"><span class="num">1</span><span class="lbl">Details</span></div>
+          <div class="step-dot" data-step="0"><span class="num">1</span><span class="lbl">Basic Info</span></div>
           <div class="step-line" data-line="0"></div>
-          <div class="step-dot" data-step="1"><span class="num">2</span><span class="lbl">Uploads</span></div>
+          <div class="step-dot" data-step="1"><span class="num">2</span><span class="lbl">Details</span></div>
           <div class="step-line" data-line="1"></div>
-          <div class="step-dot" data-step="2"><span class="num">3</span><span class="lbl">Account</span></div>
+          <div class="step-dot" data-step="2"><span class="num">3</span><span class="lbl">Uploads</span></div>
+          <div class="step-line" data-line="2"></div>
+          <div class="step-dot" data-step="3"><span class="num">4</span><span class="lbl">Account</span></div>
+          <div class="step-line" data-line="3"></div>
+          <div class="step-dot" data-step="4"><span class="num">5</span><span class="lbl">Review</span></div>
         </div>
         <fieldset>
-          <legend>Resident Details</legend>
+          <legend>Basic Information</legend>
           <div class="form-2col">
+            <div class="field"><label for="fld-residentType-8">Owner / Tenant <i class="req">*</i></label>
+              <select name="residentType" required id="fld-residentType-8">
+                <option value="">Select</option>
+                <option value="owner">Owner</option>
+                <option value="jointowner">Joint Owner</option>
+                <option value="tenant">Tenant</option>
+              </select>
+            </div>
             <div class="field"><label for="fld-name-3">Full Name <i class="req">*</i></label><input name="name" required maxlength="100" id="fld-name-3"></div>
-            <div class="field"><label for="fld-fatherHusbandName-4">Father's / Husband's Name <i class="req">*</i></label><input name="fatherHusbandName" required maxlength="100" id="fld-fatherHusbandName-4"></div>
+            <div class="field"><label for="fld-fatherHusbandName-4">Father's / Spouse's Name <i class="req">*</i></label><input name="fatherHusbandName" required maxlength="100" id="fld-fatherHusbandName-4"></div>
             <div class="field"><label for="towerSelect">Tower <i class="req">*</i></label>
               <!-- A dropdown, not free text: typed entries produce "Tower B",
                    "tower b", "B-Block" etc., which the tower-wise collection
@@ -1250,25 +1269,29 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
               <select name="flatNumber" id="flatSelect" required disabled>
                 <option value="">Select tower first</option>
               </select>
+              <div id="flatAvailabilityMsg" style="display:none; font-size:12px; margin-top:4px;"></div>
             </div>
             <div class="field"><label for="fld-mobile-5">Mobile Number <i class="req">*</i></label>
               <input name="mobile" type="tel" inputmode="numeric" pattern="[6-9][0-9]{9}" maxlength="10" required placeholder="10-digit mobile" id="fld-mobile-5">
               <div class="hint">Without a leading 0 or +91. Must start with 6, 7, 8, or 9.</div>
             </div>
             <div class="field"><label for="fld-email-6">Email <i class="req">*</i></label><input name="email" type="email" required id="fld-email-6"></div>
-            <div class="field"><label for="fld-occupation-7">Occupation <i class="req">*</i></label><input name="occupation" required maxlength="100" id="fld-occupation-7"></div>
-            <div class="field"><label for="fld-residentType-8">Owner / Tenant <i class="req">*</i></label>
-              <select name="residentType" required id="fld-residentType-8">
+            <div class="field"><label for="fld-occupation-7">Occupation <span class="t-muted" style="font-weight:400;">(optional)</span></label><input name="occupation" maxlength="100" id="fld-occupation-7"></div>
+            <div class="field"><label for="fld-bloodGroup">Blood Group <span class="t-muted" style="font-weight:400;">(optional)</span></label>
+              <select name="bloodGroup" id="fld-bloodGroup">
                 <option value="">Select</option>
-                <option value="owner">Owner</option>
-                <option value="tenant">Tenant</option>
+                <option value="A+">A+</option><option value="A-">A-</option>
+                <option value="B+">B+</option><option value="B-">B-</option>
+                <option value="AB+">AB+</option><option value="AB-">AB-</option>
+                <option value="O+">O+</option><option value="O-">O-</option>
+                <option value="Not sure">Not sure</option>
               </select>
             </div>
           </div>
-          <div class="form-2col">
-            <div class="field"><label for="fld-nomineeName-10">Nominee Name <i class="req">*</i></label><input name="nomineeName" required maxlength="100" id="fld-nomineeName-10"></div>
-            <div class="field"><label for="fld-nomineeRelation-11">Nominee Relation <i class="req">*</i></label><input name="nomineeRelation" required maxlength="60" id="fld-nomineeRelation-11"></div>
-          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Additional Details</legend>
 
           <!-- Optional — only used so the society can wish residents (and their
                family) on their birthday/anniversary. Never required. -->
@@ -1277,9 +1300,78 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
             <div class="field"><label for="fld-anniversary-15">Anniversary <span class="t-muted" style="font-weight:400;">(optional)</span></label><input type="date" name="anniversary" id="fld-anniversary-15"></div>
           </div>
           <div class="field">
-            <label>Family Members <span class="t-muted" style="font-weight:400;">(optional — taaki unhe bhi wish kar sakein)</span></label>
+            <label>Family Members <span class="t-muted" style="font-weight:400;">(optional — so they can be wished too)</span></label>
             <div class="fm-editor" id="regFamilyEditor"></div>
             <button type="button" class="btn btn-outline btn-sm fm-add-btn" id="regFamilyAdd">+ Add Family Member</button>
+          </div>
+
+          <!-- Deliberately separate from Family Members — this is someone to
+               call IN an emergency, who may well not live in the flat at all
+               (a relative in another city, for instance). -->
+          <div class="field">
+            <label>Emergency Contact <span class="t-muted" style="font-weight:400;">(optional)</span></label>
+            <div class="form-2col">
+              <input type="text" name="emergencyContactName" placeholder="Name" maxlength="100" id="fld-emergencyContactName">
+              <input type="tel" name="emergencyContactPhone" placeholder="Phone number" maxlength="15" id="fld-emergencyContactPhone">
+            </div>
+          </div>
+
+          <!-- Only meaningful for an owner (a tenant has no registry date at
+               all) — shown/hidden by the residentType toggle below, and never
+               required, since not everyone has the exact date on hand while
+               filling this form. -->
+          <div class="field" id="regRegistryDateWrap" style="display:none;">
+            <label for="fld-registryDate">Date of Registry <span class="t-muted" style="font-weight:400;">(optional)</span></label>
+            <input type="date" name="registryDate" id="fld-registryDate">
+          </div>
+
+          <!-- Joint Owner only (not a sole Owner, who by definition has no
+               co-owner) — so the society has at least a name on record for
+               the other owner, even if that person never registers their
+               own account. -->
+          <div class="field" id="regCoOwnerWrap" style="display:none;">
+            <label for="fld-coOwnerName">Co-Owner's Name <span class="t-muted" style="font-weight:400;">(optional)</span></label>
+            <input type="text" name="coOwnerName" id="fld-coOwnerName" maxlength="100">
+            <div class="form-2col" style="margin-top:8px;">
+              <input type="tel" name="coOwnerMobile" id="fld-coOwnerMobile" maxlength="15" placeholder="Co-owner's mobile">
+              <input type="email" name="coOwnerEmail" id="fld-coOwnerEmail" placeholder="Co-owner's email">
+            </div>
+          </div>
+
+          <!-- Tenant-only, symmetric with the owner-only registry date above
+               — shown/hidden by the same residentType toggle. Neither
+               required: a tenant filling this out mid-move may not have
+               police verification done yet, or the agreement paperwork
+               finalised, and blocking registration on either would just
+               mean the tenant never gets recorded in the meantime. -->
+          <div class="field" id="regTenantDetailsWrap" style="display:none;">
+            <label>Rent Agreement <span class="t-muted" style="font-weight:400;">(optional)</span></label>
+            <div class="form-2col">
+              <input type="date" name="rentAgreementStart" id="fld-rentAgreementStart" title="Agreement start date">
+              <input type="date" name="rentAgreementEnd" id="fld-rentAgreementEnd" title="Agreement end date">
+            </div>
+            <label for="fld-policeVerification" style="margin-top:10px; display:block;">Police Verification <span class="t-muted" style="font-weight:400;">(optional)</span></label>
+            <select name="policeVerification" id="fld-policeVerification">
+              <option value="">Select</option>
+              <option value="pending">Pending</option>
+              <option value="submitted">Submitted to police station</option>
+              <option value="not_applicable">Not applicable</option>
+            </select>
+            <div class="hint">The committee will update this to Verified once confirmed — this is just where things stand from your side.</div>
+            <!-- The society's only route to the actual property owner if
+                 that owner never independently registers on the portal —
+                 matters for major-repair consent, legal notices, and
+                 disputes, not just day-to-day contact with the tenant. -->
+            <label for="fld-ownerName" style="margin-top:10px; display:block;">Owner's Name <span class="t-muted" style="font-weight:400;">(optional)</span></label>
+            <input type="text" name="ownerName" id="fld-ownerName" maxlength="100">
+            <label for="fld-ownerContact" style="margin-top:10px; display:block;">Owner's Contact Number <span class="t-muted" style="font-weight:400;">(optional)</span></label>
+            <input type="tel" name="ownerContact" id="fld-ownerContact" maxlength="15">
+          </div>
+
+          <div class="field">
+            <label>Vehicles <span class="t-muted" style="font-weight:400;">(optional)</span></label>
+            <div class="vehicle-editor" id="regVehiclesEditor"></div>
+            <button type="button" class="btn btn-outline btn-sm fm-add-btn" id="regVehiclesAdd">+ Add Vehicle</button>
           </div>
 
           <div class="field">
@@ -1299,8 +1391,8 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
         <fieldset>
           <legend>Upload</legend>
           <div class="field">
-            <label for="fld-photo-12">Photo <span class="t-muted" style="font-weight:400;">(optional)</span></label>
-            <input type="file" name="photo" accept="image/*" id="fld-photo-12">
+            <label for="fld-photo-12">Photo <i class="req">*</i></label>
+            <input type="file" name="photo" accept="image/*" required id="fld-photo-12">
           </div>
         </fieldset>
 
@@ -1310,26 +1402,51 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
             <div class="field"><label for="fld-password-14">Set Password</label><input type="password" name="password" required minlength="6" id="fld-password-14"></div>
             <div class="field"><label for="fld-confirmPassword-15">Confirm Password</label><input type="password" name="confirmPassword" required minlength="6" id="fld-confirmPassword-15"></div>
           </div>
+
+          <!-- Owner-only, and never required — registering today and paying
+               later (via the normal post-approval payment screen) must stay
+               a completely valid path, not something this form blocks. -->
+          <div id="regMembershipFeeWrap" style="display:none; margin-top:8px; padding-top:16px; border-top:1px solid var(--line,#E2E6EF);">
+            <label style="display:block; margin-bottom:10px;">Have you already paid the one-time ₹1,100 membership fee?</label>
+            <div class="pet-toggle-row" style="margin-bottom:14px;">
+              <label class="checkbox-row"><input type="radio" name="feeAlreadyPaid" value="no" id="reg-feePaid-no" checked> No, I'll pay now</label>
+              <label class="checkbox-row"><input type="radio" name="feeAlreadyPaid" value="yes" id="reg-feePaid-yes"> Yes, already paid</label>
+            </div>
+            <div id="regFeePayWrap">
+              <div id="regFeeQrWrap" style="text-align:center; margin-bottom:14px;"></div>
+              <div class="form-2col">
+                <div class="field"><label for="fld-feeUtr">Transaction / UTR No. <span class="t-muted" style="font-weight:400;">(optional)</span></label><input type="text" name="feeUtr" id="fld-feeUtr" maxlength="40"></div>
+                <div class="field"><label for="fld-feeProof">Payment Screenshot <span class="t-muted" style="font-weight:400;">(optional)</span></label><input type="file" name="feeProof" accept="image/*" id="fld-feeProof"></div>
+              </div>
+              <p class="t-muted" style="font-size:12px;">Leave both blank to skip for now — you'll be able to pay from your dashboard once your registration is approved.</p>
+            </div>
+          </div>
         </fieldset>
 
-        <div class="final-only">
-          <p class="t-muted" style="font-size:12px; line-height:1.6; margin-bottom:14px;">
-            🔒 Your information (mobile, email, DOB, family details) is visible only to the society's committee members —
-            for verifying membership, calculating maintenance, and sending birthday/anniversary wishes. It is never made public.
-            You can have your personal data erased when you sell or vacate your flat.
-            <button type="button" class="link-btn" id="openPrivacyPolicyBtnReg">Read the Full Privacy Policy</button>
-          </p>
-          <label class="checkbox-row" style="margin-bottom:20px;">
-            <input type="checkbox" name="declaration" required>
-            <span>I declare that the information provided above is true to the best of my knowledge, and I authorize MHMRWS to verify these details.</span>
-          </label>
+        <fieldset>
+          <legend>Review</legend>
+          <div id="regReviewSummary" style="margin-bottom:18px;"></div>
 
-          <button class="btn btn-primary btn-block" type="submit">Submit Registration</button>
-        </div>
+          <div class="final-only">
+            <p class="t-muted" style="font-size:12px; line-height:1.6; margin-bottom:14px;">
+              🔒 Your information (mobile, email, DOB, family details) is visible only to the society's committee members —
+              for verifying membership, calculating maintenance, and sending birthday/anniversary wishes. It is never made public.
+              You can have your personal data erased when you sell or vacate your flat.
+              <button type="button" class="link-btn" id="openPrivacyPolicyBtnReg">Read the Full Privacy Policy</button>
+            </p>
+            <label class="checkbox-row" style="margin-bottom:20px;">
+              <input type="checkbox" name="declaration" required>
+              <span>I declare that the information provided above is true to the best of my knowledge, and I authorize MHMRWS to verify these details.</span>
+            </label>
+
+            <button class="btn btn-primary btn-block" type="submit">Submit Registration</button>
+          </div>
+        </fieldset>
 
         <!-- Back / Next; shown only when JS enables stepped mode. -->
         <div class="step-nav" id="stepNav" style="display:none;">
           <button type="button" class="btn btn-ghost" id="stepBack">Back</button>
+          <button type="button" class="btn btn-outline btn-sm" id="stepSaveExit" style="flex:0 0 auto; align-self:center;">Save &amp; Exit</button>
           <button type="button" class="btn btn-primary" id="stepNext">Next</button>
         </div>
       </form>
@@ -1370,6 +1487,7 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
         <a href="#about">About</a>
         <a href="#notices">Notices</a>
         <a href="#portal">Login / Register</a>
+        <a href="https://www.facebook.com/share/1HGE2TWEc4/" target="_blank" rel="noopener noreferrer">Follow us on Facebook</a>
       </div>
       <div>
         <h4>Official</h4>
@@ -1430,10 +1548,6 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
           <div class="field"><label for="pf-email">Email</label><input name="email" id="pf-email" type="email" required></div>
         </div>
         <div class="field"><label for="pf-occupation">Occupation</label><input name="occupation" id="pf-occupation" maxlength="100"></div>
-        <div class="form-2col">
-          <div class="field"><label for="pf-nomineeName">Nominee Name</label><input name="nomineeName" id="pf-nomineeName" maxlength="100"></div>
-          <div class="field"><label for="pf-nomineeRelation">Nominee Relation</label><input name="nomineeRelation" id="pf-nomineeRelation" maxlength="60"></div>
-        </div>
         <div class="form-2col">
           <div class="field"><label for="pf-dob">Date of Birth <span class="t-muted" style="font-weight:400;">(optional)</span></label><input type="date" name="dob" id="pf-dob"></div>
           <div class="field"><label for="pf-anniversary">Anniversary <span class="t-muted" style="font-weight:400;">(optional)</span></label><input type="date" name="anniversary" id="pf-anniversary"></div>
@@ -1662,6 +1776,8 @@ if (towerSelect && flatSelect) {
       ).join('');
     flatSelect.disabled = false;
     window.__translate?.(flatSelect);
+    const msg = document.getElementById('flatAvailabilityMsg');
+    if (msg) msg.style.display = 'none';
   });
 }
 
@@ -1788,6 +1904,7 @@ window.__animateCount = (el) => {
 
 <script type="module">
 import { auth, db, storage, SOCIETY } from './firebase-config.js';
+import { TOWER_IDS, flatsForTower } from './tower-plan.js';
 import {
   createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged,
   signOut, sendPasswordResetEmail, deleteUser
@@ -1802,11 +1919,13 @@ import {
   showToast, escapeHtml, fmtDate, formatINR, currentFinancialYear,
   generateReceiptPDF, printReceipt, validatePayment, validateRegistration,
   generateMembershipCard, duesFor, DUES_LABEL, DUES_BADGE,
+  generateRegistrationConfirmationPDF,
   generateStatementPDF, skeletonList, emptyState, showFieldError, clearFieldErrors,
   membershipDue, membershipFeeAmount, paymentDetails, eventDue,
   waShareText, downloadImageFromUrl,
   initFamilyMembersEditor, addFamilyMemberRow, collectFamilyMembers,
-  initPetsEditor, addPetCard, collectPets, petVaccinationStatus
+  initVehiclesEditor, addVehicleRow, collectVehicles,
+  initPetsEditor, addPetCard, collectPets, petVaccinationStatus, profileCompleteness, flatClaimId, findBlockingFlatClaim, generatePetId, rentAgreementStatus
 } from './app-common.js';
 
 /* Branding, the year stamp and the committee fallback are handled by the
@@ -1851,6 +1970,148 @@ if (regFamilyEditor) {
   document.getElementById('regFamilyAdd')?.addEventListener('click', () => addFamilyMemberRow(regFamilyEditor));
 }
 
+const regVehiclesEditor = document.getElementById('regVehiclesEditor');
+if (regVehiclesEditor) {
+  initVehiclesEditor(regVehiclesEditor);
+  document.getElementById('regVehiclesAdd')?.addEventListener('click', () => addVehicleRow(regVehiclesEditor));
+}
+
+// Checks the instant a flat is picked, rather than waiting until the very
+// end of a multi-step form to tell someone their chosen flat is already
+// taken — that's a real, reported frustration: filling in every field,
+// setting a password, only to be blocked on the last screen. This can only
+// ever be a courtesy heads-up, not the actual guarantee — the transactional
+// check inside the real submit is what actually prevents a duplicate claim
+// if two people happen to pick the same flat at the same moment.
+const flatAvailabilityMsg = document.getElementById('flatAvailabilityMsg');
+async function checkFlatAvailability() {
+  const tower = document.getElementById('towerSelect')?.value;
+  const flat = document.getElementById('flatSelect')?.value;
+  const residentType = registerForm.querySelector('[name=residentType]')?.value;
+  if (!flatAvailabilityMsg) return;
+  if (!tower || !flat || !residentType) { flatAvailabilityMsg.style.display = 'none'; return; }
+  flatAvailabilityMsg.style.display = 'block';
+  flatAvailabilityMsg.style.color = 'var(--ink-500,#6B7385)';
+  flatAvailabilityMsg.textContent = 'Checking availability…';
+  try {
+    // A flat now has an owner-side slot and a tenant-side slot — this
+    // checks the specific one the visitor is about to register for, not
+    // just "does anything exist for this flat", so an owner registering
+    // alongside an already-registered tenant (or vice versa) correctly
+    // sees the flat as available for THEM.
+    const blocking = await findBlockingFlatClaim(tower, flat, residentType, null);
+    if (blocking) {
+      flatAvailabilityMsg.style.color = 'var(--danger,#C0392B)';
+      const asType = residentType === 'tenant' ? 'a tenant' : 'an owner';
+      flatAvailabilityMsg.textContent = `Tower ${tower}, Flat ${flat} already has ${asType} registered. Please choose a different flat, or contact the committee if you believe this is a mistake.`;
+    } else {
+      flatAvailabilityMsg.style.color = 'var(--success,#1E7D4B)';
+      flatAvailabilityMsg.textContent = '✓ This flat is available.';
+    }
+  } catch (err) {
+    // Non-fatal: the real check still happens at actual submission time,
+    // this is only ever a heads-up.
+    flatAvailabilityMsg.style.display = 'none';
+  }
+}
+document.getElementById('flatSelect')?.addEventListener('change', checkFlatAvailability);
+
+// Registry date, tenant details, and the membership-fee payment step all
+// depend on which residentType is selected — a tenant has no registry
+// document and does not pay the owner-only membership fee at all, and vice
+// versa for rent-agreement/police-verification.
+const regResidentTypeSelect = registerForm.querySelector('[name=residentType]');
+// Re-check flat availability when residentType changes too — a flat that's
+// taken for "owner" may be perfectly free for "tenant", so switching the
+// toggle can change the answer even with the same tower/flat still selected.
+regResidentTypeSelect?.addEventListener('change', checkFlatAvailability);
+const regRegistryDateWrap = document.getElementById('regRegistryDateWrap');
+const regMembershipFeeWrap = document.getElementById('regMembershipFeeWrap');
+let feeQrFetched = false;
+async function fetchFeeQrIfNeeded() {
+  if (feeQrFetched) return;
+  feeQrFetched = true;
+  try {
+    const snap = await getDoc(doc(db, 'settings', 'payment'));
+    const url = snap.exists() ? snap.data().qrCodeImageURL : '';
+    const upiId = snap.exists() ? snap.data().upiId : '';
+    const wrap = document.getElementById('regFeeQrWrap');
+    wrap.innerHTML = url
+      ? `<img src="${url}" alt="Payment QR" style="max-width:200px; border-radius:12px; border:1px solid var(--line,#E2E6EF);">${upiId ? `<p class="t-muted" style="font-size:12px; margin-top:8px;">UPI ID: ${escapeHtml(upiId)}</p>` : ''}`
+      : `<p class="t-muted" style="font-size:12.5px;">QR code not configured yet — pay via the office directly, or from your dashboard once approved.</p>`;
+  } catch (e) {
+    document.getElementById('regFeeQrWrap').innerHTML = '<p class="t-muted" style="font-size:12.5px;">Could not load the QR code right now — you can pay from your dashboard once approved.</p>';
+  }
+}
+const regTenantDetailsWrap = document.getElementById('regTenantDetailsWrap');
+const regCoOwnerWrap = document.getElementById('regCoOwnerWrap');
+function toggleResidentTypeFields() {
+  if (!regResidentTypeSelect) return;
+  const isOwner = regResidentTypeSelect.value === 'owner' || regResidentTypeSelect.value === 'jointowner';
+  const isJointOwner = regResidentTypeSelect.value === 'jointowner';
+  const isTenant = regResidentTypeSelect.value === 'tenant';
+  if (regRegistryDateWrap) {
+    regRegistryDateWrap.style.display = isOwner ? 'block' : 'none';
+    if (!isOwner) regRegistryDateWrap.querySelector('input').value = '';
+  }
+  if (regCoOwnerWrap) {
+    regCoOwnerWrap.style.display = isJointOwner ? 'block' : 'none';
+    if (!isJointOwner) regCoOwnerWrap.querySelectorAll('input').forEach((el) => { el.value = ''; });
+  }
+  if (regMembershipFeeWrap) {
+    regMembershipFeeWrap.style.display = isOwner ? 'block' : 'none';
+    if (isOwner && document.getElementById('reg-feePaid-no').checked) fetchFeeQrIfNeeded();
+  }
+  if (regTenantDetailsWrap) {
+    regTenantDetailsWrap.style.display = isTenant ? 'block' : 'none';
+    if (!isTenant) {
+      regTenantDetailsWrap.querySelectorAll('input, select').forEach((el) => { el.value = ''; });
+    }
+  }
+}
+regResidentTypeSelect?.addEventListener('change', toggleResidentTypeFields);
+toggleResidentTypeFields();
+
+// Review summary — built fresh every time the Review step becomes current
+// (not just once at submit), so it always reflects whatever was last typed,
+// including a trip back to an earlier step to fix something.
+function renderRegistrationReview() {
+  const el = document.getElementById('regReviewSummary');
+  if (!el) return;
+  const f = registerForm;
+  const rtLabel = { owner: 'Owner', jointowner: 'Joint Owner', tenant: 'Tenant' }[f.residentType.value] || f.residentType.value || '—';
+  const fam = regFamilyEditor ? collectFamilyMembers(regFamilyEditor) : [];
+  const veh = regVehiclesEditor ? collectVehicles(regVehiclesEditor) : [];
+  const pets = regPetsEditor ? collectPets(regPetsEditor) : [];
+  const rows = [
+    ['Name', f.name.value.trim() || '—'],
+    ['Tower / Flat', `${f.tower.value || '—'} / ${f.flatNumber.value || '—'}`],
+    ['Mobile', f.mobile.value.trim() || '—'],
+    ['Email', f.email.value.trim() || '—'],
+    ['Resident Type', rtLabel],
+    ['Family Members', String(fam.length)],
+    ['Vehicles', String(veh.length)],
+    ['Pets', String(pets.length)],
+    ['Photo', f.photo.files.length ? '✓ Attached' : '— Not attached']
+  ];
+  el.innerHTML = `
+    <h3 style="font-size:15px; margin-bottom:10px;">Please check your details</h3>
+    <div style="border:1px solid var(--line,#E2E6EF); border-radius:10px; overflow:hidden;">
+      ${rows.map(([label, value], i) => `
+        <div style="display:flex; justify-content:space-between; gap:12px; padding:9px 12px; font-size:13px; ${i % 2 ? 'background:var(--paper,#FAF8F4);' : ''}">
+          <span class="t-muted">${escapeHtml(label)}</span><span style="font-weight:600; text-align:right;">${escapeHtml(value)}</span>
+        </div>`).join('')}
+    </div>
+    <p class="t-muted" style="font-size:11.5px; margin-top:8px;">Something not right? Use the step indicator above to go back and fix it before submitting.</p>
+  `;
+  window.__translate?.(el);
+}
+document.querySelectorAll('[name=feeAlreadyPaid]').forEach(r => r.addEventListener('change', () => {
+  const showPayFields = document.getElementById('reg-feePaid-no').checked;
+  document.getElementById('regFeePayWrap').style.display = showPayFields ? 'block' : 'none';
+  if (showPayFields) fetchFeeQrIfNeeded();
+}));
+
 // Pet registration — starts with zero cards (unlike family members, which
 // starts with one blank row): "no pet" is the common case, and showing an
 // empty pet card by default would make every registrant scroll past fields
@@ -1879,7 +2140,7 @@ if (regPetsEditor && regPetsWrap) {
   const nav = document.getElementById('stepNav');
   const backBtn = document.getElementById('stepBack');
   const nextBtn = document.getElementById('stepNext');
-  if (fieldsets.length !== 3 || !indicator || !nav) return;   // markup changed; bail safely
+  if (fieldsets.length !== 5 || !indicator || !nav) return;   // markup changed; bail safely
 
   form.classList.add('steps-on');
   indicator.style.display = 'flex';
@@ -1893,7 +2154,7 @@ if (regPetsEditor && regPetsWrap) {
     fs.querySelectorAll('[name]').forEach(el => { stepOfField[el.name] = i; });
   });
   // declaration lives with the final step for the purpose of jumping to it.
-  stepOfField['declaration'] = 2;
+  stepOfField['declaration'] = 4;
 
   let current = 0;
   const render = () => {
@@ -1904,11 +2165,12 @@ if (regPetsEditor && regPetsWrap) {
     });
     indicator.querySelectorAll('.step-line').forEach((l, i) => l.classList.toggle('done', i < current));
     backBtn.style.visibility = current === 0 ? 'hidden' : 'visible';
-    nextBtn.textContent = current === fieldsets.length - 1 ? 'Review' : 'Next';
+    nextBtn.textContent = current === fieldsets.length - 2 ? 'Review' : 'Next';
     form.classList.toggle('at-last', current === fieldsets.length - 1);
     // On the last step the real submit button (inside .final-only) is the CTA,
     // so hide the "Next" to avoid two primary buttons.
     nextBtn.style.display = current === fieldsets.length - 1 ? 'none' : 'block';
+    if (current === fieldsets.length - 1) renderRegistrationReview();
   };
 
   // Let the browser's own required/pattern checks gate each step's fields, so
@@ -1937,6 +2199,87 @@ if (regPetsEditor && regPetsWrap) {
   };
 
   render();
+})();
+
+/* ---- Registration draft (Save & Exit) --------------------------------
+   localStorage, not Firestore — there's no account yet at this point in
+   the flow, so there's nowhere server-side to save a draft to. Deliberately
+   excludes password (nothing gained by having it sit in localStorage — the
+   person still has to type it again for their own security) and every file
+   input (a File object can't survive JSON serialisation at all). Everything
+   else — text/select/date fields plus family/vehicle/pet rows — round-trips
+   through initFamilyMembersEditor()/initVehiclesEditor()/initPetsEditor(),
+   the same functions that already render them from real Firestore data, so
+   restoring a draft uses no separate rendering path of its own. */
+const DRAFT_KEY = 'mhmrws_reg_draft';
+const DRAFT_TEXT_FIELDS = [
+  'residentType', 'name', 'fatherHusbandName', 'tower', 'flatNumber', 'mobile', 'email',
+  'occupation', 'bloodGroup', 'registryDate', 'coOwnerName', 'coOwnerMobile', 'coOwnerEmail',
+  'emergencyContactName', 'emergencyContactPhone', 'dob', 'anniversary',
+  'rentAgreementStart', 'rentAgreementEnd', 'policeVerification'
+];
+function collectDraftableFields() {
+  const f = registerForm;
+  const data = {};
+  DRAFT_TEXT_FIELDS.forEach((name) => { if (f[name]) data[name] = f[name].value; });
+  data.familyMembers = regFamilyEditor ? collectFamilyMembers(regFamilyEditor) : [];
+  data.vehicles = regVehiclesEditor ? collectVehicles(regVehiclesEditor) : [];
+  const hasPetChecked = document.querySelector('input[name="hasPet"]:checked')?.value === 'yes';
+  data.hasPet = hasPetChecked;
+  if (hasPetChecked && regPetsEditor) {
+    // Strip photoFile the same way the real submit path does — it can't be
+    // serialised, and a draft photo would be lost on browser-close anyway.
+    data.pets = collectPets(regPetsEditor).map((p) => { const { photoFile, ...rest } = p; return rest; });
+  }
+  return data;
+}
+function saveDraft() {
+  try {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify({ data: collectDraftableFields(), savedAt: Date.now() }));
+    showToast('Draft saved. Come back anytime to continue.', 'success');
+  } catch (e) {
+    // Private-browsing / storage-full: not worth failing the flow over.
+    showToast('Could not save the draft on this device.', 'error');
+  }
+}
+function restoreDraft(data) {
+  const f = registerForm;
+  DRAFT_TEXT_FIELDS.forEach((name) => { if (f[name] && data[name] != null) f[name].value = data[name]; });
+  // Re-fire the change handlers that depend on these — the tower→flat
+  // cascade and the registryDate/tenant-details/membership-fee toggle both
+  // key off "change", not off the value being set programmatically.
+  document.getElementById('towerSelect')?.dispatchEvent(new Event('change', { bubbles: true }));
+  setTimeout(() => {
+    if (f.flatNumber && data.flatNumber) f.flatNumber.value = data.flatNumber;
+    regResidentTypeSelect?.dispatchEvent(new Event('change', { bubbles: true }));
+  }, 0);
+  if (regFamilyEditor && data.familyMembers?.length) initFamilyMembersEditor(regFamilyEditor, data.familyMembers);
+  if (regVehiclesEditor && data.vehicles?.length) initVehiclesEditor(regVehiclesEditor, data.vehicles);
+  if (data.hasPet) {
+    const yesRadio = document.querySelector('input[name="hasPet"][value="yes"]');
+    if (yesRadio) { yesRadio.checked = true; yesRadio.dispatchEvent(new Event('change', { bubbles: true })); }
+    if (regPetsEditor && data.pets?.length) initPetsEditor(regPetsEditor, data.pets);
+  }
+}
+document.getElementById('stepSaveExit')?.addEventListener('click', saveDraft);
+(function checkForDraft() {
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    if (!parsed?.data) { localStorage.removeItem(DRAFT_KEY); return; }
+    document.getElementById('regDraftBanner').style.display = 'block';
+    document.getElementById('regDraftContinue')?.addEventListener('click', () => {
+      restoreDraft(parsed.data);
+      document.getElementById('regDraftBanner').style.display = 'none';
+    });
+    document.getElementById('regDraftDiscard')?.addEventListener('click', () => {
+      localStorage.removeItem(DRAFT_KEY);
+      document.getElementById('regDraftBanner').style.display = 'none';
+    });
+  } catch (e) {
+    localStorage.removeItem(DRAFT_KEY);
+  }
 })();
 
 // Fallback no-op if steps didn't initialise, so the submit handler can call it
@@ -2049,13 +2392,24 @@ registerForm.addEventListener('submit', async (e) => {
       mobile: f.mobile.value.trim(),
       email,
       occupation: f.occupation.value.trim(),
+      bloodGroup: f.bloodGroup.value || null,
       residentType: f.residentType.value,
-      nomineeName: f.nomineeName.value.trim(),
-      nomineeRelation: f.nomineeRelation.value.trim(),
       // Optional — used only to send a birthday/anniversary wish; never required.
       dob: f.dob.value || null,
       anniversary: f.anniversary.value || null,
+      emergencyContactName: f.emergencyContactName.value.trim() || null,
+      emergencyContactPhone: f.emergencyContactPhone.value.trim() || null,
       familyMembers: regFamilyEditor ? collectFamilyMembers(regFamilyEditor) : [],
+      vehicles: regVehiclesEditor ? collectVehicles(regVehiclesEditor) : [],
+      registryDate: f.registryDate.value || null,
+      coOwnerName: f.coOwnerName.value.trim() || null,
+      coOwnerMobile: f.coOwnerMobile.value.trim() || null,
+      coOwnerEmail: f.coOwnerEmail.value.trim() || null,
+      rentAgreementStart: f.rentAgreementStart.value || null,
+      rentAgreementEnd: f.rentAgreementEnd.value || null,
+      policeVerification: f.policeVerification.value || null,
+      ownerName: f.ownerName.value.trim() || null,
+      ownerContact: f.ownerContact.value.trim() || null,
       photoURL,
       declarationAccepted: true,
       memberID: null,
@@ -2075,8 +2429,14 @@ registerForm.addEventListener('submit', async (e) => {
     let petSaveFailed = false;
     for (const pet of pets) {
       try {
+        if (pet.photoFile) {
+          try { pet.photoURL = await uploadFile(`petPhotos/${uid}/pet_${Date.now()}`, pet.photoFile); }
+          catch (photoErr) { console.warn('Pet photo upload failed (continuing without it):', photoErr?.code || photoErr); }
+        }
+        delete pet.photoFile;
+        const petId = await generatePetId();
         await addDoc(collection(db, 'pets'), {
-          ...pet, ownerUid: uid, ownerName: f.name.value.trim(),
+          ...pet, petId, ownerUid: uid, ownerName: f.name.value.trim(),
           tower: f.tower.value.trim(), flatNumber: f.flatNumber.value.trim(),
           createdAt: serverTimestamp(), updatedAt: serverTimestamp()
         });
@@ -2086,6 +2446,69 @@ registerForm.addEventListener('submit', async (e) => {
       }
     }
 
+    // Membership fee — owner-only, and only if they actually gave us
+    // something (a UTR or a screenshot). Leaving both blank means "I'll pay
+    // later", which is a completely valid, unpenalized choice — this must
+    // never be the thing that blocks a registration from going through.
+    const isOwnerType = f.residentType.value === 'owner' || f.residentType.value === 'jointowner';
+    const alreadyPaidFee = document.getElementById('reg-feePaid-yes')?.checked;
+    const feeUtr = f.feeUtr ? f.feeUtr.value.trim() : '';
+    const feeProofFile = f.feeProof ? f.feeProof.files[0] : null;
+    let membershipPaymentData = null;
+    if (isOwnerType && !alreadyPaidFee && (feeUtr || feeProofFile)) {
+      try {
+        let feeProofURL = '';
+        if (feeProofFile) feeProofURL = await uploadFile(`paymentProofs/${uid}/membership_${Date.now()}`, feeProofFile);
+        membershipPaymentData = {
+          memberUid: uid, residentName: f.name.value.trim(), flatNumber: f.flatNumber.value.trim(),
+          amount: 1100, type: 'membership', mode: 'upi', financialYear: currentFinancialYear(),
+          utrOrChequeNo: feeUtr, paymentProofURL: feeProofURL,
+          status: 'pending_verification', submittedAt: serverTimestamp()
+        };
+        await addDoc(collection(db, 'payments'), membershipPaymentData);
+      } catch (feeErr) {
+        // Same principle as the pet-save failure just above: the
+        // registration itself already succeeded, so this must not look
+        // like the whole thing failed — just tell them to pay from the
+        // dashboard instead of silently losing the payment attempt.
+        console.warn('Membership fee payment save failed:', feeErr?.code || feeErr);
+        membershipPaymentData = null;
+        showToast('Registration submitted, but the payment details could not be saved. Please pay from your dashboard once approved.', 'error');
+      }
+    }
+
+    // A confirmation of exactly what was submitted, generated and offered
+    // for download immediately — not emailed (this app has no backend to
+    // send mail from) and not "the receipt" (nothing has been verified yet).
+    try {
+      await generateRegistrationConfirmationPDF({
+        formData: {
+          name: f.name.value.trim(), fatherHusbandName: f.fatherHusbandName.value.trim(),
+          tower: f.tower.value.trim(), flatNumber: f.flatNumber.value.trim(),
+          mobile: f.mobile.value.trim(), email, occupation: f.occupation.value.trim(),
+          residentType: f.residentType.value, registryDate: f.registryDate.value || null,
+          coOwnerName: f.coOwnerName.value.trim() || null,
+      coOwnerMobile: f.coOwnerMobile.value.trim() || null,
+      coOwnerEmail: f.coOwnerEmail.value.trim() || null,
+          bloodGroup: f.bloodGroup.value || null,
+          emergencyContactName: f.emergencyContactName.value.trim() || null,
+          emergencyContactPhone: f.emergencyContactPhone.value.trim() || null,
+          rentAgreementStart: f.rentAgreementStart.value || null,
+          rentAgreementEnd: f.rentAgreementEnd.value || null,
+          policeVerification: f.policeVerification.value || null,
+          ownerName: f.ownerName.value.trim() || null,
+          ownerContact: f.ownerContact.value.trim() || null,
+          vehicles: regVehiclesEditor ? collectVehicles(regVehiclesEditor) : [],
+          pets: regPetsEditor ? collectPets(regPetsEditor) : [],
+          familyMembers: regFamilyEditor ? collectFamilyMembers(regFamilyEditor) : []
+        },
+        membershipPayment: membershipPaymentData,
+        society: SOCIETY, logoDataUrl: LOGO_DATA_URI
+      });
+    } catch (pdfErr) {
+      console.warn('Registration confirmation PDF failed (non-fatal):', pdfErr);
+    }
+
     if (f.photo.files[0] && !photoURL) {
       showToast('Registration submitted, but the photo could not be uploaded. Please have the office add it.', 'error');
     } else if (petSaveFailed) {
@@ -2093,6 +2516,7 @@ registerForm.addEventListener('submit', async (e) => {
     } else {
       showSuccess('Registration Complete!', 'Your Member ID will be generated once the committee approves your registration. You can log in now.');
     }
+    try { localStorage.removeItem(DRAFT_KEY); } catch (e) {}
     f.reset();
     showTab('login');
   } catch (err) {
@@ -2226,6 +2650,7 @@ async function loadDashboard(uid) {
         </div>` : ''}
       ${statusExtra}
     </div>
+    ${currentMember.status === 'approved' ? `<div id="expiryCenterCard" style="display:none;"></div>` : ''}
     ${currentMember.status === 'approved' ? `
     <div class="dash-grid">
       <div class="card card-pad">
@@ -2241,11 +2666,36 @@ async function loadDashboard(uid) {
       </div>
       <div class="card card-pad">
         <h3 style="font-size:16px; margin-bottom:12px;">Your Details</h3>
+        ${(() => {
+          const pc = profileCompleteness(currentMember);
+          if (pc.pct >= 100) return '';
+          return `
+          <div style="margin-bottom:16px;">
+            <div style="display:flex; justify-content:space-between; font-size:12px; color:var(--ink-500,#6B7385); margin-bottom:5px;">
+              <span>Profile completeness</span><span>${pc.pct}%</span>
+            </div>
+            <div style="height:6px; border-radius:3px; background:var(--line,#E2E6EF); overflow:hidden;">
+              <div style="height:100%; width:${pc.pct}%; background:var(--gradient-saffron, #C9A227); border-radius:3px;"></div>
+            </div>
+            <p class="t-muted" style="font-size:11.5px; margin-top:6px;">${pc.missing.map(m => escapeHtml(m.label)).join(' · ')}</p>
+          </div>`;
+        })()}
+        ${(() => {
+          if (currentMember.residentType !== 'tenant') return '';
+          const rs = rentAgreementStatus(currentMember);
+          if (rs.status !== 'expired' && rs.status !== 'expiring_soon') return '';
+          const msg = rs.status === 'expired'
+            ? `Your rent agreement expired ${Math.abs(rs.daysUntil)} day${Math.abs(rs.daysUntil) === 1 ? '' : 's'} ago.`
+            : `Your rent agreement expires in ${rs.daysUntil} day${rs.daysUntil === 1 ? '' : 's'}.`;
+          return `
+          <div style="margin-bottom:16px; padding:10px 12px; border-radius:8px; background:rgba(192,57,43,.07); border:1px solid rgba(192,57,43,.18); font-size:12.5px;">
+            📄 ${escapeHtml(msg)} Please submit an updated agreement to the society office.
+          </div>`;
+        })()}
         <div class="detail-line"><span>Member ID</span><span class="mono">${escapeHtml(currentMember.memberID || '—')}</span></div>
         <div class="detail-line"><span>Mobile</span><span>${escapeHtml(currentMember.mobile)}</span></div>
         <div class="detail-line"><span>Email</span><span>${escapeHtml(currentMember.email)}</span></div>
-        <div class="detail-line"><span>Type</span><span>${escapeHtml(currentMember.residentType)}</span></div>
-        <div class="detail-line"><span>Nominee</span><span>${escapeHtml(currentMember.nomineeName || '—')}</span></div>
+        <div class="detail-line"><span>Type</span><span>${{ owner: 'Owner', jointowner: 'Joint Owner', tenant: 'Tenant' }[currentMember.residentType] || escapeHtml(currentMember.residentType)}</span></div>
         <div class="detail-line"><span>Date of Birth</span><span>${currentMember.dob || '—'}</span></div>
         <div class="detail-line"><span>Family Members</span><span>${(currentMember.familyMembers && currentMember.familyMembers.length) ? currentMember.familyMembers.length : '—'}</span></div>
         <button class="btn btn-outline btn-sm" id="editProfileBtn" style="margin-top:10px;">✎ Edit Profile</button>
@@ -2417,6 +2867,61 @@ document.addEventListener('click', (e) => {
    notice. A single where('ownerUid','==',uid) query, no orderBy combined
    with it, so this never needs a composite index the way the old payments
    query did before that got fixed. */
+const PET_ICON = { dog: '🐕', cat: '🐈', bird: '🐦', other: '🐾' };
+
+/* Combines two things that were already tracked separately (rent-agreement
+   expiry, pet vaccination) into the one place a resident would actually
+   think to look — "what needs my attention" — rather than making them
+   notice a banner buried in Your Details and a badge buried in My Pets.
+   Runs after pets have loaded (called from renderMyPets, not on its own),
+   since a rent-only render would incorrectly show "nothing due" for a split
+   second before pets arrive. Hides itself entirely if there's nothing to
+   flag, matching the same pattern used elsewhere for the vaccination and
+   rent-agreement cards individually. */
+function renderExpiryCenter() {
+  const card = document.getElementById('expiryCenterCard');
+  if (!card) return;
+  const items = [];
+
+  if (currentMember.residentType === 'tenant') {
+    const rs = rentAgreementStatus(currentMember);
+    if (rs.status === 'expired' || rs.status === 'expiring_soon') {
+      items.push({
+        icon: '📄', label: 'Rent Agreement',
+        detail: rs.status === 'expired' ? `Expired ${Math.abs(rs.daysUntil)} day${Math.abs(rs.daysUntil) === 1 ? '' : 's'} ago` : `Expires in ${rs.daysUntil} day${rs.daysUntil === 1 ? '' : 's'}`,
+        daysUntil: rs.daysUntil
+      });
+    }
+  }
+  (window.__myPets || []).forEach((pet) => {
+    const st = petVaccinationStatus(pet);
+    if (st.status === 'overdue' || st.status === 'due_soon') {
+      items.push({
+        icon: PET_ICON[pet.species] || '🐾', label: `${pet.name}'s Vaccination`,
+        detail: st.status === 'overdue' ? `${Math.abs(st.daysUntil)} day${Math.abs(st.daysUntil) === 1 ? '' : 's'} overdue` : `Due in ${st.daysUntil} day${st.daysUntil === 1 ? '' : 's'}`,
+        daysUntil: st.daysUntil
+      });
+    }
+  });
+
+  if (!items.length) { card.style.display = 'none'; card.innerHTML = ''; return; }
+  items.sort((a, b) => a.daysUntil - b.daysUntil);
+  card.style.display = 'block';
+  card.innerHTML = `
+    <div class="card card-pad" style="margin-bottom:20px; border-color:rgba(192,57,43,.2);">
+      <h3 style="font-size:15px; margin-bottom:10px;">🔔 Needs Your Attention</h3>
+      ${items.map(i => `
+        <div style="display:flex; align-items:center; gap:10px; padding:8px 0; border-top:1px solid var(--line,#E2E6EF);">
+          <span style="font-size:18px;">${i.icon}</span>
+          <div style="flex:1; min-width:0;">
+            <div style="font-weight:600; font-size:13px;">${escapeHtml(i.label)}</div>
+            <div class="t-muted" style="font-size:12px; color:${i.daysUntil < 0 ? 'var(--danger,#C0392B)' : 'inherit'};">${escapeHtml(i.detail)}</div>
+          </div>
+        </div>`).join('')}
+    </div>`;
+  window.__translate?.(card);
+}
+
 async function loadMyPets(uid) {
   const el = document.getElementById('myPetsList');
   if (!el) return;
@@ -2430,8 +2935,8 @@ async function loadMyPets(uid) {
     window.__translate(el);
   }
 }
-const PET_ICON = { dog: '🐕', cat: '🐈', bird: '🐦', other: '🐾' };
 function renderMyPets() {
+  renderExpiryCenter();
   const el = document.getElementById('myPetsList');
   const rows = window.__myPets || [];
   if (!rows.length) {
@@ -2477,12 +2982,18 @@ document.getElementById('petEditForm')?.addEventListener('submit', async (e) => 
   const pet = pets[0];
   btn.disabled = true;
   try {
+    if (pet.photoFile) {
+      try { pet.photoURL = await uploadFile(`petPhotos/${currentUser.uid}/pet_${Date.now()}`, pet.photoFile); }
+      catch (photoErr) { console.warn('Pet photo upload failed (continuing without it):', photoErr?.code || photoErr); }
+    }
+    delete pet.photoFile;
     if (editingId) {
       await updateDoc(doc(db, 'pets', editingId), { ...pet, updatedAt: serverTimestamp() });
       showToast('Pet details updated.', 'success');
     } else {
+      const petId = await generatePetId();
       await addDoc(collection(db, 'pets'), {
-        ...pet, ownerUid: currentUser.uid, ownerName: currentMember.name,
+        ...pet, petId, ownerUid: currentUser.uid, ownerName: currentMember.name,
         tower: currentMember.tower, flatNumber: currentMember.flatNumber,
         createdAt: serverTimestamp(), updatedAt: serverTimestamp()
       });
@@ -2610,8 +3121,6 @@ function openProfileModal() {
   f.mobile.value = currentMember.mobile || '';
   f.email.value = currentMember.email || '';
   f.occupation.value = currentMember.occupation || '';
-  f.nomineeName.value = currentMember.nomineeName || '';
-  f.nomineeRelation.value = currentMember.nomineeRelation || '';
   f.dob.value = currentMember.dob || '';
   f.anniversary.value = currentMember.anniversary || '';
   const editor = document.getElementById('pfFamilyEditor');
@@ -2629,7 +3138,6 @@ document.getElementById('profileEditForm')?.addEventListener('submit', async (e)
   const patch = {
     mobile: f.mobile.value.trim(), email: f.email.value.trim(),
     occupation: f.occupation.value.trim(),
-    nomineeName: f.nomineeName.value.trim(), nomineeRelation: f.nomineeRelation.value.trim(),
     dob: f.dob.value || null, anniversary: f.anniversary.value || null,
     familyMembers: collectFamilyMembers(document.getElementById('pfFamilyEditor')),
     updatedAt: serverTimestamp()
@@ -2775,6 +3283,16 @@ async function loadMaintenanceSettings() {
 function renderDues(dues, financialYear) {
   const el = document.getElementById('duesPanel');
   if (!el) return;
+
+  if (currentMember?.maintenanceResponsible === false) {
+    el.innerHTML = `<div class="dues-box"><div class="dues-head">
+      <div><div class="lbl">Maintenance &middot; FY ${escapeHtml(financialYear)}</div>
+      <div style="font-size:13.5px; color:var(--ink-600); margin-top:4px;">
+        Another resident registered for your flat handles maintenance payments. Contact the society office if this should be changed.</div></div>
+    </div></div>`;
+    window.__translate?.(el);
+    return;
+  }
 
   if (dues.status === 'no_rate') {
     el.innerHTML = `<div class="dues-box"><div class="dues-head">
@@ -3571,6 +4089,23 @@ async function loadAccounts() {
             <div class="spend-bar"><span style="width:${Math.max(2, Math.round(c.share * 100))}%"></span></div>
           </div>`).join('')}
       </div>` : '<div class="spend-list"><p class="t-sub" style="font-size:13.5px;">No expenses have been recorded for this year yet.</p></div>'}
+      ${Array.isArray(s.majorExpenses) && s.majorExpenses.length ? `
+      <div class="spend-list" style="margin-top:16px;">
+        <h3 style="font-size:15.5px; margin-bottom:14px;">Major expenses this year</h3>
+        <div class="table-wrap">
+          <table><thead><tr><th>Description</th><th>Category</th><th>Paid To</th><th>Date</th><th>Amount</th></tr></thead>
+          <tbody>
+            ${s.majorExpenses.map(e => `
+              <tr>
+                <td>${escapeHtml(e.description)}</td>
+                <td>${escapeHtml(e.category)}</td>
+                <td>${escapeHtml(e.paidTo || '—')}</td>
+                <td>${e.date ? fmtDate(e.date) : '—'}</td>
+                <td><b>${formatINR(e.amount)}</b></td>
+              </tr>`).join('')}
+          </tbody></table>
+        </div>
+      </div>` : ''}
     `;
     window.__translate(el);
   } catch (e) {
@@ -3652,18 +4187,20 @@ async function loadSettingsPublic() {
   } catch (e) {}
 }
 
-async function loadStats() {
-  try {
-    const rows = (await getDocs(query(collection(db, 'members'), where('status', '==', 'approved')))).docs.map(d => d.data());
-    const memberEl = document.getElementById('statMembers');
-    const towerEl = document.getElementById('statTowers');
-    memberEl.textContent = rows.length;
-    towerEl.textContent = new Set(rows.map(r => r.tower)).size;
-    // Count up only once the real numbers are in, so nobody sees a figure
-    // animate to a value that then changes.
-    window.__animateCount?.(memberEl);
-    window.__animateCount?.(towerEl);
-  } catch (e) {}
+/* The real member-count looks discouraging before the community has
+   finished onboarding ("0 Registered Members" reads as "nobody's here" to
+   a first-time visitor, not as "we just launched"). The building's actual
+   size, by contrast, is never zero and needs no live data — it's the same
+   TOWER_PLAN the registration form's own dropdowns are built from, so
+   there's nothing here to keep in sync by hand if a tower is ever added. */
+function loadStats() {
+  const totalFlats = TOWER_IDS.reduce((sum, t) => sum + flatsForTower(t).reduce((floorSum, f) => floorSum + f.flats.length, 0), 0);
+  const memberEl = document.getElementById('statMembers');
+  const towerEl = document.getElementById('statTowers');
+  memberEl.textContent = totalFlats;
+  towerEl.textContent = TOWER_IDS.length;
+  window.__animateCount?.(memberEl);
+  window.__animateCount?.(towerEl);
 }
 
 loadNotices();

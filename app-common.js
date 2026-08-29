@@ -120,8 +120,6 @@ export function validateRegistration(f) {
   const mobile = val('mobile');
   const email = val('email');
   const occupation = val('occupation');
-  const nomineeName = val('nomineeName');
-  const nomineeRelation = val('nomineeRelation');
   const residentType = val('residentType');
 
   if (!name) return { field: 'name', message: 'Name is required.' };
@@ -130,9 +128,9 @@ export function validateRegistration(f) {
   // Letters, so without it every Hindi name would be rejected.
   if (!/^[\p{L}\p{M}\s.'-]+$/u.test(name)) return { field: 'name', message: "Name can only contain letters, spaces, and . ' -" };
 
-  if (!father) return { field: 'fatherHusbandName', message: "Father's / Husband's name is required." };
-  if (father.length > LIMITS.nameMax) return { field: 'fatherHusbandName', message: "Father's / Husband's name is too long." };
-  if (!/^[\p{L}\p{M}\s.'-]+$/u.test(father)) return { field: 'fatherHusbandName', message: "Father's / Husband's name can only contain letters and spaces." };
+  if (!father) return { field: 'fatherHusbandName', message: "Father's / Spouse's name is required." };
+  if (father.length > LIMITS.nameMax) return { field: 'fatherHusbandName', message: "Father's / Spouse's name is too long." };
+  if (!/^[\p{L}\p{M}\s.'-]+$/u.test(father)) return { field: 'fatherHusbandName', message: "Father's / Spouse's name can only contain letters and spaces." };
 
   if (!tower) return { field: 'tower', message: 'Please select a tower.' };
   if (!TOWER_PLAN[tower]) return { field: 'tower', message: 'Invalid tower.' };
@@ -147,18 +145,14 @@ export function validateRegistration(f) {
   if (!email) return { field: 'email', message: 'Email is required.' };
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { field: 'email', message: 'Email address is not in a valid format.' };
 
-  if (!occupation) return { field: 'occupation', message: 'Occupation is required.' };
   if (occupation.length > 100) return { field: 'occupation', message: 'Occupation is too long.' };
-  if (!residentType) return { field: 'residentType', message: 'Please select Owner or Tenant.' };
-  if (!['owner', 'tenant'].includes(residentType)) return { field: 'residentType', message: 'Invalid Owner/Tenant selection.' };
+  if (!residentType) return { field: 'residentType', message: 'Please select Owner, Joint Owner, or Tenant.' };
+  if (!['owner', 'jointowner', 'tenant'].includes(residentType)) return { field: 'residentType', message: 'Invalid Owner/Tenant selection.' };
 
-  if (!nomineeName) return { field: 'nomineeName', message: 'Nominee name is required.' };
-  if (!/^[\p{L}\p{M}\s.'-]+$/u.test(nomineeName)) return { field: 'nomineeName', message: 'Nominee name can only contain letters and spaces.' };
-  if (!nomineeRelation) return { field: 'nomineeRelation', message: 'Relationship to nominee is required.' };
-
-  // Photo and Aadhaar/PAN are both deliberately NOT required — some residents
-  // don't have a photo ready at registration time; the office can add it
-  // later from the member's edit screen, same as the ID document already was.
+  // Photo is required (the committee uses it for on-site/gate verification);
+  // Aadhaar/PAN stays optional — the office can add that later from the
+  // member's edit screen, same as before.
+  if (!f.photo || !f.photo.files || f.photo.files.length === 0) return { field: 'photo', message: 'Please upload a photo.' };
 
   if (f.password.value.length < 6) return { field: 'password', message: 'Password must be at least 6 characters.' };
   if (f.password.value !== f.confirmPassword.value) return { field: 'confirmPassword', message: 'Passwords do not match.' };
@@ -609,10 +603,68 @@ export async function nextSequence(counterId, padLength = 6) {
   return String(next).padStart(padLength, '0');
 }
 
+/* One flat now has TWO independent claim slots — owner-side and
+   tenant-side — not one. This is deliberate: an out-of-town owner who
+   rents their flat out may still want their own portal login (to see
+   notices, vote, track their own dues) alongside the tenant who actually
+   lives there and handles day-to-day matters. jointowner shares the SAME
+   owner-side slot as owner (a flat has one owner-side registration,
+   however that ownership is structured) — it does not create a third slot.
+   Passing a residentType of 'owner', 'jointowner', or 'tenant' picks the
+   right slot automatically; any other/missing value falls back to the old
+   single-slot ID so a caller that doesn't yet know about a resident's type
+   still gets a stable, valid ID rather than a crash. */
+export function flatClaimId(tower, flatNumber, residentType) {
+  const base = `${String(tower || '').trim()}_${String(flatNumber || '').trim()}`;
+  const slot = residentType === 'tenant' ? 'tenant' : (residentType === 'owner' || residentType === 'jointowner') ? 'owner' : null;
+  return slot ? `${base}_${slot}` : base;
+}
+
+/* A flat has two independent slots (owner-side, tenant-side) as of the
+   dual-registration change — see flatClaimId's own comment for why. This
+   is the one place that decides "is the slot this residentType wants
+   actually free", and it has to stay conservative about data that predates
+   the change: a legacy claim (flatClaims/A_101, no side suffix, from
+   before a flat could have two residents) is treated as occupying BOTH
+   slots — not just whichever side its owner happens to be — until an admin
+   touches that member's record again (Master Data Edit's save recreates
+   the claim under the new per-side ID as a side effect, which is what
+   actually "migrates" it). The alternative — guessing a legacy claim only
+   blocks its own side — risks a false negative: approving a second
+   resident for a flat that, as far as this app can prove, may already be
+   fully occupied under the old model.
+   Returns null if the slot is free, or the existing claim's data if it's
+   taken (by someone other than excludeMemberId, so a member's own
+   re-approval or a same-person data edit never blocks itself). */
+export async function findBlockingFlatClaim(tower, flatNumber, residentType, excludeMemberId) {
+  const legacyRef = doc(db, 'flatClaims', flatClaimId(tower, flatNumber, null));
+  const legacySnap = await getDoc(legacyRef);
+  if (legacySnap.exists() && legacySnap.data().memberDocId !== excludeMemberId) {
+    return legacySnap.data();
+  }
+  const sidedRef = doc(db, 'flatClaims', flatClaimId(tower, flatNumber, residentType));
+  const sidedSnap = await getDoc(sidedRef);
+  if (sidedSnap.exists() && sidedSnap.data().memberDocId !== excludeMemberId) {
+    return sidedSnap.data();
+  }
+  return null;
+}
+
 export async function generateMemberId() {
   const year = new Date().getFullYear();
   const seq = await nextSequence(`member_${year}`, 6);
   return `MHM-${year}-${seq}`;
+}
+
+/* Same atomic-counter pattern as generateMemberId — one shared, ever-
+   increasing sequence per year, so two pets registered in the same second
+   never collide. Useful on a collar tag, in complaint records, and in
+   vaccination-reminder messages, where "the pet formerly known as Tommy at
+   A-101" isn't a stable enough reference once a flat changes hands. */
+export async function generatePetId() {
+  const year = new Date().getFullYear();
+  const seq = await nextSequence(`pet_${year}`, 4);
+  return `MHM-PET-${year}-${seq}`;
 }
 
 export async function generateReceiptNumber(financialYear) {
@@ -758,6 +810,153 @@ export function verifyUrlFor(payment) {
 /* ---------------------------------------------------------------------- */
 /*  Receipt PDF (uses jsPDF — window.jspdf.jsPDF)                          */
 /* ---------------------------------------------------------------------- */
+/* A confirmation of what was actually submitted — not a membership
+   certificate. The status line says "Pending Approval" always, because
+   this generates the moment the form is submitted, before any committee
+   member has looked at it. Payment fields only render if a membership
+   payment was actually submitted alongside registration (payment is
+   optional at registration time — someone can register today and pay
+   later without this document lying about what happened). */
+export async function generateRegistrationConfirmationPDF({ formData, membershipPayment, society, logoDataUrl, save = true }) {
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({ unit: 'pt', format: 'a4' });
+  const W = pdf.internal.pageSize.getWidth();
+  const H = pdf.internal.pageSize.getHeight();
+  const marginX = 48;
+  let y = 56;
+
+  pdf.setFillColor(10, 27, 51);
+  pdf.rect(0, 0, W, 100, 'F');
+  if (logoDataUrl) {
+    try {
+      const sealImg = await sealOnWhiteDisc(logoDataUrl);
+      if (sealImg) {
+        const cx = marginX + 26, cy = 50, r = 27;
+        pdf.setFillColor(255, 255, 255);
+        pdf.circle(cx, cy, r, 'F');
+        pdf.addImage(sealImg, 'JPEG', cx - r * 0.94, cy - r * 0.94, r * 1.88, r * 1.88);
+        pdf.setDrawColor(228, 199, 101); pdf.setLineWidth(1);
+        pdf.circle(cx, cy, r, 'S');
+      }
+    } catch (e) {/* still a valid document without the seal */}
+  }
+  pdf.setTextColor(255, 255, 255);
+  pdf.setFont('times', 'bold'); pdf.setFontSize(18);
+  pdf.text(society.fullName || 'Resident Welfare Society', marginX + 64, 46);
+  pdf.setFont('helvetica', 'normal'); pdf.setFontSize(10);
+  pdf.text(`Reg. No: ${society.regNumber || '—'}`, marginX + 64, 62);
+  pdf.setFont('helvetica', 'bold'); pdf.setFontSize(11);
+  pdf.text('REGISTRATION CONFIRMATION', W - marginX, 46, { align: 'right' });
+  pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9);
+  pdf.text(fmtDateTime(new Date()), W - marginX, 62, { align: 'right' });
+
+  y = 128;
+  pdf.setTextColor(16, 25, 43);
+
+  // Status banner — amber, not green: nothing has been approved yet.
+  pdf.setFillColor(255, 244, 229);
+  pdf.roundedRect(marginX, y, W - marginX * 2, 34, 6, 6, 'F');
+  pdf.setDrawColor(232, 163, 61); pdf.setLineWidth(1);
+  pdf.roundedRect(marginX, y, W - marginX * 2, 34, 6, 6, 'S');
+  pdf.setFont('helvetica', 'bold'); pdf.setFontSize(11); pdf.setTextColor(153, 90, 12);
+  pdf.text('SUBMITTED — Pending Committee Approval', marginX + 14, y + 22);
+  y += 54;
+
+  function section(title) {
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(10.5); pdf.setTextColor(10, 27, 51);
+    pdf.text(title.toUpperCase(), marginX, y);
+    pdf.setDrawColor(226, 230, 239); pdf.setLineWidth(0.6);
+    pdf.line(marginX, y + 5, W - marginX, y + 5);
+    y += 22;
+  }
+  function row(label, value) {
+    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9); pdf.setTextColor(124, 135, 156);
+    pdf.text(label, marginX, y);
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(10.5); pdf.setTextColor(16, 25, 43);
+    pdf.text(String(value ?? '—'), marginX + 165, y);
+    y += 18;
+  }
+
+  const RESIDENT_TYPE_LABEL = { owner: 'Owner', jointowner: 'Joint Owner', tenant: 'Tenant' };
+
+  section('Resident Details');
+  row('Name', formData.name);
+  row("Father's / Spouse's Name", formData.fatherHusbandName);
+  row('Flat / Tower', `${formData.flatNumber || '—'} / ${formData.tower || '—'}`);
+  row('Mobile', formData.mobile);
+  row('Email', formData.email);
+  if (formData.occupation) row('Occupation', formData.occupation);
+  if (formData.bloodGroup) row('Blood Group', formData.bloodGroup);
+  row('Resident Type', RESIDENT_TYPE_LABEL[formData.residentType] || formData.residentType);
+  if (formData.registryDate) row('Date of Registry', fmtDate(formData.registryDate));
+  if (formData.coOwnerName) row("Co-Owner's Name", formData.coOwnerName);
+  if (formData.coOwnerMobile) row("Co-Owner's Mobile", formData.coOwnerMobile);
+  if (formData.coOwnerEmail) row("Co-Owner's Email", formData.coOwnerEmail);
+  y += 8;
+
+  if (formData.emergencyContactName || formData.emergencyContactPhone) {
+    section('Emergency Contact');
+    row('Name', formData.emergencyContactName || '—');
+    row('Phone', formData.emergencyContactPhone || '—');
+    y += 8;
+  }
+
+  if (formData.rentAgreementStart || formData.rentAgreementEnd || formData.policeVerification || formData.ownerName || formData.ownerContact) {
+    section('Tenant Details');
+    if (formData.rentAgreementStart || formData.rentAgreementEnd) {
+      row('Rent Agreement', `${formData.rentAgreementStart ? fmtDate(formData.rentAgreementStart) : '—'} to ${formData.rentAgreementEnd ? fmtDate(formData.rentAgreementEnd) : '—'}`);
+    }
+    if (formData.policeVerification) {
+      const PV_LABEL = { pending: 'Pending', submitted: 'Submitted to police station', not_applicable: 'Not applicable', verified: 'Verified', rejected: 'Rejected' };
+      row('Police Verification', PV_LABEL[formData.policeVerification] || formData.policeVerification);
+    }
+    if (formData.ownerName) row("Owner's Name", formData.ownerName);
+    if (formData.ownerContact) row("Owner's Contact", formData.ownerContact);
+    y += 8;
+  }
+
+  if (Array.isArray(formData.vehicles) && formData.vehicles.length) {
+    section('Vehicles');
+    formData.vehicles.forEach(v => row(v.vehicleNumber, v.parkingSlot ? `Parking: ${v.parkingSlot}` : 'No parking slot recorded'));
+    y += 8;
+  }
+
+  if (Array.isArray(formData.familyMembers) && formData.familyMembers.length) {
+    section('Family Members');
+    formData.familyMembers.forEach(fm => row(fm.name, fm.relation || '—'));
+    y += 8;
+  }
+
+  if (Array.isArray(formData.pets) && formData.pets.length) {
+    section('Pets');
+    formData.pets.forEach(p => row(p.name, [p.species === 'other' ? p.speciesOther : p.species, p.breed].filter(Boolean).join(' · ') || '—'));
+    y += 8;
+  }
+
+  if (membershipPayment) {
+    section('Membership Fee Payment');
+    row('Amount', formatINR(membershipPayment.amount));
+    row('Mode', (membershipPayment.mode || '').toUpperCase());
+    row('Transaction / UTR No.', membershipPayment.utrOrChequeNo || '—');
+    row('Status', 'Submitted — Pending Verification');
+    y += 8;
+  }
+
+  // Disclaimer — pinned near the bottom of the page, not wherever the
+  // content happened to end, so it reads the same on every registration
+  // regardless of how many optional sections were filled in.
+  const discY = H - 110;
+  pdf.setDrawColor(226, 230, 239); pdf.setLineWidth(0.6);
+  pdf.line(marginX, discY, W - marginX, discY);
+  pdf.setFont('helvetica', 'italic'); pdf.setFontSize(8); pdf.setTextColor(124, 135, 156);
+  const disclaimer = 'Disclaimer: This is a system-generated acknowledgement of the information submitted and does not, by itself, confirm membership or approve any payment. Membership becomes effective only once a committee member has reviewed and approved this registration; a submitted payment is credited only after independent verification by the Treasurer. Please retain this document for your records and quote the details above in any correspondence with the society office.';
+  const wrapped = pdf.splitTextToSize(disclaimer, W - marginX * 2);
+  pdf.text(wrapped, marginX, discY + 16);
+
+  if (save) pdf.save(`Registration_${(formData.name || 'Resident').replace(/\s+/g, '_')}.pdf`);
+  return pdf;
+}
+
 export async function generateReceiptPDF({ payment, member, society, logoDataUrl, save = true }) {
   const { jsPDF } = window.jspdf;
   const pdf = new jsPDF({ unit: 'pt', format: 'a4' });
@@ -1806,12 +2005,31 @@ function familyMemberRowHTML(fm = {}) {
   const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
   const relOptions = FAMILY_RELATIONS.map(r => `<option value="${r}" ${fm.relation === r ? 'selected' : ''}>${r}</option>`).join('');
   return `
-    <div class="fm-row">
-      <input type="text" class="fm-name" placeholder="Naam" maxlength="100" value="${esc(fm.name)}">
-      <select class="fm-relation">${relOptions}</select>
-      <input type="date" class="fm-dob" title="Date of Birth" value="${esc(fm.dob)}">
-      <button type="button" class="fm-remove" aria-label="Family member hataayein">✕</button>
+    <div class="fm-row-wrap">
+      <div class="fm-row">
+        <input type="text" class="fm-name" placeholder="Name" maxlength="100" value="${esc(fm.name)}">
+        <select class="fm-relation">${relOptions}</select>
+        <input type="date" class="fm-dob" title="Date of Birth" value="${esc(fm.dob)}">
+        <button type="button" class="fm-remove" aria-label="Remove family member">✕</button>
+      </div>
+      <div class="fm-minor-badge" style="display:none;">⚠️ Minor</div>
     </div>`;
+}
+
+/* Live, not something the person has to work out themselves: age is
+   computed from the DOB they just entered, not asked as a separate
+   "Minor?" field that could quietly disagree with it. */
+function updateMinorBadge(row) {
+  const badge = row.parentElement?.querySelector('.fm-minor-badge');
+  const dobVal = row.querySelector('.fm-dob')?.value;
+  if (!badge) return;
+  if (!dobVal) { badge.style.display = 'none'; return; }
+  const dob = new Date(dobVal);
+  const now = new Date();
+  let age = now.getFullYear() - dob.getFullYear();
+  const monthDiff = now.getMonth() - dob.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < dob.getDate())) age--;
+  badge.style.display = (age >= 0 && age < 18) ? 'inline-block' : 'none';
 }
 
 function wireFamilyRemoveButtons(container) {
@@ -1819,7 +2037,7 @@ function wireFamilyRemoveButtons(container) {
     btn.onclick = () => {
       const rows = container.querySelectorAll('.fm-row');
       if (rows.length > 1) {
-        btn.closest('.fm-row').remove();
+        btn.closest('.fm-row-wrap').remove();
       } else {
         // Keep at least one (empty) row rather than leaving none — matches
         // the resting state initFamilyMembersEditor() starts with.
@@ -1827,8 +2045,13 @@ function wireFamilyRemoveButtons(container) {
         row.querySelector('.fm-name').value = '';
         row.querySelector('.fm-dob').value = '';
         row.querySelector('.fm-relation').selectedIndex = 0;
+        updateMinorBadge(row);
       }
     };
+  });
+  container.querySelectorAll('.fm-dob').forEach((dobInput) => {
+    dobInput.addEventListener('change', () => updateMinorBadge(dobInput.closest('.fm-row')));
+    updateMinorBadge(dobInput.closest('.fm-row'));   // reflect any pre-filled DOB immediately
   });
 }
 
@@ -1860,6 +2083,64 @@ export function collectFamilyMembers(container) {
 }
 
 /* ---------------------------------------------------------------------- */
+/*  Vehicle / parking editor                                              */
+/*                                                                          */
+/*  Both fields optional and neither blocks the other — a resident might   */
+/*  have a vehicle with no allotted slot yet (visitor parking in the       */
+/*  meantime), or a parking slot recorded before the vehicle itself is     */
+/*  bought. Same repeatable-row pattern as Family Members and Pets.        */
+/* ---------------------------------------------------------------------- */
+function vehicleRowHTML(v = {}) {
+  const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+  return `
+    <div class="vehicle-row">
+      <input type="text" class="veh-number" placeholder="Vehicle No. (e.g. RJ14AB1234)" maxlength="20" value="${esc(v.vehicleNumber)}" style="text-transform:uppercase;">
+      <input type="text" class="veh-parking" placeholder="Parking Slot No." maxlength="20" value="${esc(v.parkingSlot)}">
+      <button type="button" class="fm-remove" aria-label="Remove vehicle">✕</button>
+    </div>`;
+}
+
+function wireVehicleRemoveButtons(container) {
+  container.querySelectorAll('.fm-remove').forEach((btn) => {
+    btn.onclick = () => {
+      const rows = container.querySelectorAll('.vehicle-row');
+      if (rows.length > 1) {
+        btn.closest('.vehicle-row').remove();
+      } else {
+        const row = btn.closest('.vehicle-row');
+        row.querySelector('.veh-number').value = '';
+        row.querySelector('.veh-parking').value = '';
+      }
+    };
+  });
+}
+
+export function initVehiclesEditor(container, existing = []) {
+  const list = existing.length ? existing : [{}];
+  container.innerHTML = list.map(vehicleRowHTML).join('');
+  wireVehicleRemoveButtons(container);
+}
+
+export function addVehicleRow(container) {
+  container.insertAdjacentHTML('beforeend', vehicleRowHTML());
+  wireVehicleRemoveButtons(container);
+}
+
+/* Vehicle number is uppercased on save regardless of how it was typed —
+   "rj14ab1234" and "RJ14AB1234" being treated as different vehicles by a
+   future duplicate-check would be a real, silly bug. A row is only kept if
+   it has a vehicle number; a parking slot with no vehicle recorded against
+   it isn't a vehicle registration at all. */
+export function collectVehicles(container) {
+  return [...container.querySelectorAll('.vehicle-row')]
+    .map((row) => ({
+      vehicleNumber: row.querySelector('.veh-number').value.trim().toUpperCase(),
+      parkingSlot: row.querySelector('.veh-parking').value.trim()
+    }))
+    .filter((v) => v.vehicleNumber);
+}
+
+/* ---------------------------------------------------------------------- */
 /*  Pet registration editor                                               */
 /*                                                                          */
 /*  Only Name and Species are required — a resident registering a pet     */
@@ -1872,10 +2153,14 @@ function petCardHTML(pet = {}) {
   const sel = (v, want) => (v === want ? ' selected' : '');
   const chk = (v) => (v ? ' checked' : '');
   return `
-  <div class="pet-card">
+  <div class="pet-card" data-photo-url="${escapeHtml(pet.photoURL || '')}">
     <div class="pet-card-header">
       <b>🐾 Pet</b>
       <button type="button" class="fm-remove pet-remove" aria-label="Remove this pet">✕</button>
+    </div>
+    <div class="field"><label>Pet Photo <span class="t-muted" style="font-weight:400;">(optional — helps security at the gate identify your pet)</span></label>
+      <input type="file" class="pet-photo" accept="image/*">
+      ${pet.photoURL ? `<div class="hint">A photo is already on file — choose a new one only if you want to replace it.</div>` : ''}
     </div>
     <div class="form-2col">
       <div class="field"><label>Pet Name</label><input class="pet-name" maxlength="80" value="${escapeHtml(pet.name || '')}"></div>
@@ -1924,6 +2209,15 @@ function petCardHTML(pet = {}) {
       <label class="checkbox-row"><input type="checkbox" class="pet-cert-annual"${chk(pet.hasAnnualVaccinationRecord)}> I have the Annual Vaccination Record</label>
       <label class="checkbox-row"><input type="checkbox" class="pet-cert-health"${chk(pet.hasVetHealthCert)}> I have the Veterinary Health Certificate</label>
       <label class="checkbox-row"><input type="checkbox" class="pet-cert-sterilization"${chk(pet.hasSterilizationCert)}> I have the Sterilization Certificate (if applicable)</label>
+    </div>
+    <div class="field"><label>Sterilization Status <span class="t-muted" style="font-weight:400;">(optional)</span></label>
+      <select class="pet-sterilization-status">
+        <option value="">Select</option>
+        <option value="yes"${sel(pet.sterilizationStatus, 'yes')}>Yes, sterilized</option>
+        <option value="no"${sel(pet.sterilizationStatus, 'no')}>No</option>
+        <option value="not_applicable"${sel(pet.sterilizationStatus, 'not_applicable')}>Not applicable</option>
+        <option value="unknown"${sel(pet.sterilizationStatus, 'unknown')}>Unknown</option>
+      </select>
     </div>
 
     <div class="pet-section-label">Emergency Contact (for this pet)</div>
@@ -1979,9 +2273,16 @@ export function collectPets(container) {
       hasAnnualVaccinationRecord: card.querySelector('.pet-cert-annual').checked,
       hasVetHealthCert: card.querySelector('.pet-cert-health').checked,
       hasSterilizationCert: card.querySelector('.pet-cert-sterilization').checked,
+      sterilizationStatus: card.querySelector('.pet-sterilization-status').value || null,
       emergencyContactName: card.querySelector('.pet-emg-name').value.trim(),
       emergencyContactRelation: card.querySelector('.pet-emg-relation').value.trim(),
-      emergencyContactMobile: card.querySelector('.pet-emg-mobile').value.trim()
+      emergencyContactMobile: card.querySelector('.pet-emg-mobile').value.trim(),
+      // Not a serializable Firestore value — the caller uploads this (if
+      // present) and replaces it with a photoURL string before writing.
+      // Kept inside the same filter step as everything else so an
+      // accidentally-added empty card's photo never gets uploaded either.
+      photoFile: card.querySelector('.pet-photo').files[0] || null,
+      photoURL: card.dataset.photoUrl || null
     }))
     .filter((p) => p.name);
 }
@@ -1991,6 +2292,28 @@ export function collectPets(container) {
    duesFor()/pollStatus() use elsewhere — a status string plus whatever the
    caller needs to display. Pets with no nextVaccinationDue set simply have
    nothing to report; that is not the same as being overdue. */
+/* Deliberately narrow: only counts things that apply to every resident
+   regardless of circumstance (a photo, a birthdate) plus one "personal
+   details" slot that's satisfied by EITHER an anniversary or a listed
+   family member — an unmarried resident with no family living with them
+   isn't "less complete" than someone who happens to have both. Nominee and
+   address were both removed from the data model entirely, so neither
+   factors in here; there's nothing to be incomplete about that isn't
+   asked for anymore. */
+export function profileCompleteness(member) {
+  const items = [
+    { key: 'photo', label: 'Add a photo', done: !!member?.photoURL },
+    { key: 'dob', label: 'Add your date of birth', done: !!member?.dob },
+    {
+      key: 'personal',
+      label: 'Add your anniversary or a family member',
+      done: !!member?.anniversary || (Array.isArray(member?.familyMembers) && member.familyMembers.length > 0)
+    }
+  ];
+  const done = items.filter(i => i.done).length;
+  return { pct: Math.round((done / items.length) * 100), missing: items.filter(i => !i.done) };
+}
+
 export function petVaccinationStatus(pet) {
   if (!pet.nextVaccinationDue) return { status: 'unknown', daysUntil: null };
   const due = new Date(pet.nextVaccinationDue);
@@ -2001,6 +2324,21 @@ export function petVaccinationStatus(pet) {
   if (daysUntil < 0) return { status: 'overdue', daysUntil };
   if (daysUntil <= 30) return { status: 'due_soon', daysUntil };
   return { status: 'fine', daysUntil };
+}
+
+/* Same shape as petVaccinationStatus — a tenant's rentAgreementEnd date sat
+   uncollected-but-unused since the field was added; this is what actually
+   turns it into a reminder rather than a fact nobody looks at again. */
+export function rentAgreementStatus(member) {
+  if (!member?.rentAgreementEnd) return { status: 'unknown', daysUntil: null };
+  const due = new Date(member.rentAgreementEnd);
+  if (Number.isNaN(due.getTime())) return { status: 'unknown', daysUntil: null };
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  due.setHours(0, 0, 0, 0);
+  const daysUntil = Math.round((due - today) / 86400000);
+  if (daysUntil < 0) return { status: 'expired', daysUntil };
+  if (daysUntil <= 30) return { status: 'expiring_soon', daysUntil };
+  return { status: 'valid', daysUntil };
 }
 
 /* ---------------------------------------------------------------------- */

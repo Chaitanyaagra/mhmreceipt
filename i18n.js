@@ -18,6 +18,7 @@
 export const HI = {
   /* ---- Header / nav ---- */
   'Registered Society': 'पंजीकृत सोसाइटी',
+  'Follow us on Facebook': 'फेसबुक पर हमें फॉलो करें',
   'About': 'परिचय',
   'Notices': 'सूचनाएँ',
   'Committee': 'समिति',
@@ -32,8 +33,8 @@ export const HI = {
   'Register your flat once, pay online or at the office, and receive a QR-verified receipt every single time. No paper registers, no "did it go through?" uncertainty.':
     'अपना फ्लैट एक बार पंजीकृत करें, ऑनलाइन या कार्यालय में भुगतान करें, और हर बार QR-सत्यापित रसीद पाएँ। न कागज़ी रजिस्टर, न "भुगतान पहुँचा या नहीं?" की उलझन।',
   'Register as Resident': 'सदस्य के रूप में पंजीकरण करें',
-  'Registered Members': 'पंजीकृत सदस्य',
-  'Towers Covered': 'शामिल टावर',
+  'Homes in the Community': 'समुदाय में घर',
+  'Residential Towers': 'आवासीय टावर',
   'QR-Verifiable': 'QR-सत्यापित',
   'Official · Registered · Verified': 'आधिकारिक · पंजीकृत · सत्यापित',
 

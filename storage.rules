@@ -17,9 +17,18 @@ service firebase.storage {
     function isSignedIn() {
       return request.auth != null;
     }
+    function adminRole() {
+      return firestore.get(/databases/(default)/documents/admins/$(request.auth.uid)).data.role;
+    }
     function isAdmin() {
+      // Same reasoning as Firestore's isAdmin(): a record's mere existence
+      // isn't enough — a stale role (a post the society has since
+      // abolished) or a typo'd role must not grant storage access either.
+      // Kept in sync with the exact role list Firestore's own admins/{uid}
+      // write rule enforces on creation.
       return isSignedIn() &&
-        firestore.exists(/databases/(default)/documents/admins/$(request.auth.uid));
+        firestore.exists(/databases/(default)/documents/admins/$(request.auth.uid)) &&
+        adminRole() in ['superadmin', 'president', 'secretary', 'jointsecretary', 'treasurer'];
     }
 
     // An upload path that accepts "any bytes" is a hosting service for whoever

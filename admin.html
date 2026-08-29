@@ -252,7 +252,7 @@
       <div class="field"><label for="fld-password-2">Password</label><input type="password" name="password" required autocomplete="current-password" id="fld-password-2"></div>
       <button class="btn btn-primary btn-block" type="submit">Log In</button>
     </form>
-    <p style="text-align:center; margin-top:12px;"><a href="#" id="adminForgotPassword" class="t-sub" style="font-size:12.5px; text-decoration:underline;">Password bhool gaye?</a></p>
+    <p style="text-align:center; margin-top:12px;"><a href="#" id="adminForgotPassword" class="t-sub" style="font-size:12.5px; text-decoration:underline;">Forgot password?</a></p>
     <p id="loginError" class="t-danger" style="text-align:center; font-size:13px; margin-top:14px; display:none;"></p>
     <p style="text-align:center; margin-top:20px;"><a href="index.html" class="t-sub" style="font-size:12.5px; text-decoration:underline;">← Back to Resident Portal</a></p>
   </div>
@@ -326,6 +326,15 @@
            renderCommandCenter().
       -->
       <div class="cc-strip" id="commandCenterStrip"></div>
+
+      <!-- Society Health Score — every number here is a real, labelled
+           fraction (visible on hover/beside the %), never an opaque score
+           with nothing behind it. A metric with no underlying data (e.g.
+           no pets registered yet) is skipped entirely rather than forced
+           to some default, so the overall score never gets diluted by
+           something that was never actually measured. Populated by
+           renderHealthScore(), called from renderOverview(). -->
+      <div class="card card-pad" id="healthScoreCard" style="margin-bottom:20px;"></div>
 
       <!-- Rules-out-of-sync warning — Super Admin only, since only they can
            actually publish rules. Populated by checkRulesHealth(). Hidden by
@@ -410,6 +419,12 @@
         <div class="celeb-list" id="petVaxList"></div>
       </div>
 
+      <div class="card card-pad celeb-card" id="rentAgreementCard" style="display:none;">
+        <h3 style="font-size:14.5px; margin-bottom:4px;">📄 Rent Agreements Expiring</h3>
+        <p class="t-muted" style="font-size:12px; margin-bottom:10px;">Expired or expiring within the next 30 days.</p>
+        <div class="celeb-list" id="rentAgreementList"></div>
+      </div>
+
       <div class="stat-cards">
         <div class="card card-pad stat-card"><div class="num" id="statTotalMembers">—</div><div class="lbl">Approved Members</div></div>
         <div class="card card-pad stat-card"><div class="num" id="statPendingApprovals">—</div><div class="lbl">Pending Approvals</div></div>
@@ -442,6 +457,8 @@
       <div class="topbar"><h2 class="view-title">Members</h2>
         <div class="action-row">
           <button class="btn btn-primary btn-sm" id="registerResidentBtn">+ Register Resident</button>
+          <button class="btn btn-outline btn-sm" id="householdViewBtn">🏠 View by Household</button>
+          <button class="btn btn-outline btn-sm" id="bloodGroupSearchBtn">🩸 Blood Group Search</button>
           <button class="btn btn-outline btn-sm" id="exportMembersBtn">⬇ Export Excel</button>
         </div>
       </div>
@@ -971,6 +988,39 @@
   </div>
 </div>
 
+<!-- One flat, one screen: everyone linked to it (owner, tenant, co-owner
+     name if any) plus the combined family/vehicle/pet picture. Became
+     genuinely necessary once a flat could hold two independent
+     registrations (owner + tenant) — before that, "who's connected to
+     A-101" was always just one member record; now it can take searching
+     two, so this answers it in one place instead. -->
+<div class="modal-backdrop" id="householdModalBackdrop">
+  <div class="modal">
+    <div class="modal-head"><h3 style="font-size:16.5px;">View by Household</h3><button class="icon-btn" id="closeHouseholdModal">✕</button></div>
+    <div class="modal-body">
+      <div class="field"><label for="householdFlatSelect">Tower / Flat</label>
+        <select id="householdFlatSelect"><option value="">Select a flat…</option></select>
+      </div>
+      <div id="householdResult" style="margin-top:16px;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Emergency-first design: pick the group, get names + one-tap-call
+     numbers immediately — nothing else in between. Someone using this is
+     doing so under time pressure (a resident needs blood, or is offering
+     to help another resident who does), so the fewer steps the better. -->
+<div class="modal-backdrop" id="bloodGroupModalBackdrop">
+  <div class="modal">
+    <div class="modal-head"><h3 style="font-size:16.5px;">🩸 Blood Group Search</h3><button class="icon-btn" id="closeBloodGroupModal">✕</button></div>
+    <div class="modal-body">
+      <p class="t-muted" style="font-size:12.5px; margin-bottom:12px;">For emergencies — find residents by blood group to request or offer help. Only residents who've added their blood group appear here.</p>
+      <div id="bloodGroupButtons" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px;"></div>
+      <div id="bloodGroupResult"></div>
+    </div>
+  </div>
+</div>
+
 <!-- Admin registers a resident directly — for a family who can't/won't fill
      the public form themselves, or a move-in the office is handling. Created
      already APPROVED (admin registering implies trust), with a real login so
@@ -981,32 +1031,28 @@
     <div class="modal-body">
       <form id="registerResidentForm">
         <div class="form-2col">
+          <div class="field"><label for="rr-residentType">Owner / Tenant</label>
+            <select name="residentType" id="rr-residentType" required>
+              <option value="owner">Owner</option><option value="jointowner">Joint Owner</option><option value="tenant">Tenant</option>
+            </select>
+          </div>
           <div class="field"><label for="rr-name">Name</label><input name="name" id="rr-name" required maxlength="100"></div>
-          <div class="field"><label for="rr-father">Father / Husband Name</label><input name="fatherHusbandName" id="rr-father" maxlength="100"></div>
         </div>
         <div class="form-2col">
+          <div class="field"><label for="rr-father">Father / Spouse Name</label><input name="fatherHusbandName" id="rr-father" maxlength="100"></div>
           <div class="field"><label for="rrTowerSelect">Tower</label>
             <select name="tower" id="rrTowerSelect" required><option value="">Select tower</option></select>
           </div>
+        </div>
+        <div class="form-2col">
           <div class="field"><label for="rrFlatSelect">Flat Number</label>
             <select name="flatNumber" id="rrFlatSelect" required disabled><option value="">Select tower first</option></select>
           </div>
-        </div>
-        <div class="form-2col">
           <div class="field"><label for="rr-mobile">Mobile Number</label><input name="mobile" id="rr-mobile" type="tel" maxlength="10" required></div>
+        </div>
+        <div class="form-2col">
           <div class="field"><label for="rr-email">Email (for login)</label><input name="email" id="rr-email" type="email" required></div>
-        </div>
-        <div class="form-2col">
           <div class="field"><label for="rr-occupation">Occupation</label><input name="occupation" id="rr-occupation" maxlength="100"></div>
-          <div class="field"><label for="rr-residentType">Owner / Tenant</label>
-            <select name="residentType" id="rr-residentType" required>
-              <option value="owner">Owner</option><option value="tenant">Tenant</option>
-            </select>
-          </div>
-        </div>
-        <div class="form-2col">
-          <div class="field"><label for="rr-nomineeName">Nominee Name</label><input name="nomineeName" id="rr-nomineeName" maxlength="100"></div>
-          <div class="field"><label for="rr-nomineeRelation">Nominee Relation</label><input name="nomineeRelation" id="rr-nomineeRelation" maxlength="60"></div>
         </div>
         <div class="form-2col">
           <div class="field"><label for="rr-dob">Date of Birth <span class="t-muted" style="font-weight:400;">(optional)</span></label><input type="date" name="dob" id="rr-dob"></div>
@@ -1194,6 +1240,18 @@
           <input id="expBill" name="billLink" type="url" placeholder="https://drive.google.com/...">
           <div class="hint">Add the bill's Drive link so it's easy to find during an audit.</div>
         </div>
+        <div class="field">
+          <label class="checkbox-row"><input type="checkbox" id="expIsRecurring" name="isRecurring"> This is a recurring expense (security, housekeeping, AMC, etc.)</label>
+          <div id="expRecurringFreqWrap" style="display:none; margin-top:8px;">
+            <label for="expRecurringFrequency">Frequency</label>
+            <select id="expRecurringFrequency" name="recurringFrequency">
+              <option value="monthly">Monthly</option>
+              <option value="quarterly">Quarterly</option>
+              <option value="yearly">Yearly</option>
+            </select>
+            <div class="hint">The Treasurer Dashboard's "Upcoming Bills" will project the next due date from this and today's date, once this one's approved.</div>
+          </div>
+        </div>
         <button class="btn btn-primary btn-block" type="submit" id="expenseSaveBtn">Save Expense</button>
       </form>
     </div>
@@ -1293,7 +1351,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-storage.js";
 import {
   showToast, escapeHtml, fmtDate, fmtDateTime, formatINR, currentFinancialYear, financialYearOptions,
-  generateMemberId, generateReceiptNumber, generateReceiptNumberAtomic, logAudit, generateReceiptPDF, generateIncomeExpenditurePDF, exportToExcel, parseExcelFile, PAYMENT_DEFAULTS, sanitizeUrl, safeStorageFilename,
+  generateMemberId, generateReceiptNumber, generateReceiptNumberAtomic, logAudit, generateReceiptPDF, generateIncomeExpenditurePDF, exportToExcel, parseExcelFile, PAYMENT_DEFAULTS, sanitizeUrl, safeStorageFilename, flatClaimId, findBlockingFlatClaim, generatePetId,
   encryptFile, decryptToBlob, backupToDrive, waLink, waShareText, serializeForExport,
   newPublicToken, publicKeyForMember,
   TOWER_IDS, TOWER_PLAN, flatsForTower, isValidFlat,
@@ -1301,7 +1359,8 @@ import {
   EXPENSE_CATEGORIES, EXPENSE_MODES, expenseSummary, fundPosition, treasurerDashboardStats, validateExpense,
   renderPager, skeletonTableRows, emptyState,
   initFamilyMembersEditor, addFamilyMemberRow, collectFamilyMembers,
-  initPetsEditor, addPetCard, collectPets, petVaccinationStatus,
+  initVehiclesEditor, addVehicleRow, collectVehicles,
+  initPetsEditor, addPetCard, collectPets, petVaccinationStatus, rentAgreementStatus, tsMillis,
   todaysCelebrations, upcomingCelebrations, celebrationWishMessage
 } from './app-common.js';
 
@@ -1518,7 +1577,18 @@ onAuthStateChanged(auth, async (user) => {
   } catch (e) {
     console.error('Admin lookup failed:', e);
     const errEl = document.getElementById('loginError');
-    errEl.textContent = `Could not load admin record${e?.code ? ` (${e.code})` : ''} — check your connection and refresh the page.`;
+    // permission-denied here does NOT mean a network problem: the security
+    // rules only allow this read for an account whose admins/{uid} record
+    // carries a currently-recognised committee role. So this is what a
+    // removed admin — or one whose post the society has since abolished —
+    // actually hits, and telling them to check their connection would send
+    // them chasing entirely the wrong problem.
+    if (e?.code === 'permission-denied') {
+      await signOut(auth);
+      errEl.textContent = 'This account no longer has admin panel access. If this is unexpected, ask the Super Admin to check your role.';
+    } else {
+      errEl.textContent = `Could not load admin record${e?.code ? ` (${e.code})` : ''} — check your connection and refresh the page.`;
+    }
     errEl.style.display = 'block';
     return;
   }
@@ -1797,9 +1867,25 @@ async function republishPublicSummary() {
     const fy = currentFinancialYear();
     const pos = fundPosition(allPayments, allExpenses, fy);
     const summary = expenseSummary(allExpenses, fy);
+
+    // Category totals answer "where did the money go, roughly" — this
+    // answers "specifically, what were the big-ticket items", which is
+    // what a resident scrutinising the accounts actually wants to check.
+    // Same "counts as real" filter expenseSummary() itself uses (approved
+    // or legacy-no-status, never pending/rejected/voided), so a request
+    // that was never approved can't show up here as if it were spent money.
+    // Deliberately only vendor/category/amount/date — never requestedBy,
+    // addedBy, internal notes, or the bill link itself, none of which
+    // belong on a page anyone can load without logging in.
+    const majorExpenses = (allExpenses || [])
+      .filter(e => e.financialYear === fy && e.status !== 'pending_approval' && e.status !== 'rejected' && e.status !== 'voided')
+      .sort((a, b) => (Number(b.amount) || 0) - (Number(a.amount) || 0))
+      .slice(0, 10)
+      .map(e => ({ description: e.description || '(no description)', category: e.category || 'Other', paidTo: e.paidTo || '', amount: Number(e.amount) || 0, date: e.date || null }));
+
     await setDoc(doc(db, 'publicFinancialSummary', fy), {
       collected: pos.collected, spent: pos.spent, balance: pos.balance,
-      categories: summary.categories,
+      categories: summary.categories, majorExpenses,
       updatedAt: serverTimestamp(), updatedBy: currentAdmin?.email || null
     });
   } catch (e) {
@@ -1849,6 +1935,7 @@ function renderCommandCenter(pendingMemberCount, pendingPaymentCount) {
   const pendingExpenseCount = allExpenses.filter(e => e.status === 'pending_approval').length;
   const unmatchedBankCount = (window.__bankTxs || []).filter(t => !t.status || t.status === 'unmatched').length;
   const petVaxCount = allPets.filter(p => ['overdue', 'due_soon'].includes(petVaccinationStatus(p).status)).length;
+  const rentAgreementCount = allMembers.filter(m => m.status === 'approved' && m.residentType === 'tenant' && ['expired', 'expiring_soon'].includes(rentAgreementStatus(m).status)).length;
   const openComplaintCount = allComplaints.filter(c => c.status === 'open').length;
 
   const pills = [
@@ -1861,7 +1948,8 @@ function renderCommandCenter(pendingMemberCount, pendingPaymentCount) {
     // instead of switching views — visible to any role that can see
     // Overview at all, since a pet-safety issue isn't a Treasurer-only or
     // President-only concern the way money/approvals are.
-    { count: petVaxCount, label: 'Pet Vaccinations', show: true, go: () => document.getElementById('petVaxCard')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }
+    { count: petVaxCount, label: 'Pet Vaccinations', show: true, go: () => document.getElementById('petVaxCard')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) },
+    { count: rentAgreementCount, label: 'Rent Agreements Expiring', show: true, go: () => document.getElementById('rentAgreementCard')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }
   ].filter(p => p.show && p.count > 0);
 
   window.__ccActions = pills.map(p => p.go);
@@ -1872,6 +1960,84 @@ function renderCommandCenter(pendingMemberCount, pendingPaymentCount) {
     </button>`).join('');
   strip.querySelectorAll('[data-cc-idx]').forEach(btn =>
     btn.addEventListener('click', () => window.__ccActions[Number(btn.dataset.ccIdx)]?.()));
+}
+
+/* ---- Society Health Score ------------------------------------------------
+   Every metric here is a real fraction over real data — never a fabricated
+   or default-filled number. A metric with nothing to measure yet (zero
+   complaints ever raised, zero pets registered, no rate configured for the
+   selected FY) is left OUT of the average entirely rather than counted as
+   some assumed value, so a brand-new deployment doesn't show a misleading
+   "100%" for things that simply haven't happened yet. */
+async function renderHealthScore() {
+  const card = document.getElementById('healthScoreCard');
+  if (!card) return;
+  const metrics = [];  // { label, pct, detail }
+
+  // Financial: collected vs expected for the FY currently selected on this
+  // page — skipped entirely if no rate exists for that year, since 0/0
+  // collected-of-expected would otherwise show as a false 0%.
+  const approved = allMembers.filter(m => m.status === 'approved');
+  let expectedTotal = 0, paidTotal = 0, anyRate = false;
+  approved.forEach(m => {
+    const d = duesFor(m, allPayments, selectedFY, maintenanceSettings);
+    if (d.status !== 'no_rate') { anyRate = true; expectedTotal += d.expected; paidTotal += d.paid; }
+  });
+  if (anyRate && expectedTotal > 0) {
+    const pct = Math.min(100, Math.round((paidTotal / expectedTotal) * 100));
+    metrics.push({ label: 'Financial Health', pct, detail: `${formatINR(paidTotal)} of ${formatINR(expectedTotal)} collected` });
+  }
+
+  // Complaints: resolved+closed as a share of every complaint ever raised —
+  // all-time, not FY-scoped, since a complaint isn't a financial record.
+  if (allComplaints.length > 0) {
+    const done = allComplaints.filter(c => c.status === 'resolved' || c.status === 'closed').length;
+    metrics.push({ label: 'Complaint Resolution', pct: Math.round((done / allComplaints.length) * 100), detail: `${done}/${allComplaints.length} resolved` });
+  }
+
+  // Bank reconciliation: matched vs every imported bank transaction.
+  const bankTxs = window.__bankTxs || [];
+  if (bankTxs.length > 0) {
+    const matched = bankTxs.filter(t => t.status === 'matched').length;
+    metrics.push({ label: 'Bank Reconciliation', pct: Math.round((matched / bankTxs.length) * 100), detail: `${matched}/${bankTxs.length} matched` });
+  }
+
+  // Pet vaccination compliance: "fine" or "due_soon" both count as
+  // compliant — only "overdue" counts against the score, since due-soon
+  // is a normal, not-yet-a-problem state.
+  if (allPets.length > 0) {
+    const ok = allPets.filter(p => petVaccinationStatus(p).status !== 'overdue').length;
+    metrics.push({ label: 'Pet Vaccination', pct: Math.round((ok / allPets.length) * 100), detail: `${ok}/${allPets.length} up to date` });
+  }
+
+  // Backup health: this is the one metric that's ALWAYS computable — even
+  // "never backed up" is a real, meaningful 0%, not a gap to skip over.
+  try {
+    const snap = await getDoc(doc(db, 'settings', 'backup'));
+    const last = snap.exists() && snap.data().lastAt?.toDate ? snap.data().lastAt.toDate() : null;
+    const hoursAgo = last ? (Date.now() - last.getTime()) / 3600000 : Infinity;
+    const pct = hoursAgo < 24 ? 100 : hoursAgo < 72 ? 60 : (last ? 20 : 0);
+    metrics.push({ label: 'Backup Health', pct, detail: last ? `Last backup ${Math.round(hoursAgo)}h ago` : 'Never backed up' });
+  } catch (e) { /* if this read itself fails, just omit the metric rather than guessing */ }
+
+  if (!metrics.length) { card.innerHTML = ''; return; }  // nothing measurable yet — stay out of the way rather than show an empty shell
+
+  const overall = Math.round(metrics.reduce((s, m) => s + m.pct, 0) / metrics.length);
+  const colorFor = (p) => p >= 85 ? 'var(--success,#2E7D32)' : p >= 60 ? 'var(--warning,#B8860B)' : 'var(--danger,#C0392B)';
+
+  card.innerHTML = `
+    <div class="health-score-head">
+      <span class="health-score-num" style="color:${colorFor(overall)};">${overall}%</span>
+      <span><b>Society Health Score</b><br><span class="health-score-sub">Based on ${metrics.length} measured area${metrics.length === 1 ? '' : 's'} — see below for what each covers</span></span>
+    </div>
+    <div class="health-metric-grid">
+      ${metrics.map(m => `
+        <div class="health-metric">
+          <div class="hm-pct" style="color:${colorFor(m.pct)};">${m.pct}%</div>
+          <div class="hm-lbl">${escapeHtml(m.label)}</div>
+          <div class="hm-detail">${escapeHtml(m.detail)}</div>
+        </div>`).join('')}
+    </div>`;
 }
 
 function renderTreasurerDashboard() {
@@ -1891,6 +2057,7 @@ function renderTreasurerDashboard() {
       ${note ? `<div class="td-note">${escapeHtml(note)}</div>` : ''}
     </div>`;
 
+  const upcomingRecurring = upcomingRecurringBills(allExpenses);
   document.getElementById('treasurerDashGrid').innerHTML = [
     tile('Bank Balance', formatINR(stats.bankBalance), 'Cheque + UPI + Netbanking'),
     tile('Cash Balance', formatINR(stats.cashBalance), 'Cash on hand'),
@@ -1902,8 +2069,41 @@ function renderTreasurerDashboard() {
       `<span style="color:${stats.monthSurplus >= 0 ? 'var(--success,#1E7D4B)' : 'var(--danger,#C0392B)'}">${formatINR(Math.abs(stats.monthSurplus))}</span>`
     ),
     tile('Bank Reconciliation', reconTileValue(), reconTileNote()),
-    tile('Upcoming Bills', '—', 'Recurring expenses are not tracked yet')
+    upcomingRecurring.length
+      ? tile('Upcoming Bills', String(upcomingRecurring.length), `${upcomingRecurring.filter(b => b.daysUntil < 0).length} overdue · next: ${escapeHtml(upcomingRecurring[0].paidTo || upcomingRecurring[0].category)}`)
+      : tile('Upcoming Bills', '—', allExpenses.some(e => e.isRecurring) ? 'None due in the next 30 days' : 'Mark an expense "recurring" to track this')
   ].join('');
+}
+
+/* A "basic version" deliberately: this projects from the most recent PAST
+   occurrence of each recurring category+vendor pair, rather than keeping a
+   separate schedule of its own — so there's no new collection to keep in
+   sync, and an admin just ticks "recurring" on the expense they're already
+   entering. Grouped by category+vendor rather than description, since a
+   description like "Guard salary — August 2026" changes every month while
+   the vendor and category don't; that's the more stable identity for "the
+   same recurring bill" across occurrences. */
+function upcomingRecurringBills(expenses) {
+  const INTERVAL_DAYS = { monthly: 30, quarterly: 91, yearly: 365 };
+  const real = expenses.filter(e => e.isRecurring && e.recurringFrequency && e.status !== 'pending_approval' && e.status !== 'rejected' && e.status !== 'voided');
+  const groups = new Map();
+  for (const e of real) {
+    const key = `${(e.category || '').toLowerCase()}|${(e.paidTo || '').toLowerCase().trim()}`;
+    const existing = groups.get(key);
+    const eDate = tsMillis(e.date);
+    if (!existing || eDate > tsMillis(existing.date)) groups.set(key, e);
+  }
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  return [...groups.values()]
+    .map(e => {
+      const last = e.date?.toDate ? e.date.toDate() : new Date(e.date);
+      const nextDue = new Date(last.getTime() + (INTERVAL_DAYS[e.recurringFrequency] || 30) * 86400000);
+      nextDue.setHours(0, 0, 0, 0);
+      const daysUntil = Math.round((nextDue - today) / 86400000);
+      return { ...e, nextDue, daysUntil };
+    })
+    .filter(b => b.daysUntil <= 30)
+    .sort((a, b) => a.daysUntil - b.daysUntil);
 }
 
 function renderOverview() {
@@ -1915,6 +2115,7 @@ function renderOverview() {
 
   renderTreasurerDashboard();
   renderCommandCenter(pendingApprovals.length, pendingPayments.length);
+  renderHealthScore();
 
   document.getElementById('statTotalMembers').textContent = approved.length;
   document.getElementById('statPendingApprovals').textContent = pendingApprovals.length;
@@ -2053,6 +2254,7 @@ async function loadPets() {
     allPets = [];
   }
   renderPetVaxReminders();
+  renderRentAgreementReminders();
   // Command Center's Pet Vaccinations pill also depends on allPets, and
   // wasn't ready the first time renderOverview() ran.
   renderOverview();
@@ -2213,6 +2415,42 @@ function renderPetVaxReminders() {
     const { pet } = flagged[Number(a.dataset.petvaxWa)];
     const owner = owners.get(pet.ownerUid);
     if (owner?.mobile) a.href = waLink(owner.mobile, petVaxReminderMessage(pet));
+  });
+}
+
+/* Same "hide the whole card if nothing to show" shape as pet vaccinations —
+   only tenants have a rent agreement at all, and expired sorts before
+   expiring-soon so the more urgent case is never scrolled past. */
+function renderRentAgreementReminders() {
+  const card = document.getElementById('rentAgreementCard');
+  const list = document.getElementById('rentAgreementList');
+  if (!card || !list) return;
+
+  const flagged = allMembers
+    .filter(m => m.status === 'approved' && m.residentType === 'tenant')
+    .map(m => ({ m, st: rentAgreementStatus(m) }))
+    .filter(x => x.st.status === 'expired' || x.st.status === 'expiring_soon')
+    .sort((a, b) => a.st.daysUntil - b.st.daysUntil);
+
+  if (!flagged.length) { card.style.display = 'none'; list.innerHTML = ''; return; }
+  card.style.display = 'block';
+  list.innerHTML = flagged.map(({ m, st }, i) => `
+    <div class="celeb-item">
+      <div class="celeb-icon">📄</div>
+      <div class="celeb-info">
+        <div class="celeb-name">${escapeHtml(m.name)} <span class="t-muted" style="font-weight:400;">(${escapeHtml(m.tower)}-${escapeHtml(m.flatNumber)})</span></div>
+        <div class="celeb-sub">
+          ${st.status === 'expired' ? `<span style="color:var(--danger,#C0392B);">Expired ${Math.abs(st.daysUntil)} days ago</span>` : `Expires in ${st.daysUntil} days`}
+        </div>
+      </div>
+      ${m.mobile ? `<a class="btn btn-primary btn-sm" data-rentwa="${i}" target="_blank" rel="noopener">Send WhatsApp</a>` : '<span class="t-muted" style="font-size:11.5px;">No mobile number found</span>'}
+    </div>`).join('');
+  list.querySelectorAll('[data-rentwa]').forEach(a => {
+    const { m } = flagged[Number(a.dataset.rentwa)];
+    if (m.mobile) {
+      const msg = `Namaste ${m.name} ji,\n\nAapка rent agreement (Flat ${m.tower}-${m.flatNumber}) ${rentAgreementStatus(m).status === 'expired' ? 'expire ho chuka hai' : 'jaldi expire hone wala hai'}. Kripya updated agreement society office mein jama karayein.\n\nDhanyavaad,\nMHMRWS`;
+      a.href = waLink(m.mobile, msg);
+    }
   });
 }
 
@@ -2643,12 +2881,18 @@ function openExpenseModal(existing = null) {
     f.paidTo.value = existing.paidTo || '';
     f.reference.value = existing.reference || '';
     f.billLink.value = existing.billLink || '';
+    f.isRecurring.checked = !!existing.isRecurring;
+    if (existing.recurringFrequency) f.recurringFrequency.value = existing.recurringFrequency;
   } else {
     f.expenseId.value = '';
     f.date.value = new Date().toISOString().slice(0, 10);
   }
+  document.getElementById('expRecurringFreqWrap').style.display = f.isRecurring.checked ? 'block' : 'none';
   document.getElementById('expenseModalBackdrop').classList.add('open');
 }
+document.getElementById('expIsRecurring')?.addEventListener('change', (e) => {
+  document.getElementById('expRecurringFreqWrap').style.display = e.target.checked ? 'block' : 'none';
+});
 document.getElementById('addExpenseBtn')?.addEventListener('click', () => openExpenseModal());
 document.getElementById('requestExpenseBtn')?.addEventListener('click', () => openExpenseModal());
 document.getElementById('closeExpenseModal')?.addEventListener('click', () =>
@@ -2664,7 +2908,9 @@ document.getElementById('expenseForm')?.addEventListener('submit', async (e) => 
     amount: Number(f.amount.value),
     category: f.category.value,
     mode: f.mode.value,
-    paidTo: f.paidTo.value.trim()
+    paidTo: f.paidTo.value.trim(),
+    isRecurring: f.isRecurring.checked,
+    recurringFrequency: f.isRecurring.checked ? f.recurringFrequency.value : null
   };
   const err = validateExpense(payload);
   if (err) return showToast(err, 'error');
@@ -2862,12 +3108,17 @@ function renderMemberDetailView(m) {
       <div class="vrow"><span class="t-muted">Mobile</span><span>${escapeHtml(m.mobile)}</span></div>
       <div class="vrow"><span class="t-muted">Email</span><span>${escapeHtml(m.email)}</span></div>
       <div class="vrow"><span class="t-muted">Occupation</span><span>${escapeHtml(m.occupation || '—')}</span></div>
-      <div class="vrow"><span class="t-muted">Type</span><span>${escapeHtml(m.residentType || '—')}</span></div>
-      <div class="vrow"><span class="t-muted">Address</span><span>${escapeHtml(m.address || '—')}</span></div>
-      <div class="vrow"><span class="t-muted">Nominee</span><span>${escapeHtml(m.nomineeName || '—')} (${escapeHtml(m.nomineeRelation || '—')})</span></div>
+      <div class="vrow"><span class="t-muted">Type</span><span>${{ owner: 'Owner', jointowner: 'Joint Owner', tenant: 'Tenant' }[m.residentType] || escapeHtml(m.residentType || '—')}</span></div>
+      ${m.coOwnerName ? `<div class="vrow"><span class="t-muted">Co-Owner</span><span>${escapeHtml(m.coOwnerName)}${m.coOwnerMobile ? ` · ${escapeHtml(m.coOwnerMobile)}` : ''}</span></div>` : ''}
+      <div class="vrow"><span class="t-muted">Blood Group</span><span>${m.bloodGroup ? `<b style="color:var(--danger,#C0392B);">${escapeHtml(m.bloodGroup)}</b>` : '—'}</span></div>
+      <div class="vrow"><span class="t-muted">Emergency Contact</span><span>${m.emergencyContactName ? `${escapeHtml(m.emergencyContactName)}${m.emergencyContactPhone ? ` · ${escapeHtml(m.emergencyContactPhone)}` : ''}` : '—'}</span></div>
       <div class="vrow"><span class="t-muted">Date of Birth</span><span>${m.dob ? fmtDate({toDate:()=>new Date(m.dob)}) : '—'}</span></div>
       <div class="vrow"><span class="t-muted">Anniversary</span><span>${m.anniversary ? fmtDate({toDate:()=>new Date(m.anniversary)}) : '—'}</span></div>
       <div class="vrow"><span class="t-muted">Family Members</span><span>${(m.familyMembers && m.familyMembers.length) ? m.familyMembers.map(fm => escapeHtml(fm.name) + (fm.relation ? ` (${escapeHtml(fm.relation)})` : '')).join(', ') : '—'}</span></div>
+      <div class="vrow"><span class="t-muted">Vehicles</span><span>${(m.vehicles && m.vehicles.length) ? m.vehicles.map(v => escapeHtml(v.vehicleNumber) + (v.parkingSlot ? ` (${escapeHtml(v.parkingSlot)})` : '')).join(', ') : '—'}</span></div>
+      ${m.residentType === 'tenant' ? `
+      <div class="vrow"><span class="t-muted">Rent Agreement</span><span>${(m.rentAgreementStart || m.rentAgreementEnd) ? `${m.rentAgreementStart ? fmtDate({toDate:()=>new Date(m.rentAgreementStart)}) : '—'} to ${m.rentAgreementEnd ? fmtDate({toDate:()=>new Date(m.rentAgreementEnd)}) : '—'}` : '—'}</span></div>
+      <div class="vrow"><span class="t-muted">Police Verification</span><span>${{ pending: 'Pending', submitted: 'Submitted', verified: 'Verified', rejected: 'Rejected', not_applicable: 'Not applicable' }[m.policeVerification] || '—'}</span></div>` : ''}
       <div class="vrow"><span class="t-muted">Member ID</span><span class="mono">${escapeHtml(m.memberID || '—')}</span></div>
       ${(() => {
         // Membership fee status — helps the committee see who still owes the
@@ -2899,6 +3150,108 @@ function renderMemberDetailView(m) {
   document.getElementById('erasePersonalDataBtn')?.addEventListener('click', () => erasePersonalData(m));
 }
 document.getElementById('closeMemberModal').addEventListener('click', () => document.getElementById('memberModalBackdrop').classList.remove('open'));
+
+/* Dropdown lists every tower/flat that currently has at least one member
+   record (any status) — pending registrations included, since "is anyone
+   already in progress for this flat" is exactly the kind of thing this
+   view exists to answer. */
+function populateHouseholdFlatOptions() {
+  const sel = document.getElementById('householdFlatSelect');
+  if (!sel) return;
+  const flats = [...new Set(allMembers.filter(m => m.tower && m.flatNumber).map(m => `${m.tower}|${m.flatNumber}`))]
+    .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  sel.innerHTML = '<option value="">Select a flat…</option>' +
+    flats.map(f => { const [t, fl] = f.split('|'); return `<option value="${escapeHtml(f)}">Tower ${escapeHtml(t)}, Flat ${escapeHtml(fl)}</option>`; }).join('');
+}
+
+function renderHouseholdResult() {
+  const sel = document.getElementById('householdFlatSelect');
+  const out = document.getElementById('householdResult');
+  if (!sel || !out) return;
+  if (!sel.value) { out.innerHTML = ''; return; }
+  const [tower, flatNumber] = sel.value.split('|');
+  const residents = allMembers.filter(m => m.tower === tower && m.flatNumber === flatNumber);
+  const petsHere = allPets.filter(p => p.tower === tower && p.flatNumber === flatNumber);
+  const totalFamily = residents.reduce((s, m) => s + (m.familyMembers?.length || 0), 0);
+  const totalVehicles = residents.reduce((s, m) => s + (m.vehicles?.length || 0), 0);
+
+  if (!residents.length) { out.innerHTML = '<p class="t-muted">No members found for this flat.</p>'; return; }
+
+  const typeLabel = { owner: 'Owner', jointowner: 'Joint Owner', tenant: 'Tenant' };
+  out.innerHTML = `
+    <div class="stat-cards" style="margin-bottom:16px;">
+      <div class="card card-pad stat-card"><div class="num">${residents.length}</div><div class="lbl">Resident${residents.length === 1 ? '' : 's'}</div></div>
+      <div class="card card-pad stat-card"><div class="num">${totalFamily}</div><div class="lbl">Family Members</div></div>
+      <div class="card card-pad stat-card"><div class="num">${totalVehicles}</div><div class="lbl">Vehicles</div></div>
+      <div class="card card-pad stat-card"><div class="num">${petsHere.length}</div><div class="lbl">Pets</div></div>
+    </div>
+    ${residents.map(m => `
+      <div class="card card-pad" style="margin-bottom:10px;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px;">
+          <div>
+            <b>${escapeHtml(m.name || '—')}</b>
+            <span class="t-muted"> · ${typeLabel[m.residentType] || escapeHtml(m.residentType || '—')}</span>
+            ${m.coOwnerName ? `<div class="t-muted" style="font-size:12px;">Co-Owner: ${escapeHtml(m.coOwnerName)}</div>` : ''}
+          </div>
+          <span class="badge badge-${m.status === 'approved' ? 'success' : m.status === 'pending' ? 'warning' : 'neutral'}">${escapeHtml(m.status || '—')}</span>
+        </div>
+        <div class="t-muted" style="font-size:12.5px; margin-top:6px;">
+          ${escapeHtml(m.mobile || '—')} ·
+          Family: ${m.familyMembers?.length || 0} · Vehicles: ${m.vehicles?.length || 0} ·
+          Maintenance: ${m.status !== 'approved' ? 'N/A — not yet approved' : (m.maintenanceResponsible === false ? 'Not billed (other resident handles it)' : 'Billed to this resident')}
+        </div>
+      </div>`).join('')}
+    ${petsHere.length ? `
+      <div class="t-muted" style="font-size:12.5px; margin-top:6px;">
+        <b>Pets:</b> ${petsHere.map(p => escapeHtml(p.name)).join(', ')}
+      </div>` : ''}
+  `;
+}
+
+document.getElementById('householdViewBtn')?.addEventListener('click', () => {
+  populateHouseholdFlatOptions();
+  document.getElementById('householdResult').innerHTML = '';
+  document.getElementById('householdFlatSelect').value = '';
+  document.getElementById('householdModalBackdrop').classList.add('open');
+});
+document.getElementById('closeHouseholdModal')?.addEventListener('click', () => document.getElementById('householdModalBackdrop').classList.remove('open'));
+document.getElementById('householdFlatSelect')?.addEventListener('change', renderHouseholdResult);
+
+const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+function renderBloodGroupButtons() {
+  const wrap = document.getElementById('bloodGroupButtons');
+  if (!wrap) return;
+  const approved = allMembers.filter(m => m.status === 'approved');
+  wrap.innerHTML = BLOOD_GROUPS.map(bg => {
+    const count = approved.filter(m => m.bloodGroup === bg).length;
+    return `<button type="button" class="btn ${count ? 'btn-outline' : 'btn-ghost'} btn-sm" data-bg="${bg}" ${count ? '' : 'disabled'}>${bg} <span class="t-muted">(${count})</span></button>`;
+  }).join('');
+  wrap.querySelectorAll('[data-bg]').forEach(btn => {
+    btn.addEventListener('click', () => renderBloodGroupResult(btn.dataset.bg));
+  });
+}
+function renderBloodGroupResult(bg) {
+  const out = document.getElementById('bloodGroupResult');
+  const matches = allMembers.filter(m => m.status === 'approved' && m.bloodGroup === bg);
+  if (!matches.length) { out.innerHTML = `<p class="t-muted">No residents with blood group ${escapeHtml(bg)} found.</p>`; return; }
+  out.innerHTML = `
+    <h4 style="font-size:13.5px; margin-bottom:8px;">${escapeHtml(bg)} — ${matches.length} resident${matches.length === 1 ? '' : 's'}</h4>
+    ${matches.map(m => `
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; padding:9px 0; border-top:1px solid var(--line,#E2E6EF);">
+        <div>
+          <b style="font-size:13px;">${escapeHtml(m.name)}</b>
+          <div class="t-muted" style="font-size:12px;">${escapeHtml(m.tower)}-${escapeHtml(m.flatNumber)}</div>
+        </div>
+        ${m.mobile ? `<a href="tel:${escapeHtml(m.mobile.replace(/\s+/g, ''))}" class="btn btn-primary btn-sm">Call</a>` : '<span class="t-muted" style="font-size:11.5px;">No number</span>'}
+      </div>`).join('')}
+  `;
+}
+document.getElementById('bloodGroupSearchBtn')?.addEventListener('click', () => {
+  renderBloodGroupButtons();
+  document.getElementById('bloodGroupResult').innerHTML = '<p class="t-muted">Select a blood group above to see matching residents.</p>';
+  document.getElementById('bloodGroupModalBackdrop').classList.add('open');
+});
+document.getElementById('closeBloodGroupModal')?.addEventListener('click', () => document.getElementById('bloodGroupModalBackdrop').classList.remove('open'));
 
 // DPDP Act "right to erasure" — for a member who has moved out (status
 // already 'inactive'), scrubs the personal-identity fields while keeping
@@ -2966,7 +3319,7 @@ function renderMemberEditForm(m) {
     <form id="memberEditForm">
       <div class="form-2col">
         <div class="field"><label for="me-name">Name</label><input name="name" id="me-name" required maxlength="100" value="${escapeHtml(m.name)}"></div>
-        <div class="field"><label for="me-father">Father / Husband Name</label><input name="fatherHusbandName" id="me-father" maxlength="100" value="${escapeHtml(m.fatherHusbandName || '')}"></div>
+        <div class="field"><label for="me-father">Father / Spouse Name</label><input name="fatherHusbandName" id="me-father" maxlength="100" value="${escapeHtml(m.fatherHusbandName || '')}"></div>
       </div>
       <div class="form-2col">
         <div class="field"><label for="meTowerSelect">Tower</label><select name="tower" id="meTowerSelect" required></select></div>
@@ -2981,17 +3334,56 @@ function renderMemberEditForm(m) {
         <div class="field"><label for="me-residentType">Owner / Tenant</label>
           <select name="residentType" id="me-residentType">
             <option value="owner" ${m.residentType === 'owner' ? 'selected' : ''}>Owner</option>
+            <option value="jointowner" ${m.residentType === 'jointowner' ? 'selected' : ''}>Joint Owner</option>
             <option value="tenant" ${m.residentType === 'tenant' ? 'selected' : ''}>Tenant</option>
           </select>
         </div>
       </div>
       <div class="form-2col">
-        <div class="field"><label for="me-nomineeName">Nominee Name</label><input name="nomineeName" id="me-nomineeName" maxlength="100" value="${escapeHtml(m.nomineeName || '')}"></div>
-        <div class="field"><label for="me-nomineeRelation">Nominee Relation</label><input name="nomineeRelation" id="me-nomineeRelation" maxlength="60" value="${escapeHtml(m.nomineeRelation || '')}"></div>
-      </div>
-      <div class="form-2col">
         <div class="field"><label for="me-dob">Date of Birth</label><input type="date" name="dob" id="me-dob" value="${escapeHtml(m.dob || '')}"></div>
-        <div class="field"><label for="me-anniversary">Anniversary</label><input type="date" name="anniversary" id="me-anniversary" value="${escapeHtml(m.anniversary || '')}"></div>
+        <div class="field"><label for="me-bloodGroup">Blood Group</label>
+          <select name="bloodGroup" id="me-bloodGroup">
+            <option value="">Select</option>
+            ${['A+','A-','B+','B-','AB+','AB-','O+','O-','Not sure'].map(bg => `<option value="${bg}" ${m.bloodGroup === bg ? 'selected' : ''}>${bg}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div class="field"><label for="me-anniversary">Anniversary</label><input type="date" name="anniversary" id="me-anniversary" value="${escapeHtml(m.anniversary || '')}"></div>
+
+      <div class="field">
+        <label>Emergency Contact</label>
+        <div class="form-2col">
+          <input type="text" name="emergencyContactName" id="me-emergencyContactName" placeholder="Name" maxlength="100" value="${escapeHtml(m.emergencyContactName || '')}">
+          <input type="tel" name="emergencyContactPhone" id="me-emergencyContactPhone" placeholder="Phone number" maxlength="15" value="${escapeHtml(m.emergencyContactPhone || '')}">
+        </div>
+      </div>
+
+      <div class="field" id="me-coOwnerWrap" style="display:${m.residentType === 'jointowner' ? 'block' : 'none'};">
+        <label for="me-coOwnerName">Co-Owner's Name</label>
+        <input type="text" name="coOwnerName" id="me-coOwnerName" maxlength="100" value="${escapeHtml(m.coOwnerName || '')}">
+        <div class="form-2col" style="margin-top:8px;">
+          <input type="tel" name="coOwnerMobile" id="me-coOwnerMobile" placeholder="Co-owner's mobile" maxlength="15" value="${escapeHtml(m.coOwnerMobile || '')}">
+          <input type="email" name="coOwnerEmail" id="me-coOwnerEmail" placeholder="Co-owner's email" value="${escapeHtml(m.coOwnerEmail || '')}">
+        </div>
+      </div>
+
+      ${m.residentType === 'tenant' ? `
+      <div class="field">
+        <label for="me-policeVerification">Police Verification</label>
+        <select name="policeVerification" id="me-policeVerification">
+          <option value="">Select</option>
+          <option value="pending" ${m.policeVerification === 'pending' ? 'selected' : ''}>Pending</option>
+          <option value="submitted" ${m.policeVerification === 'submitted' ? 'selected' : ''}>Submitted to police station</option>
+          <option value="verified" ${m.policeVerification === 'verified' ? 'selected' : ''}>Verified</option>
+          <option value="rejected" ${m.policeVerification === 'rejected' ? 'selected' : ''}>Rejected</option>
+          <option value="not_applicable" ${m.policeVerification === 'not_applicable' ? 'selected' : ''}>Not applicable</option>
+        </select>
+        <div class="hint">Verified / Rejected should only be set once the committee has actually confirmed with the police station — not the resident's own claim.</div>
+      </div>` : ''}
+      <div class="field">
+        <label>Vehicles</label>
+        <div class="vehicle-editor" id="meVehiclesEditor"></div>
+        <button type="button" class="btn btn-outline btn-sm fm-add-btn" id="meVehiclesAdd">+ Add Vehicle</button>
       </div>
       <div class="field">
         <label>Family Members</label>
@@ -3004,6 +3396,10 @@ function renderMemberEditForm(m) {
       </div>
     </form>
   `;
+  document.getElementById('me-residentType')?.addEventListener('change', (e) => {
+    const wrap = document.getElementById('me-coOwnerWrap');
+    if (wrap) wrap.style.display = e.target.value === 'jointowner' ? 'block' : 'none';
+  });
   initTowerFlatCascade('meTowerSelect', 'meFlatSelect');
   // initTowerFlatCascade wires a blank cascade; pre-select this member's
   // current tower/flat, firing the same change handler so the flat list
@@ -3016,6 +3412,9 @@ function renderMemberEditForm(m) {
   const meFamilyEditor = document.getElementById('meFamilyEditor');
   initFamilyMembersEditor(meFamilyEditor, m.familyMembers || []);
   document.getElementById('meFamilyAdd').addEventListener('click', () => addFamilyMemberRow(meFamilyEditor));
+  const meVehiclesEditor = document.getElementById('meVehiclesEditor');
+  initVehiclesEditor(meVehiclesEditor, m.vehicles || []);
+  document.getElementById('meVehiclesAdd').addEventListener('click', () => addVehicleRow(meVehiclesEditor));
   document.getElementById('cancelMemberEdit').addEventListener('click', () => renderMemberDetailView(m));
   document.getElementById('memberEditForm').addEventListener('submit', (e) => submitMemberEdit(e, m));
 }
@@ -3027,35 +3426,59 @@ async function submitMemberEdit(e, original) {
   const tower = f.tower.value.trim();
   const flatNumber = f.flatNumber.value.trim();
   if (!tower || !flatNumber) { showToast('Please select a Tower and Flat.', 'error'); return; }
-  const flatChanged = original.status === 'approved' && (tower !== original.tower || flatNumber !== original.flatNumber);
+  const flatChanged = original.status === 'approved' &&
+    (tower !== original.tower || flatNumber !== original.flatNumber || f.residentType.value !== original.residentType);
 
   const patch = {
     name: f.name.value.trim(), fatherHusbandName: f.fatherHusbandName.value.trim(),
     tower, flatNumber, mobile: f.mobile.value.trim(), email: f.email.value.trim(),
     occupation: f.occupation.value.trim(), residentType: f.residentType.value,
-    nomineeName: f.nomineeName.value.trim(), nomineeRelation: f.nomineeRelation.value.trim(),
     dob: f.dob.value || null, anniversary: f.anniversary.value || null,
+    bloodGroup: f.bloodGroup.value || null,
+    emergencyContactName: f.emergencyContactName.value.trim() || null,
+    emergencyContactPhone: f.emergencyContactPhone.value.trim() || null,
+    // These inputs always exist in the DOM (only their wrapper's visibility
+    // is toggled by residentType) so they're safe to read unconditionally —
+    // unlike policeVerification below, whose whole block only renders for a
+    // tenant in the first place.
+    coOwnerName: f.coOwnerName.value.trim() || null,
+    coOwnerMobile: f.coOwnerMobile.value.trim() || null,
+    coOwnerEmail: f.coOwnerEmail.value.trim() || null,
+    // Only rendered for tenants — an owner's edit form has no such field,
+    // so this must not assume f.policeVerification exists.
+    policeVerification: f.policeVerification ? (f.policeVerification.value || null) : (original.policeVerification || null),
     familyMembers: collectFamilyMembers(document.getElementById('meFamilyEditor')),
+    vehicles: collectVehicles(document.getElementById('meVehiclesEditor')),
     updatedAt: serverTimestamp()
   };
 
   btn.disabled = true;
   try {
     if (flatChanged) {
-      // Moving an approved member's flat: check the destination is free
-      // BEFORE touching anything, same pre-check-then-transaction shape as
-      // approveMember() — the pre-check gives a readable error in the common
-      // case, the transaction's own re-check is what actually guarantees no
-      // two members ever hold the same flat.
-      const newClaimRef = doc(db, 'flatClaims', flatClaimId(tower, flatNumber));
-      const existing = await getDoc(newClaimRef);
-      if (existing.exists() && existing.data().memberDocId !== original.id) {
-        const holder = allMembers.find(x => x.id === existing.data().memberDocId);
+      // Moving an approved member's flat, OR switching which side (owner
+      // vs tenant) they claim on the same flat — both change which claim
+      // slot they hold, so both need the same check-then-transfer shape as
+      // approveMember(): pre-check for a readable error in the common
+      // case, the transaction's own re-check is what actually guarantees
+      // no two members ever hold the same slot.
+      const blocking = await findBlockingFlatClaim(tower, flatNumber, f.residentType.value, original.id);
+      if (blocking) {
+        const holder = allMembers.find(x => x.id === blocking.memberDocId);
         showToast(`Tower ${tower}, Flat ${flatNumber} is already registered to ${holder?.name || 'another member'}.`, 'error');
         btn.disabled = false;
         return;
       }
-      const oldClaimRef = doc(db, 'flatClaims', flatClaimId(original.tower, original.flatNumber));
+      const newClaimRef = doc(db, 'flatClaims', flatClaimId(tower, flatNumber, f.residentType.value));
+      const oldClaimRef = doc(db, 'flatClaims', flatClaimId(original.tower, original.flatNumber, original.residentType));
+
+      // Same flat-slot-double-billing consideration as approveMember(): if
+      // this move lands on a slot whose other side is unoccupied, this
+      // member becomes the sole (billed) resident; otherwise leave whoever
+      // was already billed as-is and don't independently bill this one too.
+      const otherSide = f.residentType.value === 'tenant' ? 'owner' : 'tenant';
+      const otherClaim = await getDoc(doc(db, 'flatClaims', flatClaimId(tower, flatNumber, otherSide)));
+      patch.maintenanceResponsible = !otherClaim.exists();
+
       await runTransaction(db, async (tx) => {
         const claim = await tx.get(newClaimRef);
         if (claim.exists() && claim.data().memberDocId !== original.id) throw new Error('FLAT_TAKEN');
@@ -3125,12 +3548,6 @@ async function openMemberDoc(m) {
   } catch (e) { showToast('Decryption failed — the passphrase may be incorrect.', 'error'); }
 }
 
-/* One flat, one member. Firestore has no unique index, so uniqueness is bought
-   with a document ID: flatClaims/A_101 either exists or it does not. */
-function flatClaimId(tower, flatNumber) {
-  return `${String(tower || '').trim()}_${String(flatNumber || '').trim()}`;
-}
-
 /* Approval used to be three separate round trips — assign an ID, update the
    member, write the public record — with no guarantee the later ones ran. A
    half-approved resident ends up holding a card whose QR resolves to "not
@@ -3149,6 +3566,23 @@ async function approveMember(id) {
     return;
   }
 
+  // A warning, not a block — a shared family mobile or a vehicle genuinely
+  // transferred between flats are both legitimate, and the admin approving
+  // this record is exactly the person positioned to know which is which.
+  // Silently blocking would just create a support request; a toast alone
+  // is too easy to miss for something worth a second look before approving.
+  const dupMobile = allMembers.find(x => x.id !== id && x.status === 'approved' && x.mobile && m.mobile && x.mobile === m.mobile);
+  const myVehicleNumbers = (m.vehicles || []).map(v => v.vehicleNumber).filter(Boolean);
+  const dupVehicle = myVehicleNumbers.length ? allMembers.find(x =>
+    x.id !== id && x.status === 'approved' && (x.vehicles || []).some(v => myVehicleNumbers.includes(v.vehicleNumber))
+  ) : null;
+  if (dupMobile || dupVehicle) {
+    const parts = [];
+    if (dupMobile) parts.push(`the mobile number is already on file for ${dupMobile.name} (${dupMobile.tower}-${dupMobile.flatNumber})`);
+    if (dupVehicle) parts.push(`a vehicle number is already registered to ${dupVehicle.name} (${dupVehicle.tower}-${dupVehicle.flatNumber})`);
+    if (!confirm(`Heads up: ${parts.join(' and ')}. This can be legitimate (a shared family number, a transferred vehicle) — approve anyway?`)) return;
+  }
+
   const btn = document.getElementById('approveBtn');
   if (btn) { btn.disabled = true; btn.textContent = 'Approving…'; }
 
@@ -3160,16 +3594,25 @@ async function approveMember(id) {
   // it did nothing. That silent-failure shape is exactly "approve isn't
   // working" with no visible error.
   try {
-    const claimRef = doc(db, 'flatClaims', flatClaimId(m.tower, m.flatNumber));
-
     // Cheap pre-check so the common case gives a readable message instead of
     // a transaction abort. The transaction below is what actually enforces it.
-    const existing = await getDoc(claimRef);
-    if (existing.exists() && existing.data().memberDocId !== id) {
-      const holder = allMembers.find(x => x.id === existing.data().memberDocId);
-      showToast(`Tower ${m.tower}, Flat ${m.flatNumber} is already registered to ${holder?.name || 'another member'}. Please deactivate them first.`, 'error');
+    const blocking = await findBlockingFlatClaim(m.tower, m.flatNumber, m.residentType, id);
+    if (blocking) {
+      const holder = allMembers.find(x => x.id === blocking.memberDocId);
+      showToast(`Tower ${m.tower}, Flat ${m.flatNumber} is already registered to ${holder?.name || 'another member'}. Please deactivate them first, or — if they're a different residentType (owner vs tenant) — open their Master Data Edit and save once to migrate their claim before approving this one.`, 'error');
       return;
     }
+    const claimRef = doc(db, 'flatClaims', flatClaimId(m.tower, m.flatNumber, m.residentType));
+
+    // Whoever already holds the flat's OTHER slot (if anyone) is presumably
+    // already the one tracked for maintenance — a second approved resident
+    // for the same flat must default to NOT independently billed, or the
+    // defaulters list and fund totals would double-count one flat's dues.
+    // Super Admin can flip this from Master Data Edit if the society's
+    // convention is actually the other way round for a specific flat.
+    const otherSide = m.residentType === 'tenant' ? 'owner' : 'tenant';
+    const otherClaim = await getDoc(doc(db, 'flatClaims', flatClaimId(m.tower, m.flatNumber, otherSide)));
+    const maintenanceResponsible = !otherClaim.exists();
 
     const memberID = await generateMemberId();
     const publicToken = newPublicToken();
@@ -3178,7 +3621,7 @@ async function approveMember(id) {
       const claim = await tx.get(claimRef);
       if (claim.exists() && claim.data().memberDocId !== id) throw new Error('FLAT_TAKEN');
       tx.update(doc(db, 'members', id), {
-        status: 'approved', memberID, publicToken,
+        status: 'approved', memberID, publicToken, maintenanceResponsible,
         approvedBy: currentAdmin.email, approvedAt: serverTimestamp(), updatedAt: serverTimestamp()
       });
       // Public record behind the membership card's QR code. Keyed by the random
@@ -3221,7 +3664,7 @@ async function rejectMember(id) {
     const rejKey = publicKeyForMember(m);
     if (rejKey) batch.set(doc(db, 'membersPublic', rejKey), { status: 'rejected', updatedAt: serverTimestamp() }, { merge: true });
     // Free the flat so whoever actually lives there can be approved for it.
-    if (m.tower && m.flatNumber) batch.delete(doc(db, 'flatClaims', flatClaimId(m.tower, m.flatNumber)));
+    if (m.tower && m.flatNumber) batch.delete(doc(db, 'flatClaims', flatClaimId(m.tower, m.flatNumber, m.residentType)));
     await batch.commit();
     await logAudit(auth.currentUser, 'reject_member', { id, reason });
     showToast('Registration has been rejected.', 'success');
@@ -3246,7 +3689,7 @@ async function deactivateMember(id) {
     const deacKey = publicKeyForMember(m);
     if (deacKey) batch.set(doc(db, 'membersPublic', deacKey), { status: 'inactive', updatedAt: serverTimestamp() }, { merge: true });
     // Release the flat for the next resident.
-    if (m.tower && m.flatNumber) batch.delete(doc(db, 'flatClaims', flatClaimId(m.tower, m.flatNumber)));
+    if (m.tower && m.flatNumber) batch.delete(doc(db, 'flatClaims', flatClaimId(m.tower, m.flatNumber, m.residentType)));
     await batch.commit();
     await logAudit(auth.currentUser, 'deactivate_member', { id, reason });
     showToast('Member deactivated.', 'success');
@@ -3845,7 +4288,7 @@ async function submitRecordPayment(e) {
    how much each flat still owes. */
 function outstandingMembers() {
   return allMembers
-    .filter(m => m.status === 'approved')
+    .filter(m => m.status === 'approved' && m.maintenanceResponsible !== false)
     .map(m => ({ m, d: duesFor(m, allPayments, selectedFY, maintenanceSettings) }))
     .filter(x => x.d.outstanding > 0)
     .sort((a, b) => b.d.outstanding - a.d.outstanding);   // biggest debts first
@@ -4723,7 +5166,7 @@ document.getElementById('importFile').addEventListener('change', async (e) => {
     const flat = String(r.FlatNumber || r.Flat || r.flatNumber || '').trim();
     const mobile = String(r.Mobile || r.mobile || '').trim();
     const email = String(r.Email || r.email || '').trim();
-    const residentType = String(r.ResidentType || r.residentType || 'owner').trim().toLowerCase();
+    const residentType = String(r.ResidentType || r.residentType || 'owner').trim().toLowerCase().replace(/\s+/g, '');
     const dob = asDateStr(r.DOB || r.DateOfBirth);
     const anniversary = asDateStr(r.Anniversary);
     // Up to 3 family members via numbered columns — the most a flat Excel row
@@ -4745,9 +5188,9 @@ document.getElementById('importFile').addEventListener('change', async (e) => {
     // Catch duplicates within the uploaded file itself, not just against the DB.
     if (seenInFile.has(`${tower}|${flat}`)) errors.push('Duplicate row in file');
     seenInFile.add(`${tower}|${flat}`);
-    // Security rules only accept these two values, so reject anything else
+    // Security rules only accept these three values, so reject anything else
     // here where the user can actually see and fix it.
-    if (!['owner', 'tenant'].includes(residentType)) errors.push(`Type must be Owner or Tenant (got "${residentType}")`);
+    if (!['owner', 'jointowner', 'tenant'].includes(residentType)) errors.push(`Type must be Owner, Joint Owner, or Tenant (got "${residentType}")`);
     if (mobile && !/^[0-9]{10}$/.test(mobile)) errors.push('Mobile must be 10 digits');
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.push('Invalid email');
 
@@ -4776,7 +5219,7 @@ async function confirmImport() {
         const memberID = await generateMemberId();
         await addDoc(collection(db, 'members'), {
           uid: null, name: row.name, fatherHusbandName: row.fatherHusbandName, tower: row.tower, flatNumber: row.flat,
-          mobile: row.mobile, email: row.email, residentType: row.residentType, address: '', nomineeName: '', nomineeRelation: '',
+          mobile: row.mobile, email: row.email, residentType: row.residentType, address: '',
           dob: row.dob || null, anniversary: row.anniversary || null, familyMembers: row.familyMembers || [],
           photoURL: '', declarationAccepted: true, memberID, status: 'approved', role: 'resident',
           source: 'bulk_import', createdAt: serverTimestamp(), updatedAt: serverTimestamp()
@@ -5456,9 +5899,11 @@ document.getElementById('addAdminForm').addEventListener('submit', async (e) => 
     if (f.alsoResident.checked) {
       const tower = f.tower.value.trim();
       const flatNumber = f.flatNumber.value.trim();
-      const claimRef = doc(db, 'flatClaims', flatClaimId(tower, flatNumber));
-      const held = await getDoc(claimRef);
-      if (held.exists()) throw new Error(`Tower ${tower}, Flat ${flatNumber} is already assigned to another member.`);
+      const blocking = await findBlockingFlatClaim(tower, flatNumber, 'owner', null);
+      if (blocking) throw new Error(`Tower ${tower}, Flat ${flatNumber} is already assigned to another member.`);
+      const claimRef = doc(db, 'flatClaims', flatClaimId(tower, flatNumber, 'owner'));
+      const otherClaim = await getDoc(doc(db, 'flatClaims', flatClaimId(tower, flatNumber, 'tenant')));
+      const maintenanceResponsible = !otherClaim.exists();
 
       memberID = await generateMemberId();
       const publicToken = newPublicToken();
@@ -5471,7 +5916,7 @@ document.getElementById('addAdminForm').addEventListener('submit', async (e) => 
       batch.set(doc(db, 'members', newUid), {
         uid: newUid, name: f.name.value.trim(), fatherHusbandName: '', tower,
         flatNumber, mobile: f.mobile.value.trim(), email: f.email.value.trim(),
-        occupation: '', residentType: 'owner', nomineeName: '', nomineeRelation: '',
+        occupation: '', residentType: 'owner', maintenanceResponsible,
         photoURL: '', declarationAccepted: true, memberID, publicToken,
         status: 'approved', role: 'resident',
         source: 'admin_created', createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
@@ -5509,7 +5954,7 @@ document.getElementById('addAdminForm').addEventListener('submit', async (e) => 
 });
 
 // Admin registering a resident directly — same secondary-app pattern as Add
-// Admin above, but the full resident profile (nominee, DOB, family)
+// Admin above, but the full resident profile (DOB, family)
 // and created already APPROVED with a Member ID, since an admin creating the
 // record implies it doesn't need the usual pending-review step.
 document.getElementById('registerResidentForm').addEventListener('submit', async (e) => {
@@ -5527,9 +5972,12 @@ document.getElementById('registerResidentForm').addEventListener('submit', async
   const secondaryApp = initializeApp(firebaseConfig, 'Secondary_' + Date.now());
   let cred;
   try {
-    const claimRef = doc(db, 'flatClaims', flatClaimId(tower, flatNumber));
-    const held = await getDoc(claimRef);
-    if (held.exists()) throw new Error(`Tower ${tower}, Flat ${flatNumber} is already assigned to another member.`);
+    const blocking = await findBlockingFlatClaim(tower, flatNumber, f.residentType.value, null);
+    if (blocking) throw new Error(`Tower ${tower}, Flat ${flatNumber} is already assigned to another member.`);
+    const claimRef = doc(db, 'flatClaims', flatClaimId(tower, flatNumber, f.residentType.value));
+    const otherSideForRR = f.residentType.value === 'tenant' ? 'owner' : 'tenant';
+    const otherClaimForRR = await getDoc(doc(db, 'flatClaims', flatClaimId(tower, flatNumber, otherSideForRR)));
+    const maintenanceResponsibleRR = !otherClaimForRR.exists();
 
     let photoURL = '';
     const secondaryAuth = getAuth(secondaryApp);
@@ -5566,8 +6014,7 @@ document.getElementById('registerResidentForm').addEventListener('submit', async
     batch.set(doc(db, 'members', newUid), {
       uid: newUid, name: f.name.value.trim(), fatherHusbandName: f.fatherHusbandName.value.trim(), tower, flatNumber,
       mobile: f.mobile.value.trim(), email: f.email.value.trim(), occupation: f.occupation.value.trim(),
-      residentType: f.residentType.value,
-      nomineeName: f.nomineeName.value.trim(), nomineeRelation: f.nomineeRelation.value.trim(),
+      residentType: f.residentType.value, maintenanceResponsible: maintenanceResponsibleRR,
       dob: f.dob.value || null, anniversary: f.anniversary.value || null, familyMembers,
       photoURL, declarationAccepted: true, memberID, publicToken,
       status: 'approved', role: 'resident',
@@ -5591,8 +6038,19 @@ document.getElementById('registerResidentForm').addEventListener('submit', async
     let petSaveFailed = false;
     for (const pet of pets) {
       try {
+        if (pet.photoFile) {
+          try {
+            const petPr = storageRef(secondaryStorage, `petPhotos/${newUid}/pet_${Date.now()}`);
+            await uploadBytes(petPr, pet.photoFile);
+            pet.photoURL = await getDownloadURL(petPr);
+          } catch (photoErr) {
+            console.warn('Pet photo upload failed (continuing without it):', photoErr?.code || photoErr);
+          }
+        }
+        delete pet.photoFile;
+        const petId = await generatePetId();
         await addDoc(collection(db, 'pets'), {
-          ...pet, ownerUid: newUid, ownerName: f.name.value.trim(), tower, flatNumber,
+          ...pet, petId, ownerUid: newUid, ownerName: f.name.value.trim(), tower, flatNumber,
           createdAt: serverTimestamp(), updatedAt: serverTimestamp()
         });
       } catch (petErr) {
