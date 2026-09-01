@@ -1582,6 +1582,19 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
   </div>
 </div>
 
+<div class="modal-backdrop no-print" id="vehiclesModalBackdrop">
+  <div class="modal">
+    <div class="modal-head"><h3 style="font-size:16.5px;">My Vehicles</h3><button class="icon-btn" id="closeVehiclesModal">✕</button></div>
+    <div class="modal-body">
+      <form id="vehiclesEditForm">
+        <div id="vehiclesModalEditor"></div>
+        <button type="button" class="btn btn-outline btn-sm fm-add-btn" id="vehiclesModalAdd">+ Add Vehicle</button>
+        <button class="btn btn-primary btn-block" type="submit" style="margin-top:16px;">Save</button>
+      </form>
+    </div>
+  </div>
+</div>
+
 <div class="modal-backdrop no-print" id="complaintModalBackdrop">
   <div class="modal">
     <div class="modal-head"><h3 style="font-size:16.5px;">Raise a Complaint</h3><button class="icon-btn" id="closeComplaintModal">✕</button></div>
@@ -2459,9 +2472,20 @@ registerForm.addEventListener('submit', async (e) => {
       try {
         let feeProofURL = '';
         if (feeProofFile) feeProofURL = await uploadFile(`paymentProofs/${uid}/membership_${Date.now()}`, feeProofFile);
+        // Same source of truth the resident's own dashboard reads dues from
+        // (settings/maintenance) — a hardcoded figure here would silently
+        // stop matching whatever the committee has actually configured the
+        // moment they change it.
+        let feeAmount = 1100;
+        try {
+          const maintSnap = await getDoc(doc(db, 'settings', 'maintenance'));
+          feeAmount = membershipFeeAmount(maintSnap.exists() ? maintSnap.data() : null);
+        } catch (feeSettingErr) {
+          console.warn('Could not read configured membership fee, using default:', feeSettingErr?.code || feeSettingErr);
+        }
         membershipPaymentData = {
           memberUid: uid, residentName: f.name.value.trim(), flatNumber: f.flatNumber.value.trim(),
-          amount: 1100, type: 'membership', mode: 'upi', financialYear: currentFinancialYear(),
+          amount: feeAmount, type: 'membership', mode: 'upi', financialYear: currentFinancialYear(),
           utrOrChequeNo: feeUtr, paymentProofURL: feeProofURL,
           status: 'pending_verification', submittedAt: serverTimestamp()
         };
@@ -2702,6 +2726,13 @@ async function loadDashboard(uid) {
       </div>
       <div class="card card-pad">
         <div class="spread" style="margin-bottom:12px;">
+          <h3 style="font-size:16px;">My Vehicles</h3>
+          <button class="btn btn-outline btn-sm" id="editVehiclesBtn">✎ Edit</button>
+        </div>
+        <div id="myVehiclesList"></div>
+      </div>
+      <div class="card card-pad">
+        <div class="spread" style="margin-bottom:12px;">
           <h3 style="font-size:16px;">My Pets</h3>
           <button class="btn btn-outline btn-sm" id="addPetBtn">+ Add a Pet</button>
         </div>
@@ -2736,8 +2767,10 @@ async function loadDashboard(uid) {
     document.getElementById('downloadStatementBtn')?.addEventListener('click', downloadStatement);
     document.getElementById('editProfileBtn')?.addEventListener('click', openProfileModal);
     document.getElementById('fillProfileNudgeBtn')?.addEventListener('click', openProfileModal);
+    document.getElementById('editVehiclesBtn')?.addEventListener('click', openVehiclesModal);
     document.getElementById('addPetBtn')?.addEventListener('click', () => openPetModal());
     document.getElementById('raiseComplaintBtn')?.addEventListener('click', openComplaintModal);
+    renderMyVehicles();
     await loadPayments(uid);
     await loadMyPets(uid);
     await loadMyComplaints(uid);
@@ -2935,6 +2968,31 @@ async function loadMyPets(uid) {
     window.__translate(el);
   }
 }
+/* Vehicles live on the member document itself (not their own collection,
+   unlike pets), so unlike "My Pets" there's no separate load — the data is
+   already in currentMember by the time the dashboard renders. Read-only
+   display here; editing goes through a small dedicated modal rather than
+   the full profile-edit form, since re-opening every profile field just to
+   add one car is a needless detour. */
+function renderMyVehicles() {
+  const el = document.getElementById('myVehiclesList');
+  if (!el) return;
+  const vehicles = currentMember.vehicles || [];
+  if (!vehicles.length) {
+    el.innerHTML = `<p class="t-muted" style="font-size:13px;">No vehicles on file yet.</p>`;
+  } else {
+    el.innerHTML = vehicles.map(v => `
+      <div style="display:flex; align-items:center; gap:10px; padding:9px 0; border-top:1px solid var(--line,#E2E6EF);">
+        <span style="font-size:18px;">🚗</span>
+        <div>
+          <div style="font-weight:600; font-size:13.5px;" class="mono">${escapeHtml(v.vehicleNumber || '—')}</div>
+          ${v.parkingSlot ? `<div class="t-muted" style="font-size:12px;">Parking: ${escapeHtml(v.parkingSlot)}</div>` : ''}
+        </div>
+      </div>`).join('');
+  }
+  window.__translate(el);
+}
+
 function renderMyPets() {
   renderExpiryCenter();
   const el = document.getElementById('myPetsList');
@@ -2960,6 +3018,42 @@ function renderMyPets() {
   }).join('');
   el.querySelectorAll('[data-edit-pet]').forEach(b => b.addEventListener('click', () => openPetModal(rows[Number(b.dataset.editPet)].id)));
 }
+
+/* Vehicles save as a single array-write on the member doc itself — there's
+   no per-vehicle document ID to target the way pets have, so unlike pet
+   editing this always replaces the whole array rather than updating one
+   entry. Firestore rules already allow a resident to update their own
+   member doc as long as status/memberID/role/tower/flat stay untouched
+   (see firestore.rules), so this needs no rules change — just the UI that
+   was missing. */
+function openVehiclesModal() {
+  const editor = document.getElementById('vehiclesModalEditor');
+  initVehiclesEditor(editor, currentMember.vehicles && currentMember.vehicles.length ? currentMember.vehicles : [{}]);
+  document.getElementById('vehiclesModalBackdrop').classList.add('open');
+}
+document.getElementById('closeVehiclesModal')?.addEventListener('click', () =>
+  document.getElementById('vehiclesModalBackdrop').classList.remove('open'));
+document.getElementById('vehiclesModalAdd')?.addEventListener('click', () =>
+  addVehicleRow(document.getElementById('vehiclesModalEditor')));
+
+document.getElementById('vehiclesEditForm')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = e.target.querySelector('button[type="submit"]');
+  const vehicles = collectVehicles(document.getElementById('vehiclesModalEditor'));
+  btn.disabled = true;
+  try {
+    await updateDoc(doc(db, 'members', currentUser.uid), { vehicles, updatedAt: serverTimestamp() });
+    currentMember.vehicles = vehicles;
+    renderMyVehicles();
+    document.getElementById('vehiclesModalBackdrop').classList.remove('open');
+    showToast('Vehicles updated.', 'success');
+  } catch (err) {
+    console.error('Vehicle update failed:', err?.code || err);
+    showToast('Could not save your vehicles. Please try again.', 'error');
+  } finally {
+    btn.disabled = false;
+  }
+});
 
 function openPetModal(petId = null) {
   const editor = document.getElementById('petModalEditor');

@@ -329,6 +329,14 @@ service cloud.firestore {
                           && isNonEmptyString(request.resource.data.voidReason, 500)
                           && request.resource.data.voidedBy == request.auth.token.email
                        ))
+                    // Once a payment is verified, the only way out is voiding
+                    // it — never a silent slide back to rejected or pending.
+                    // Without this, a verified payment could be reverted to
+                    // pending/rejected with no reason recorded and no receipt
+                    // invalidated, leaving dues understated and a receipt
+                    // someone may be holding pointing at a payment the books
+                    // no longer count.
+                    && (resource.data.status != 'verified' || request.resource.data.status in ['verified', 'voided'])
                     // Once voided, always voided — a void is itself a
                     // permanent record, not an editable draft.
                     && resource.data.status != 'voided';

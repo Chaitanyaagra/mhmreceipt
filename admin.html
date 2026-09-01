@@ -1344,7 +1344,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
 import {
   doc, getDoc, setDoc, updateDoc, deleteDoc, addDoc, collection, getDocs, query, where, orderBy, serverTimestamp, limit,
-  writeBatch, runTransaction
+  writeBatch, runTransaction, onSnapshot
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 import {
   ref as storageRef, uploadBytes, getDownloadURL, getStorage, deleteObject
@@ -1570,7 +1570,10 @@ if (sessionStorage.getItem('mhmrws-timed-out')) {
 }
 
 onAuthStateChanged(auth, async (user) => {
-  if (!user) { document.getElementById('loginScreen').style.display = 'grid'; document.getElementById('appShell').classList.remove('active'); return; }
+  if (!user) {
+    if (unsubscribeMembers) { unsubscribeMembers(); unsubscribeMembers = null; }
+    document.getElementById('loginScreen').style.display = 'grid'; document.getElementById('appShell').classList.remove('active'); return;
+  }
   let adminSnap;
   try {
     adminSnap = await getDoc(doc(db, 'admins', user.uid));
@@ -1719,6 +1722,16 @@ function switchView(view) {
     panel.classList.remove('fade-in-soft'); void panel.offsetWidth; panel.classList.add('fade-in-soft');
   }
   document.querySelectorAll('#sideNav button').forEach(b => b.classList.toggle('active', b.dataset.view === view));
+  // allMembers can have moved on since this view was last shown — the
+  // members listener keeps it current in the background, but only
+  // re-renders the table itself while Members is the visible view. This
+  // is what makes a registration that arrived while the admin was on
+  // Overview show up the moment they actually switch to Members, instead
+  // of waiting for the next snapshot event.
+  if (view === 'members' && typeof renderMembersTable === 'function') {
+    renderMembersTable();
+    populateTowerFilter();
+  }
 }
 document.querySelectorAll('#sideNav button').forEach(btn => btn.addEventListener('click', () => switchView(btn.dataset.view)));
 
@@ -1789,12 +1802,48 @@ document.addEventListener('click', (e) => {
 /* ---------------------------------------------------------------------- */
 /*  Boot: load core collections once, then render every view               */
 /* ---------------------------------------------------------------------- */
+let unsubscribeMembers = null;
+/* Members specifically gets a live listener (the other collections stay
+   on the getDocs()-once pattern reloadMembers() etc. already use) because
+   this is the one place a delay has a real, visible cost: a pending
+   registration sitting invisible until someone happens to refresh is
+   exactly the "why isn't this showing up" confusion that's worth solving.
+   Guarded by which view is actually on-screen — renderMembersTable() and
+   populateTowerFilter() reach into #view-members-only elements that don't
+   exist while the admin is looking at Overview or Payments, so calling them
+   unconditionally on every snapshot would throw the moment this fires from
+   a background tab. updateNavBadges() has no such dependency (the sidebar
+   badge is visible from any view), so that one always runs. */
+function subscribeMembers() {
+  if (unsubscribeMembers) unsubscribeMembers();
+  unsubscribeMembers = onSnapshot(collection(db, 'members'), (snap) => {
+    allMembers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    updateNavBadges();
+    if (document.getElementById('view-members')?.classList.contains('active')) {
+      renderMembersTable();
+      populateTowerFilter();
+    }
+    if (document.getElementById('view-overview')?.classList.contains('active')) {
+      renderOverview();
+    }
+  }, (err) => {
+    // A dropped listener shouldn't be silent — the whole point of adding
+    // this was visibility, so losing it quietly would be worse than never
+    // having had it. Members already loaded via reloadMembers() at boot
+    // stays on screen; this only means further updates won't arrive live
+    // until the admin reloads.
+    console.warn('Members listener failed:', err?.code || err);
+    showToast('Live registration updates stopped — refresh to see the latest.', 'error');
+  });
+}
+
 async function bootData() {
   const fySel = document.getElementById('fySelect');
   fySel.innerHTML = financialYearOptions().map(fy => `<option value="${fy}" ${fy === selectedFY ? 'selected' : ''}>FY ${fy}</option>`).join('');
   fySel.addEventListener('change', () => { selectedFY = fySel.value; renderOverview(); renderDefaulters(); renderExpenses(); });
 
   await Promise.all([reloadMembers(), reloadPayments(), reloadExpenses(), reloadEvents()]);
+  subscribeMembers();
   checkRulesHealth();
   // Maintenance rates must be loaded BEFORE the overview renders, otherwise the
   // defaulter count (which depends on expected dues) always reads zero.
@@ -2618,7 +2667,7 @@ async function deleteEvent(id) {
   if (!confirm(`Delete the "${ev.name}" event? (Its past payment records will remain.)`)) return;
   try {
     await deleteDoc(doc(db, 'events', id));
-    await logAudit('event_delete', { eventId: id, name: ev.name });
+    await logAudit(auth.currentUser, 'event_delete', { eventId: id, name: ev.name });
     showToast('Event deleted.', 'success');
     await reloadEvents(); renderEvents();
   } catch (e) { showToast('Could not delete.', 'error'); }
@@ -2627,7 +2676,7 @@ async function deleteEvent(id) {
 async function setEventActive(id, active) {
   try {
     await updateDoc(doc(db, 'events', id), { active, updatedAt: serverTimestamp() });
-    await logAudit(active ? 'event_reopen' : 'event_close', { eventId: id });
+    await logAudit(auth.currentUser, active ? 'event_reopen' : 'event_close', { eventId: id });
     showToast(active ? 'Event reactivated.' : 'Event closed.', 'success');
     await reloadEvents(); renderEvents();
   } catch (e) { showToast('Could not update.', 'error'); }
@@ -2647,7 +2696,7 @@ async function generateEventDemand(id) {
       demandGenerated: true, active: true,
       demandGeneratedAt: serverTimestamp(), demandGeneratedBy: currentAdmin.email
     });
-    await logAudit('event_demand', { eventId: id, name: ev.name, fee: ev.feeAmount, members: approvedCount });
+    await logAudit(auth.currentUser, 'event_demand', { eventId: id, name: ev.name, fee: ev.feeAmount, members: approvedCount });
     showToast(`Demand generated — will appear for ${approvedCount} members.`, 'success');
     await reloadEvents(); renderEvents();
   } catch (e) { showToast('Could not generate demand.', 'error'); }
@@ -3486,7 +3535,7 @@ async function submitMemberEdit(e, original) {
         tx.delete(oldClaimRef);
         tx.set(newClaimRef, {
           tower, flatNumber, memberDocId: original.id, memberUid: original.uid || null,
-          memberID: original.memberID, claimedAt: serverTimestamp()
+          claimedAt: serverTimestamp()
         });
         if (original.publicToken) {
           tx.update(doc(db, 'membersPublic', original.publicToken), {
@@ -3634,7 +3683,7 @@ async function approveMember(id) {
       });
       tx.set(claimRef, {
         tower: m.tower || '', flatNumber: m.flatNumber || '',
-        memberDocId: id, memberUid: m.uid || null, memberID, claimedAt: serverTimestamp()
+        memberDocId: id, memberUid: m.uid || null, claimedAt: serverTimestamp()
       });
     });
 
@@ -5927,7 +5976,7 @@ document.getElementById('addAdminForm').addEventListener('submit', async (e) => 
         residentType: 'owner', status: 'approved', updatedAt: serverTimestamp()
       });
       batch.set(claimRef, {
-        tower, flatNumber, memberDocId: newUid, memberUid: newUid, memberID, claimedAt: serverTimestamp()
+        tower, flatNumber, memberDocId: newUid, memberUid: newUid, claimedAt: serverTimestamp()
       });
       await batch.commit();
 
@@ -5991,8 +6040,9 @@ document.getElementById('registerResidentForm').addEventListener('submit', async
     // the same rules a resident's own upload does. Optional — skip entirely
     // rather than trying to upload nothing (which would look like a failed
     // upload it never was).
+    let secondaryStorage;
     try {
-      const secondaryStorage = getStorage(secondaryApp);
+      secondaryStorage = getStorage(secondaryApp);
       if (f.photo.files[0]) {
         const pr = storageRef(secondaryStorage, `photos/${newUid}/photo_${Date.now()}`);
         await uploadBytes(pr, f.photo.files[0]);
@@ -6026,7 +6076,7 @@ document.getElementById('registerResidentForm').addEventListener('submit', async
       residentType: f.residentType.value, status: 'approved', updatedAt: serverTimestamp()
     });
     batch.set(claimRef, {
-      tower, flatNumber, memberDocId: newUid, memberUid: newUid, memberID, claimedAt: serverTimestamp()
+      tower, flatNumber, memberDocId: newUid, memberUid: newUid, claimedAt: serverTimestamp()
     });
     await batch.commit();
 
