@@ -230,6 +230,8 @@
   <g id="a-importExport"><path d="M20 11.2A8 8 0 006.3 6.1M4 12.8a8 8 0 0013.7 5.1" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" fill="none"/><path d="M20 4.6v6.6h-6.6M4 19.4v-6.6h6.6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" fill="none"/></g>
   <g id="a-settings"><circle cx="12" cy="12" r="3.1" stroke="currentColor" stroke-width="1.7" fill="none"/><path d="M12 2.8v2.6M12 18.6v2.6M4.5 12H2M22 12h-2.5M6.4 6.4L4.6 4.6M19.4 19.4l-1.8-1.8M17.6 6.4l1.8-1.8M4.6 19.4l1.8-1.8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></g>
   <g id="a-adminUsers"><circle cx="8.6" cy="10.4" r="4.1" stroke="currentColor" stroke-width="1.7" fill="none"/><path d="M12.4 8.6H21M18.2 8.6v3.4M15.4 8.6v2.4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" fill="none"/></g>
+  <g id="a-community"><path d="M4 21V10.5L12 4l8 6.5V21" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" fill="none"/><path d="M9.5 21v-6h5v6" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" fill="none"/></g>
+  <g id="a-vendors"><rect x="3" y="7.5" width="18" height="12" rx="2" stroke="currentColor" stroke-width="1.7" fill="none"/><path d="M8 7.5V6a2 2 0 012-2h4a2 2 0 012 2v1.5" stroke="currentColor" stroke-width="1.7" fill="none"/><path d="M3 12.5h18" stroke="currentColor" stroke-width="1.7"/></g>
   <g id="a-auditLog"><path d="M5.5 3.5h9l4 4v13h-13z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" fill="none"/><path d="M14.2 3.5V8H18.6M8.6 12.4h7M8.6 16h7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></g>
   <g id="a-mail"><rect x="2.5" y="5" width="19" height="14" rx="2.4" stroke="currentColor" stroke-width="1.7" fill="none"/><path d="M3 6.5l9 6.4 9-6.4" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" fill="none"/></g>
   <g id="a-archive"><path d="M3 7.5h18v12.5H3z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" fill="none"/><path d="M2.2 3.8h19.6v3.7H2.2zM9.6 12h4.8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" fill="none"/></g>
@@ -281,6 +283,8 @@
       <button data-view="content"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-content"/></svg></span> Notices &amp; Committee</button>
       <button data-view="calendar"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-calendar"/></svg></span> Calendar</button>
       <button data-view="complaints"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-complaints"/></svg></span> Complaints</button>
+      <button data-view="community"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-community"/></svg></span> Community<span class="nav-badge" id="navBadgeCommunity" style="display:none;">0</span></button>
+      <button data-view="vendors"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-vendors"/></svg></span> Vendors</button>
       <button data-view="polls"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-polls"/></svg></span> Polls</button>
       <button data-view="financials"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-financials"/></svg></span> Financials</button>
       <button data-view="importExport"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-importExport"/></svg></span> Import / Export</button>
@@ -680,6 +684,85 @@
       </div>
     </div>
 
+    <!-- ---------------- COMMUNITY (Facility Booking / Expected Guests / Suggestions) ---------------- -->
+    <div class="view-panel" id="view-community">
+      <div class="topbar"><h2 class="view-title">Community</h2></div>
+      <div class="tab-strip">
+        <button data-cmtab="facilities" class="active">Facilities &amp; Bookings</button>
+        <button data-cmtab="guests">Expected Guests</button>
+        <button data-cmtab="suggestions">Suggestions</button>
+      </div>
+
+      <div id="cmPanel-facilities">
+        <div class="card" style="margin-bottom:16px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <h3 style="font-size:15.5px;">Bookable Facilities</h3>
+            <button class="btn btn-primary btn-sm" id="addFacilityBtn">+ Add Facility</button>
+          </div>
+          <div id="facilitiesList" class="t-muted">Loading…</div>
+        </div>
+
+        <div class="card" style="margin-bottom:16px;">
+          <h3 style="font-size:15.5px; margin-bottom:10px;">Pending Booking Requests</h3>
+          <div class="table-wrap responsive">
+            <table>
+              <thead><tr><th>Facility</th><th>Resident</th><th>Flat</th><th>Date</th><th>Slot</th><th>Purpose</th><th>Actions</th></tr></thead>
+              <tbody id="pendingBookingsBody"><tr><td colspan="7" class="t-muted">Loading…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3 style="font-size:15.5px; margin-bottom:10px;">Upcoming Approved Bookings</h3>
+          <div class="table-wrap responsive">
+            <table>
+              <thead><tr><th>Facility</th><th>Resident</th><th>Flat</th><th>Date</th><th>Slot</th><th>Actions</th></tr></thead>
+              <tbody id="approvedBookingsBody"><tr><td colspan="6" class="t-muted">Loading…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div id="cmPanel-guests" style="display:none;">
+        <div class="card">
+          <p class="t-muted" style="font-size:12.5px; margin-bottom:14px;">A resident's heads-up that a guest is expected — relay this to the gate/watchman verbally. This is not a check-in system.</p>
+          <div class="table-wrap responsive">
+            <table>
+              <thead><tr><th>Guest</th><th>Resident</th><th>Flat</th><th>Expected Date</th><th>Purpose</th><th>Status</th></tr></thead>
+              <tbody id="expectedGuestsBody"><tr><td colspan="6" class="t-muted">Loading…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div id="cmPanel-suggestions" style="display:none;">
+        <div class="table-wrap responsive">
+          <table>
+            <thead><tr><th>Resident</th><th>Flat</th><th>Suggestion</th><th>Status</th><th>Submitted</th><th>Actions</th></tr></thead>
+            <tbody id="suggestionsBody"><tr><td colspan="6" class="t-muted">Loading…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ---------------- VENDORS ---------------- -->
+    <div class="view-panel" id="view-vendors">
+      <div class="topbar"><h2 class="view-title">Vendor Directory</h2></div>
+      <div class="card" style="margin-bottom:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <h3 style="font-size:15.5px;">Vendors</h3>
+          <button class="btn btn-primary btn-sm" id="addVendorBtn">+ Add Vendor</button>
+        </div>
+        <p class="t-muted" style="font-size:12px; margin-bottom:0;">Visible to Treasurer and Super Admin only — not shown to residents.</p>
+      </div>
+      <div class="table-wrap responsive">
+        <table>
+          <thead><tr><th>Name</th><th>Category</th><th>Contact Person</th><th>Phone</th><th>Notes</th><th>Actions</th></tr></thead>
+          <tbody id="vendorsBody"><tr><td colspan="6" class="t-muted">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
     <!-- ---------------- POLLS ---------------- -->
     <div class="view-panel" id="view-polls">
       <div class="topbar"><h2 class="view-title">Polls</h2></div>
@@ -994,6 +1077,54 @@
      registrations (owner + tenant) — before that, "who's connected to
      A-101" was always just one member record; now it can take searching
      two, so this answers it in one place instead. -->
+<!-- No backend means no way to send WhatsApp with zero admin involvement —
+     wa.me links still require a human to actually press Send inside
+     WhatsApp itself. This surfaces that one remaining tap the moment it's
+     most likely to happen: right after the approval/verification that
+     makes the message relevant, pre-filled, so it costs the admin one tap
+     instead of a trip to Members/Payments to find the same person again. -->
+<div class="modal-backdrop" id="facilityModalBackdrop">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-head"><h3 style="font-size:16px;">Facility</h3><button class="icon-btn" id="closeFacilityModal">✕</button></div>
+    <div class="modal-body">
+      <form id="facilityForm">
+        <div class="field"><label for="facName">Name</label><input type="text" id="facName" maxlength="100" required></div>
+        <div class="field"><label for="facDesc">Description <span class="t-muted" style="font-weight:400;">(optional)</span></label><textarea id="facDesc" rows="2" maxlength="500"></textarea></div>
+        <div class="field"><label><input type="checkbox" id="facActive" checked> Active (bookable by residents)</label></div>
+        <button class="btn btn-primary btn-block" type="submit">Save</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="vendorModalBackdrop">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-head"><h3 style="font-size:16px;">Vendor</h3><button class="icon-btn" id="closeVendorModal">✕</button></div>
+    <div class="modal-body">
+      <form id="vendorForm">
+        <div class="field"><label for="venName">Name</label><input type="text" id="venName" maxlength="150" required></div>
+        <div class="field"><label for="venCategory">Category <span class="t-muted" style="font-weight:400;">(optional)</span></label><input type="text" id="venCategory" maxlength="100" placeholder="e.g. Housekeeping, Security, Lift AMC"></div>
+        <div class="field"><label for="venContact">Contact Person <span class="t-muted" style="font-weight:400;">(optional)</span></label><input type="text" id="venContact" maxlength="100"></div>
+        <div class="field"><label for="venPhone">Phone <span class="t-muted" style="font-weight:400;">(optional)</span></label><input type="text" id="venPhone" maxlength="20"></div>
+        <div class="field"><label for="venNotes">Notes <span class="t-muted" style="font-weight:400;">(optional)</span></label><textarea id="venNotes" rows="2" maxlength="1000"></textarea></div>
+        <button class="btn btn-primary btn-block" type="submit">Save</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="waPromptModalBackdrop">
+  <div class="modal" style="max-width:380px;">
+    <div class="modal-head"><h3 style="font-size:15.5px;">📲 Notify on WhatsApp?</h3><button class="icon-btn" id="closeWaPromptModal">✕</button></div>
+    <div class="modal-body">
+      <p class="t-muted" style="font-size:12.5px; margin-bottom:10px;" id="waPromptSubtitle"></p>
+      <div style="background:var(--paper,#FAF8F4); border:1px solid var(--line,#E2E6EF); border-radius:8px; padding:10px 12px; font-size:12.5px; white-space:pre-wrap; margin-bottom:16px;" id="waPromptPreview"></div>
+      <a id="waPromptSendBtn" class="btn btn-primary btn-block" target="_blank" rel="noopener noreferrer">Open WhatsApp</a>
+      <button type="button" class="btn btn-outline btn-block" id="waPromptSkipBtn" style="margin-top:8px;">Skip</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-backdrop" id="householdModalBackdrop">
   <div class="modal">
     <div class="modal-head"><h3 style="font-size:16.5px;">View by Household</h3><button class="icon-btn" id="closeHouseholdModal">✕</button></div>
@@ -1437,13 +1568,13 @@ const ROLE_LABELS = {
   secretary: 'Secretary', jointsecretary: 'Joint Secretary', treasurer: 'Treasurer'
 };
 const ROLE_NAV = {
-  superadmin: ['overview','members','payments','events','expenses','content','calendar','complaints','polls','financials','importExport','settings','adminUsers','auditLog'],
+  superadmin: ['overview','members','payments','events','expenses','content','calendar','complaints','community','vendors','polls','financials','importExport','settings','adminUsers','auditLog'],
   // Office-bearers can see where the money went even though only the
   // Treasurer may record it — that visibility is the point of the ledger.
-  president: ['overview','members','events','expenses','content','calendar','complaints','polls','auditLog'],
-  secretary: ['overview','members','events','expenses','content','calendar','complaints','polls','auditLog'],
-  jointsecretary: ['overview','members','events','expenses','content','calendar','complaints','polls','auditLog'],
-  treasurer: ['overview','members','payments','events','expenses','calendar','financials','importExport','auditLog']
+  president: ['overview','members','events','expenses','content','calendar','complaints','community','polls','auditLog'],
+  secretary: ['overview','members','events','expenses','content','calendar','complaints','community','polls','auditLog'],
+  jointsecretary: ['overview','members','events','expenses','content','calendar','complaints','community','polls','auditLog'],
+  treasurer: ['overview','members','payments','events','expenses','calendar','community','vendors','financials','importExport','auditLog']
 };
 const ACTION_PERMS = {
   approveMembers: ['superadmin','president','secretary','jointsecretary'],
@@ -1732,6 +1863,8 @@ function switchView(view) {
     renderMembersTable();
     populateTowerFilter();
   }
+  if (view === 'community' && !window.__communityLoaded) { window.__communityLoaded = true; loadCommunityData(); }
+  if (view === 'vendors' && !window.__vendorsLoaded) { window.__vendorsLoaded = true; loadVendorsPanel(); }
 }
 document.querySelectorAll('#sideNav button').forEach(btn => btn.addEventListener('click', () => switchView(btn.dataset.view)));
 
@@ -2497,7 +2630,7 @@ function renderRentAgreementReminders() {
   list.querySelectorAll('[data-rentwa]').forEach(a => {
     const { m } = flagged[Number(a.dataset.rentwa)];
     if (m.mobile) {
-      const msg = `Namaste ${m.name} ji,\n\nAapка rent agreement (Flat ${m.tower}-${m.flatNumber}) ${rentAgreementStatus(m).status === 'expired' ? 'expire ho chuka hai' : 'jaldi expire hone wala hai'}. Kripya updated agreement society office mein jama karayein.\n\nDhanyavaad,\nMHMRWS`;
+      const msg = `Namaste ${m.name} ji,\n\nAapka rent agreement (Flat ${m.tower}-${m.flatNumber}) ${rentAgreementStatus(m).status === 'expired' ? 'expire ho chuka hai' : 'jaldi expire hone wala hai'}. Kripya updated agreement society office mein jama karayein.\n\nDhanyavaad,\nMHMRWS`;
       a.href = waLink(m.mobile, msg);
     }
   });
@@ -3069,6 +3202,12 @@ function updateNavBadges() {
     payBadge.textContent = n > 99 ? '99+' : String(n);
     payBadge.style.display = n > 0 ? 'block' : 'none';
   }
+  const cmBadge = document.getElementById('navBadgeCommunity');
+  if (cmBadge) {
+    const n = (typeof allBookings !== 'undefined' ? allBookings : []).filter(b => b.status === 'pending').length;
+    cmBadge.textContent = n > 99 ? '99+' : String(n);
+    cmBadge.style.display = n > 0 ? 'block' : 'none';
+  }
 }
 
 function renderMembersTable() {
@@ -3265,6 +3404,24 @@ document.getElementById('householdViewBtn')?.addEventListener('click', () => {
 });
 document.getElementById('closeHouseholdModal')?.addEventListener('click', () => document.getElementById('householdModalBackdrop').classList.remove('open'));
 document.getElementById('householdFlatSelect')?.addEventListener('change', renderHouseholdResult);
+
+/* Called right after an approval/verification succeeds. Not automatic
+   sending — WhatsApp has no free way to send with zero human involvement
+   from a backend-less, static-hosted app — but it puts the message and the
+   one remaining tap (Send, inside WhatsApp) directly in front of the admin
+   at the moment it's relevant, instead of making them go find this person
+   again later. Silently does nothing if there's no mobile number to send
+   to, since a broken/disabled button would be worse than no prompt. */
+function promptSendWhatsApp(mobile, message, subtitle) {
+  if (!mobile) return;
+  document.getElementById('waPromptSubtitle').textContent = subtitle;
+  document.getElementById('waPromptPreview').textContent = message;
+  document.getElementById('waPromptSendBtn').href = waLink(mobile, message);
+  document.getElementById('waPromptModalBackdrop').classList.add('open');
+}
+document.getElementById('closeWaPromptModal')?.addEventListener('click', () => document.getElementById('waPromptModalBackdrop').classList.remove('open'));
+document.getElementById('waPromptSkipBtn')?.addEventListener('click', () => document.getElementById('waPromptModalBackdrop').classList.remove('open'));
+document.getElementById('waPromptSendBtn')?.addEventListener('click', () => document.getElementById('waPromptModalBackdrop').classList.remove('open'));
 
 const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 function renderBloodGroupButtons() {
@@ -3652,16 +3809,8 @@ async function approveMember(id) {
       return;
     }
     const claimRef = doc(db, 'flatClaims', flatClaimId(m.tower, m.flatNumber, m.residentType));
-
-    // Whoever already holds the flat's OTHER slot (if anyone) is presumably
-    // already the one tracked for maintenance — a second approved resident
-    // for the same flat must default to NOT independently billed, or the
-    // defaulters list and fund totals would double-count one flat's dues.
-    // Super Admin can flip this from Master Data Edit if the society's
-    // convention is actually the other way round for a specific flat.
     const otherSide = m.residentType === 'tenant' ? 'owner' : 'tenant';
-    const otherClaim = await getDoc(doc(db, 'flatClaims', flatClaimId(m.tower, m.flatNumber, otherSide)));
-    const maintenanceResponsible = !otherClaim.exists();
+    const otherClaimRef = doc(db, 'flatClaims', flatClaimId(m.tower, m.flatNumber, otherSide));
 
     const memberID = await generateMemberId();
     const publicToken = newPublicToken();
@@ -3669,6 +3818,24 @@ async function approveMember(id) {
     await runTransaction(db, async (tx) => {
       const claim = await tx.get(claimRef);
       if (claim.exists() && claim.data().memberDocId !== id) throw new Error('FLAT_TAKEN');
+      // Whoever already holds the flat's OTHER slot (if anyone) is presumably
+      // already the one tracked for maintenance — a second approved resident
+      // for the same flat must default to NOT independently billed, or the
+      // defaulters list and fund totals would double-count one flat's dues.
+      // Super Admin can flip this from Master Data Edit if the society's
+      // convention is actually the other way round for a specific flat.
+      //
+      // Read INSIDE the transaction (not a getDoc() before it starts) — two
+      // admins approving the owner and tenant sides of the same flat at
+      // nearly the same moment would otherwise both read "no other claim
+      // yet" and both land as maintenanceResponsible:true. Reading through
+      // tx.get() makes this read part of Firestore's transaction
+      // consistency: if the other approval's write lands first, this one's
+      // read-set is invalidated and the transaction automatically retries
+      // with the now-current state, so the two approvals correctly
+      // serialize instead of racing.
+      const otherClaim = await tx.get(otherClaimRef);
+      const maintenanceResponsible = !otherClaim.exists();
       tx.update(doc(db, 'members', id), {
         status: 'approved', memberID, publicToken, maintenanceResponsible,
         approvedBy: currentAdmin.email, approvedAt: serverTimestamp(), updatedAt: serverTimestamp()
@@ -3691,6 +3858,11 @@ async function approveMember(id) {
     showToast(`Approved! Member ID: ${memberID}`, 'success');
     document.getElementById('memberModalBackdrop').classList.remove('open');
     await reloadMembers(); renderMembersTable(); renderOverview(); populateTowerFilter();
+    promptSendWhatsApp(
+      m.mobile,
+      `Namaste ${m.name} ji,\n\nAapka registration Max Heights Majestic RWS mein approve ho gaya hai. Aapka Member ID hai: ${memberID}\n\nAb aap portal par login karke apni details, payments aur receipts dekh sakte hain.\n\nDhanyavaad,\nMHMRWS Committee`,
+      `${m.name} ki registration approve ho gayi — WhatsApp par bataana chahenge?`
+    );
   } catch (err) {
     if (err.message === 'FLAT_TAKEN') {
       showToast('This flat was just allotted to someone else. Please refresh the page and try again.', 'error');
@@ -3852,7 +4024,7 @@ async function bulkVerifyPayments(ids) {
   if (failed.length) {
     showToast(`${done} verified, ${failed.length} failed (${failed.map(f => f.name).join(', ')}). Please try these one at a time.`, 'error');
   } else {
-    showToast(`${done} payments verified — receipts generated.`, 'success');
+    showToast(`${done} payments verified — receipts generated. (To notify someone on WhatsApp, open their payment individually — bulk-verify skips that to avoid ${done} pop-ups in a row.)`, 'success');
   }
   if (btn) { btn.disabled = false; btn.textContent = '✓ Verify Selected'; }
   await reloadPayments(); renderPendingPayments(); renderAllPayments(); renderOverview(); renderDefaulters();
@@ -3992,7 +4164,13 @@ async function voidPaymentEntry(p) {
     await runTransaction(db, async (tx) => {
       tx.update(doc(db, 'payments', p.id), {
         status: 'voided', voidReason: reason.trim(),
-        voidedBy: auth.currentUser?.email || currentAdmin.email, voidedAt: serverTimestamp()
+        // Must be the LIVE Firebase Auth email, not the (possibly stale)
+        // email cached on the admins/{uid} doc — the two can drift apart
+        // (case, a later email change), and firestore.rules compares this
+        // field against request.auth.token.email server-side. A fallback
+        // to the cached value here would silently fail the void the moment
+        // the two ever disagree.
+        voidedBy: auth.currentUser.email, voidedAt: serverTimestamp()
       });
       // The public receipt (what verify.html shows for a QR scan) is updated,
       // not deleted — someone checking an old receipt should see "VOIDED",
@@ -4177,6 +4355,12 @@ async function verifyPayment(id) {
     showToast(`Verified! Receipt: ${receiptNumber}`, 'success');
     document.getElementById('paymentDetailModalBackdrop').classList.remove('open');
     await reloadPayments(); renderPendingPayments(); renderAllPayments(); renderOverview(); renderDefaulters();
+    const payingMember = allMembers.find(x => x.uid === p.memberUid || x.id === p.memberUid);
+    promptSendWhatsApp(
+      payingMember?.mobile,
+      `Namaste ${p.residentName} ji,\n\nAapka payment (₹${p.amount}) verify ho gaya hai. Receipt number: ${receiptNumber}\n\nReceipt portal par login karke download kar sakte hain.\n\nDhanyavaad,\nMHMRWS Committee`,
+      `${p.residentName} ka payment verify ho gaya — WhatsApp par bataana chahenge?`
+    );
   } catch (e) {
     console.error('Verify payment failed:', e);
     const code = e?.code || '';
@@ -4297,8 +4481,10 @@ async function submitRecordPayment(e) {
         // this create path checks that. currentAdmin.email comes from the
         // admins/{uid} Firestore doc, which can silently drift from the actual
         // login email (case difference, doc typed by hand, email changed later).
-        // auth.currentUser.email is the live, guaranteed-matching value.
-        verifiedBy: auth.currentUser?.email || currentAdmin.email
+        // auth.currentUser.email is the live, guaranteed-matching value — no
+        // fallback here, since falling back to the drift-prone value is
+        // exactly what this comment is warning against.
+        verifiedBy: auth.currentUser.email
       });
       tx.set(doc(db, 'receiptsPublic', publicToken), {
         receiptNumber, residentName: member.name, flatNumber: member.flatNumber, tower: member.tower,
@@ -4665,6 +4851,324 @@ function pollStatus(poll) {
   if (now < start) return { label: 'Upcoming', cls: 'badge-neutral' };
   if (now > end) return { label: 'Closed', cls: 'badge-danger' };
   return { label: 'Active', cls: 'badge-success' };
+}
+
+/* ======================= COMMUNITY: Facilities & Bookings ======================= */
+let allFacilities = [];
+let allBookings = [];
+
+async function loadCommunityData() {
+  try {
+    const [facSnap, bookSnap, guestSnap, sugSnap] = await Promise.all([
+      getDocs(collection(db, 'facilities')),
+      getDocs(collection(db, 'facilityBookings')),
+      getDocs(collection(db, 'expectedGuests')),
+      getDocs(collection(db, 'suggestions'))
+    ]);
+    allFacilities = facSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    allBookings = bookSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    window.__allExpectedGuests = guestSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    window.__allSuggestions = sugSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch (e) { console.warn('Community data load failed:', e?.code || e); }
+  renderFacilitiesList();
+  renderPendingBookings();
+  renderApprovedBookings();
+  renderExpectedGuestsTable();
+  renderSuggestionsTable();
+  updateNavBadges();
+}
+
+function renderFacilitiesList() {
+  const el = document.getElementById('facilitiesList');
+  if (!el) return;
+  if (!allFacilities.length) { el.innerHTML = '<p class="t-muted" style="font-size:13px;">No facilities added yet.</p>'; return; }
+  el.innerHTML = allFacilities.map(f => `
+    <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--line);">
+      <div>
+        <b style="font-size:13.5px;">${escapeHtml(f.name)}</b>
+        ${f.active === false ? '<span class="badge badge-neutral" style="margin-left:8px;">Inactive</span>' : ''}
+        ${f.description ? `<div class="t-muted" style="font-size:12px; margin-top:2px;">${escapeHtml(f.description)}</div>` : ''}
+      </div>
+      <div style="display:flex; gap:6px;">
+        <button class="btn btn-outline btn-sm" data-edit-facility="${f.id}">Edit</button>
+        <button class="btn btn-danger btn-sm" data-delete-facility="${f.id}">Delete</button>
+      </div>
+    </div>`).join('');
+  el.querySelectorAll('[data-edit-facility]').forEach(b => b.onclick = () => openFacilityModal(allFacilities.find(f => f.id === b.dataset.editFacility)));
+  el.querySelectorAll('[data-delete-facility]').forEach(b => b.onclick = () => deleteFacility(b.dataset.deleteFacility));
+}
+
+let editingFacilityId = null;
+function openFacilityModal(facility = null) {
+  editingFacilityId = facility?.id || null;
+  document.getElementById('facName').value = facility?.name || '';
+  document.getElementById('facDesc').value = facility?.description || '';
+  document.getElementById('facActive').checked = facility ? (facility.active !== false) : true;
+  document.getElementById('facilityModalBackdrop').classList.add('open');
+}
+document.getElementById('addFacilityBtn')?.addEventListener('click', () => openFacilityModal());
+document.getElementById('closeFacilityModal')?.addEventListener('click', () => document.getElementById('facilityModalBackdrop').classList.remove('open'));
+document.getElementById('facilityForm')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const name = document.getElementById('facName').value.trim();
+  if (!name) return;
+  const data = {
+    name, description: document.getElementById('facDesc').value.trim() || null,
+    active: document.getElementById('facActive').checked, updatedAt: serverTimestamp()
+  };
+  try {
+    if (editingFacilityId) {
+      await updateDoc(doc(db, 'facilities', editingFacilityId), data);
+    } else {
+      await setDoc(doc(collection(db, 'facilities')), { ...data, createdAt: serverTimestamp() });
+    }
+    document.getElementById('facilityModalBackdrop').classList.remove('open');
+    showToast('Facility saved.', 'success');
+    await loadCommunityData();
+  } catch (err) { showToast(`Could not save${err?.code ? ` (${err.code})` : ''}.`, 'error'); }
+});
+async function deleteFacility(id) {
+  const f = allFacilities.find(x => x.id === id);
+  if (!confirm(`Delete "${f?.name}"? Existing bookings for it will remain but the facility will no longer be listed.`)) return;
+  try {
+    await deleteDoc(doc(db, 'facilities', id));
+    showToast('Facility deleted.', 'success');
+    await loadCommunityData();
+  } catch (err) { showToast(`Could not delete${err?.code ? ` (${err.code})` : ''}.`, 'error'); }
+}
+
+const BOOKING_SLOT_LABEL = { morning: 'Morning', evening: 'Evening', full_day: 'Full Day' };
+
+function renderPendingBookings() {
+  const body = document.getElementById('pendingBookingsBody');
+  if (!body) return;
+  const pending = allBookings.filter(b => b.status === 'pending').sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+  if (!pending.length) { body.innerHTML = '<tr><td colspan="7" class="t-muted">No pending requests.</td></tr>'; return; }
+  body.innerHTML = pending.map(b => `
+    <tr>
+      <td data-label="Facility">${escapeHtml(b.facilityName)}</td>
+      <td data-label="Resident">${escapeHtml(b.residentName)}</td>
+      <td data-label="Flat">${escapeHtml(b.tower)}-${escapeHtml(b.flatNumber)}</td>
+      <td data-label="Date">${fmtDate(b.date)}</td>
+      <td data-label="Slot">${BOOKING_SLOT_LABEL[b.slot] || b.slot}</td>
+      <td data-label="Purpose">${escapeHtml(b.purpose || '—')}</td>
+      <td data-label="Actions">
+        ${can('approveMembers') ? `
+          <button class="btn btn-primary btn-sm" data-approve-booking="${b.id}">Approve</button>
+          <button class="btn btn-danger btn-sm" data-reject-booking="${b.id}">Reject</button>
+        ` : '<span class="t-muted">—</span>'}
+      </td>
+    </tr>`).join('');
+  body.querySelectorAll('[data-approve-booking]').forEach(b => b.onclick = () => approveBooking(b.dataset.approveBooking));
+  body.querySelectorAll('[data-reject-booking]').forEach(b => b.onclick = () => rejectBooking(b.dataset.rejectBooking));
+}
+
+function renderApprovedBookings() {
+  const body = document.getElementById('approvedBookingsBody');
+  if (!body) return;
+  const today = new Date().toISOString().slice(0, 10);
+  const upcoming = allBookings.filter(b => b.status === 'approved' && b.date >= today).sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+  if (!upcoming.length) { body.innerHTML = '<tr><td colspan="6" class="t-muted">No upcoming approved bookings.</td></tr>'; return; }
+  body.innerHTML = upcoming.map(b => `
+    <tr>
+      <td data-label="Facility">${escapeHtml(b.facilityName)}</td>
+      <td data-label="Resident">${escapeHtml(b.residentName)}</td>
+      <td data-label="Flat">${escapeHtml(b.tower)}-${escapeHtml(b.flatNumber)}</td>
+      <td data-label="Date">${fmtDate(b.date)}</td>
+      <td data-label="Slot">${BOOKING_SLOT_LABEL[b.slot] || b.slot}</td>
+      <td data-label="Actions">${can('approveMembers') ? `<button class="btn btn-danger btn-sm" data-cancel-booking="${b.id}">Cancel</button>` : '<span class="t-muted">—</span>'}</td>
+    </tr>`).join('');
+  body.querySelectorAll('[data-cancel-booking]').forEach(b => b.onclick = () => rejectBooking(b.dataset.cancelBooking, true));
+}
+
+function facilitySlotId(facilityId, date, slot) { return `${facilityId}_${date}_${slot}`; }
+
+async function approveBooking(id) {
+  const b = allBookings.find(x => x.id === id);
+  if (!b) return;
+  try {
+    const slotRef = doc(db, 'facilitySlots', facilitySlotId(b.facilityId, b.date, b.slot));
+    await runTransaction(db, async (tx) => {
+      const slot = await tx.get(slotRef);
+      // Same one-doc-either-exists-or-not trick flatClaims uses for
+      // one-flat-one-member: if another booking already grabbed this
+      // facility/date/slot, this fails outright instead of double-booking.
+      if (slot.exists()) throw new Error('SLOT_TAKEN');
+      tx.set(slotRef, { bookingId: id, claimedAt: serverTimestamp() });
+      tx.update(doc(db, 'facilityBookings', id), {
+        status: 'approved', decidedBy: currentAdmin.email, decidedAt: serverTimestamp(), updatedAt: serverTimestamp()
+      });
+    });
+    await logAudit(auth.currentUser, 'approve_booking', { bookingId: id, facility: b.facilityName, date: b.date, slot: b.slot });
+    showToast('Booking approved.', 'success');
+    await loadCommunityData();
+  } catch (err) {
+    if (err.message === 'SLOT_TAKEN') {
+      showToast('That facility/date/slot was just approved for someone else — please reject this request and ask the resident to pick another slot.', 'error');
+    } else {
+      showToast(`Could not approve${err?.code ? ` (${err.code})` : ''}.`, 'error');
+    }
+  }
+}
+
+async function rejectBooking(id, wasApproved = false) {
+  const b = allBookings.find(x => x.id === id);
+  if (!b) return;
+  const reason = prompt(wasApproved ? 'Reason for cancelling this booking (shown to the resident):' : 'Reason for rejecting this request (shown to the resident):');
+  if (reason === null) return;
+  try {
+    if (wasApproved) {
+      // Free the slot that approveBooking() claimed, so someone else can
+      // book the same facility/date/slot.
+      await deleteDoc(doc(db, 'facilitySlots', facilitySlotId(b.facilityId, b.date, b.slot)));
+    }
+    await updateDoc(doc(db, 'facilityBookings', id), {
+      status: 'rejected', decidedBy: currentAdmin.email, decidedAt: serverTimestamp(), decisionNote: reason.trim() || null, updatedAt: serverTimestamp()
+    });
+    await logAudit(auth.currentUser, 'reject_booking', { bookingId: id, facility: b.facilityName });
+    showToast(wasApproved ? 'Booking cancelled.' : 'Request rejected.', 'success');
+    await loadCommunityData();
+  } catch (err) { showToast(`Could not update${err?.code ? ` (${err.code})` : ''}.`, 'error'); }
+}
+
+/* ======================= COMMUNITY: Expected Guests ======================= */
+function renderExpectedGuestsTable() {
+  const body = document.getElementById('expectedGuestsBody');
+  if (!body) return;
+  const guests = (window.__allExpectedGuests || []).filter(g => g.status !== 'cancelled')
+    .sort((a, b) => (b.expectedDate || '').localeCompare(a.expectedDate || ''));
+  if (!guests.length) { body.innerHTML = '<tr><td colspan="6" class="t-muted">No expected guests logged.</td></tr>'; return; }
+  body.innerHTML = guests.map(g => `
+    <tr>
+      <td data-label="Guest">${escapeHtml(g.guestName)}</td>
+      <td data-label="Resident">${escapeHtml(g.residentName)}</td>
+      <td data-label="Flat">${escapeHtml(g.tower || '')}-${escapeHtml(g.flatNumber)}</td>
+      <td data-label="Expected Date">${fmtDate(g.expectedDate)}</td>
+      <td data-label="Purpose">${escapeHtml(g.purpose || '—')}</td>
+      <td data-label="Status"><span class="badge badge-neutral">${escapeHtml(g.status || 'expected')}</span></td>
+    </tr>`).join('');
+}
+
+/* ======================= COMMUNITY: Suggestions ======================= */
+const SUGGESTION_STATUS_LABEL = { submitted: 'New', under_review: 'Under Review', considered: 'Considered', declined: 'Declined' };
+function renderSuggestionsTable() {
+  const body = document.getElementById('suggestionsBody');
+  if (!body) return;
+  const list = (window.__allSuggestions || []).sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+  if (!list.length) { body.innerHTML = '<tr><td colspan="6" class="t-muted">No suggestions yet.</td></tr>'; return; }
+  body.innerHTML = list.map(s => `
+    <tr>
+      <td data-label="Resident">${escapeHtml(s.residentName || '—')}</td>
+      <td data-label="Flat">${escapeHtml(s.flatNumber || '—')}</td>
+      <td data-label="Suggestion" style="max-width:280px; white-space:pre-wrap;">${escapeHtml(s.text)}</td>
+      <td data-label="Status">
+        ${can('approveMembers') ? `
+          <select data-suggestion-status="${s.id}" style="font-size:12.5px; padding:4px;">
+            ${Object.entries(SUGGESTION_STATUS_LABEL).map(([k, v]) => `<option value="${k}" ${s.status === k ? 'selected' : ''}>${v}</option>`).join('')}
+          </select>
+        ` : `<span class="badge badge-neutral">${SUGGESTION_STATUS_LABEL[s.status] || s.status}</span>`}
+      </td>
+      <td data-label="Submitted">${fmtDate(s.createdAt)}</td>
+      <td data-label="Actions">${can('approveMembers') ? `<button class="btn btn-outline btn-sm" data-delete-suggestion="${s.id}">Delete</button>` : ''}</td>
+    </tr>`).join('');
+  body.querySelectorAll('[data-suggestion-status]').forEach(sel => sel.addEventListener('change', () => updateSuggestionStatus(sel.dataset.suggestionStatus, sel.value)));
+  body.querySelectorAll('[data-delete-suggestion]').forEach(b => b.onclick = () => deleteSuggestion(b.dataset.deleteSuggestion));
+}
+async function updateSuggestionStatus(id, status) {
+  try {
+    await updateDoc(doc(db, 'suggestions', id), { status, updatedAt: serverTimestamp() });
+    showToast('Updated.', 'success');
+    const s = (window.__allSuggestions || []).find(x => x.id === id);
+    if (s) s.status = status;
+  } catch (err) { showToast(`Could not update${err?.code ? ` (${err.code})` : ''}.`, 'error'); }
+}
+async function deleteSuggestion(id) {
+  if (!confirm('Delete this suggestion?')) return;
+  try {
+    await deleteDoc(doc(db, 'suggestions', id));
+    showToast('Deleted.', 'success');
+    window.__allSuggestions = (window.__allSuggestions || []).filter(x => x.id !== id);
+    renderSuggestionsTable();
+  } catch (err) { showToast(`Could not delete${err?.code ? ` (${err.code})` : ''}.`, 'error'); }
+}
+
+/* ======================= COMMUNITY: tab-switching ======================= */
+document.querySelectorAll('[data-cmtab]').forEach(btn => btn.addEventListener('click', () => {
+  document.querySelectorAll('[data-cmtab]').forEach(b => b.classList.toggle('active', b === btn));
+  ['facilities', 'guests', 'suggestions'].forEach(t => {
+    const panel = document.getElementById(`cmPanel-${t}`);
+    if (panel) panel.style.display = (t === btn.dataset.cmtab) ? '' : 'none';
+  });
+}));
+
+/* ======================= VENDORS ======================= */
+let allVendors = [];
+async function loadVendorsPanel() {
+  try {
+    allVendors = (await getDocs(collection(db, 'vendors'))).docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch (e) { console.warn('Vendors load failed:', e?.code || e); allVendors = []; }
+  renderVendorsTable();
+}
+function renderVendorsTable() {
+  const body = document.getElementById('vendorsBody');
+  if (!body) return;
+  if (!allVendors.length) { body.innerHTML = '<tr><td colspan="6" class="t-muted">No vendors added yet.</td></tr>'; return; }
+  body.innerHTML = allVendors.map(v => `
+    <tr>
+      <td data-label="Name">${escapeHtml(v.name)}</td>
+      <td data-label="Category">${escapeHtml(v.category || '—')}</td>
+      <td data-label="Contact Person">${escapeHtml(v.contactPerson || '—')}</td>
+      <td data-label="Phone">${v.contactPhone ? `<a href="tel:${escapeHtml(v.contactPhone)}">${escapeHtml(v.contactPhone)}</a>` : '—'}</td>
+      <td data-label="Notes" style="max-width:220px; white-space:pre-wrap;">${escapeHtml(v.notes || '—')}</td>
+      <td data-label="Actions">
+        <button class="btn btn-outline btn-sm" data-edit-vendor="${v.id}">Edit</button>
+        <button class="btn btn-danger btn-sm" data-delete-vendor="${v.id}">Delete</button>
+      </td>
+    </tr>`).join('');
+  body.querySelectorAll('[data-edit-vendor]').forEach(b => b.onclick = () => openVendorModal(allVendors.find(v => v.id === b.dataset.editVendor)));
+  body.querySelectorAll('[data-delete-vendor]').forEach(b => b.onclick = () => deleteVendor(b.dataset.deleteVendor));
+}
+let editingVendorId = null;
+function openVendorModal(vendor = null) {
+  editingVendorId = vendor?.id || null;
+  document.getElementById('venName').value = vendor?.name || '';
+  document.getElementById('venCategory').value = vendor?.category || '';
+  document.getElementById('venContact').value = vendor?.contactPerson || '';
+  document.getElementById('venPhone').value = vendor?.contactPhone || '';
+  document.getElementById('venNotes').value = vendor?.notes || '';
+  document.getElementById('vendorModalBackdrop').classList.add('open');
+}
+document.getElementById('addVendorBtn')?.addEventListener('click', () => openVendorModal());
+document.getElementById('closeVendorModal')?.addEventListener('click', () => document.getElementById('vendorModalBackdrop').classList.remove('open'));
+document.getElementById('vendorForm')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const name = document.getElementById('venName').value.trim();
+  if (!name) return;
+  const data = {
+    name, category: document.getElementById('venCategory').value.trim() || null,
+    contactPerson: document.getElementById('venContact').value.trim() || null,
+    contactPhone: document.getElementById('venPhone').value.trim() || null,
+    notes: document.getElementById('venNotes').value.trim() || null,
+    updatedAt: serverTimestamp()
+  };
+  try {
+    if (editingVendorId) {
+      await updateDoc(doc(db, 'vendors', editingVendorId), data);
+    } else {
+      await setDoc(doc(collection(db, 'vendors')), { ...data, createdAt: serverTimestamp() });
+    }
+    document.getElementById('vendorModalBackdrop').classList.remove('open');
+    showToast('Vendor saved.', 'success');
+    await loadVendorsPanel();
+  } catch (err) { showToast(`Could not save${err?.code ? ` (${err.code})` : ''}.`, 'error'); }
+});
+async function deleteVendor(id) {
+  if (!confirm('Delete this vendor?')) return;
+  try {
+    await deleteDoc(doc(db, 'vendors', id));
+    showToast('Deleted.', 'success');
+    await loadVendorsPanel();
+  } catch (err) { showToast(`Could not delete${err?.code ? ` (${err.code})` : ''}.`, 'error'); }
 }
 
 async function loadPollsPanel() {

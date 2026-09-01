@@ -113,6 +113,9 @@ service cloud.firestore {
     function isValidMemberStatus(v) {
       return v in ['pending', 'approved', 'rejected', 'inactive'];
     }
+    function isValidComplaintStatus(v) {
+      return v in ['open', 'in_progress', 'resolved', 'closed', 'rejected'];
+    }
     function isValidPaymentStatus(v) {
       return v in ['pending_approval', 'pending_verification', 'verified', 'rejected', 'voided'];
     }
@@ -177,8 +180,17 @@ service cloud.firestore {
       // number is a way to change your own dues and what your card says.
       allow update: if (
                       isAdmin() && validMemberShape() && (
-                        canApproveMembers()
-                        || (unchanged('status') && unchanged('memberID') && unchanged('role') && unchanged('publicToken'))
+                        (canApproveMembers()
+                         // Closes a gap a direct API call could otherwise use:
+                         // approveMember() always sets memberID in the same
+                         // transaction as status:'approved', but nothing in
+                         // the rule itself required that pairing — a raw
+                         // write could set status:'approved' alone, landing
+                         // a member with no card, no flatClaim, and no QR
+                         // that the UI never produces but the rule allowed.
+                         && (request.resource.data.status != 'approved' || isNonEmptyString(request.resource.data.memberID, 40))
+                         && unchanged('uid'))
+                        || (unchanged('status') && unchanged('memberID') && unchanged('role') && unchanged('publicToken') && unchanged('uid') && unchanged('residentType') && unchanged('maintenanceResponsible'))
                       )
                     ) || (
                       isOwner(uid)
@@ -190,6 +202,16 @@ service cloud.firestore {
                       && unchanged('uid')
                       && unchanged('tower')
                       && unchanged('flatNumber')
+                      // Both of these directly control maintenance billing —
+                      // residentType drives which of the two flatClaims slots
+                      // (owner/tenant) a member occupies, and
+                      // maintenanceResponsible is literally the flag that
+                      // decides whether they're billed at all. Neither is
+                      // something a resident should be able to set for
+                      // themselves; changing either is an admin action
+                      // (transfer/edit-member), never a self-edit.
+                      && unchanged('residentType')
+                      && unchanged('maintenanceResponsible')
                     );
 
       allow delete: if false; // soft-delete only (status: 'inactive')
@@ -242,13 +264,24 @@ service cloud.firestore {
 
       // A resident submitting a payment cannot pre-assign themselves a receipt
       // number, cannot mark it verified, and cannot post an invalid amount.
-      allow create: if (isSignedIn()
+      // isApprovedMember() (not just isSignedIn()) — a pending or rejected
+      // account authenticating successfully is not the same as being an
+      // actual resident of the society, and payments/dues logic throughout
+      // the app assumes every payment belongs to someone who's cleared
+      // approval.
+      allow create: if (isApprovedMember()
                     && request.resource.data.memberUid == request.auth.uid
                     && isValidAmount(request.resource.data.amount)
                     && isValidPaymentMode(request.resource.data.mode)
                     && isValidFY(request.resource.data.financialYear)
                     && request.resource.data.status in ['pending_approval', 'pending_verification']
                     && (absentOrNull(request.resource.data, 'type') || request.resource.data.type in ['membership', 'maintenance', 'event'])
+                    // An event payment with no eventId can never be matched
+                    // to the event it's supposedly for — eventDue() and the
+                    // treasurer's per-event collected-total both key off
+                    // p.eventId === eventId, so a missing one means the
+                    // ₹ silently never counts anywhere.
+                    && (request.resource.data.type != 'event' || isNonEmptyString(request.resource.data.eventId, 200))
                     && absentOrNull(request.resource.data, 'receiptNumber')
                     && absentOrNull(request.resource.data, 'publicToken')
                     && isNonEmptyString(request.resource.data.residentName, 100)
@@ -267,6 +300,7 @@ service cloud.firestore {
                     && isValidFY(request.resource.data.financialYear)
                     && request.resource.data.status == 'verified'
                     && request.resource.data.type in ['membership', 'maintenance', 'event']
+                    && (request.resource.data.type != 'event' || isNonEmptyString(request.resource.data.eventId, 200))
                     && request.resource.data.recordedByAdmin == true
                     && request.resource.data.verifiedBy == request.auth.token.email
                     && isNonEmptyString(request.resource.data.receiptNumber, 60)
@@ -425,7 +459,22 @@ service cloud.firestore {
                     && request.resource.data.category in
                        ['security', 'housekeeping', 'maintenance', 'electrical', 'plumbing', 'noise', 'parking', 'other']
                     && request.resource.data.status == 'open';
-      allow update: if (canApproveMembers() && unchanged('raisedByUid'))
+      // Admin's own update branch is now locked the same way the resident's
+      // rating-branch below already was: only the fields updateComplaintStatus()
+      // actually writes are allowed to change. Previously only raisedByUid
+      // was protected, meaning title/description/category — the resident's
+      // original submission — could be silently rewritten by a raw write.
+      allow update: if (
+                      canApproveMembers()
+                      && unchanged('raisedByUid')
+                      && unchanged('title')
+                      && unchanged('description')
+                      && unchanged('category')
+                      && unchanged('createdAt')
+                      && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'resolutionNote', 'resolvedAt', 'updatedAt'])
+                      && (isValidComplaintStatus(request.resource.data.status))
+                      && isOptionalString(request.resource.data, 'resolutionNote', 500)
+                    )
                     || (
                       isSignedIn() && isOwner(resource.data.raisedByUid)
                       && resource.data.status in ['resolved', 'closed']
@@ -476,14 +525,19 @@ service cloud.firestore {
     }
     match /polls/{pollId} {
       allow read: if true;
-      allow create, update: if canApproveMembers()
-                            && isNonEmptyString(request.resource.data.question, 300)
-                            && request.resource.data.options is list
-                            && request.resource.data.options.size() >= 2
-                            && request.resource.data.options.size() <= 10
-                            && request.resource.data.startTime is timestamp
-                            && request.resource.data.endTime is timestamp
-                            && request.resource.data.endTime > request.resource.data.startTime;
+      // No update — admin.html has no edit-existing-poll UI (only create and
+      // delete), so this was pure unused attack surface: a modified client
+      // could otherwise change a poll's question/options after votes had
+      // already been cast, silently changing what people thought they were
+      // voting on.
+      allow create: if canApproveMembers()
+                    && isNonEmptyString(request.resource.data.question, 300)
+                    && request.resource.data.options is list
+                    && request.resource.data.options.size() >= 2
+                    && request.resource.data.options.size() <= 10
+                    && request.resource.data.startTime is timestamp
+                    && request.resource.data.endTime is timestamp
+                    && request.resource.data.endTime > request.resource.data.startTime;
       allow delete: if canApproveMembers();
 
       match /votes/{voterUid} {
@@ -677,10 +731,25 @@ service cloud.firestore {
 
     match /bankTransactions/{txId} {
       allow read: if canVerifyPayments();
-      allow create, update: if canVerifyPayments()
-                            && request.resource.data.amount is number
-                            && request.resource.data.amount > 0
-                            && request.resource.data.type in ['credit', 'debit'];
+      allow create: if canVerifyPayments()
+                    && request.resource.data.amount is number
+                    && request.resource.data.amount > 0
+                    && request.resource.data.type in ['credit', 'debit'];
+      // A matched transaction is reconciliation history — the amount/type
+      // that were actually matched against a specific payment/expense must
+      // stay exactly what they were when that match was made, or the match
+      // itself becomes a lie. Status-transition fields (re-matching,
+      // clearing a match, marking ignored) are the only things a matched
+      // transaction can still change; matchTransaction()/setTxStatus() in
+      // admin.html never touch amount/type, so this locks in what the code
+      // already does rather than changing behavior.
+      allow update: if canVerifyPayments()
+                    && request.resource.data.amount is number
+                    && request.resource.data.amount > 0
+                    && request.resource.data.type in ['credit', 'debit']
+                    && (resource.data.status != 'matched' || (
+                          unchanged('amount') && unchanged('type')
+                       ));
       // A matched transaction is reconciliation history — deleting it would
       // silently erase the record that a specific payment/expense was
       // confirmed against the bank statement. Unmatched or ignored entries
@@ -742,6 +811,128 @@ service cloud.firestore {
                             && isNonEmptyString(request.resource.data.memberID, 40)
                             && request.resource.data.status in ['approved','inactive','rejected'];
       allow delete: if false;
+    }
+
+    // ---- Facility / amenity booking -----------------------------------------
+    // The bookable list itself (Banquet Hall, Guest Room, etc.) — admin-
+    // managed, publicly readable so the booking form can show what exists
+    // without needing a signed-in read.
+    match /facilities/{facilityId} {
+      allow read: if true;
+      allow create, update: if canApproveMembers()
+                            && isNonEmptyString(request.resource.data.name, 100)
+                            && isOptionalString(request.resource.data, 'description', 500)
+                            && request.resource.data.active is bool;
+      allow delete: if canApproveMembers();
+    }
+
+    // A booking REQUEST — creating one never grants the slot by itself
+    // (that's what facilitySlots below is for). Multiple pending requests
+    // for the same facility/date/slot can coexist; only one can ever
+    // actually be approved, enforced by facilitySlots' create-uniqueness.
+    match /facilityBookings/{bookingId} {
+      allow read: if isAdmin() || (isSignedIn() && resource.data.memberUid == request.auth.uid);
+      allow create: if isApprovedMember()
+                    && request.resource.data.memberUid == request.auth.uid
+                    && isNonEmptyString(request.resource.data.facilityId, 100)
+                    && isNonEmptyString(request.resource.data.facilityName, 100)
+                    && request.resource.data.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+                    && request.resource.data.slot in ['morning', 'evening', 'full_day']
+                    && isNonEmptyString(request.resource.data.residentName, 100)
+                    && isNonEmptyString(request.resource.data.flatNumber, 30)
+                    && isOptionalString(request.resource.data, 'purpose', 300)
+                    && request.resource.data.status == 'pending';
+      // Admin approves/rejects (status + decision fields only — the request
+      // itself, once made, is a record of what was actually asked for and
+      // should not be silently rewritten). Resident can only cancel their
+      // own still-pending or already-approved booking, never flip it to
+      // approved themselves.
+      allow update: if (
+                      canApproveMembers()
+                      && unchanged('memberUid')
+                      && unchanged('facilityId')
+                      && unchanged('date')
+                      && unchanged('slot')
+                      && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'decidedBy', 'decidedAt', 'decisionNote', 'updatedAt'])
+                      && request.resource.data.status in ['pending', 'approved', 'rejected', 'cancelled']
+                    ) || (
+                      isSignedIn() && isOwner(resource.data.memberUid)
+                      && resource.data.status in ['pending', 'approved']
+                      && request.resource.data.status == 'cancelled'
+                      && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
+                    );
+      allow delete: if false;
+    }
+
+    // The actual conflict-lock: one document per facility+date+slot, exactly
+    // the same "document either exists or it doesn't" trick flatClaims uses
+    // for one-flat-one-member. Created only when a booking is approved,
+    // deleted when that approval is later cancelled/rejected — so a second
+    // approval attempt for an already-held slot fails outright instead of
+    // racing.
+    match /facilitySlots/{slotId} {
+      allow read: if true;
+      allow create: if canApproveMembers()
+                    && isNonEmptyString(request.resource.data.bookingId, 200);
+      allow update: if false;
+      allow delete: if canApproveMembers();
+    }
+
+    // ---- Parking conflict-warning is a client-side scan of allMembers in
+    // admin.html (same pattern as the duplicate-mobile/vehicle check at
+    // approval) — no separate collection needed, and nothing here to keep
+    // in sync with vehicles living inside each member document.
+
+    // ---- Expected-guest log (NOT full visitor management) -------------------
+    // Deliberately minimal: a resident telling the office "X is visiting on
+    // date Y" ahead of time, for the office to relay verbally at the gate.
+    // No check-in/check-out, no QR pass, no security-role UI — that's the
+    // much larger Visitor Management feature this project has explicitly
+    // scoped out of before. This is just a heads-up list.
+    match /expectedGuests/{guestId} {
+      allow read: if isAdmin() || (isSignedIn() && resource.data.memberUid == request.auth.uid);
+      allow create: if isApprovedMember()
+                    && request.resource.data.memberUid == request.auth.uid
+                    && isNonEmptyString(request.resource.data.guestName, 100)
+                    && isNonEmptyString(request.resource.data.residentName, 100)
+                    && isNonEmptyString(request.resource.data.flatNumber, 30)
+                    && request.resource.data.expectedDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+                    && isOptionalString(request.resource.data, 'purpose', 200);
+      allow update: if isSignedIn() && isOwner(resource.data.memberUid)
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
+                    && request.resource.data.status in ['expected', 'cancelled'];
+      allow delete: if isAdmin() || (isSignedIn() && isOwner(resource.data.memberUid));
+    }
+
+    // ---- Suggestion box — distinct from Complaints (no specific issue to
+    // fix, just an idea/feedback) ---------------------------------------------
+    match /suggestions/{suggestionId} {
+      allow read: if isAdmin() || (isSignedIn() && resource.data.raisedByUid == request.auth.uid);
+      allow create: if isApprovedMember()
+                    && request.resource.data.raisedByUid == request.auth.uid
+                    && isNonEmptyString(request.resource.data.text, 1000)
+                    && request.resource.data.status == 'submitted';
+      allow update: if canApproveMembers()
+                    && unchanged('raisedByUid')
+                    && unchanged('text')
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'adminNote', 'updatedAt'])
+                    && request.resource.data.status in ['submitted', 'under_review', 'considered', 'declined'];
+      allow delete: if isAdmin();
+    }
+
+    // ---- Vendor directory — admin-only, never resident-visible --------------
+    // Contact/contract info for whoever the society pays (housekeeping,
+    // security agency, lift AMC, etc.) — same visibility tier as
+    // paymentPrivate, not something a resident has a reason to see.
+    match /vendors/{vendorId} {
+      allow read: if isAdmin();
+      allow create, update: if canVerifyPayments()
+                            && isNonEmptyString(request.resource.data.name, 150)
+                            && isOptionalString(request.resource.data, 'category', 100)
+                            && isOptionalString(request.resource.data, 'contactPerson', 100)
+                            && isOptionalString(request.resource.data, 'contactPhone', 20)
+                            && isOptionalString(request.resource.data, 'notes', 1000);
+      allow delete: if canVerifyPayments();
     }
 
     // ---- Activity log — append-only, never editable ------------------------

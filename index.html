@@ -1595,6 +1595,54 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
   </div>
 </div>
 
+<div class="modal-backdrop no-print" id="bookingModalBackdrop">
+  <div class="modal">
+    <div class="modal-head"><h3 style="font-size:16.5px;">Request a Facility</h3><button class="icon-btn" id="closeBookingModal">✕</button></div>
+    <div class="modal-body">
+      <form id="bookingForm">
+        <div class="field"><label for="bk-facility">Facility</label><select name="facility" id="bk-facility" required></select></div>
+        <div class="field"><label for="bk-date">Date</label><input type="date" name="date" id="bk-date" required></div>
+        <div class="field"><label for="bk-slot">Time Slot</label>
+          <select name="slot" id="bk-slot" required>
+            <option value="morning">Morning</option>
+            <option value="evening">Evening</option>
+            <option value="full_day">Full Day</option>
+          </select>
+        </div>
+        <div class="field"><label for="bk-purpose">Purpose <span class="t-muted" style="font-weight:400;">(optional)</span></label><textarea name="purpose" id="bk-purpose" rows="2" maxlength="300" placeholder="e.g. Birthday party"></textarea></div>
+        <button class="btn btn-primary btn-block" type="submit">Submit Request</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop no-print" id="guestModalBackdrop">
+  <div class="modal">
+    <div class="modal-head"><h3 style="font-size:16.5px;">Log an Expected Guest</h3><button class="icon-btn" id="closeGuestModal">✕</button></div>
+    <div class="modal-body">
+      <form id="guestForm">
+        <div class="field"><label for="gs-name">Guest Name</label><input name="guestName" id="gs-name" required maxlength="100"></div>
+        <div class="field"><label for="gs-date">Expected Date</label><input type="date" name="expectedDate" id="gs-date" required></div>
+        <div class="field"><label for="gs-purpose">Purpose <span class="t-muted" style="font-weight:400;">(optional)</span></label><input name="purpose" id="gs-purpose" maxlength="200" placeholder="e.g. Family visit, delivery, cab"></div>
+        <p class="t-muted" style="font-size:12px;">This is a heads-up for the office to relay at the gate — not a security check-in system.</p>
+        <button class="btn btn-primary btn-block" type="submit">Log Guest</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop no-print" id="suggestionModalBackdrop">
+  <div class="modal">
+    <div class="modal-head"><h3 style="font-size:16.5px;">New Suggestion</h3><button class="icon-btn" id="closeSuggestionModal">✕</button></div>
+    <div class="modal-body">
+      <form id="suggestionForm">
+        <div class="field"><label for="sg-text">Your suggestion</label><textarea name="text" id="sg-text" rows="4" required maxlength="1000" placeholder="An idea for the committee to consider..."></textarea></div>
+        <button class="btn btn-primary btn-block" type="submit">Submit</button>
+      </form>
+    </div>
+  </div>
+</div>
+
 <div class="modal-backdrop no-print" id="complaintModalBackdrop">
   <div class="modal">
     <div class="modal-head"><h3 style="font-size:16.5px;">Raise a Complaint</h3><button class="icon-btn" id="closeComplaintModal">✕</button></div>
@@ -2392,6 +2440,15 @@ registerForm.addEventListener('submit', async (e) => {
     const email = f.email.value.trim();
     cred = await createUserWithEmailAndPassword(auth, email, f.password.value);
     const uid = cred.user.uid;
+    // A brand-new account's auth token can take a moment to actually
+    // propagate server-side, even though createUserWithEmailAndPassword()
+    // has already resolved client-side. Calling Storage/Firestore in that
+    // narrow window intermittently fails with permission-denied — a known,
+    // documented Firebase quirk (not specific to this app) — which leaves
+    // exactly the failure mode this rollback below exists for: an Auth
+    // account with no member record behind it. Forcing a token refresh
+    // here closes that window before the first real write is attempted.
+    try { await cred.user.getIdToken(true); } catch (tokenErr) { console.warn('Token refresh failed, continuing anyway:', tokenErr?.code || tokenErr); }
 
     let photoURL = '';
     if (f.photo.files[0]) photoURL = await uploadFile(`photos/${uid}/photo_${Date.now()}`, f.photo.files[0]);
@@ -2549,8 +2606,14 @@ registerForm.addEventListener('submit', async (e) => {
     // ("email already in use") and cannot log in to anything either. Roll it
     // back so they can simply try once more.
     if (cred?.user) {
+      let rollbackOk = true;
       try { await deleteUser(cred.user); }
-      catch (e) { console.warn('Could not roll back the half-created account:', e); }
+      catch (e) { rollbackOk = false; console.warn('Could not roll back the half-created account:', e); }
+      if (!rollbackOk) {
+        showToast('Registration could not be completed, and we could not automatically clean up. Please contact the society office with your name and email — trying to register again with the same email will not work until they do.', 'error');
+        setLoading(btn, false);
+        return;
+      }
     }
     showToast(friendlyAuthError(err), 'error');
   } finally {
@@ -2600,8 +2663,11 @@ onAuthStateChanged(auth, async (user) => {
     dash.classList.remove('fade-in'); void dash.offsetWidth; dash.classList.add('fade-in');
     window.scrollTo(0, 0);
     document.getElementById('notifWrap').style.display = 'block';
-    await loadDashboard(user.uid);
-    await loadPolls();
+    // loadPolls() doesn't depend on anything loadDashboard() produces, so
+    // there's no reason for the polls-query to sit behind the whole
+    // dashboard-load finishing first — same reasoning as the earlier fix
+    // to loadPayments/loadMyPets/loadMyComplaints.
+    await Promise.allSettled([loadDashboard(user.uid), loadPolls()]);
     loadNotificationCenter();
   } else {
     window.__loggedIn = false;
@@ -2745,6 +2811,29 @@ async function loadDashboard(uid) {
         </div>
         <div id="myComplaintsList"><p class="t-muted" style="font-size:13px;">Loading…</p></div>
       </div>
+      <div class="card card-pad" style="grid-column:1/-1;">
+        <h3 style="font-size:16px; margin-bottom:12px;">Community</h3>
+        <div class="tab-strip" style="margin-bottom:14px;">
+          <button data-cmrtab="book" class="active">Book a Facility</button>
+          <button data-cmrtab="guest">Expected Guests</button>
+          <button data-cmrtab="suggest">Suggestions</button>
+        </div>
+
+        <div id="cmrPanel-book">
+          <div class="spread" style="margin-bottom:10px;"><span class="t-muted" style="font-size:12.5px;">Request to use a shared facility — the committee approves each booking.</span><button class="btn btn-outline btn-sm" id="newBookingBtn">+ New Request</button></div>
+          <div id="myBookingsList"><p class="t-muted" style="font-size:13px;">Loading…</p></div>
+        </div>
+
+        <div id="cmrPanel-guest" style="display:none;">
+          <div class="spread" style="margin-bottom:10px;"><span class="t-muted" style="font-size:12.5px;">Let the office know ahead of time — not a security check-in system.</span><button class="btn btn-outline btn-sm" id="newGuestBtn">+ Log a Guest</button></div>
+          <div id="myGuestsList"><p class="t-muted" style="font-size:13px;">Loading…</p></div>
+        </div>
+
+        <div id="cmrPanel-suggest" style="display:none;">
+          <div class="spread" style="margin-bottom:10px;"><span class="t-muted" style="font-size:12.5px;">An idea for the committee — not tied to a specific problem like Complaints.</span><button class="btn btn-outline btn-sm" id="newSuggestionBtn">+ New Suggestion</button></div>
+          <div id="mySuggestionsList"><p class="t-muted" style="font-size:13px;">Loading…</p></div>
+        </div>
+      </div>
       ${(!currentMember.dob && !(currentMember.familyMembers && currentMember.familyMembers.length)) ? `
       <div class="card card-pad" style="grid-column:1/-1; background:var(--gold-glow,rgba(201,162,39,.08)); border-color:var(--gold-500,#C9A227);">
         <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
@@ -2770,10 +2859,33 @@ async function loadDashboard(uid) {
     document.getElementById('editVehiclesBtn')?.addEventListener('click', openVehiclesModal);
     document.getElementById('addPetBtn')?.addEventListener('click', () => openPetModal());
     document.getElementById('raiseComplaintBtn')?.addEventListener('click', openComplaintModal);
+    document.getElementById('newBookingBtn')?.addEventListener('click', openBookingModal);
+    document.getElementById('newGuestBtn')?.addEventListener('click', () => {
+      document.getElementById('guestForm').reset();
+      document.getElementById('gs-date').min = new Date().toISOString().slice(0, 10);
+      document.getElementById('guestModalBackdrop').classList.add('open');
+    });
+    document.getElementById('newSuggestionBtn')?.addEventListener('click', () => {
+      document.getElementById('suggestionForm').reset();
+      document.getElementById('suggestionModalBackdrop').classList.add('open');
+    });
+    document.querySelectorAll('[data-cmrtab]').forEach(btn => btn.addEventListener('click', () => {
+      document.querySelectorAll('[data-cmrtab]').forEach(b => b.classList.toggle('active', b === btn));
+      ['book', 'guest', 'suggest'].forEach(t => {
+        const panel = document.getElementById(`cmrPanel-${t}`);
+        if (panel) panel.style.display = (t === btn.dataset.cmrtab) ? '' : 'none';
+      });
+    }));
     renderMyVehicles();
-    await loadPayments(uid);
-    await loadMyPets(uid);
-    await loadMyComplaints(uid);
+    // Three independent reads (different collections, different DOM targets,
+    // no shared state) — previously sequential awaits meant the dashboard's
+    // load time was the SUM of three network round-trips instead of just
+    // the slowest one. That's a real, feelable delay right after logging
+    // in, especially on mobile data — exactly the kind of thing that reads
+    // as "the whole dashboard feels slow" even though every individual tab
+    // (Home/Notices/Pay/Account) is just a same-page scroll once this has
+    // actually finished.
+    await Promise.allSettled([loadPayments(uid), loadMyPets(uid), loadMyComplaints(uid), loadMyBookings(uid), loadMyGuests(uid), loadMySuggestions(uid)]);
   }
 }
 
@@ -2799,24 +2911,23 @@ async function loadNotificationCenter() {
   const items = [];
   const toMs = (ts) => ts?.toMillis ? ts.toMillis() : (ts ? new Date(ts).getTime() : 0);
 
-  try {
-    const rows = (await getDocs(query(collection(db, 'payments'), where('memberUid', '==', currentUser.uid)))).docs.map(d => d.data());
-    rows.forEach(p => {
-      const t = toMs(p.verifiedAt) || toMs(p.updatedAt);
-      if (!t || t <= cutoff) return;
-      if (p.status === 'verified') items.push({ icon: '✅', text: `Payment of ${formatINR(p.amount)} was verified.`, time: t });
-      else if (p.status === 'rejected') items.push({ icon: '❌', text: `Payment of ${formatINR(p.amount)} was rejected${p.remarks ? `: ${p.remarks}` : '.'}`, time: t });
-    });
-  } catch (e) { console.warn('Notification payments check failed:', e?.code || e); }
+  // allPaymentRows and window.__myComplaints were already fetched by
+  // loadPayments()/loadMyComplaints() moments earlier in the same dashboard
+  // load — re-querying the same two collections here was pure waste, and
+  // sequentially at that (three separate try/catch-await blocks, one after
+  // another). Reusing them removes two full network round-trips outright.
+  (allPaymentRows || []).forEach(p => {
+    const t = toMs(p.verifiedAt) || toMs(p.updatedAt);
+    if (!t || t <= cutoff) return;
+    if (p.status === 'verified') items.push({ icon: '✅', text: `Payment of ${formatINR(p.amount)} was verified.`, time: t });
+    else if (p.status === 'rejected') items.push({ icon: '❌', text: `Payment of ${formatINR(p.amount)} was rejected${p.remarks ? `: ${p.remarks}` : '.'}`, time: t });
+  });
 
-  try {
-    const rows = (await getDocs(query(collection(db, 'complaints'), where('raisedByUid', '==', currentUser.uid)))).docs.map(d => d.data());
-    rows.forEach(c => {
-      const t = toMs(c.updatedAt);
-      if (!t || t <= cutoff || !['resolved', 'in_progress', 'rejected', 'closed'].includes(c.status)) return;
-      items.push({ icon: '📋', text: `Complaint "${c.title}" is now ${COMPLAINT_STATUS_LABEL_R[c.status] || c.status}.`, time: t });
-    });
-  } catch (e) { console.warn('Notification complaints check failed:', e?.code || e); }
+  (window.__myComplaints || []).forEach(c => {
+    const t = toMs(c.updatedAt);
+    if (!t || t <= cutoff || !['resolved', 'in_progress', 'rejected', 'closed'].includes(c.status)) return;
+    items.push({ icon: '📋', text: `Complaint "${c.title}" is now ${COMPLAINT_STATUS_LABEL_R[c.status] || c.status}.`, time: t });
+  });
 
   try {
     const rows = (await getDocs(query(collection(db, 'notices'), orderBy('postedAt', 'desc'), limit(5)))).docs.map(d => d.data());
@@ -3114,6 +3225,192 @@ const COMPLAINT_CATEGORY_LABEL_R = {
   electrical: 'Electrical', plumbing: 'Plumbing', noise: 'Noise', parking: 'Parking', other: 'Other'
 };
 const COMPLAINT_STATUS_LABEL_R = { open: 'Open', in_progress: 'In Progress', resolved: 'Resolved', closed: 'Closed', rejected: 'Rejected' };
+/* ======================= Community: Book a Facility ======================= */
+let allActiveFacilities = [];
+async function loadMyBookings(uid) {
+  const el = document.getElementById('myBookingsList');
+  if (!el) return;
+  try {
+    const [facSnap, bookSnap] = await Promise.all([
+      getDocs(query(collection(db, 'facilities'), where('active', '==', true))),
+      getDocs(query(collection(db, 'facilityBookings'), where('memberUid', '==', uid)))
+    ]);
+    allActiveFacilities = facSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const rows = bookSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    rows.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+    window.__myBookings = rows;
+    renderMyBookings();
+  } catch (e) {
+    console.warn('Bookings load failed:', e?.code || e);
+    el.innerHTML = emptyState('Could not load bookings', 'Please refresh the page and try again.', { compact: true });
+    window.__translate(el);
+  }
+}
+const BOOKING_STATUS_BADGE_R = { pending: 'warning', approved: 'success', rejected: 'danger', cancelled: 'neutral' };
+const BOOKING_SLOT_LABEL_R = { morning: 'Morning', evening: 'Evening', full_day: 'Full Day' };
+function renderMyBookings() {
+  const el = document.getElementById('myBookingsList');
+  if (!el) return;
+  const rows = window.__myBookings || [];
+  if (!rows.length) { el.innerHTML = emptyState('No requests yet', 'Request a facility using the button above.', { compact: true }); window.__translate(el); return; }
+  el.innerHTML = rows.map(b => `
+    <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--line);">
+      <div>
+        <b style="font-size:13.5px;">${escapeHtml(b.facilityName)}</b>
+        <span class="badge badge-${BOOKING_STATUS_BADGE_R[b.status] || 'neutral'}" style="margin-left:8px;">${escapeHtml(b.status)}</span>
+        <div class="t-muted" style="font-size:12px; margin-top:2px;">${fmtDate(b.date)} · ${BOOKING_SLOT_LABEL_R[b.slot] || b.slot}${b.decisionNote ? ` · ${escapeHtml(b.decisionNote)}` : ''}</div>
+      </div>
+      ${['pending', 'approved'].includes(b.status) ? `<button class="btn btn-outline btn-sm" data-cancel-my-booking="${b.id}">Cancel</button>` : ''}
+    </div>`).join('');
+  el.querySelectorAll('[data-cancel-my-booking]').forEach(btn => btn.addEventListener('click', () => cancelMyBooking(btn.dataset.cancelMyBooking)));
+  window.__translate?.(el);
+}
+async function cancelMyBooking(id) {
+  if (!confirm('Cancel this booking request?')) return;
+  try {
+    await updateDoc(doc(db, 'facilityBookings', id), { status: 'cancelled', updatedAt: serverTimestamp() });
+    showToast('Cancelled.', 'success');
+    const b = (window.__myBookings || []).find(x => x.id === id);
+    if (b) b.status = 'cancelled';
+    renderMyBookings();
+  } catch (e) { showToast('Could not cancel — please try again.', 'error'); }
+}
+function openBookingModal() {
+  const sel = document.getElementById('bk-facility');
+  if (!allActiveFacilities.length) { showToast('No facilities are available to book right now.', 'error'); return; }
+  sel.innerHTML = allActiveFacilities.map(f => `<option value="${f.id}">${escapeHtml(f.name)}</option>`).join('');
+  document.getElementById('bookingForm').reset();
+  document.getElementById('bk-date').min = new Date().toISOString().slice(0, 10);
+  document.getElementById('bookingModalBackdrop').classList.add('open');
+}
+document.getElementById('closeBookingModal')?.addEventListener('click', () => document.getElementById('bookingModalBackdrop').classList.remove('open'));
+document.getElementById('bookingForm')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const f = e.target;
+  const facility = allActiveFacilities.find(x => x.id === f.facility.value);
+  if (!facility) return;
+  const btn = f.querySelector('button[type=submit]');
+  setLoading(btn, true);
+  try {
+    await addDoc(collection(db, 'facilityBookings'), {
+      memberUid: currentUser.uid, facilityId: facility.id, facilityName: facility.name,
+      date: f.date.value, slot: f.slot.value, purpose: f.purpose.value.trim() || null,
+      residentName: currentMember.name, tower: currentMember.tower, flatNumber: currentMember.flatNumber,
+      status: 'pending', createdAt: serverTimestamp()
+    });
+    showToast('Request submitted — you\'ll see the decision here once the committee reviews it.', 'success');
+    document.getElementById('bookingModalBackdrop').classList.remove('open');
+    await loadMyBookings(currentUser.uid);
+  } catch (err) { showToast(`Could not submit${err?.code ? ` (${err.code})` : ''}.`, 'error'); }
+  finally { setLoading(btn, false); }
+});
+
+/* ======================= Community: Expected Guests ======================= */
+async function loadMyGuests(uid) {
+  const el = document.getElementById('myGuestsList');
+  if (!el) return;
+  try {
+    const rows = (await getDocs(query(collection(db, 'expectedGuests'), where('memberUid', '==', uid)))).docs.map(d => ({ id: d.id, ...d.data() }));
+    rows.sort((a, b) => (b.expectedDate || '').localeCompare(a.expectedDate || ''));
+    window.__myGuests = rows;
+    renderMyGuests();
+  } catch (e) {
+    console.warn('Guests load failed:', e?.code || e);
+    el.innerHTML = emptyState('Could not load guests', 'Please refresh the page and try again.', { compact: true });
+    window.__translate(el);
+  }
+}
+function renderMyGuests() {
+  const el = document.getElementById('myGuestsList');
+  if (!el) return;
+  const rows = (window.__myGuests || []).filter(g => g.status !== 'cancelled');
+  if (!rows.length) { el.innerHTML = emptyState('No guests logged', 'Log an expected guest using the button above.', { compact: true }); window.__translate(el); return; }
+  el.innerHTML = rows.map(g => `
+    <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--line);">
+      <div>
+        <b style="font-size:13.5px;">${escapeHtml(g.guestName)}</b>
+        <div class="t-muted" style="font-size:12px; margin-top:2px;">${fmtDate(g.expectedDate)}${g.purpose ? ` · ${escapeHtml(g.purpose)}` : ''}</div>
+      </div>
+      <button class="btn btn-outline btn-sm" data-cancel-guest="${g.id}">Remove</button>
+    </div>`).join('');
+  el.querySelectorAll('[data-cancel-guest]').forEach(btn => btn.addEventListener('click', () => cancelMyGuest(btn.dataset.cancelGuest)));
+  window.__translate?.(el);
+}
+async function cancelMyGuest(id) {
+  try {
+    await updateDoc(doc(db, 'expectedGuests', id), { status: 'cancelled', updatedAt: serverTimestamp() });
+    window.__myGuests = (window.__myGuests || []).filter(g => g.id !== id);
+    renderMyGuests();
+  } catch (e) { showToast('Could not remove — please try again.', 'error'); }
+}
+document.getElementById('closeGuestModal')?.addEventListener('click', () => document.getElementById('guestModalBackdrop').classList.remove('open'));
+document.getElementById('guestForm')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const f = e.target;
+  const btn = f.querySelector('button[type=submit]');
+  setLoading(btn, true);
+  try {
+    await addDoc(collection(db, 'expectedGuests'), {
+      memberUid: currentUser.uid, guestName: f.guestName.value.trim(), expectedDate: f.expectedDate.value,
+      purpose: f.purpose.value.trim() || null, residentName: currentMember.name, tower: currentMember.tower,
+      flatNumber: currentMember.flatNumber, status: 'expected', createdAt: serverTimestamp()
+    });
+    showToast('Guest logged.', 'success');
+    document.getElementById('guestModalBackdrop').classList.remove('open');
+    await loadMyGuests(currentUser.uid);
+  } catch (err) { showToast(`Could not log guest${err?.code ? ` (${err.code})` : ''}.`, 'error'); }
+  finally { setLoading(btn, false); }
+});
+
+/* ======================= Community: Suggestions ======================= */
+const SUGGESTION_STATUS_LABEL_R = { submitted: 'Submitted', under_review: 'Under Review', considered: 'Considered', declined: 'Declined' };
+async function loadMySuggestions(uid) {
+  const el = document.getElementById('mySuggestionsList');
+  if (!el) return;
+  try {
+    const rows = (await getDocs(query(collection(db, 'suggestions'), where('raisedByUid', '==', uid)))).docs.map(d => ({ id: d.id, ...d.data() }));
+    rows.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+    window.__mySuggestions = rows;
+    renderMySuggestions();
+  } catch (e) {
+    console.warn('Suggestions load failed:', e?.code || e);
+    el.innerHTML = emptyState('Could not load suggestions', 'Please refresh the page and try again.', { compact: true });
+    window.__translate(el);
+  }
+}
+function renderMySuggestions() {
+  const el = document.getElementById('mySuggestionsList');
+  if (!el) return;
+  const rows = window.__mySuggestions || [];
+  if (!rows.length) { el.innerHTML = emptyState('No suggestions yet', 'Share an idea using the button above.', { compact: true }); window.__translate(el); return; }
+  el.innerHTML = rows.map(s => `
+    <div style="padding:10px 0; border-bottom:1px solid var(--line);">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px;">
+        <p style="font-size:13.5px; white-space:pre-wrap; margin:0;">${escapeHtml(s.text)}</p>
+        <span class="badge badge-neutral" style="flex-shrink:0;">${SUGGESTION_STATUS_LABEL_R[s.status] || s.status}</span>
+      </div>
+      ${s.adminNote ? `<div class="t-muted" style="font-size:12px; margin-top:4px;">Committee: ${escapeHtml(s.adminNote)}</div>` : ''}
+    </div>`).join('');
+}
+document.getElementById('closeSuggestionModal')?.addEventListener('click', () => document.getElementById('suggestionModalBackdrop').classList.remove('open'));
+document.getElementById('suggestionForm')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const f = e.target;
+  const btn = f.querySelector('button[type=submit]');
+  setLoading(btn, true);
+  try {
+    await addDoc(collection(db, 'suggestions'), {
+      raisedByUid: currentUser.uid, text: f.text.value.trim(), residentName: currentMember.name,
+      flatNumber: `${currentMember.tower}-${currentMember.flatNumber}`, status: 'submitted', createdAt: serverTimestamp()
+    });
+    showToast('Suggestion submitted — thank you!', 'success');
+    document.getElementById('suggestionModalBackdrop').classList.remove('open');
+    await loadMySuggestions(currentUser.uid);
+  } catch (err) { showToast(`Could not submit${err?.code ? ` (${err.code})` : ''}.`, 'error'); }
+  finally { setLoading(btn, false); }
+});
+
+
 async function loadMyComplaints(uid) {
   const el = document.getElementById('myComplaintsList');
   if (!el) return;
@@ -3304,9 +3601,11 @@ async function downloadStatement(e) {
 async function downloadCard() {
   const btn = document.getElementById('downloadCardBtn');
 
-  // The PDF libraries load from a CDN. If a network block, ad-blocker or a
-  // strict corporate proxy stopped them, every later call throws a cryptic
-  // destructure error — so check up front and say so plainly.
+  // jsPDF is bundled locally (jspdf.umd.min.js), not loaded from a CDN — but
+  // it's still an external <script> tag, so a corrupted/partial file or a
+  // browser extension blocking script execution can leave it undefined.
+  // Every later call throws a cryptic destructure error in that case, so
+  // check up front and say so plainly.
   if (!window.jspdf || !window.jspdf.jsPDF) {
     showToast('PDF library failed to load — check your connection or refresh the page and try again.', 'error');
     return;
@@ -3461,11 +3760,19 @@ async function loadPayments(uid) {
   // result set in JS instead means this screen never depends on that index
   // existing at all.
   const q = query(collection(db, 'payments'), where('memberUid', '==', uid));
+  // Independent of each other — maintenance-settings doesn't read anything
+  // from the payments-rows, only duesFor() below needs both together —
+  // so there's no reason for one to wait behind the other finishing.
+  const [paymentsResult, maintenance] = await Promise.all([
+    getDocs(q).then(snap => ({ ok: true, rows: snap.docs.map(d => ({ id: d.id, ...d.data() })) })).catch(e => ({ ok: false, error: e })),
+    loadMaintenanceSettings()
+  ]);
   let rows;
-  try {
-    rows = (await getDocs(q)).docs.map(d => ({ id: d.id, ...d.data() }));
+  if (paymentsResult.ok) {
+    rows = paymentsResult.rows;
     rows.sort((a, b) => (b.submittedAt?.seconds || 0) - (a.submittedAt?.seconds || 0));
-  } catch (e) {
+  } else {
+    const e = paymentsResult.error;
     console.error('Loading payment history failed:', e?.code || e);
     rows = [];
     // This is the resident's own money — if we can't load it, say so rather
@@ -3476,7 +3783,6 @@ async function loadPayments(uid) {
 
   // Dues are computed from the same rows the history renders, so the panel
   // and the list can never disagree with each other.
-  const maintenance = await loadMaintenanceSettings();
   currentDues = duesFor(currentMember, rows, currentFinancialYear(), maintenance);
   currentMaintenance = maintenance;                       // reused by the payment modal
   currentMembership = membershipDue(currentMember, rows, maintenance);
@@ -3586,40 +3892,50 @@ async function openPaymentModal() {
   if (alreadyPending) { showToast('You already have a pending payment — no need for a new entry.', 'error'); return; }
 
   let paySettings;
-  try {
-    // Two documents: settings/payment (public) and settings/paymentPrivate
-    // (account number / IFSC / branch — readable here because paying is
-    // only reachable once signed in as an approved resident, which is
-    // exactly the audience paymentPrivate's rule allows).
-    const [paySettingsSnap, privSnap] = await Promise.all([
-      getDoc(doc(db, 'settings', 'payment')),
-      getDoc(doc(db, 'settings', 'paymentPrivate'))
-    ]);
+  let eventDues = [];
+  // Three reads that don't depend on each other, fired together instead of
+  // one-after-another — previously the events query only started once the
+  // payment-settings queries had already finished, which is a second,
+  // avoidable network round-trip on the critical path to the modal simply
+  // opening. allSettled (not all) so one query failing doesn't cancel the
+  // others — each still falls back independently, same as before.
+  const [paySettingsResult, privResult, evResult] = await Promise.allSettled([
+    getDoc(doc(db, 'settings', 'payment')),
+    getDoc(doc(db, 'settings', 'paymentPrivate')),
+    getDocs(query(collection(db, 'events'), where('demandGenerated', '==', true)))
+  ]);
+
+  // Two documents: settings/payment (public) and settings/paymentPrivate
+  // (account number / IFSC / branch — readable here because paying is
+  // only reachable once signed in as an approved resident, which is
+  // exactly the audience paymentPrivate's rule allows).
+  if (paySettingsResult.status === 'fulfilled' && privResult.status === 'fulfilled') {
+    const paySettingsSnap = paySettingsResult.value, privSnap = privResult.value;
     paySettings = paymentDetails({
       ...(paySettingsSnap.exists() ? paySettingsSnap.data() : {}),
       ...(privSnap.exists() ? privSnap.data() : {})
     });
-  } catch (e) {
+  } else {
     // Fall back to whatever PAYMENT_DEFAULTS provides (society name/bank
     // only — account number and IFSC are deliberately not baked into this
     // file, so this path shows an incomplete-but-safe set of fields rather
     // than a fake-looking account, if the settings read itself fails).
-    console.warn('Payment settings read failed, using defaults:', e?.code || e);
+    console.warn('Payment settings read failed, using defaults:', paySettingsResult.reason?.code || privResult.reason?.code);
     paySettings = paymentDetails({});
   }
 
   // Active event demands (Diwali, function, etc.) the resident still owes. Read
   // guarded so a failure never blocks the modal; each becomes its own invoice
   // card + a toggle option, exactly like the membership fee.
-  let eventDues = [];
-  try {
-    const evSnap = await getDocs(query(collection(db, 'events'), where('demandGenerated', '==', true)));
-    const events = evSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+  if (evResult.status === 'fulfilled') {
+    const events = evResult.value.docs.map(d => ({ id: d.id, ...d.data() }))
       .filter(ev => ev.active !== false);
     eventDues = events
       .map(ev => eventDue(currentMember, allPaymentRows, ev))
       .filter(ed => ed.outstanding > 0);
-  } catch (e) { console.warn('Events read failed, skipping:', e?.code || e); eventDues = []; }
+  } else {
+    console.warn('Events read failed, skipping:', evResult.reason?.code || evResult.reason);
+  }
 
   // The maintenance invoice — expected / paid / outstanding for this FY,
   // straight from the committee's per-tower rate. This is what makes "type an
@@ -4163,7 +4479,6 @@ async function loadAccounts() {
     }
     const s = snap.data();
     const balance = Number(s.balance) || 0;
-    const categories = Array.isArray(s.categories) ? s.categories : [];
 
     el.innerHTML = `
       <div class="fund-row">
@@ -4171,18 +4486,6 @@ async function loadAccounts() {
         <div class="fund-card spend"><div class="lbl">Spent</div><div class="amt">${formatINR(s.spent)}</div></div>
         <div class="fund-card balance ${balance < 0 ? 'negative' : ''}"><div class="lbl">Balance</div><div class="amt">${formatINR(balance)}</div></div>
       </div>
-      ${categories.length ? `
-      <div class="spend-list">
-        <h3 style="font-size:15.5px; margin-bottom:14px;">Spending by head</h3>
-        ${categories.map(c => `
-          <div class="spend-row">
-            <div class="top">
-              <span class="nm">${escapeHtml(c.name)}</span>
-              <span><span class="amt">${formatINR(c.amount)}</span><span class="pct">${Math.round(c.share * 100)}%</span></span>
-            </div>
-            <div class="spend-bar"><span style="width:${Math.max(2, Math.round(c.share * 100))}%"></span></div>
-          </div>`).join('')}
-      </div>` : '<div class="spend-list"><p class="t-sub" style="font-size:13.5px;">No expenses have been recorded for this year yet.</p></div>'}
       ${Array.isArray(s.majorExpenses) && s.majorExpenses.length ? `
       <div class="spend-list" style="margin-top:16px;">
         <h3 style="font-size:15.5px; margin-bottom:14px;">Major expenses this year</h3>
