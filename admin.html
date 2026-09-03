@@ -342,6 +342,12 @@
         <select class="fy-select" id="fySelect"></select>
       </div>
 
+      <!-- Slim date + "what's waiting" context line, always visible (the
+           pills below hide themselves when nothing is pending, so without
+           this the top of the dashboard would go blank on a quiet day).
+           Populated by renderTodayLine() from the same counts the pills use. -->
+      <div class="today-line" id="todayLine"></div>
+
       <!-- Command Center — everything currently waiting on someone, in one
            row of clickable numbers, so nobody has to open five different
            tabs just to see what needs doing today. Each pill is gated to
@@ -1944,13 +1950,13 @@ const ROLE_LABELS = {
   secretary: 'Secretary', jointsecretary: 'Joint Secretary', treasurer: 'Treasurer'
 };
 const ROLE_NAV = {
-  superadmin: ['overview','members','payments','events','expenses','content','calendar','complaints','community','vendors','operations','polls','financials','importExport','settings','adminUsers','auditLog'],
+  superadmin: ['overview','approvals','members','payments','events','expenses','content','calendar','complaints','community','vendors','gateSecurity','facilityStaff','operations','polls','financials','importExport','settings','adminUsers','auditLog'],
   // Office-bearers can see where the money went even though only the
   // Treasurer may record it — that visibility is the point of the ledger.
-  president: ['overview','members','events','expenses','content','calendar','complaints','community','operations','polls','auditLog'],
-  secretary: ['overview','members','events','expenses','content','calendar','complaints','community','operations','polls','auditLog'],
-  jointsecretary: ['overview','members','events','expenses','content','calendar','complaints','community','operations','polls','auditLog'],
-  treasurer: ['overview','members','payments','events','expenses','calendar','community','vendors','financials','importExport','auditLog']
+  president: ['overview','approvals','members','events','expenses','content','calendar','complaints','community','gateSecurity','facilityStaff','operations','polls','auditLog'],
+  secretary: ['overview','approvals','members','events','expenses','content','calendar','complaints','community','gateSecurity','facilityStaff','operations','polls','auditLog'],
+  jointsecretary: ['overview','approvals','members','events','expenses','content','calendar','complaints','community','gateSecurity','facilityStaff','operations','polls','auditLog'],
+  treasurer: ['overview','approvals','members','payments','events','expenses','calendar','community','vendors','financials','importExport','auditLog']
 };
 const ACTION_PERMS = {
   approveMembers: ['superadmin','president','secretary','jointsecretary'],
@@ -2305,6 +2311,33 @@ function performUniversalSearch(term) {
   results.classList.add('open');
 }
 document.getElementById('universalSearch')?.addEventListener('input', (e) => performUniversalSearch(e.target.value));
+// '/' and Ctrl/Cmd+K both jump to search — skipped while already typing in
+// any field, so '/' never hijacks a password or a normal text entry.
+document.addEventListener('keydown', (e) => {
+  const typing = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName) || document.activeElement?.isContentEditable;
+  const isSearchShortcut = (e.key === '/' && !typing) || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k');
+  if (isSearchShortcut) {
+    e.preventDefault();
+    document.getElementById('universalSearch')?.focus();
+  }
+});
+
+// Gives an approve/reject tap immediate visual feedback instead of the
+// button sitting inertly clickable during the write — restores the
+// original label in `finally`, so a cancelled reason-prompt (rejectBooking
+// returns early on Cancel) or a failed write both leave the button exactly
+// as they found it, never stuck saying "Approving…".
+async function withButtonLoading(btn, loadingText, fn) {
+  const original = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = loadingText;
+  try {
+    await fn();
+  } finally {
+    btn.disabled = false;
+    btn.textContent = original;
+  }
+}
 // Clicking away closes the results without needing to clear the input —
 // the search term itself is left in place in case they want to reopen it.
 document.addEventListener('click', (e) => {
@@ -2525,6 +2558,26 @@ function renderCommandCenter(pendingMemberCount, pendingPaymentCount) {
     </button>`).join('');
   strip.querySelectorAll('[data-cc-idx]').forEach(btn =>
     btn.addEventListener('click', () => window.__ccActions[Number(btn.dataset.ccIdx)]?.()));
+
+  renderTodayLine(pills);
+}
+
+// A slim "today at a glance" line above the pills. Uses exactly the same
+// filtered pills array the command centre just built, so the summary can
+// never disagree with the pills below it — total is the sum of everything
+// this role can currently act on, and when that's zero the line says so
+// warmly instead of the dashboard-top going blank.
+function renderTodayLine(pills) {
+  const el = document.getElementById('todayLine');
+  if (!el) return;
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' });
+  const totalPending = pills.reduce((s, p) => s + p.count, 0);
+  el.innerHTML = `
+    <span class="tl-date">${escapeHtml(dateStr)}</span>
+    ${totalPending > 0
+      ? `<span class="tl-sub">${totalPending} item${totalPending > 1 ? 's' : ''} need${totalPending > 1 ? '' : 's'} attention</span>`
+      : `<span class="tl-clear">✓ All caught up — nothing pending</span>`}`;
 }
 
 /* ---- Society Health Score ------------------------------------------------
@@ -5394,8 +5447,8 @@ function renderApprovalCenter() {
           <button class="btn btn-outline btn-sm" data-ap-reject-booking="${b.id}">Reject</button>
         </div>
       </div>`).join('');
-    bookingsCard.querySelectorAll('[data-ap-approve-booking]').forEach(b => b.onclick = () => approveBooking(b.dataset.apApproveBooking));
-    bookingsCard.querySelectorAll('[data-ap-reject-booking]').forEach(b => b.onclick = () => rejectBooking(b.dataset.apRejectBooking));
+    bookingsCard.querySelectorAll('[data-ap-approve-booking]').forEach(b => b.onclick = () => withButtonLoading(b, 'Approving…', () => approveBooking(b.dataset.apApproveBooking)));
+    bookingsCard.querySelectorAll('[data-ap-reject-booking]').forEach(b => b.onclick = () => withButtonLoading(b, 'Rejecting…', () => rejectBooking(b.dataset.apRejectBooking)));
   } else {
     bookingsCard.style.display = 'none';
   }
@@ -5418,8 +5471,8 @@ function renderApprovalCenter() {
           <button class="btn btn-outline btn-sm" data-ap-reject-exp="${e.id}">Reject</button>
         </div>
       </div>`).join('');
-    expensesCard.querySelectorAll('[data-ap-approve-exp]').forEach(b => b.onclick = () => decideExpenseRequest(b.dataset.apApproveExp, 'approved'));
-    expensesCard.querySelectorAll('[data-ap-reject-exp]').forEach(b => b.onclick = () => decideExpenseRequest(b.dataset.apRejectExp, 'rejected'));
+    expensesCard.querySelectorAll('[data-ap-approve-exp]').forEach(b => b.onclick = () => withButtonLoading(b, 'Approving…', () => decideExpenseRequest(b.dataset.apApproveExp, 'approved')));
+    expensesCard.querySelectorAll('[data-ap-reject-exp]').forEach(b => b.onclick = () => withButtonLoading(b, 'Rejecting…', () => decideExpenseRequest(b.dataset.apRejectExp, 'rejected')));
   } else {
     expensesCard.style.display = 'none';
   }
@@ -6743,8 +6796,8 @@ async function renderFyLockList() {
     <div class="list-edit-item">
       <div><b style="font-size:13px;">FY ${escapeHtml(fy)}</b>${lock ? `<div class="t-muted" style="font-size:11.5px;">Locked by ${escapeHtml(lock.lockedBy || '—')} on ${fmtDate(lock.lockedAt)}</div>` : ''}</div>
       ${lock
-        ? `<button class="btn btn-outline btn-sm" data-unlock-fy="${fy}">Unlock</button>`
-        : `<button class="btn btn-danger btn-sm" data-lock-fy="${fy}">Lock</button>`}
+        ? `<button class="btn btn-danger btn-sm" data-unlock-fy="${fy}">Unlock</button>`
+        : `<button class="btn btn-primary btn-sm" data-lock-fy="${fy}">Lock</button>`}
     </div>`;
   }).join('');
   el.querySelectorAll('[data-lock-fy]').forEach(b => b.onclick = () => lockFY(b.dataset.lockFy));

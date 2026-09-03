@@ -957,6 +957,10 @@ body.logged-in #dashboard{ min-height:calc(100vh - 66px); padding-top:26px; }
    it), deliberately NOT using magenta here — this is a workspace tool, not
    a festive highlight. */
 .cc-strip{ display:flex; gap:10px; overflow-x:auto; padding-bottom:2px; margin-bottom:20px; scrollbar-width:thin; }
+.today-line{ display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:14px; }
+.today-line .tl-date{ font-family:var(--font-display, Georgia, serif); font-size:15px; font-weight:700; color:var(--ink-900, #0A1B33); }
+.today-line .tl-sub{ font-size:12.5px; color:var(--ink-500, #5b6472); }
+.today-line .tl-clear{ font-size:12.5px; color:var(--success, #2e7d5b); font-weight:600; }
 .cc-strip:empty{ display:none; margin-bottom:0; }
 .cc-pill{
   flex:0 0 auto; display:flex; flex-direction:column; gap:2px; min-width:132px;
