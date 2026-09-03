@@ -116,7 +116,6 @@ export const HI = {
   'Ample Parking': 'पर्याप्त पार्किंग',
   'Community': 'परिसर',
   'JDA': 'JDA',
-  'Approved': 'स्वीकृत',
   'Select your tower': 'अपना टावर चुनें',
 
   /* ---- Downloads & dues ---- */
@@ -235,7 +234,6 @@ export const HI = {
   'No payment records yet.': 'अभी तक कोई भुगतान रिकॉर्ड नहीं है।',
   'Pending Approval': 'स्वीकृति प्रतीक्षित',
   'Pending Verification': 'सत्यापन प्रतीक्षित',
-  'Approved': 'स्वीकृत',
   'Verified': 'सत्यापित',
   'Rejected': 'अस्वीकृत',
   'Deactivated': 'निष्क्रिय',

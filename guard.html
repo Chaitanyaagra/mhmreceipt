@@ -22,6 +22,10 @@
 <meta name="theme-color" content="#0A1B33">
 <link rel="icon" href="favicon-32.png">
 <link rel="apple-touch-icon" href="icon-192.png">
+<link rel="manifest" href="manifest-guard.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="MHMRWS Gate">
 <meta name="color-scheme" content="dark">
 <link rel="stylesheet" href="styles.css">
 <style>
@@ -139,6 +143,18 @@
 </div>
 
 <div id="toast-region"></div>
+
+<!-- Service worker registration lives here, not in the Firebase module —
+     same reasoning as index.html: if the SDK fails to load, offline
+     support and installability shouldn't silently never register. -->
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js')
+      .catch((e) => console.warn('Service worker registration failed:', e));
+  });
+}
+</script>
 
 <script type="module">
 import { auth, db } from './firebase-config.js';

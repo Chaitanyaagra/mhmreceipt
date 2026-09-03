@@ -620,6 +620,104 @@ export async function nextSequence(counterId, padLength = 6) {
    right slot automatically; any other/missing value falls back to the old
    single-slot ID so a caller that doesn't yet know about a resident's type
    still gets a stable, valid ID rather than a crash. */
+/* ==========================================================================
+   Facility inspection checklists — ported from the standalone MHM Inspection
+   PWA (maxapp). Content is copied faithfully (same section titles and item
+   wording) since it reflects real domain knowledge already worked out for
+   this specific society; only the SHAPE was adapted to fit as one shared
+   export instead of that app's own global.
+
+   'daily-tower' is structured differently on purpose (floor-by-floor items
+   repeated per floor, plus a flat "additional" list) — that's how the
+   source app modelled it, not an inconsistency to "fix" here.
+   ========================================================================== */
+export const INSPECTION_TYPES = {
+  'daily-tower': {
+    label: 'Daily Tower Common Area',
+    floors: ['Ground', 'First', 'Second', 'Third', 'Fourth', 'Fifth', 'Sixth', 'Seventh', 'Eighth', 'Ninth', 'Tenth', 'Eleventh', 'Twelfth', 'Thirteenth'],
+    floorItems: ['Corridor Clean', 'Staircase Clean', 'Lift Clean', 'Lift Working', 'Fire System OK', 'Meter Room OK', 'Common Lights', 'Walls & Ceiling OK', 'Signages OK', 'Housekeeping Done', 'No Water Seepage', 'Emergency Exit Clear'],
+    additional: ['Terrace Clean', 'Basement Housekeeping', 'Parking Area', 'Garbage Room', 'No Pest Activity']
+  },
+  'weekly-mep': {
+    label: 'Weekly MEP Inspection',
+    sections: {
+      A: { title: 'Water Supply System', items: ['Borewell Pump Working', 'Pump Motors Condition', 'Auto Operation', 'Pressure Gauges', 'Delivery Pressure', 'Pump Leakage', 'Pump Foundation & Vibration', 'NRV & Valves', 'Underground Tank Clean', 'Underground Tank Water Level', 'Terrace Tank Water Level', 'Overflow System', 'Tank Cover Locked', 'Vent Mesh Available', 'Water Colour', 'Water Odour', 'Water Distribution to All Towers', 'Water Meter Reading Recorded'] },
+      C: { title: 'Electrical System', items: ['Transformer', 'HT Panel', 'LT Panel', 'DG Set', 'DG Set Fuel Level', 'AMF Panel', 'Earthing System', 'Electrical Room Housekeeping', 'Panel Temperature', 'Common Area Lighting', 'Podium Lights Working', 'Podium Decorative Lights Working', 'Entry Gate Lights Working', 'Exit Gate Lights Working', 'Basement Lighting', 'Terrace Lighting', 'Emergency Lights'] },
+      D: { title: 'Fire Fighting System', items: ['Fire Pump', 'Diesel Pump', 'Jockey Pump', 'Fire Panel', 'Hydrant Pressure', 'Hose Boxes', 'Hose Pipes', 'Fire Extinguishers', 'Fire Alarm System', 'Smoke Detectors'] },
+      E: { title: 'STP (Sewage Treatment Plant)', items: ['Raw Sewage Pump', 'Equalization Tank', 'Blowers', 'Clarifier', 'Sludge Pump', 'Chlorine Dosing', 'Treated Water Quality', 'Reuse Pump', 'STP Housekeeping', 'Chemical Stock'] },
+      F: { title: 'Basement & Service Areas', items: ['Pump Room Housekeeping', 'Electrical Room', 'STP Room', 'DG Room', 'Lift Machine Room Checked', 'Parking Drainage', 'Water Leakage', 'Seepage', 'Ventilation'] },
+      G: { title: 'Open Gym & Kids Play Area', items: ['Open Gym - All equipment structurally stable (no wobble / loose parts)', 'Open Gym - Moving parts operate smoothly (no jamming / grinding)', 'Open Gym - All bolts, nuts & fasteners tight, none missing', 'Open Gym - No sharp edges, broken welds or cracked metal', 'Open Gym - Paint / coating intact, no rust patches exposed', 'Open Gym - Rubber / foam grips in good condition', 'Open Gym - Flooring / rubber mat clean and intact', 'Open Gym - Area clean, no litter or hazard', 'Open Gym - Signage / usage instructions visible', 'Kids Play - All equipment structurally stable (no tilting / sinking)', 'Kids Play - Swing chains, ropes & hooks intact, no fraying', 'Kids Play - Slide surface smooth, no cracks or sharp edges', 'Kids Play - See-saw pivot balanced and secure', 'Kids Play - All bolts & fasteners tight, none protruding', 'Kids Play - No broken or missing components on any equipment', 'Kids Play - Rubber / soft fall-zone flooring intact', 'Kids Play - Area fencing / boundary secure', 'Kids Play - Area clean and litter-free'] },
+      H: { title: 'Gardening & Landscaping', items: ['Podium Garden - Plants Watered & Healthy', 'Podium Garden - Dry/Dead Plants Removed', 'Podium Garden - Mulching Done', 'Podium Garden - Lawn Mowed & Edged', 'Podium Garden - Weeds Removed', 'Podium Garden - Fertilizer / Manure Applied', 'Open Parking - Planters Clean & Watered', 'Open Parking - Boundary Shrubs Trimmed', 'Open Parking - No Overgrowth on Walls', 'Open Parking - Lawn Patches Maintained', 'Club House - Garden Area Clean', 'Club House - Plants Healthy & Watered', 'Club House - Potted Plants Condition', 'Club House - Flower Beds Maintained', 'Entry Gate - Planters Watered & Clean', 'Entry Gate - Shrubs Trimmed', 'Exit Gate - Planters Watered & Clean', 'Exit Gate - Shrubs Trimmed', 'Open Gym Area - Ground Cover Plants OK', 'Open Gym Area - Surrounding Shrubs Trimmed'] }
+    }
+  },
+  'daily-security': {
+    label: 'Daily Security & Common Area',
+    sections: {
+      A: { title: 'Main Gate & Security Area', items: ['Main Gate Clean', 'Security Cabin / Guard Room Clean', 'Visitor Register Updated', 'Visitor Entry Process Followed', 'RFID System Working', 'Boom Barrier Working', 'Entry & Exit Gates Working', 'Security Lighting Working', 'Security Signage Proper', 'Guard Attendance Complete', 'Guards in Proper Uniform & ID Card', 'Fire Extinguisher Available', 'Intercom / Emergency Panel Working', 'Delivery / Courier Log Maintained'] },
+      B: { title: 'Podium & Open Common Areas', items: ['Podium Clean', 'Walking Track Clean', 'Garden Area Clean', 'Lawn Properly Maintained', 'Plants Watered', 'Dry Leaves Removed', 'Benches Clean', 'Dustbins Clean', 'Garden Lights Working', 'Decorative Lights Working', "Children's Play Area Clean", 'Play Equipment Safe', 'Boundary Wall / Fencing Intact'] },
+      C: { title: 'Basement', items: ['Basement Floor Clean', 'Parking Area Clean', 'Ramp Clean', 'Drainage Clean', 'No Water Leakage', 'No Oil Leakage', 'Basement Lights Working', 'Emergency Lights Working', 'Exit Sign Boards', 'Fire Exit Accessible'] },
+      D: { title: 'CCTV Surveillance System', items: ['Main Gate Cameras', 'Basement Cameras', 'Podium Cameras', 'Parking Cameras', 'Boundary Wall Cameras', 'Recording System (NVR/DVR) Working', 'Camera Recording Available', 'Date & Time Synchronization', 'Storage Capacity Available'] },
+      E: { title: 'Common Toilets', items: ['Toilet Clean', 'Wash Basin Clean', 'Water Available', 'Flush Working', 'Exhaust Fan Working', 'Lights Working', 'Hand Wash / Soap Available', 'Tissue Paper Available', 'No Bad Odour'] },
+      F: { title: 'General Housekeeping', items: ['Sweeping Completed', 'Mopping Completed', 'Garbage Collected', 'Garbage Collection Area Clean', 'Dustbin Cleaned', 'Housekeeping Staff Present', 'Uniform & ID Cards Worn'] }
+    }
+  },
+  'club-house': {
+    label: 'Club House Daily Operations',
+    sections: {
+      A: { title: 'Morning Opening Checklist', items: ['Club House Opened On Time', 'Main Door Locks Checked', 'CCTV Working', 'Entry Register Available', 'Emergency Contact Displayed'] },
+      B: { title: 'Housekeeping', items: ['Gym Cleaned', 'Pool Area Cleaned', 'Sauna Cleaned', 'Banquet Hall Checked', 'Washrooms Cleaned', 'Dustbins Emptied'] },
+      C: { title: 'Maintenance', items: ['Lights Working', 'Water Supply Checked', 'Pool Pump Working', 'AC Working', 'Fire Extinguisher Available'] },
+      D: { title: 'Swimming Pool Checklist', items: ['Water Level Checked', 'Water Clear & Clean', 'Pool Deck Cleaned', 'Shower Area Cleaned', 'Life Ring Available', 'First Aid Box Available', 'Pool Timing Board Displayed'] },
+      E: { title: 'Gym Checklist', items: ['All Machines Working', 'AC Operational', 'Sanitization Done', 'Music System Working', 'Mirrors Clean', 'Drinking Water Available'] },
+      F: { title: 'Banquet Hall Checklist', items: ['Hall Clean', 'Furniture Properly Arranged', 'Lights Working', 'AC Working', 'Washrooms Clean', 'No Damage Found'] },
+      G: { title: 'Evening Closing Checklist', items: ['Residents Vacated Facility', 'Lights Switched Off', 'AC Switched Off', 'Pool Area Secured', 'Gym Locked', 'Banquet Hall Locked', 'CCTV Operational', 'Main Gate Locked'] }
+    }
+  }
+};
+
+// A small, deliberately conservative subset — fire/life-safety and exit
+// access only — ported from the source app's own CRITICAL_ITEMS set. A
+// flagged item in this set becomes a 'high' priority complaint (24h SLA)
+// instead of 'medium' (72h); everything else defaults to medium so this
+// list doesn't need to be exhaustive to be useful.
+export const INSPECTION_CRITICAL_ITEMS = new Set([
+  'Fire System OK', 'Fire Pump', 'Diesel Pump', 'Jockey Pump', 'Fire Panel', 'Hydrant Pressure',
+  'Hose Boxes', 'Hose Pipes', 'Fire Extinguishers', 'Fire Extinguisher Available', 'Fire Alarm System', 'Smoke Detectors',
+  'Emergency Lights', 'Emergency Lights Working', 'Fire Exit Accessible', 'Exit Sign Boards',
+  'Boom Barrier Working', 'Emergency Exit Clear', 'Intercom / Emergency Panel Working'
+]);
+
+// Maps an inspection section/context to one of the 8 complaint categories
+// this app already has (see firestore.rules' complaints.create) — a flagged
+// checklist item becomes a normal complaint via this mapping rather than a
+// parallel category system just for inspections.
+export function inspectionSectionToComplaintCategory(sectionTitle) {
+  const t = String(sectionTitle || '').toLowerCase();
+  if (t.includes('security') || t.includes('gate') || t.includes('cctv')) return 'security';
+  if (t.includes('housekeeping') || t.includes('toilet') || t.includes('clean')) return 'housekeeping';
+  if (t.includes('electrical') || t.includes('lighting') || t.includes('light')) return 'electrical';
+  if (t.includes('water supply') || t.includes('sewage') || t.includes('stp') || t.includes('pool')) return 'plumbing';
+  if (t.includes('parking') || t.includes('basement')) return 'parking';
+  return 'maintenance';
+}
+
+// Calendar date as YYYY-MM-DD in the DEVICE's own local timezone.
+// Deliberately NOT `date.toISOString().slice(0, 10)` — that converts to
+// UTC first, so for India (UTC+5:30) it silently returns YESTERDAY's date
+// for any local time before 5:30 AM (booking/guest-date minimums, "today"
+// comparisons, and Excel-import date normalisation all used that pattern
+// until this was added).
+export function dateToLocalISO(d) {
+  if (!(d instanceof Date) || Number.isNaN(d.getTime())) return '';
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+export function todayLocalISO() {
+  return dateToLocalISO(new Date());
+}
+
 export function flatClaimId(tower, flatNumber, residentType) {
   const base = `${String(tower || '').trim()}_${String(flatNumber || '').trim()}`;
   const slot = residentType === 'tenant' ? 'tenant' : (residentType === 'owner' || residentType === 'jointowner') ? 'owner' : null;

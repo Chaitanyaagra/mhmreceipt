@@ -49,6 +49,9 @@
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="favicon-32.png">
 <link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="MHMRWS Portal">
 <meta name="color-scheme" content="light">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1665,6 +1668,19 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
   </div>
 </div>
 
+<div class="modal-backdrop no-print" id="inspectionDetailModalBackdrop">
+  <div class="modal" style="max-width:560px;">
+    <div class="modal-head">
+      <div>
+        <h3 id="inspectionDetailTitle" style="font-size:16.5px;">Inspection</h3>
+        <p id="inspectionDetailMeta" class="t-muted" style="font-size:12px; margin-top:2px;"></p>
+      </div>
+      <button class="icon-btn" id="closeInspectionDetailModal">✕</button>
+    </div>
+    <div class="modal-body" id="inspectionDetailBody" style="max-height:70vh; overflow-y:auto;"></div>
+  </div>
+</div>
+
 <!-- Privacy Policy — full text, opened from the registration form's privacy
      notice. Static content, no Firebase needed, so it can open even before
      login and even if the SDK is slow to load. -->
@@ -2004,7 +2020,7 @@ import {
   waShareText, downloadImageFromUrl,
   initFamilyMembersEditor, addFamilyMemberRow, collectFamilyMembers,
   initVehiclesEditor, addVehicleRow, collectVehicles,
-  initPetsEditor, addPetCard, collectPets, petVaccinationStatus, profileCompleteness, flatClaimId, findBlockingFlatClaim, generatePetId, rentAgreementStatus, flatKey
+  initPetsEditor, addPetCard, collectPets, petVaccinationStatus, profileCompleteness, flatClaimId, findBlockingFlatClaim, generatePetId, rentAgreementStatus, flatKey, INSPECTION_TYPES, todayLocalISO
 } from './app-common.js';
 
 /* Branding, the year stamp and the committee fallback are handled by the
@@ -2761,6 +2777,7 @@ async function loadDashboard(uid) {
       ${statusExtra}
     </div>
     ${currentMember.status === 'approved' ? `<div id="gateCard"></div>` : ''}
+    ${currentMember.status === 'approved' ? `<div id="inspectionsCard"></div>` : ''}
     ${currentMember.status === 'approved' ? `<div id="expiryCenterCard" style="display:none;"></div>` : ''}
     ${currentMember.status === 'approved' ? `
     <div class="dash-grid">
@@ -2892,7 +2909,7 @@ async function loadDashboard(uid) {
     document.getElementById('newBookingBtn')?.addEventListener('click', openBookingModal);
     document.getElementById('newGuestBtn')?.addEventListener('click', () => {
       document.getElementById('guestForm').reset();
-      document.getElementById('gs-date').min = new Date().toISOString().slice(0, 10);
+      document.getElementById('gs-date').min = todayLocalISO();
       document.getElementById('guestModalBackdrop').classList.add('open');
     });
     document.getElementById('newSuggestionBtn')?.addEventListener('click', () => {
@@ -2918,6 +2935,7 @@ async function loadDashboard(uid) {
     // actually finished.
     await Promise.allSettled([loadPayments(uid), loadMyPets(uid), loadMyComplaints(uid), loadMyBookings(uid), loadMyGuests(uid), loadMySuggestions(uid)]);
     subscribeGateVisitors(currentMember);
+    loadInspectionsCard();
   }
 }
 
@@ -3386,6 +3404,68 @@ async function decideGateVisitor(id, status) {
   }
 }
 
+/* ---------------------------------------------------------------------- */
+/*  Facility inspections — read-only for residents. Not live (unlike the   */
+/*  Gate card): an inspection filed a minute ago isn't time-critical the   */
+/*  way a guest waiting at the gate is, so a plain fetch on dashboard load */
+/*  is enough — same pattern as loadMyBookings, not onSnapshot.            */
+/* ---------------------------------------------------------------------- */
+async function loadInspectionsCard() {
+  const el = document.getElementById('inspectionsCard');
+  if (!el) return;
+  try {
+    const snap = await getDocs(collection(db, 'inspections'));
+    window.__allInspections = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+    renderInspectionsCard(window.__allInspections.slice(0, 5));
+  } catch (e) { console.warn('Inspections load failed:', e?.code || e); }
+}
+function renderInspectionsCard(rows) {
+  const el = document.getElementById('inspectionsCard');
+  if (!el || !rows.length) { if (el) el.innerHTML = ''; return; }
+  el.innerHTML = `
+    <div class="card card-pad">
+      <h3 style="font-size:15px; margin-bottom:10px;">🔍 Recent Facility Inspections</h3>
+      ${rows.map(r => `
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 0; border-bottom:1px solid var(--line,#EAE6DC);">
+          <div>
+            <b style="font-size:13.5px;">${escapeHtml(INSPECTION_TYPES[r.formType]?.label || r.formType)}</b>
+            <div class="t-muted" style="font-size:11.5px; margin-top:1px;">${r.tower ? 'Tower ' + escapeHtml(r.tower) + ' · ' : ''}${r.createdAt ? fmtDate(r.createdAt) : ''}</div>
+          </div>
+          <button class="btn btn-outline btn-sm" data-view-insp="${r.id}">${r.issueCount ? r.issueCount + ' issue' + (r.issueCount > 1 ? 's' : '') : 'All clear'}</button>
+        </div>`).join('')}
+    </div>`;
+  el.querySelectorAll('[data-view-insp]').forEach(b => b.onclick = () => openInspectionDetail(b.dataset.viewInsp));
+}
+// Full checklist, section by section — same detail admin sees, so "residents
+// can see the inspections" means the actual findings, not just a count.
+function openInspectionDetail(id) {
+  const r = (window.__allInspections || []).find(x => x.id === id);
+  if (!r) return;
+  const body = document.getElementById('inspectionDetailBody');
+  const sections = r.sections || [];
+  document.getElementById('inspectionDetailTitle').textContent =
+    (INSPECTION_TYPES[r.formType]?.label || r.formType) + (r.tower ? ' — Tower ' + r.tower : '');
+  document.getElementById('inspectionDetailMeta').textContent =
+    'Filed by ' + (r.createdByName || '—') + (r.createdAt ? ' · ' + fmtDate(r.createdAt) : '');
+  body.innerHTML = sections.map(sec => {
+    const issues = sec.items.filter(it => it.status === 'issue');
+    const oks = sec.items.filter(it => it.status === 'ok');
+    return `
+      <div class="card" style="margin-bottom:10px; padding:14px;">
+        <b style="font-size:13.5px;">${escapeHtml(sec.title)}</b>
+        ${issues.length ? `<div style="margin-top:8px;">` + issues.map(it => `
+          <div style="padding:6px 0; border-bottom:1px solid var(--line);">
+            <div style="display:flex; justify-content:space-between; gap:8px;"><span style="font-size:12.5px;">${escapeHtml(it.label)}</span><span class="badge badge-danger">Issue</span></div>
+            ${it.note ? `<div class="t-muted" style="font-size:11.5px; margin-top:2px;">${escapeHtml(it.note)}</div>` : ''}
+          </div>`).join('') + `</div>` : ''}
+        ${oks.length ? `<div class="t-muted" style="font-size:11.5px; margin-top:8px;">${oks.length} item${oks.length > 1 ? 's' : ''} OK</div>` : ''}
+      </div>`;
+  }).join('');
+  document.getElementById('inspectionDetailModalBackdrop').classList.add('open');
+}
+document.getElementById('closeInspectionDetailModal')?.addEventListener('click', () => document.getElementById('inspectionDetailModalBackdrop').classList.remove('open'));
+
 function renderMyBookings() {
   const el = document.getElementById('myBookingsList');
   if (!el) return;
@@ -3438,7 +3518,7 @@ function openBookingModal() {
   if (!allActiveFacilities.length) { showToast('No facilities are available to book right now.', 'error'); return; }
   sel.innerHTML = allActiveFacilities.map(f => `<option value="${f.id}">${escapeHtml(f.name)}</option>`).join('');
   document.getElementById('bookingForm').reset();
-  document.getElementById('bk-date').min = new Date().toISOString().slice(0, 10);
+  document.getElementById('bk-date').min = todayLocalISO();
   document.getElementById('bookingModalBackdrop').classList.add('open');
 }
 document.getElementById('closeBookingModal')?.addEventListener('click', () => document.getElementById('bookingModalBackdrop').classList.remove('open'));
@@ -4523,7 +4603,7 @@ async function loadCalendar() {
   if (el && !el.dataset.loaded) el.innerHTML = skeletonList(2);
   try {
     const rows = (await getDocs(collection(db, 'calendarEvents'))).docs.map(d => d.data());
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayLocalISO();
     window.__calendarEntries = rows
       .filter(c => c.date && c.date >= today)
       .sort((a, b) => a.date.localeCompare(b.date))

@@ -69,7 +69,7 @@ service firebase.storage {
       allow read: if isAdmin() || request.auth.uid == uid;
       allow create, update: if request.auth.uid == uid
                    && request.resource.size < 8 * 1024 * 1024
-                   && isImagePdfOrEncrypted();
+                   && isImageOrPdf();
       allow delete: if isAdmin() || request.auth.uid == uid;
     }
 
@@ -79,7 +79,7 @@ service firebase.storage {
       allow read: if isAdmin() || request.auth.uid == uid;
       allow create, update: if request.auth.uid == uid
                    && request.resource.size < 8 * 1024 * 1024
-                   && isImagePdfOrEncrypted();
+                   && isImageOrPdf();
       allow delete: if isAdmin() || request.auth.uid == uid;
     }
 

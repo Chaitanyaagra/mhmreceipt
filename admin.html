@@ -49,6 +49,9 @@
 <link rel="manifest" href="manifest-admin.json">
 <link rel="icon" href="favicon-32.png">
 <link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="MHMRWS Admin">
 <meta name="color-scheme" content="light">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -80,6 +83,8 @@
   .side-nav button:hover{ background:rgba(255,255,255,.06); color:var(--white); }
   .side-nav button.active{ background:rgba(255,255,255,.13); color:var(--white); }
   .side-nav .icon{ width:18px; height:18px; display:grid; place-items:center; flex-shrink:0; }
+  .nav-section-label{ font-size:10.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:rgba(255,255,255,.38); padding:14px 12px 5px; }
+  .nav-section-label:first-child{ padding-top:2px; }
   /* Pending-work count — Members (pending approvals) and Payments (pending
      verification). Hidden entirely at zero so an empty queue doesn't nag. */
   .nav-badge{
@@ -170,6 +175,7 @@
     .sidebar-brand .full{ font-size:12.5px; }
     .side-nav{ display:flex; gap:4px; flex-shrink:0; }
     .side-nav button{ white-space:nowrap; padding:9px 11px; }
+    .nav-section-label{ display:none; }
     .sidebar-foot{
       margin-top:0; padding-top:0; border-top:none; margin-left:auto; flex-shrink:0;
       display:flex; align-items:center; padding-left:10px; border-left:1px solid rgba(255,255,255,.15);
@@ -234,6 +240,7 @@
   <g id="a-community"><path d="M4 21V10.5L12 4l8 6.5V21" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" fill="none"/><path d="M9.5 21v-6h5v6" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" fill="none"/></g>
   <g id="a-vendors"><rect x="3" y="7.5" width="18" height="12" rx="2" stroke="currentColor" stroke-width="1.7" fill="none"/><path d="M8 7.5V6a2 2 0 012-2h4a2 2 0 012 2v1.5" stroke="currentColor" stroke-width="1.7" fill="none"/><path d="M3 12.5h18" stroke="currentColor" stroke-width="1.7"/></g>
   <g id="a-gate"><path d="M12 3l7 3v5c0 5-3.2 7.8-7 9-3.8-1.2-7-4-7-9V6z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" fill="none"/><path d="M9.3 12l1.9 1.9L14.9 10" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" fill="none"/></g>
+  <g id="a-staff"><circle cx="12" cy="8" r="3.4" stroke="currentColor" stroke-width="1.7" fill="none"/><path d="M5 20c0-3.5 3.1-6.3 7-6.3s7 2.8 7 6.3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" fill="none"/><path d="M15.5 5.5l1.4 1.4M17.5 8.5h2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></g>
   <g id="a-operations"><circle cx="12" cy="12" r="2.6" stroke="currentColor" stroke-width="1.6" fill="none"/><path d="M12 3.5v3M12 17.5v3M3.5 12h3M17.5 12h3M6 6l2.1 2.1M15.9 15.9L18 18M18 6l-2.1 2.1M8.1 15.9L6 18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></g>
   <g id="a-auditLog"><path d="M5.5 3.5h9l4 4v13h-13z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" fill="none"/><path d="M14.2 3.5V8H18.6M8.6 12.4h7M8.6 16h7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></g>
   <g id="a-mail"><rect x="2.5" y="5" width="19" height="14" rx="2.4" stroke="currentColor" stroke-width="1.7" fill="none"/><path d="M3 6.5l9 6.4 9-6.4" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" fill="none"/></g>
@@ -280,19 +287,28 @@
     <nav class="side-nav" id="sideNav">
       <button data-view="overview" class="active"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-overview"/></svg></span> Overview</button>
       <button data-view="approvals"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-approvals"/></svg></span> Approval Center<span class="nav-badge" id="navBadgeApprovals" style="display:none;">0</span></button>
+
+      <div class="nav-section-label">Community</div>
       <button data-view="members"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-members"/></svg></span> Members<span class="nav-badge" id="navBadgeMembers" style="display:none;">0</span></button>
-      <button data-view="payments"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-payments"/></svg></span> Payments<span class="nav-badge" id="navBadgePayments" style="display:none;">0</span></button>
-      <button data-view="events"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-events"/></svg></span> Events</button>
-      <button data-view="expenses"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-expenses"/></svg></span> Expenses</button>
-      <button data-view="content"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-content"/></svg></span> Notices &amp; Committee</button>
-      <button data-view="calendar"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-calendar"/></svg></span> Calendar</button>
       <button data-view="complaints"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-complaints"/></svg></span> Complaints</button>
       <button data-view="community"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-community"/></svg></span> Community<span class="nav-badge" id="navBadgeCommunity" style="display:none;">0</span></button>
-      <button data-view="vendors"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-vendors"/></svg></span> Vendors</button>
-      <button data-view="gateSecurity"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-gate"/></svg></span> Gate Security</button>
-      <button data-view="operations"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-operations"/></svg></span> Operations<span class="nav-badge" id="navBadgeOperations" style="display:none;">0</span></button>
+      <button data-view="content"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-content"/></svg></span> Notices &amp; Committee</button>
+      <button data-view="calendar"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-calendar"/></svg></span> Calendar</button>
       <button data-view="polls"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-polls"/></svg></span> Polls</button>
+
+      <div class="nav-section-label">Finance</div>
+      <button data-view="payments"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-payments"/></svg></span> Payments<span class="nav-badge" id="navBadgePayments" style="display:none;">0</span></button>
+      <button data-view="expenses"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-expenses"/></svg></span> Expenses</button>
+      <button data-view="events"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-events"/></svg></span> Events</button>
       <button data-view="financials"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-financials"/></svg></span> Financials</button>
+
+      <div class="nav-section-label">Operations</div>
+      <button data-view="gateSecurity"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-gate"/></svg></span> Gate Security</button>
+      <button data-view="facilityStaff"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-staff"/></svg></span> Facility Staff</button>
+      <button data-view="vendors"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-vendors"/></svg></span> Vendors</button>
+      <button data-view="operations"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-operations"/></svg></span> Operations<span class="nav-badge" id="navBadgeOperations" style="display:none;">0</span></button>
+
+      <div class="nav-section-label">Administration</div>
       <button data-view="importExport"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-importExport"/></svg></span> Import / Export</button>
       <button data-view="settings"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-settings"/></svg></span> Settings &amp; Backup</button>
       <button data-view="adminUsers"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-adminUsers"/></svg></span> Admin Users</button>
@@ -672,7 +688,14 @@
           <div id="docsEditList"></div>
         </div>
         <div class="card card-pad">
-          <div class="spread" style="margin-bottom:14px;"><h3 style="font-size:15px;">Committee</h3><button class="btn btn-primary btn-sm" id="addCommitteeBtn">+ Add Member</button></div>
+          <div class="spread" style="margin-bottom:14px;">
+            <h3 style="font-size:15px;">Committee</h3>
+            <div style="display:flex; gap:8px;">
+              <button class="btn btn-outline btn-sm" id="checkCommitteeCategoriesBtn">Check Categories</button>
+              <button class="btn btn-primary btn-sm" id="addCommitteeBtn">+ Add Member</button>
+            </div>
+          </div>
+          <div id="committeeCategoryFixPanel" style="display:none; margin-bottom:14px;"></div>
           <div id="committeeEditList"></div>
         </div>
       </div>
@@ -844,6 +867,40 @@
         <table>
           <thead><tr><th>Visitor</th><th>Purpose</th><th>Flat</th><th>Logged By</th><th>Status</th><th>Time</th></tr></thead>
           <tbody id="visitorLogBody"><tr><td colspan="6" class="t-muted">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ---------------- FACILITY STAFF (Managing Staff / Supervisor) ----------------
+         A staff account is a third identity alongside resident and
+         committee-admin (see isStaff() in firestore.rules) — Managing
+         Staff and Supervisors log into their own minimal app (staff.html)
+         with their real email + a password they set themselves via a
+         reset-password email, never into this admin panel. -->
+    <div class="view-panel" id="view-facilityStaff">
+      <div class="topbar"><h2 class="view-title">Facility Staff</h2></div>
+      <div class="card" style="margin-bottom:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <h3 style="font-size:15.5px;">Staff Accounts</h3>
+          <button class="btn btn-primary btn-sm" id="addStaffBtn">+ Add Staff</button>
+        </div>
+        <p class="t-muted" style="font-size:12px; margin-bottom:0;">Each staff member signs in separately on the Staff app (<code>staff.html</code>) with their own email. On adding, they get a password-reset email to set their own password.</p>
+      </div>
+      <div class="table-wrap responsive" style="margin-bottom:24px;">
+        <table>
+          <thead><tr><th>Name</th><th>Role</th><th>Email</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="staffBody"><tr><td colspan="5" class="t-muted">Loading…</td></tr></tbody>
+        </table>
+      </div>
+
+      <div class="card" style="margin-bottom:12px;">
+        <h3 style="font-size:15.5px; margin-bottom:4px;">Inspection Log</h3>
+        <p class="t-muted" style="font-size:12px;">Every checklist filed by staff, most recent first — read-only here.</p>
+      </div>
+      <div class="table-wrap responsive">
+        <table>
+          <thead><tr><th>Type</th><th>Tower</th><th>Filed By</th><th>Issues</th><th>Time</th></tr></thead>
+          <tbody id="inspectionLogBody"><tr><td colspan="5" class="t-muted">Loading…</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -1313,6 +1370,34 @@
   </div>
 </div>
 
+<div class="modal-backdrop" id="staffModalBackdrop">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-head"><h3 style="font-size:16px;">Add Staff</h3><button class="icon-btn" id="closeStaffModal">✕</button></div>
+    <div class="modal-body">
+      <form id="staffForm">
+        <div class="field"><label for="staffName">Name</label><input type="text" id="staffName" maxlength="100" required placeholder="e.g. Ramesh Kumar"></div>
+        <div class="field"><label for="staffEmail">Email</label><input type="email" id="staffEmail" required placeholder="their real email — they'll sign in with this"></div>
+        <div class="field"><label for="staffRole">Role</label><select id="staffRole"><option value="supervisor">Supervisor</option><option value="manager">Managing Staff</option></select></div>
+        <p class="t-muted" style="font-size:12px; margin-bottom:12px;">They'll get an email to set their own password — nothing to write down here.</p>
+        <button class="btn btn-primary btn-block" type="submit">Create Staff Account</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="inspectionDetailModalBackdrop">
+  <div class="modal" style="max-width:560px;">
+    <div class="modal-head">
+      <div>
+        <h3 id="inspectionDetailTitle" style="font-size:16px;">Inspection</h3>
+        <p id="inspectionDetailMeta" class="t-muted" style="font-size:12px; margin-top:2px;"></p>
+      </div>
+      <button class="icon-btn" id="closeInspectionDetailModal">✕</button>
+    </div>
+    <div class="modal-body" id="inspectionDetailBody" style="max-height:70vh; overflow-y:auto;"></div>
+  </div>
+</div>
+
 <div class="modal-backdrop" id="assetModalBackdrop">
   <div class="modal" style="max-width:420px;">
     <div class="modal-head"><h3 style="font-size:16px;">Asset</h3><button class="icon-btn" id="closeAssetModal">✕</button></div>
@@ -1711,6 +1796,18 @@
 
 <div id="toast-region"></div>
 
+<!-- Service worker registration lives here, not in a Firebase module — same
+     reasoning as index.html: if the SDK fails to load, offline support and
+     installability shouldn't silently never register. -->
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js')
+      .catch((e) => console.warn('Service worker registration failed:', e));
+  });
+}
+</script>
+
 <!-- Standalone branding module — no Firebase dependency, so the seal
      renders even if the SDK or a CDN fails to load. -->
 <script type="module">
@@ -1770,7 +1867,7 @@ import {
   renderPager, skeletonTableRows, emptyState,
   initFamilyMembersEditor, addFamilyMemberRow, collectFamilyMembers,
   initVehiclesEditor, addVehicleRow, collectVehicles,
-  initPetsEditor, addPetCard, collectPets, petVaccinationStatus, rentAgreementStatus, tsMillis,
+  initPetsEditor, addPetCard, collectPets, petVaccinationStatus, rentAgreementStatus, tsMillis, todayLocalISO, dateToLocalISO,
   todaysCelebrations, upcomingCelebrations, celebrationWishMessage
 } from './app-common.js';
 
@@ -2146,6 +2243,7 @@ function switchView(view) {
   if (view === 'community' && !window.__communityLoaded) { window.__communityLoaded = true; loadCommunityData(); }
   if (view === 'vendors' && !window.__vendorsLoaded) { window.__vendorsLoaded = true; loadVendorsPanel(); }
   if (view === 'gateSecurity' && !window.__gateSecurityLoaded) { window.__gateSecurityLoaded = true; loadGateSecurityData(); }
+  if (view === 'facilityStaff' && !window.__facilityStaffLoaded) { window.__facilityStaffLoaded = true; loadFacilityStaffData(); }
   if (view === 'operations' && !window.__operationsLoaded) { window.__operationsLoaded = true; loadOperationsData(); }
 }
 document.querySelectorAll('#sideNav button').forEach(btn => btn.addEventListener('click', () => switchView(btn.dataset.view)));
@@ -3375,7 +3473,7 @@ function openExpenseModal(existing = null) {
     f.expenseId.value = existing.id;
     f.description.value = existing.description || '';
     f.amount.value = existing.amount || '';
-    f.date.value = existing.date?.toDate ? existing.date.toDate().toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10);
+    f.date.value = existing.date?.toDate ? dateToLocalISO(existing.date.toDate()) : todayLocalISO();
     f.category.value = existing.category || '';
     f.mode.value = existing.mode || 'bank';
     f.paidTo.value = existing.paidTo || '';
@@ -3385,7 +3483,7 @@ function openExpenseModal(existing = null) {
     if (existing.recurringFrequency) f.recurringFrequency.value = existing.recurringFrequency;
   } else {
     f.expenseId.value = '';
-    f.date.value = new Date().toISOString().slice(0, 10);
+    f.date.value = todayLocalISO();
   }
   document.getElementById('expRecurringFreqWrap').style.display = f.isRecurring.checked ? 'block' : 'none';
   document.getElementById('expenseModalBackdrop').classList.add('open');
@@ -4019,13 +4117,20 @@ async function submitMemberEdit(e, original) {
       // this move lands on a slot whose other side is unoccupied, this
       // member becomes the sole (billed) resident; otherwise leave whoever
       // was already billed as-is and don't independently bill this one too.
+      // The read itself happens INSIDE the transaction (tx.get, not a plain
+      // getDoc before it starts) — read-before-transaction was the bug
+      // approveMember() already avoided: two admins transferring different
+      // members onto a flat's owner/tenant slots at nearly the same moment
+      // could otherwise both read "unoccupied" and both land
+      // maintenanceResponsible: true on the same flat.
       const otherSide = f.residentType.value === 'tenant' ? 'owner' : 'tenant';
-      const otherClaim = await getDoc(doc(db, 'flatClaims', flatClaimId(tower, flatNumber, otherSide)));
-      patch.maintenanceResponsible = !otherClaim.exists();
+      const otherClaimRef = doc(db, 'flatClaims', flatClaimId(tower, flatNumber, otherSide));
 
       await runTransaction(db, async (tx) => {
         const claim = await tx.get(newClaimRef);
         if (claim.exists() && claim.data().memberDocId !== original.id) throw new Error('FLAT_TAKEN');
+        const otherClaim = await tx.get(otherClaimRef);
+        patch.maintenanceResponsible = !otherClaim.exists();
         tx.update(doc(db, 'members', original.id), patch);
         tx.delete(oldClaimRef);
         tx.set(newClaimRef, {
@@ -5112,7 +5217,7 @@ document.getElementById('calendarForm')?.addEventListener('submit', async (e) =>
   try {
     await addDoc(collection(db, 'calendarEvents'), {
       title, date: dateVal, type: f.type.value, description: f.description.value.trim(),
-      addedBy: currentAdmin.email, createdAt: serverTimestamp()
+      createdAt: serverTimestamp()
     });
     await logAudit(auth.currentUser, 'add_calendar_entry', { title, date: dateVal, type: f.type.value });
     showToast('Added to calendar.', 'success');
@@ -5180,7 +5285,7 @@ document.getElementById('pollForm')?.addEventListener('submit', async (e) => {
   try {
     await addDoc(collection(db, 'polls'), {
       question, options, startTime: startDate, endTime: endDate,
-      createdBy: currentAdmin.email, createdAt: serverTimestamp()
+      createdAt: serverTimestamp()
     });
     await logAudit(auth.currentUser, 'create_poll', { question, optionCount: options.length });
     showToast('Poll started.', 'success');
@@ -5284,9 +5389,9 @@ function renderApprovalCenter() {
             ${fmtDate(b.date)} · ${BOOKING_SLOT_LABEL[b.slot] || escapeHtml(String(b.slot || ''))} · ${escapeHtml(b.residentName)} (${escapeHtml(b.tower || '—')}-${escapeHtml(b.flatNumber || '—')})
           </div>
         </div>
-        <div style="display:flex; gap:6px; flex-shrink:0;">
+        <div style="display:flex; gap:14px; flex-shrink:0; align-items:center;">
           <button class="btn btn-primary btn-sm" data-ap-approve-booking="${b.id}">Approve</button>
-          <button class="btn btn-danger btn-sm" data-ap-reject-booking="${b.id}">Reject</button>
+          <button class="btn btn-outline btn-sm" data-ap-reject-booking="${b.id}">Reject</button>
         </div>
       </div>`).join('');
     bookingsCard.querySelectorAll('[data-ap-approve-booking]').forEach(b => b.onclick = () => approveBooking(b.dataset.apApproveBooking));
@@ -5308,9 +5413,9 @@ function renderApprovalCenter() {
             ${escapeHtml(e.category || '—')} · ${escapeHtml(e.paidTo || '—')} · Requested by ${escapeHtml(e.requestedBy || '—')}
           </div>
         </div>
-        <div style="display:flex; gap:6px; flex-shrink:0;">
+        <div style="display:flex; gap:14px; flex-shrink:0; align-items:center;">
           <button class="btn btn-primary btn-sm" data-ap-approve-exp="${e.id}">Approve</button>
-          <button class="btn btn-danger btn-sm" data-ap-reject-exp="${e.id}">Reject</button>
+          <button class="btn btn-outline btn-sm" data-ap-reject-exp="${e.id}">Reject</button>
         </div>
       </div>`).join('');
     expensesCard.querySelectorAll('[data-ap-approve-exp]').forEach(b => b.onclick = () => decideExpenseRequest(b.dataset.apApproveExp, 'approved'));
@@ -5410,7 +5515,7 @@ function renderPendingBookings() {
 function renderApprovedBookings() {
   const body = document.getElementById('approvedBookingsBody');
   if (!body) return;
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayLocalISO();
   const upcoming = allBookings.filter(b => b.status === 'approved' && b.date >= today).sort((a, b) => (a.date || '').localeCompare(b.date || ''));
   if (!upcoming.length) { body.innerHTML = '<tr><td colspan="6" class="t-muted">No upcoming approved bookings.</td></tr>'; return; }
   body.innerHTML = upcoming.map(b => `
@@ -5777,8 +5882,12 @@ document.getElementById('guardForm')?.addEventListener('submit', async (e) => {
     // Same rollback reasoning as Add Admin: the Auth account is created
     // first, so anything failing after it would otherwise leave a login
     // that exists but has no guards/{uid} record and no way to fix that
-    // from the UI.
+    // from the UI — and, if the failure happened AFTER the guards/{uid}
+    // write, an orphan document too. Both are cleaned up, not just the
+    // Auth side.
     if (cred?.user) {
+      try { await deleteDoc(doc(db, 'guards', cred.user.uid)); }
+      catch (e2) { console.warn('Could not roll back the guards/{uid} document:', e2); }
       try { await deleteUser(cred.user); }
       catch (e2) { console.warn('Could not roll back the half-created guard account:', e2); }
     }
@@ -5800,6 +5909,157 @@ async function toggleGuardActive(id) {
     await logAudit(auth.currentUser, nextActive ? 'reactivate_guard' : 'deactivate_guard', { id, name: g.name });
     showToast('Updated.', 'success');
     await loadGateSecurityData();
+  } catch (err) { showToast(`Could not update${err?.code ? ` (${err.code})` : ''}.`, 'error'); }
+}
+
+/* ======================= FACILITY STAFF: Managing Staff / Supervisor ======================= */
+let allStaff = [];
+let allInspections = [];
+async function loadFacilityStaffData() {
+  document.getElementById('addStaffBtn').style.display = can('approveMembers') ? 'inline-flex' : 'none';
+  try {
+    const [staffSnap, inspSnap] = await Promise.all([
+      getDocs(collection(db, 'staff')),
+      getDocs(collection(db, 'inspections'))
+    ]);
+    allStaff = staffSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    allInspections = inspSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+  } catch (e) { console.warn('Facility staff load failed:', e?.code || e); }
+  renderStaffTable();
+  renderInspectionLogTable();
+}
+const STAFF_ROLE_LABEL = { manager: 'Managing Staff', supervisor: 'Supervisor' };
+function renderStaffTable() {
+  const body = document.getElementById('staffBody');
+  if (!body) return;
+  if (!allStaff.length) { body.innerHTML = '<tr><td colspan="5" class="t-muted">No staff added yet.</td></tr>'; return; }
+  body.innerHTML = allStaff.map(s => `
+    <tr>
+      <td data-label="Name">${escapeHtml(s.name)}</td>
+      <td data-label="Role">${STAFF_ROLE_LABEL[s.role] || escapeHtml(s.role || '—')}</td>
+      <td data-label="Email">${escapeHtml(s.email || '—')}</td>
+      <td data-label="Status"><span class="badge badge-${s.active !== false ? 'success' : 'neutral'}">${s.active !== false ? 'Active' : 'Deactivated'}</span></td>
+      <td data-label="Actions"><button class="btn btn-outline btn-sm" data-toggle-staff="${s.id}">${s.active !== false ? 'Deactivate' : 'Reactivate'}</button></td>
+    </tr>`).join('');
+  body.querySelectorAll('[data-toggle-staff]').forEach(b => b.onclick = () => toggleStaffActive(b.dataset.toggleStaff));
+}
+const INSPECTION_TYPE_LABEL_ADMIN = { 'daily-tower': 'Daily Tower', 'weekly-mep': 'Weekly MEP', 'daily-security': 'Daily Security', 'club-house': 'Club House' };
+function renderInspectionLogTable() {
+  const body = document.getElementById('inspectionLogBody');
+  if (!body) return;
+  const rows = allInspections.slice(0, 100);
+  if (!rows.length) { body.innerHTML = '<tr><td colspan="5" class="t-muted">No inspections filed yet.</td></tr>'; return; }
+  body.innerHTML = rows.map(r => `
+    <tr>
+      <td data-label="Type">${INSPECTION_TYPE_LABEL_ADMIN[r.formType] || escapeHtml(r.formType || '—')}</td>
+      <td data-label="Tower">${escapeHtml(r.tower || '—')}</td>
+      <td data-label="Filed By">${escapeHtml(r.createdByName || '—')}</td>
+      <td data-label="Issues">${r.issueCount ? `<span class="badge badge-danger">${r.issueCount}</span>` : `<span class="badge badge-success">0</span>`}</td>
+      <td data-label="Time"><button class="btn btn-outline btn-sm" data-view-insp="${r.id}">${r.createdAt ? fmtDateTime(r.createdAt) : '—'} · View</button></td>
+    </tr>`).join('');
+  body.querySelectorAll('[data-view-insp]').forEach(b => b.onclick = () => openInspectionDetail(b.dataset.viewInsp));
+}
+
+// Full checklist, section by section — issues surfaced first within each
+// section (with their note, if any) so a skim shows what actually needs
+// attention, then the passed items as a compact list underneath.
+function openInspectionDetail(id) {
+  const r = allInspections.find(x => x.id === id);
+  if (!r) return;
+  const body = document.getElementById('inspectionDetailBody');
+  const sections = r.sections || [];
+  document.getElementById('inspectionDetailTitle').textContent =
+    (INSPECTION_TYPE_LABEL_ADMIN[r.formType] || r.formType) + (r.tower ? ' — Tower ' + r.tower : '');
+  document.getElementById('inspectionDetailMeta').textContent =
+    'Filed by ' + (r.createdByName || '—') + (r.createdAt ? ' · ' + fmtDateTime(r.createdAt) : '');
+  body.innerHTML = sections.map(sec => {
+    const issues = sec.items.filter(it => it.status === 'issue');
+    const oks = sec.items.filter(it => it.status === 'ok');
+    const unchecked = sec.items.filter(it => !it.status || it.status === 'unchecked');
+    return `
+      <div class="card" style="margin-bottom:10px; padding:14px;">
+        <b style="font-size:13.5px;">${escapeHtml(sec.title)}</b>
+        ${issues.length ? `<div style="margin-top:8px;">` + issues.map(it => `
+          <div style="padding:6px 0; border-bottom:1px solid var(--line);">
+            <div style="display:flex; justify-content:space-between; gap:8px;"><span style="font-size:12.5px;">${escapeHtml(it.label)}</span><span class="badge badge-danger">Issue</span></div>
+            ${it.note ? `<div class="t-muted" style="font-size:11.5px; margin-top:2px;">${escapeHtml(it.note)}</div>` : ''}
+          </div>`).join('') + `</div>` : ''}
+        ${oks.length ? `<div class="t-muted" style="font-size:11.5px; margin-top:8px;">${oks.length} item${oks.length > 1 ? 's' : ''} OK: ${oks.map(it => escapeHtml(it.label)).join(', ')}</div>` : ''}
+        ${unchecked.length ? `<div style="font-size:11.5px; margin-top:4px; color:var(--warning);">${unchecked.length} item${unchecked.length > 1 ? 's' : ''} left unchecked</div>` : ''}
+      </div>`;
+  }).join('');
+  document.getElementById('inspectionDetailModalBackdrop').classList.add('open');
+}
+document.getElementById('closeInspectionDetailModal')?.addEventListener('click', () => document.getElementById('inspectionDetailModalBackdrop').classList.remove('open'));
+
+document.getElementById('addStaffBtn')?.addEventListener('click', () => document.getElementById('staffModalBackdrop').classList.add('open'));
+document.getElementById('closeStaffModal')?.addEventListener('click', () => document.getElementById('staffModalBackdrop').classList.remove('open'));
+
+// Same secondary-app pattern as "Add Admin" and "Add Guard" above — creating
+// this account never signs the currently logged-in committee member out of
+// their own admin session. Unlike a guard's fake @...local address, staff
+// use their REAL email, so the account is created with a random throwaway
+// password and immediately followed by a real sendPasswordResetEmail —
+// nobody, including the admin creating it, ever sees or handles the
+// password itself.
+document.getElementById('staffForm')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const f = e.target;
+  const btn = f.querySelector('button[type="submit"]');
+  btn.disabled = true;
+  const secondaryApp = initializeApp(firebaseConfig, 'Secondary_' + Date.now());
+  let cred;
+  try {
+    const name = document.getElementById('staffName').value.trim();
+    const email = document.getElementById('staffEmail').value.trim();
+    const role = document.getElementById('staffRole').value;
+    const tempPassword = 'Tmp-' + Math.random().toString(36).slice(2, 10) + 'Aa1!';
+
+    const secondaryAuth = getAuth(secondaryApp);
+    cred = await createUserWithEmailAndPassword(secondaryAuth, email, tempPassword);
+    const newUid = cred.user.uid;
+
+    await setDoc(doc(db, 'staff', newUid), {
+      uid: newUid, name, email, role, active: true, createdAt: serverTimestamp(), createdBy: currentAdmin.email
+    });
+    await sendPasswordResetEmail(secondaryAuth, email);
+
+    await logAudit(auth.currentUser, 'add_staff', { email, name, role });
+    showToast('Staff account created — a password-reset email has been sent.', 'success');
+    document.getElementById('staffModalBackdrop').classList.remove('open');
+    f.reset();
+    await loadFacilityStaffData();
+  } catch (err) {
+    // Same rollback reasoning as Add Admin: the Auth account is created
+    // first, so anything failing after it would otherwise leave a login
+    // that exists but has no staff/{uid} record and no way to fix that
+    // from the UI — and, if the failure happened AFTER the staff/{uid}
+    // write (e.g. sendPasswordResetEmail failing), an orphan document too.
+    if (cred?.user) {
+      try { await deleteDoc(doc(db, 'staff', cred.user.uid)); }
+      catch (e2) { console.warn('Could not roll back the staff/{uid} document:', e2); }
+      try { await deleteUser(cred.user); }
+      catch (e2) { console.warn('Could not roll back the half-created staff account:', e2); }
+    }
+    console.error('Create staff failed:', err);
+    showToast(`Could not create staff account${err?.code ? ` (${err.code})` : ''}.`, 'error');
+  } finally {
+    try { await deleteApp(secondaryApp); } catch (_) {}
+    btn.disabled = false;
+  }
+});
+
+async function toggleStaffActive(id) {
+  const s = allStaff.find(x => x.id === id);
+  if (!s) return;
+  const nextActive = !(s.active !== false);
+  if (!confirm(`${nextActive ? 'Reactivate' : 'Deactivate'} "${s.name}"?${nextActive ? '' : ' They will not be able to sign in again until reactivated.'}`)) return;
+  try {
+    await updateDoc(doc(db, 'staff', id), { active: nextActive, updatedAt: serverTimestamp() });
+    await logAudit(auth.currentUser, nextActive ? 'reactivate_staff' : 'deactivate_staff', { id, name: s.name });
+    showToast('Updated.', 'success');
+    await loadFacilityStaffData();
   } catch (err) { showToast(`Could not update${err?.code ? ` (${err.code})` : ''}.`, 'error'); }
 }
 
@@ -6493,7 +6753,7 @@ async function renderFyLockList() {
 async function lockFY(fy) {
   if (!confirm(`Lock FY ${fy}? Verified payments and approved expenses dated to this year can no longer be voided until it's unlocked.`)) return;
   try {
-    await setDoc(doc(db, 'financialYearLocks', fy), { lockedBy: currentAdmin.email, lockedAt: serverTimestamp() });
+    await setDoc(doc(db, 'financialYearLocks', fy), { lockedAt: serverTimestamp() });
     await logAudit(auth.currentUser, 'lock_financial_year', { fy });
     showToast(`FY ${fy} locked.`, 'success');
     await renderFyLockList();
@@ -6515,7 +6775,7 @@ document.getElementById('closeMonthBtn')?.addEventListener('click', async (e) =>
   if (!confirm(`Close ${ym}?${allOk ? '' : ' Some checklist items are still pending.'} This cannot be undone.`)) return;
   btn.disabled = true;
   try {
-    await setDoc(doc(db, 'monthClosures', ym), { closedBy: currentAdmin.email, closedAt: serverTimestamp(), allChecksOk: allOk });
+    await setDoc(doc(db, 'monthClosures', ym), { closedAt: serverTimestamp(), allChecksOk: allOk });
     await logAudit(auth.currentUser, 'close_month', { yearMonth: ym, allChecksOk: allOk });
     showToast(`${ym} closed.`, 'success');
     await loadClosingPanel();
@@ -6600,7 +6860,7 @@ document.getElementById('docForm')?.addEventListener('submit', async (e) => {
     }
     await addDoc(collection(db, 'documents'), {
       title: f.title.value.trim(), category: f.category.value,
-      url, source, addedAt: serverTimestamp(), addedBy: currentAdmin.email
+      url, source, addedAt: serverTimestamp()
     });
     await logAudit(auth.currentUser, 'add_document', { title: f.title.value, source });
     showToast('Document added.', 'success');
@@ -6627,7 +6887,7 @@ document.getElementById('noticeForm').addEventListener('submit', async (e) => {
     }
     await addDoc(collection(db, 'notices'), {
       titleEn: f.titleEn.value, titleHi: f.titleHi.value, bodyEn: f.bodyEn.value, bodyHi: f.bodyHi.value,
-      attachmentURL, postedAt: serverTimestamp(), postedBy: currentAdmin.email
+      attachmentURL, postedAt: serverTimestamp()
     });
     await logAudit(auth.currentUser, 'add_notice', { title: f.titleEn.value });
     showToast('Notice posted.', 'success');
@@ -6712,15 +6972,87 @@ document.getElementById('committeeForm').addEventListener('submit', async (e) =>
   }
 });
 
-/* ---------------------------------------------------------------------- */
-/*  Bulk Import / ZIP Export                                              */
+// One-time cleanup tool: committee entries added before the Core/Team/
+// Advisory split existed (or entered without picking a category) all land
+// in "Team" by default (see index.html's __renderCommittee) — correct,
+// but not what most of them actually are. Rather than open-and-resave each
+// person one by one, this guesses the right category from their Role text
+// ("President"/"Secretary"/"Treasurer" → Core, "Advisory" → Advisory,
+// everything else → Team) and lets the admin review the guesses — untick
+// any that guessed wrong — before applying anything.
+function inferCommitteeCategory(role) {
+  const r = (role || '').toLowerCase();
+  if (/president|secretary|treasurer/.test(r)) return 'core';
+  if (/advisory/.test(r)) return 'advisory';
+  return 'team';
+}
+const COMMITTEE_CATEGORY_LABEL = { core: 'Core Committee', team: 'Team', advisory: 'Advisory' };
+
+document.getElementById('checkCommitteeCategoriesBtn')?.addEventListener('click', () => {
+  const panel = document.getElementById('committeeCategoryFixPanel');
+  const mismatched = allCommitteeMembers
+    .map((c) => ({ ...c, suggested: inferCommitteeCategory(c.role) }))
+    .filter((c) => c.suggested !== (c.category || 'team'));
+
+  panel.style.display = 'block';
+
+  if (!mismatched.length) {
+    panel.innerHTML = `<div class="card" style="background:var(--good-bg,#E4F5EC);"><p style="font-size:13px; margin:0;">Everyone's category already matches their Role text. Nothing to fix.</p></div>`;
+    return;
+  }
+
+  panel.innerHTML = `
+    <div class="card">
+      <p style="font-size:13px; margin-bottom:10px;"><b>${mismatched.length}</b> member(s) look mis-categorised, guessed from their Role text. Untick anyone this guessed wrong, then Apply.</p>
+      ${mismatched.map((c) => `
+        <label style="display:flex; align-items:center; gap:8px; padding:6px 0; font-size:12.5px;">
+          <input type="checkbox" checked data-fix-id="${c.id}" data-fix-category="${c.suggested}">
+          <span><b>${escapeHtml(c.name)}</b> — "${escapeHtml(c.role)}": ${COMMITTEE_CATEGORY_LABEL[c.category] || 'Team'} → <b>${COMMITTEE_CATEGORY_LABEL[c.suggested]}</b></span>
+        </label>`).join('')}
+      <div style="display:flex; gap:8px; margin-top:10px;">
+        <button class="btn btn-primary btn-sm" id="applyCommitteeCategoryFixBtn">Apply Selected</button>
+        <button class="btn btn-outline btn-sm" id="cancelCommitteeCategoryFixBtn">Cancel</button>
+      </div>
+    </div>`;
+
+  document.getElementById('cancelCommitteeCategoryFixBtn').onclick = () => {
+    panel.style.display = 'none';
+    panel.innerHTML = '';
+  };
+  document.getElementById('applyCommitteeCategoryFixBtn').onclick = async (ev) => {
+    const btn = ev.target;
+    btn.disabled = true;
+    const checked = [...panel.querySelectorAll('[data-fix-id]:checked')];
+    try {
+      for (const cb of checked) {
+        await updateDoc(doc(db, 'committee', cb.dataset.fixId), { category: cb.dataset.fixCategory });
+      }
+      await logAudit(auth.currentUser, 'fix_committee_categories', { count: checked.length });
+      showToast(`Updated ${checked.length} member(s).`, 'success');
+      panel.style.display = 'none';
+      panel.innerHTML = '';
+      await loadContentPanels();
+    } catch (err) {
+      console.error('Fix committee categories failed:', err);
+      showToast('Could not update — please try again.', 'error');
+    } finally {
+      btn.disabled = false;
+    }
+  };
+});
 /* ---------------------------------------------------------------------- */
 let importRows = [];
 document.getElementById('importFile').addEventListener('change', async (e) => {
   const file = e.target.files[0];
   if (!file) return;
   const rows = await parseExcelFile(file);
-  const existingFlats = new Set(allMembers.map(m => `${m.tower}|${m.flatNumber}`));
+  // Same owner/tenant slot key flatClaimId() uses everywhere else in the
+  // app (approval, transfer, the security rules) — a flat can legitimately
+  // have BOTH an owner and a tenant as separate members, so "does this
+  // tower+flat already exist" was the wrong question; "does this
+  // tower+flat+slot already exist" is the one that matches how the rest
+  // of the app actually enforces uniqueness.
+  const existingFlats = new Set(allMembers.map(m => flatClaimId(m.tower, m.flatNumber, m.residentType)));
   const seenInFile = new Set();
   // Excel/Sheets sometimes hands back a real Date object for a date-formatted
   // cell, and a plain string otherwise — normalise either to "YYYY-MM-DD" (or
@@ -6728,11 +7060,11 @@ document.getElementById('importFile').addEventListener('change', async (e) => {
   // shape the rest of the app already uses for dob/anniversary.
   const asDateStr = (v) => {
     if (!v && v !== 0) return '';
-    if (v instanceof Date && !Number.isNaN(v.getTime())) return v.toISOString().slice(0, 10);
+    if (v instanceof Date && !Number.isNaN(v.getTime())) return dateToLocalISO(v);
     const s = String(v).trim();
     if (!s) return '';
     const d = new Date(s);
-    return Number.isNaN(d.getTime()) ? '' : d.toISOString().slice(0, 10);
+    return Number.isNaN(d.getTime()) ? '' : dateToLocalISO(d);
   };
   importRows = rows.map(r => {
     const name = String(r.Name || r.name || '').trim();
@@ -6759,10 +7091,10 @@ document.getElementById('importFile').addEventListener('change', async (e) => {
     if (!tower || !flat) errors.push('Missing tower/flat');
     else if (!TOWER_PLAN[tower]) errors.push(`Tower "${tower}" is invalid (only A-G exist)`);
     else if (!isValidFlat(tower, flat)) errors.push(`Flat ${flat} does not exist in Tower ${tower}`);
-    if (existingFlats.has(`${tower}|${flat}`)) errors.push('Flat already registered');
+    if (existingFlats.has(flatClaimId(tower, flat, residentType))) errors.push(`Flat already registered${residentType ? ` as ${residentType}` : ''}`);
     // Catch duplicates within the uploaded file itself, not just against the DB.
-    if (seenInFile.has(`${tower}|${flat}`)) errors.push('Duplicate row in file');
-    seenInFile.add(`${tower}|${flat}`);
+    if (seenInFile.has(flatClaimId(tower, flat, residentType))) errors.push('Duplicate row in file');
+    seenInFile.add(flatClaimId(tower, flat, residentType));
     // Security rules only accept these three values, so reject anything else
     // here where the user can actually see and fix it.
     if (!['owner', 'jointowner', 'tenant'].includes(residentType)) errors.push(`Type must be Owner, Joint Owner, or Tenant (got "${residentType}")`);
@@ -7415,7 +7747,7 @@ document.getElementById('downloadBackupBtn')?.addEventListener('click', async ()
   btn.disabled = true;
   try {
     const bundle = await collectBackupBundle();
-    const stamp = new Date().toISOString().slice(0, 10);
+    const stamp = todayLocalISO();
     const blob = new Blob([JSON.stringify({ takenAt: new Date().toISOString(), society: 'MHMRWS', ...bundle }, null, 2)],
                           { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -7508,8 +7840,7 @@ document.getElementById('addAdminForm').addEventListener('submit', async (e) => 
       const blocking = await findBlockingFlatClaim(tower, flatNumber, 'owner', null);
       if (blocking) throw new Error(`Tower ${tower}, Flat ${flatNumber} is already assigned to another member.`);
       const claimRef = doc(db, 'flatClaims', flatClaimId(tower, flatNumber, 'owner'));
-      const otherClaim = await getDoc(doc(db, 'flatClaims', flatClaimId(tower, flatNumber, 'tenant')));
-      const maintenanceResponsible = !otherClaim.exists();
+      const otherClaimRef = doc(db, 'flatClaims', flatClaimId(tower, flatNumber, 'tenant'));
 
       memberID = await generateMemberId();
       const publicToken = newPublicToken();
@@ -7518,24 +7849,37 @@ document.getElementById('addAdminForm').addEventListener('submit', async (e) => 
       // no flat claim — so a committee member created here got a membership
       // card whose QR resolved to "not found". Approving a resident normally
       // and creating one from here now produce identical state.
-      const batch = writeBatch(db);
-      batch.set(doc(db, 'members', newUid), {
-        uid: newUid, name: f.name.value.trim(), fatherHusbandName: '', tower,
-        flatNumber, mobile: f.mobile.value.trim(), email: f.email.value.trim(),
-        occupation: '', residentType: 'owner', maintenanceResponsible,
-        photoURL: '', declarationAccepted: true, memberID, publicToken,
-        status: 'approved', role: 'resident',
-        source: 'admin_created', createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
-        approvedBy: currentAdmin.email, approvedAt: serverTimestamp()
+      //
+      // A plain writeBatch here used to read the tenant-slot claim (for
+      // maintenanceResponsible) before committing anything — same
+      // read-before-transaction race the edit-transfer flow had: two admins
+      // creating the owner and tenant of the same flat at nearly the same
+      // moment could both read "unoccupied" and both land
+      // maintenanceResponsible: true. A transaction with tx.get() for both
+      // the owner slot (re-checked, not just the earlier client-side
+      // findBlockingFlatClaim) and the tenant slot closes both races at once.
+      await runTransaction(db, async (tx) => {
+        const claim = await tx.get(claimRef);
+        if (claim.exists()) throw new Error(`Tower ${tower}, Flat ${flatNumber} is already assigned to another member.`);
+        const otherClaim = await tx.get(otherClaimRef);
+        const maintenanceResponsible = !otherClaim.exists();
+        tx.set(doc(db, 'members', newUid), {
+          uid: newUid, name: f.name.value.trim(), fatherHusbandName: '', tower,
+          flatNumber, mobile: f.mobile.value.trim(), email: f.email.value.trim(),
+          occupation: '', residentType: 'owner', maintenanceResponsible,
+          photoURL: '', declarationAccepted: true, memberID, publicToken,
+          status: 'approved', role: 'resident',
+          source: 'admin_created', createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
+          approvedBy: currentAdmin.email, approvedAt: serverTimestamp()
+        });
+        tx.set(doc(db, 'membersPublic', publicToken), {
+          memberID, name: f.name.value, tower, flatNumber,
+          residentType: 'owner', status: 'approved', updatedAt: serverTimestamp()
+        });
+        tx.set(claimRef, {
+          tower, flatNumber, memberDocId: newUid, memberUid: newUid, claimedAt: serverTimestamp()
+        });
       });
-      batch.set(doc(db, 'membersPublic', publicToken), {
-        memberID, name: f.name.value, tower, flatNumber,
-        residentType: 'owner', status: 'approved', updatedAt: serverTimestamp()
-      });
-      batch.set(claimRef, {
-        tower, flatNumber, memberDocId: newUid, memberUid: newUid, claimedAt: serverTimestamp()
-      });
-      await batch.commit();
 
       await reloadMembers(); renderMembersTable(); renderOverview(); populateTowerFilter();
     }
@@ -7544,15 +7888,21 @@ document.getElementById('addAdminForm').addEventListener('submit', async (e) => 
     showToast(memberID ? `Admin created — resident login is also ready (${memberID})` : 'Admin account created.', 'success');
     f.reset(); f.alsoResident.checked = true; loadAdmins();
   } catch (err) {
-    // The Auth account is created first; if anything after it fails (a
-    // Firestore write, the flat-claim check, etc.) the account would
-    // otherwise survive with no admin/member record behind it — leaving the
-    // email stuck as "already in use" with no way to log in or retry.
+    // The Auth account is created first, then admins/{uid}, then (optionally)
+    // the resident record — if anything after the admins/{uid} write fails
+    // (the flat-claim check, the batch commit), the account used to be
+    // rolled back but the already-created admins/{uid} document was not,
+    // leaving an orphan doc pointing at a uid that no longer has an Auth
+    // account behind it. Both are cleaned up now, in the same order they
+    // were created, so a failed attempt leaves nothing behind to retry into.
     if (cred?.user) {
+      try { await deleteDoc(doc(db, 'admins', cred.user.uid)); }
+      catch (e) { console.warn('Could not roll back the admins/{uid} document:', e); }
       try { await deleteUser(cred.user); }
       catch (e) { console.warn('Could not roll back the half-created admin account:', e); }
     }
-    showToast(err.message || 'Could not create admin.', 'error');
+    const code = err?.code || '';
+    showToast(err.message && !code ? err.message : `Could not create admin${code ? ` (${code})` : ''}.`, 'error');
   } finally {
     try { await deleteApp(secondaryApp); } catch (_) {}
     btn.disabled = false;
@@ -7582,8 +7932,7 @@ document.getElementById('registerResidentForm').addEventListener('submit', async
     if (blocking) throw new Error(`Tower ${tower}, Flat ${flatNumber} is already assigned to another member.`);
     const claimRef = doc(db, 'flatClaims', flatClaimId(tower, flatNumber, f.residentType.value));
     const otherSideForRR = f.residentType.value === 'tenant' ? 'owner' : 'tenant';
-    const otherClaimForRR = await getDoc(doc(db, 'flatClaims', flatClaimId(tower, flatNumber, otherSideForRR)));
-    const maintenanceResponsibleRR = !otherClaimForRR.exists();
+    const otherClaimRefForRR = doc(db, 'flatClaims', flatClaimId(tower, flatNumber, otherSideForRR));
 
     let photoURL = '';
     const secondaryAuth = getAuth(secondaryApp);
@@ -7617,25 +7966,38 @@ document.getElementById('registerResidentForm').addEventListener('submit', async
     const publicToken = newPublicToken();
     const familyMembers = rrFamilyEditor ? collectFamilyMembers(rrFamilyEditor) : [];
 
-    const batch = writeBatch(db);
-    batch.set(doc(db, 'members', newUid), {
-      uid: newUid, name: f.name.value.trim(), fatherHusbandName: f.fatherHusbandName.value.trim(), tower, flatNumber,
-      mobile: f.mobile.value.trim(), email: f.email.value.trim(), occupation: f.occupation.value.trim(),
-      residentType: f.residentType.value, maintenanceResponsible: maintenanceResponsibleRR,
-      dob: f.dob.value || null, anniversary: f.anniversary.value || null, familyMembers,
-      photoURL, declarationAccepted: true, memberID, publicToken,
-      status: 'approved', role: 'resident',
-      source: 'admin_registered', createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
-      approvedBy: currentAdmin.email, approvedAt: serverTimestamp()
+    // Reading the other slot's claim (for maintenanceResponsible) and the
+    // claimed slot itself (re-checking findBlockingFlatClaim's earlier
+    // client-side answer) both happen INSIDE this transaction, as close to
+    // the actual write as the SDK allows — not earlier in the function,
+    // before the Auth-account creation and (slow, variable-duration) photo
+    // upload that used to sit between the read and the write, widening the
+    // window for two concurrent registrations onto the same flat's two
+    // slots to both see "unoccupied" and both land maintenanceResponsible:
+    // true.
+    await runTransaction(db, async (tx) => {
+      const claim = await tx.get(claimRef);
+      if (claim.exists()) throw new Error(`Tower ${tower}, Flat ${flatNumber} is already assigned to another member.`);
+      const otherClaim = await tx.get(otherClaimRefForRR);
+      const maintenanceResponsibleRR = !otherClaim.exists();
+      tx.set(doc(db, 'members', newUid), {
+        uid: newUid, name: f.name.value.trim(), fatherHusbandName: f.fatherHusbandName.value.trim(), tower, flatNumber,
+        mobile: f.mobile.value.trim(), email: f.email.value.trim(), occupation: f.occupation.value.trim(),
+        residentType: f.residentType.value, maintenanceResponsible: maintenanceResponsibleRR,
+        dob: f.dob.value || null, anniversary: f.anniversary.value || null, familyMembers,
+        photoURL, declarationAccepted: true, memberID, publicToken,
+        status: 'approved', role: 'resident',
+        source: 'admin_registered', createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
+        approvedBy: currentAdmin.email, approvedAt: serverTimestamp()
+      });
+      tx.set(doc(db, 'membersPublic', publicToken), {
+        memberID, name: f.name.value.trim(), tower, flatNumber,
+        residentType: f.residentType.value, status: 'approved', updatedAt: serverTimestamp()
+      });
+      tx.set(claimRef, {
+        tower, flatNumber, memberDocId: newUid, memberUid: newUid, claimedAt: serverTimestamp()
+      });
     });
-    batch.set(doc(db, 'membersPublic', publicToken), {
-      memberID, name: f.name.value.trim(), tower, flatNumber,
-      residentType: f.residentType.value, status: 'approved', updatedAt: serverTimestamp()
-    });
-    batch.set(claimRef, {
-      tower, flatNumber, memberDocId: newUid, memberUid: newUid, claimedAt: serverTimestamp()
-    });
-    await batch.commit();
 
     // Pets are their own documents, saved after the member exists (so
     // ownerUid has a real uid to point at) — same non-blocking resilience

@@ -229,6 +229,35 @@ Yeh feature security guard ke liye ek alag, chhota app hai (`guard.html`) — re
 
 ---
 
+## Step 9 — Facility Staff (Managing Staff / Supervisor) Setup Karein
+
+Yeh feature society ke paid facility staff (Managing Staff, Supervisor) ke liye hai — inspection checklists bharne ke liye aur complaints dekhne/update karne ke liye. Ye committee admins se **alag** login hai (`staff.html`), aur guards se bhi alag — yahan **real email + password** use hota hai, PIN nahi.
+
+1. `admin.html` mein Super Admin/President/Secretary se login karein → **Facility Staff** tab kholein
+2. **+ Add Staff** par click karein → Naam, unka **real email**, aur Role (Managing Staff / Supervisor) bharein
+3. Save karte hi unhe apne email par ek **password-set link** milega (Firebase ka standard reset-password email) — koi PIN ya temporary password kahin dikhta/likha nahi jaata
+4. Staff `staff.html` par jaakar apna email + wahi set kiya hua password se login karein (URL: `https://aapki-site.com/staff.html`)
+5. Home tab se **"+ Start an Inspection"** — 4 checklists available hain: Daily Tower, Weekly MEP, Daily Security, Club House. Har item OK/Issue mark karein, Issue wale item ka short note bhi likh sakte hain
+6. Submit karte hi jo bhi items "Issue" mark hue the, wo automatically ek **Complaint** ban jaate hain — same SLA/escalation system jo resident complaints ke liye already hai
+7. Residents apne dashboard par **"🔍 Recent Facility Inspections"** card mein latest inspections dekh sakte hain (pass/issue summary)
+8. Staff apni **Complaints** tab se koi bhi complaint (resident ka ho ya inspection se aaya ho) dekh sakte hain aur status "In Progress" → "Resolved" tak le ja sakte hain
+
+⚠️ **Access hataana ho toh:** Facility Staff tab mein us staff member ko **Deactivate** karein — unka login turant band ho jayega, lekin unka naam purane inspections/complaints mein record ke liye reh jayega.
+
+---
+
+## Step 10 — Mobile Par "App Jaisa" Install Karna
+
+Chaaron pages (`index.html`, `admin.html`, `guard.html`, `staff.html`) ab har ek **apna manifest** rakhte hain — matlab har ek ko alag se "app ki tarah" install kiya ja sakta hai, ek dusre se independent.
+
+**Android (Chrome):** page kholein → address bar ke paas "Install app" icon ya menu → "Add to Home screen" / "Install app".
+
+**iPhone (Safari):** page kholein → Share button (⬆️) → "Add to Home Screen".
+
+Install hone ke baad: apna icon, apna naam, **browser ki address bar/URL bar nahi dikhta** — bilkul native app jaisa lagta hai. Gate wale tablet par sirf `guard.html` install karein, staff ke phone par sirf `staff.html`, waghera — jisko jo chahiye.
+
+---
+
 ## 💾 Backup ke baare mein saaf baat
 
 Is setup mein **sach mein apne aap chalne wala backup nahi ho sakta** — uske liye ek server ya paid Cloud Function chahiye, jo static hosting par nahi hota. Isliye maine banane ki jagah **bhoolna mushkil** bana diya:

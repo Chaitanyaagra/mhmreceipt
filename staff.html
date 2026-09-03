@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<!-- Same policy as index.html/admin.html/guard.html. -->
+<meta http-equiv="Content-Security-Policy" content="
+  default-src 'self';
+  script-src 'self' 'unsafe-inline' https://www.gstatic.com;
+  style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+  img-src 'self' data: blob:;
+  font-src 'self' data: https://fonts.gstatic.com;
+  connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://www.gstatic.com;
+  worker-src 'self';
+  object-src 'none';
+  base-uri 'self';
+  form-action 'self';
+">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Staff App — MHMRWS</title>
+<meta name="theme-color" content="#0A1B33">
+<link rel="icon" href="favicon-32.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="manifest" href="manifest-staff.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="MHMRWS Staff">
+<link rel="stylesheet" href="styles.css">
+<style>
+  body{ background:var(--paper); }
+  .st-shell{ max-width:560px; margin:0 auto; min-height:100vh; display:flex; flex-direction:column; }
+  #screen-login{ min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
+  .login-card{ width:100%; max-width:360px; background:#fff; border:1px solid var(--line); border-radius:18px; padding:28px 24px; }
+  .login-card h1{ font-size:18px; margin:0 0 4px; text-align:center; }
+  .login-card p{ font-size:12.5px; color:var(--ink-500); margin:0 0 20px; text-align:center; }
+  #loginError{ display:none; color:var(--danger); font-size:12.5px; margin-bottom:10px; }
+  .screen{ display:none; }
+  .screen.active{ display:block; }
+  .st-header{ display:flex; align-items:center; justify-content:space-between; padding:16px; background:var(--navy-900); color:#fff; }
+  .st-header .who b{ display:block; font-size:15px; }
+  .st-header .who span{ font-size:11.5px; color:rgba(255,255,255,.6); }
+  .st-header button{ background:rgba(255,255,255,.1); border:none; color:#fff; padding:7px 12px; border-radius:8px; font-size:12px; }
+  .st-tabs{ display:flex; gap:4px; padding:10px 12px; background:var(--navy-900); }
+  .st-tab{ flex:1; padding:8px; border-radius:8px; background:transparent; border:none; color:rgba(255,255,255,.65); font-size:12.5px; font-weight:600; }
+  .st-tab.active{ background:rgba(255,255,255,.14); color:#fff; }
+  .st-body{ padding:16px; padding-bottom:40px; }
+  .type-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:18px; }
+  .type-card{ background:#fff; border:1px solid var(--line); border-radius:14px; padding:16px 12px; text-align:center; }
+  .type-card b{ display:block; font-size:13px; margin-top:6px; }
+  .chk-section{ background:#fff; border:1px solid var(--line); border-radius:14px; margin-bottom:10px; overflow:hidden; }
+  .chk-section-head{ padding:12px 14px; font-weight:700; font-size:13.5px; background:var(--paper); border-bottom:1px solid var(--line); }
+  .chk-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 14px; border-bottom:1px solid var(--line); }
+  .chk-row:last-child{ border-bottom:none; }
+  .chk-label{ font-size:12.5px; flex:1; }
+  .chk-toggle{ display:flex; gap:4px; flex-shrink:0; }
+  .chk-btn{ padding:5px 10px; border-radius:7px; font-size:11px; font-weight:700; border:1px solid var(--line); background:#fff; color:var(--ink-500); }
+  .chk-btn.ok-on{ background:var(--success-bg); color:var(--success); border-color:var(--success-line); }
+  .chk-btn.issue-on{ background:var(--danger-bg); color:var(--danger); border-color:var(--danger-line); }
+  .chk-note{ padding:0 14px 10px; }
+  .chk-note input{ width:100%; font-size:12px; padding:7px 10px; border-radius:7px; border:1px solid var(--line); }
+  .cx-row{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:12px 14px; margin-bottom:8px; }
+</style>
+</head>
+<body>
+
+<!-- ============================= LOGIN ============================= -->
+<div class="screen active" id="screen-login">
+  <div class="login-card">
+    <h1>Staff App</h1>
+    <p>Max Heights Majestic RWS — Facility Team</p>
+    <form id="loginForm">
+      <div class="field"><label for="loginEmail">Email</label><input type="email" id="loginEmail" autocomplete="username" required></div>
+      <div class="field"><label for="loginPass">Password</label><input type="password" id="loginPass" autocomplete="current-password" required></div>
+      <div id="loginError"></div>
+      <button class="btn btn-primary" type="submit" style="width:100%;">Sign In</button>
+      <button class="btn btn-outline" type="button" id="forgotBtn" style="width:100%; margin-top:8px;">Forgot password</button>
+    </form>
+  </div>
+</div>
+
+<!-- ============================= MAIN ============================= -->
+<div class="screen" id="screen-main">
+  <div class="st-shell">
+    <div class="st-header">
+      <div class="who"><b id="staffNameLabel">—</b><span id="staffRoleLabel"></span></div>
+      <button id="logoutBtn">Sign Out</button>
+    </div>
+    <div class="st-tabs">
+      <button class="st-tab active" data-tab="home">Home</button>
+      <button class="st-tab" data-tab="inspect">New Inspection</button>
+      <button class="st-tab" data-tab="history">History</button>
+      <button class="st-tab" data-tab="complaints">Complaints</button>
+    </div>
+    <div class="st-body">
+      <div class="tab-panel" id="tab-home"></div>
+      <div class="tab-panel" id="tab-inspect" style="display:none;"></div>
+      <div class="tab-panel" id="tab-history" style="display:none;"></div>
+      <div class="tab-panel" id="tab-complaints" style="display:none;"></div>
+    </div>
+  </div>
+</div>
+
+<div id="toast-region"></div>
+
+<!-- Service worker registration lives here, not in the Firebase module —
+     same reasoning as index.html: if the SDK fails to load, offline
+     support and installability shouldn't silently never register. -->
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js')
+      .catch((e) => console.warn('Service worker registration failed:', e));
+  });
+}
+</script>
+
+<script type="module">
+import { auth, db } from './firebase-config.js';
+import {
+  signInWithEmailAndPassword, onAuthStateChanged, signOut, sendPasswordResetEmail
+} from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
+import {
+  doc, getDoc, addDoc, updateDoc, collection, query, where, getDocs, orderBy, serverTimestamp, writeBatch
+} from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
+import { showToast, escapeHtml, fmtDate, fmtDateTime, TOWER_IDS, INSPECTION_TYPES, INSPECTION_CRITICAL_ITEMS, inspectionSectionToComplaintCategory } from './app-common.js';
+import { installOfflineBanner } from './ui-a11y.js';
+installOfflineBanner();
+
+let currentStaff = null; // {uid, name, role}
+let draft = null;        // in-progress inspection {formType, tower, sections:[{title, items:[{label,status,note,priority}]}]}
+let myInspections = [];
+let myComplaints = [];
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id)?.classList.add('active');
+}
+function showTab(name) {
+  document.querySelectorAll('.st-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+  document.querySelectorAll('.tab-panel').forEach(p => p.style.display = 'none');
+  document.getElementById('tab-' + name).style.display = 'block';
+  if (name === 'home') renderHome();
+  if (name === 'inspect') renderInspectPicker();
+  if (name === 'history') renderHistory();
+  if (name === 'complaints') renderComplaints();
+}
+document.querySelectorAll('.st-tab').forEach(b => b.addEventListener('click', () => showTab(b.dataset.tab)));
+
+/* ---------------------------------------------------------------------- */
+/*  Login                                                                  */
+/* ---------------------------------------------------------------------- */
+document.getElementById('loginForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass = document.getElementById('loginPass').value;
+  const errEl = document.getElementById('loginError');
+  errEl.style.display = 'none';
+  const btn = e.target.querySelector('button[type="submit"]');
+  btn.disabled = true;
+  try {
+    await signInWithEmailAndPassword(auth, email, pass);
+  } catch (err) {
+    errEl.textContent = 'Incorrect email or password.';
+    errEl.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+  }
+});
+document.getElementById('forgotBtn').addEventListener('click', async () => {
+  const email = document.getElementById('loginEmail').value.trim();
+  if (!email) { showToast('Enter your email first, then tap Forgot password.', 'error'); return; }
+  try {
+    await sendPasswordResetEmail(auth, email);
+    showToast('Password reset email sent.', 'success');
+  } catch (err) {
+    showToast('Could not send reset email — check the address and try again.', 'error');
+  }
+});
+document.getElementById('logoutBtn').addEventListener('click', () => signOut(auth));
+
+onAuthStateChanged(auth, async (user) => {
+  if (!user) {
+    currentStaff = null;
+    showScreen('screen-login');
+    return;
+  }
+  try {
+    const snap = await getDoc(doc(db, 'staff', user.uid));
+    if (!snap.exists() || snap.data().active === false) {
+      const errEl = document.getElementById('loginError');
+      errEl.textContent = 'This staff account is not active. Contact the committee.';
+      errEl.style.display = 'block';
+      await signOut(auth);
+      return;
+    }
+    currentStaff = { uid: user.uid, ...snap.data() };
+    document.getElementById('staffNameLabel').textContent = currentStaff.name || 'Staff';
+    document.getElementById('staffRoleLabel').textContent = currentStaff.role === 'manager' ? 'Managing Staff' : 'Supervisor';
+    showScreen('screen-main');
+    await Promise.all([loadMyInspections(), loadComplaints()]);
+    showTab('home');
+  } catch (err) {
+    console.error('Staff profile load failed:', err);
+    const errEl = document.getElementById('loginError');
+    errEl.textContent = 'Could not verify this account — check your connection and try again.';
+    errEl.style.display = 'block';
+    await signOut(auth);
+  }
+});
+
+/* ---------------------------------------------------------------------- */
+/*  Data loads                                                             */
+/* ---------------------------------------------------------------------- */
+async function loadMyInspections() {
+  try {
+    const snap = await getDocs(query(collection(db, 'inspections'), where('createdByUid', '==', currentStaff.uid)));
+    myInspections = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+  } catch (e) { console.warn('Inspection history load failed:', e?.code || e); myInspections = []; }
+}
+async function loadComplaints() {
+  try {
+    // isStaff() has blanket complaint read access (see firestore.rules), so
+    // this is every complaint in the society, not just ones this staff
+    // member created — that's the point: complaints now reach staff too.
+    const snap = await getDocs(collection(db, 'complaints'));
+    myComplaints = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+  } catch (e) { console.warn('Complaints load failed:', e?.code || e); myComplaints = []; }
+}
+
+/* ---------------------------------------------------------------------- */
+/*  Home tab                                                               */
+/* ---------------------------------------------------------------------- */
+function renderHome() {
+  const openComplaints = myComplaints.filter(c => c.status === 'open' || c.status === 'in_progress').length;
+  const el = document.getElementById('tab-home');
+  el.innerHTML = `
+    <div class="card card-pad" style="margin-bottom:12px;">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div><div class="t-muted" style="font-size:11.5px;">Inspections filed</div><div style="font-size:22px; font-weight:800;">${myInspections.length}</div></div>
+        <div><div class="t-muted" style="font-size:11.5px;">Open complaints</div><div style="font-size:22px; font-weight:800; color:${openComplaints ? 'var(--danger)' : 'var(--success)'};">${openComplaints}</div></div>
+      </div>
+    </div>
+    <button class="btn btn-primary" style="width:100%; margin-bottom:8px;" data-goto="inspect">+ Start an Inspection</button>
+    <button class="btn btn-outline" style="width:100%;" data-goto="complaints">View Complaints</button>
+  `;
+  el.querySelectorAll('[data-goto]').forEach(b => b.onclick = () => showTab(b.dataset.goto));
+}
+
+/* ---------------------------------------------------------------------- */
+/*  Inspection: type picker → checklist → submit                          */
+/* ---------------------------------------------------------------------- */
+const TYPE_ICON = { 'daily-tower': '🏢', 'weekly-mep': '⚙️', 'daily-security': '🛡️', 'club-house': '🏊' };
+
+function renderInspectPicker() {
+  draft = null;
+  const el = document.getElementById('tab-inspect');
+  el.innerHTML = `
+    <p class="t-muted" style="font-size:12.5px; margin-bottom:12px;">Pick a checklist to start.</p>
+    <div class="type-grid">
+      ${Object.entries(INSPECTION_TYPES).map(([key, t]) => `
+        <button class="type-card" data-type="${key}">
+          <span style="font-size:22px;">${TYPE_ICON[key] || '📋'}</span>
+          <b>${escapeHtml(t.label)}</b>
+        </button>`).join('')}
+    </div>
+  `;
+  el.querySelectorAll('[data-type]').forEach(b => b.onclick = () => startInspection(b.dataset.type));
+}
+
+function startInspection(formType) {
+  const tpl = INSPECTION_TYPES[formType];
+  let sections = [];
+  if (formType === 'daily-tower') {
+    sections = tpl.floors.map(floor => ({
+      title: floor + ' Floor',
+      items: tpl.floorItems.map(label => ({ label: floor + ' — ' + label, status: null, note: '', priority: 'medium' }))
+    }));
+    sections.push({ title: 'Additional Areas', items: tpl.additional.map(label => ({ label, status: null, note: '', priority: 'medium' })) });
+  } else {
+    sections = Object.values(tpl.sections).map(sec => ({
+      title: sec.title,
+      items: sec.items.map(label => ({ label, status: null, note: '', priority: INSPECTION_CRITICAL_ITEMS.has(label) ? 'high' : 'medium' }))
+    }));
+  }
+  draft = { formType, tower: null, sections, needsTower: formType === 'daily-tower' };
+  renderChecklist();
+}
+
+function renderChecklist() {
+  const el = document.getElementById('tab-inspect');
+  const tpl = INSPECTION_TYPES[draft.formType];
+  const totalItems = draft.sections.reduce((s, sec) => s + sec.items.length, 0);
+  const doneItems = draft.sections.reduce((s, sec) => s + sec.items.filter(i => i.status).length, 0);
+  const issueCount = draft.sections.reduce((s, sec) => s + sec.items.filter(i => i.status === 'issue').length, 0);
+
+  el.innerHTML = `
+    <div class="card card-pad" style="margin-bottom:12px;">
+      <b style="font-size:14.5px;">${escapeHtml(tpl.label)}</b>
+      ${draft.needsTower ? `
+        <div class="field" style="margin-top:10px;">
+          <label for="inspTower">Tower</label>
+          <select id="inspTower">${TOWER_IDS.map(t => `<option value="${escapeHtml(t)}" ${draft.tower === t ? 'selected' : ''}>${escapeHtml(t)}</option>`).join('')}</select>
+        </div>` : ''}
+      <div class="t-muted" style="font-size:11.5px; margin-top:8px;">${doneItems}/${totalItems} checked${issueCount ? ' · ' + issueCount + ' issue' + (issueCount > 1 ? 's' : '') + ' flagged' : ''}</div>
+    </div>
+    ${draft.sections.map((sec, si) => `
+      <div class="chk-section">
+        <div class="chk-section-head">${escapeHtml(sec.title)}</div>
+        ${sec.items.map((it, ii) => `
+          <div>
+            <div class="chk-row">
+              <span class="chk-label">${escapeHtml(it.label)}</span>
+              <span class="chk-toggle">
+                <button type="button" class="chk-btn ${it.status === 'ok' ? 'ok-on' : ''}" data-mark="${si}:${ii}:ok">OK</button>
+                <button type="button" class="chk-btn ${it.status === 'issue' ? 'issue-on' : ''}" data-mark="${si}:${ii}:issue">Issue</button>
+              </span>
+            </div>
+            ${it.status === 'issue' ? `
+              <div class="chk-note">
+                <input type="text" placeholder="What's wrong? (optional note)" value="${escapeHtml(it.note)}" data-note="${si}:${ii}">
+              </div>` : ''}
+          </div>`).join('')}
+      </div>`).join('')}
+    <button class="btn btn-primary" style="width:100%; margin-top:8px;" id="submitInspBtn">Submit Inspection${issueCount ? ' (' + issueCount + ' issue' + (issueCount > 1 ? 's' : '') + ' will be logged as complaints)' : ''}</button>
+  `;
+  const towerSel = document.getElementById('inspTower');
+  if (towerSel) { draft.tower = draft.tower || towerSel.value; towerSel.addEventListener('change', () => { draft.tower = towerSel.value; }); }
+  el.querySelectorAll('[data-mark]').forEach(b => b.onclick = () => {
+    const [si, ii, status] = b.dataset.mark.split(':');
+    draft.sections[si].items[ii].status = status;
+    renderChecklist();
+  });
+  el.querySelectorAll('[data-note]').forEach(inp => inp.addEventListener('input', () => {
+    const [si, ii] = inp.dataset.note.split(':');
+    draft.sections[si].items[ii].note = inp.value;
+  }));
+  document.getElementById('submitInspBtn').onclick = submitInspection;
+}
+
+async function submitInspection() {
+  if (draft.needsTower && !draft.tower) { showToast('Please select a tower.', 'error'); return; }
+  const allItems = draft.sections.flatMap(sec => sec.items.map(it => ({ ...it, section: sec.title })));
+  const unchecked = allItems.filter(it => !it.status).length;
+  if (unchecked > 0 && !confirm(unchecked + ' item(s) not marked yet. Submit anyway?')) return;
+
+  const btn = document.getElementById('submitInspBtn');
+  btn.disabled = true; btn.textContent = 'Submitting…';
+  try {
+    const inspDoc = await addDoc(collection(db, 'inspections'), {
+      formType: draft.formType,
+      tower: draft.tower || null,
+      sections: draft.sections.map(sec => ({ title: sec.title, items: sec.items.map(it => ({ label: it.label, status: it.status || 'unchecked', note: it.note || null })) })),
+      issueCount: allItems.filter(it => it.status === 'issue').length,
+      createdByUid: currentStaff.uid,
+      createdByName: currentStaff.name,
+      status: 'submitted',
+      createdAt: serverTimestamp()
+    });
+
+    // Every flagged item becomes an ordinary complaint — same SLA/escalation
+    // system a resident's complaint already goes through, tagged so it's
+    // visually distinguishable in that list.
+    const issues = allItems.filter(it => it.status === 'issue');
+    for (const it of issues) {
+      await addDoc(collection(db, 'complaints'), {
+        raisedByUid: currentStaff.uid,
+        title: it.label,
+        description: (it.note || 'Flagged during ' + INSPECTION_TYPES[draft.formType].label + (draft.tower ? ' — Tower ' + draft.tower : '') + '.'),
+        category: inspectionSectionToComplaintCategory(it.section),
+        status: 'open',
+        source: 'inspection',
+        sourceInspectionId: inspDoc.id,
+        priority: it.priority,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+    }
+
+    showToast('Inspection submitted' + (issues.length ? ' — ' + issues.length + ' issue(s) logged.' : '.'), 'success');
+    await Promise.all([loadMyInspections(), loadComplaints()]);
+    showTab('history');
+  } catch (err) {
+    console.error('Submit inspection failed:', err);
+    showToast(`Could not submit${err?.code ? ` (${err.code})` : ''} — please try again.`, 'error');
+    btn.disabled = false; btn.textContent = 'Submit Inspection';
+  }
+}
+
+/* ---------------------------------------------------------------------- */
+/*  History tab                                                            */
+/* ---------------------------------------------------------------------- */
+function renderHistory() {
+  const el = document.getElementById('tab-history');
+  if (!myInspections.length) { el.innerHTML = '<p class="t-muted" style="font-size:13px;">No inspections filed yet.</p>'; return; }
+  el.innerHTML = myInspections.map(r => `
+    <div class="cx-row">
+      <div style="display:flex; justify-content:space-between; align-items:start;">
+        <div>
+          <b style="font-size:13.5px;">${escapeHtml(INSPECTION_TYPES[r.formType]?.label || r.formType)}</b>
+          <div class="t-muted" style="font-size:11.5px; margin-top:2px;">${r.tower ? 'Tower ' + escapeHtml(r.tower) + ' · ' : ''}${r.createdAt ? fmtDateTime(r.createdAt) : ''}</div>
+        </div>
+        ${r.issueCount ? `<span class="badge badge-danger">${r.issueCount} issue${r.issueCount > 1 ? 's' : ''}</span>` : `<span class="badge badge-success">All clear</span>`}
+      </div>
+    </div>`).join('');
+}
+
+/* ---------------------------------------------------------------------- */
+/*  Complaints tab — staff can move status forward, same as admin can      */
+/* ---------------------------------------------------------------------- */
+const COMPLAINT_STATUS_NEXT = { open: 'in_progress', in_progress: 'resolved' };
+const COMPLAINT_STATUS_LABEL = { open: 'Open', in_progress: 'In Progress', resolved: 'Resolved', closed: 'Closed', rejected: 'Rejected' };
+const COMPLAINT_STATUS_BADGE = { open: 'warning', in_progress: 'warning', resolved: 'success', closed: 'neutral', rejected: 'neutral' };
+
+function renderComplaints() {
+  const el = document.getElementById('tab-complaints');
+  if (!myComplaints.length) { el.innerHTML = '<p class="t-muted" style="font-size:13px;">No complaints on record.</p>'; return; }
+  el.innerHTML = myComplaints.map(c => `
+    <div class="cx-row">
+      <div style="display:flex; justify-content:space-between; align-items:start; gap:8px;">
+        <div style="min-width:0;">
+          <b style="font-size:13.5px;">${escapeHtml(c.title)}</b>
+          <div class="t-muted" style="font-size:11.5px; margin-top:2px;">${escapeHtml(c.category || '')}${c.source === 'inspection' ? ' · from inspection' : ' · resident report'}${c.createdAt ? ' · ' + fmtDate(c.createdAt) : ''}</div>
+        </div>
+        <span class="badge badge-${COMPLAINT_STATUS_BADGE[c.status] || 'neutral'}" style="flex-shrink:0;">${COMPLAINT_STATUS_LABEL[c.status] || c.status}</span>
+      </div>
+      ${COMPLAINT_STATUS_NEXT[c.status] ? `<button class="btn btn-outline btn-sm" style="margin-top:8px;" data-advance="${c.id}" data-next="${COMPLAINT_STATUS_NEXT[c.status]}">Mark ${COMPLAINT_STATUS_LABEL[COMPLAINT_STATUS_NEXT[c.status]]}</button>` : ''}
+    </div>`).join('');
+  el.querySelectorAll('[data-advance]').forEach(b => b.onclick = () => advanceComplaint(b.dataset.advance, b.dataset.next));
+}
+
+async function advanceComplaint(id, nextStatus) {
+  try {
+    const payload = { status: nextStatus, updatedAt: serverTimestamp() };
+    if (nextStatus === 'resolved') payload.resolvedAt = serverTimestamp();
+    await updateDoc(doc(db, 'complaints', id), payload);
+    showToast('Updated.', 'success');
+    await loadComplaints();
+    renderComplaints();
+  } catch (err) {
+    console.error('Update complaint failed:', err);
+    showToast('Could not update — please try again.', 'error');
+  }
+}
+</script>
+</body>
+</html>

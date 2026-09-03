@@ -83,6 +83,21 @@ service cloud.firestore {
         && exists(/databases/$(database)/documents/guards/$(request.auth.uid))
         && get(/databases/$(database)/documents/guards/$(request.auth.uid)).data.active == true;
     }
+    // Paid facility staff — Manager (day-to-day facility operations) or
+    // Supervisor (conducts inspections, first point of contact on
+    // complaints) — a third identity alongside resident and committee-admin.
+    // Same "created by an office-bearer, active flag as the kill-switch"
+    // shape as isGuard(), and just as deliberately NOT folded into
+    // isAdmin(): staff can inspect and work complaints, never touch
+    // members/payments/expenses/committee settings.
+    function staffDoc() {
+      return get(/databases/$(database)/documents/staff/$(request.auth.uid));
+    }
+    function isStaff() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/staff/$(request.auth.uid))
+        && staffDoc().data.active == true;
+    }
     /* ---------- validation helpers ---------- */
     //
     // ABSENCE vs NULL — read this before editing anything below.
@@ -101,6 +116,16 @@ service cloud.firestore {
     }
     function isOptionalString(data, field, maxLen) {
       return absentOrNull(data, field) || (data[field] is string && data[field].size() <= maxLen);
+    }
+    // Same "absent/blank is fine, but if present it must be real" shape as
+    // isOptionalString — blank is what bulk-import already saves when a
+    // spreadsheet row has no mobile column filled in, so this must keep
+    // accepting that rather than retroactively locking those members out
+    // of ever being edited again. What it closes is a raw write saving
+    // garbage like "123" as somebody's mobile number.
+    function isOptionalMobile(data, field) {
+      return absentOrNull(data, field)
+          || (data[field] is string && (data[field] == '' || data[field].matches('^[0-9]{10}$')));
     }
     function isOptionalDateString(data, field) {
       return absentOrNull(data, field)
@@ -155,6 +180,7 @@ service cloud.firestore {
         return isNonEmptyString(request.resource.data.name, 100)
             && isNonEmptyString(request.resource.data.tower, 50)
             && isNonEmptyString(request.resource.data.flatNumber, 30)
+            && isOptionalMobile(request.resource.data, 'mobile')
             && isOptionalString(request.resource.data, 'fatherHusbandName', 100)
             && isOptionalString(request.resource.data, 'address', 500)
             && isOptionalString(request.resource.data, 'occupation', 100)
@@ -192,6 +218,21 @@ service cloud.firestore {
       // change their role — or move themselves to a different flat. That last
       // one matters: maintenance rates are per-tower, so an unpinned flat
       // number is a way to change your own dues and what your card says.
+      //
+      // Known, deliberately-unfixed-here limitation: canApproveMembers()
+      // below still permits tower/flatNumber to change on this document
+      // alone, because the legitimate flow (admin.html's edit-member
+      // transfer, and the two admin-creates-a-resident flows) MUST be able
+      // to change them — and does so correctly, in the same transaction as
+      // the matching flatClaims delete+create. Firestore rules evaluate
+      // each document in a transaction independently and cannot see "a
+      // flatClaims write happened alongside this one", so there is no
+      // rules-only way to require the pairing without also blocking the
+      // legitimate transfer. A compromised canApproveMembers() account
+      // could therefore still move a member's flat via a raw write without
+      // touching flatClaims, desynchronising the two — closing that
+      // residual gap needs a Cloud Function (validate + write both sides
+      // server-side), not a tighter rule.
       allow update: if (
                       isAdmin() && validMemberShape() && (
                         (canApproveMembers()
@@ -203,8 +244,18 @@ service cloud.firestore {
                          // a member with no card, no flatClaim, and no QR
                          // that the UI never produces but the rule allowed.
                          && (request.resource.data.status != 'approved' || isNonEmptyString(request.resource.data.memberID, 40))
+                         // memberID/publicToken are assigned exactly once —
+                         // at the moment status first becomes 'approved' —
+                         // and locked after that. Without this, a
+                         // canApproveMembers() admin's raw write could
+                         // reassign either on an already-approved member
+                         // outside approveMember()'s controlled transaction,
+                         // desynchronising members from membersPublic (a
+                         // QR/card that resolves to the wrong resident).
+                         && (unchanged('memberID') || (resource.data.status != 'approved' && request.resource.data.status == 'approved'))
+                         && (unchanged('publicToken') || (resource.data.status != 'approved' && request.resource.data.status == 'approved'))
                          && unchanged('uid'))
-                        || (unchanged('status') && unchanged('memberID') && unchanged('role') && unchanged('publicToken') && unchanged('uid') && unchanged('residentType') && unchanged('maintenanceResponsible'))
+                        || (unchanged('status') && unchanged('memberID') && unchanged('role') && unchanged('publicToken') && unchanged('uid') && unchanged('residentType') && unchanged('maintenanceResponsible') && unchanged('tower') && unchanged('flatNumber'))
                       )
                     ) || (
                       isOwner(uid)
@@ -465,6 +516,41 @@ service cloud.firestore {
     // editing a pet's name or vaccination date is a normal correction,
     // silently reassigning WHOSE pet this is should never be possible via an
     // ordinary edit.
+    // ---- Facility staff: Managing Staff / Supervisor -----------------------
+    // An office-bearer creates one of these per staff member from the admin
+    // panel; the staff member then logs into their own minimal app
+    // (staff.html) with their real email + a password they set themselves
+    // via a reset-password email — unlike guards, staff use their real
+    // inbox, so this doesn't need the guard flow's fake-email trick.
+    match /staff/{uid} {
+      allow read: if isAdmin() || isOwner(uid);
+      allow create, update: if canApproveMembers()
+                            && isNonEmptyString(request.resource.data.name, 100)
+                            && request.resource.data.role in ['manager', 'supervisor']
+                            && request.resource.data.active is bool;
+      allow delete: if canApproveMembers();
+    }
+
+    // ---- Facility inspections -----------------------------------------------
+    // A staff member (Manager or Supervisor) files a checklist-based
+    // inspection; once submitted it's a filed report, not a draft — no
+    // update path at all, only create. Any flagged item on the checklist is
+    // written into /complaints by the client as a normal complaint
+    // (source: 'inspection'), so it inherits the SAME SLA tracking,
+    // escalation matrix and committee visibility a resident's complaint
+    // already gets, rather than this app growing a second, parallel
+    // issue-tracking system next to the one that already works.
+    match /inspections/{inspectionId} {
+      allow read: if isAdmin() || isStaff() || isApprovedMember();
+      allow create: if isStaff()
+                    && request.resource.data.createdByUid == request.auth.uid
+                    && request.resource.data.formType in ['daily-tower', 'weekly-mep', 'daily-security', 'club-house']
+                    && request.resource.data.status == 'submitted'
+                    && request.resource.size() < 900000;
+      allow update: if false;
+      allow delete: if canApproveMembers();
+    }
+
     match /pets/{petId} {
       allow read: if isAdmin() || (isSignedIn() && resource.data.ownerUid == request.auth.uid);
       // isApprovedMember(), not just isSignedIn() — pets are a resident
@@ -492,15 +578,31 @@ service cloud.firestore {
     // rating" an enforced fact rather than a UI convention a modified
     // client could ignore.
     match /complaints/{complaintId} {
-      allow read: if isAdmin() || (isSignedIn() && resource.data.raisedByUid == request.auth.uid);
-      allow create: if isSignedIn()
-                    && request.resource.data.raisedByUid == request.auth.uid
-                    && isApprovedMember()
-                    && isNonEmptyString(request.resource.data.title, 200)
-                    && isNonEmptyString(request.resource.data.description, 2000)
-                    && request.resource.data.category in
-                       ['security', 'housekeeping', 'maintenance', 'electrical', 'plumbing', 'noise', 'parking', 'other']
-                    && request.resource.data.status == 'open';
+      allow read: if isAdmin() || isStaff() || (isSignedIn() && resource.data.raisedByUid == request.auth.uid);
+      allow create: if (
+                      isSignedIn()
+                      && request.resource.data.raisedByUid == request.auth.uid
+                      && isApprovedMember()
+                      && isNonEmptyString(request.resource.data.title, 200)
+                      && isNonEmptyString(request.resource.data.description, 2000)
+                      && request.resource.data.category in
+                         ['security', 'housekeeping', 'maintenance', 'electrical', 'plumbing', 'noise', 'parking', 'other']
+                      && request.resource.data.status == 'open'
+                    ) || (
+                      // A flagged item from a staff-filed inspection becomes
+                      // an ordinary complaint, attributed to the staff
+                      // member who filed it (never a resident's uid) and
+                      // explicitly tagged so it's visually distinguishable
+                      // from a resident's own report in the same list.
+                      isStaff()
+                      && request.resource.data.raisedByUid == request.auth.uid
+                      && isNonEmptyString(request.resource.data.title, 200)
+                      && isNonEmptyString(request.resource.data.description, 2000)
+                      && request.resource.data.category in
+                         ['security', 'housekeeping', 'maintenance', 'electrical', 'plumbing', 'noise', 'parking', 'other']
+                      && request.resource.data.status == 'open'
+                      && request.resource.data.source == 'inspection'
+                    );
       // Admin's own update branch is now locked the same way the resident's
       // rating-branch below already was: only the fields updateComplaintStatus()
       // actually writes are allowed to change. Previously only raisedByUid
@@ -508,6 +610,20 @@ service cloud.firestore {
       // original submission — could be silently rewritten by a raw write.
       allow update: if (
                       canApproveMembers()
+                      && unchanged('raisedByUid')
+                      && unchanged('title')
+                      && unchanged('description')
+                      && unchanged('category')
+                      && unchanged('createdAt')
+                      && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'resolutionNote', 'resolvedAt', 'updatedAt'])
+                      && (isValidComplaintStatus(request.resource.data.status))
+                      && isOptionalString(request.resource.data, 'resolutionNote', 500)
+                    )
+                    || (
+                      // Staff can work a complaint (open it, resolve it)
+                      // exactly the same field-scoped way admin can, but
+                      // never delete or rewrite what it was originally about.
+                      isStaff()
                       && unchanged('raisedByUid')
                       && unchanged('title')
                       && unchanged('description')
@@ -842,7 +958,7 @@ service cloud.firestore {
     // action, not a silent edit.
     match /financialYearLocks/{fy} {
       allow read: if true;
-      allow create: if canVerifyPayments() && isNonEmptyString(request.resource.data.lockedBy, 150);
+      allow create: if canVerifyPayments();
       allow delete: if canVerifyPayments(); // unlocking is deliberate and visible — the audit-log entry is what makes it accountable, not a rules-level ban
     }
 
@@ -853,7 +969,11 @@ service cloud.firestore {
     // write failing outright. Assignment fields are all-or-nothing: a slot is
     // either unassigned (fields absent/null) or fully assigned.
     match /parkingSlots/{slotId} {
-      allow read: if true;
+      // Admin-only — vehicleNumber + assignedFlat is real PII (which flat
+      // owns which registration plate), and nothing resident-facing
+      // actually reads this collection, so there was no feature relying
+      // on the public access this used to have.
+      allow read: if isAdmin();
       allow create, update: if canApproveMembers()
                             && isOptionalString(request.resource.data, 'assignedFlat', 30)
                             && isOptionalString(request.resource.data, 'assignedMemberUid', 100)
