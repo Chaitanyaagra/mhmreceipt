@@ -541,6 +541,13 @@ section{ padding:76px 0; position:relative; }
 .doc-item .go svg{ width:18px; height:18px; }
 
 /* ---------- Committee ---------- */
+/* #committeeGrid is the outer wrapper for the 3 grouped sections (Core
+   Committee / Team / Advisory) — it stacks them, it is not itself a grid.
+   .committee-grid is the real grid, used once per section for that
+   section's cards; giving both the same layout would nest a grid inside
+   a grid and break the card sizing. */
+#committeeGrid{ display:flex; flex-direction:column; gap:34px; }
+.committee-group-title{ font-size:15px; font-weight:600; letter-spacing:.03em; text-transform:uppercase; color:var(--ink-700,#1c2b3d); margin-bottom:14px; }
 .committee-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:16px; }
 .committee-card{ text-align:center; background:var(--white); border:1px solid var(--line); border-radius:var(--radius-lg); padding:26px 16px; }
 .committee-card img{ width:76px; height:76px; border-radius:50%; margin:0 auto 14px; object-fit:cover; border:2px solid var(--gold-300); }
@@ -919,7 +926,6 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
     <nav class="main-nav">
       <a href="#about">About</a>
       <a href="#community">Community</a>
-      <a href="#accounts">Accounts</a>
       <a href="#downloads">Documents</a>
       <a href="#notices">Notices</a>
       <a href="#committee">Committee</a>
@@ -1158,21 +1164,6 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
   </div>
 </section>
 
-<section id="accounts" style="background:var(--paper);">
-  <div class="wrap">
-    <div class="section-head reveal">
-      <div class="rule-gold"></div>
-      <div class="eyebrow">Accounts</div>
-      <h2>Where your maintenance goes</h2>
-      <p>What the society collected this financial year, and what it was spent on. The same figures the committee presents at the AGM.</p>
-    </div>
-    <div id="accountsPanel" class="reveal">
-      <div class="skeleton" style="height:120px; margin-bottom:12px;"></div>
-      <div class="skeleton" style="height:180px;"></div>
-    </div>
-  </div>
-</section>
-
 <section id="downloads">
   <div class="wrap">
     <div class="section-head reveal">
@@ -1195,7 +1186,7 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
       <div class="eyebrow">Governance</div>
       <h2>Your committee</h2>
     </div>
-    <div class="committee-grid" id="committeeGrid">
+    <div id="committeeGrid">
       <div class="empty" style="grid-column:1/-1;">
         <p>Committee directory will appear here once added from the Admin Panel.</p>
       </div>
@@ -1557,6 +1548,11 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
           <div class="fm-editor" id="pfFamilyEditor"></div>
           <button type="button" class="btn btn-outline btn-sm fm-add-btn" id="pfFamilyAdd">+ Add Family Member</button>
         </div>
+        <div class="field" id="pfRentAgreementWrap" style="display:none;">
+          <label for="pf-rentAgreement">Rent Agreement <span class="t-muted" style="font-weight:400;">(optional — PDF or photo)</span></label>
+          <input type="file" name="rentAgreement" id="pf-rentAgreement" accept=".pdf,image/*">
+          <a id="pfRentAgreementCurrentLink" href="#" target="_blank" rel="noopener" style="display:none; font-size:12px; margin-top:4px;">View current agreement</a>
+        </div>
         <button class="btn btn-primary btn-block" type="submit">Save</button>
         <button type="button" class="link-btn" id="changePasswordBtn" style="display:block; text-align:center; margin-top:14px; width:100%;">Change Password</button>
       </form>
@@ -1746,23 +1742,45 @@ document.getElementById('yearNow').textContent = new Date().getFullYear();
    empty. Entries added from Admin Panel → Notices & Committee (e.g. with
    real photos) replace this list entirely once they exist. */
 window.__COMMITTEE_FALLBACK = [
-  { name: 'Bhanwar Singh',     role: 'President' },
-  { name: 'Chaitanya Agrawal', role: 'Secretary' },
-  { name: 'Pradeep Poonia',    role: 'Joint Secretary' },
-  { name: 'Prakash Kanodia',   role: 'Treasurer' }
+  { name: 'Bhanwar Singh',     role: 'President',        category: 'core' },
+  { name: 'Chaitanya Agrawal', role: 'Secretary',        category: 'core' },
+  { name: 'Pradeep Poonia',    role: 'Joint Secretary',  category: 'core' },
+  { name: 'Prakash Kanodia',   role: 'Treasurer',        category: 'core' }
 ];
 
+// Fixed display-order within Core Committee — everything else (Team,
+// Advisory) is alphabetical by name instead, since there's no natural
+// ranking among ordinary members the way there is among office-bearers.
+const CORE_ROLE_ORDER = { president: 0, secretary: 1, 'joint secretary': 2, treasurer: 3 };
 window.__renderCommittee = (rows) => {
   const grid = document.getElementById('committeeGrid');
   if (!grid) return;
   const esc = (s) => { const d = document.createElement('div'); d.textContent = String(s ?? ''); return d.innerHTML; };
-  grid.innerHTML = rows.map(m => `
+  const cardHTML = (m) => `
     <div class="committee-card">
       <img src="${m.photoURL || LOGO_DATA_URI}" alt="">
       <div class="nm" data-no-translate>${esc(m.name)}</div>
       <div class="role">${esc(m.role)}</div>
-    </div>
-  `).join('');
+    </div>`;
+
+  // Existing entries from before this categorisation existed have no
+  // `category` field at all — they land in Team rather than silently
+  // vanishing from the page.
+  const core = rows.filter(m => m.category === 'core')
+    .sort((a, b) => (CORE_ROLE_ORDER[(a.role || '').toLowerCase()] ?? 99) - (CORE_ROLE_ORDER[(b.role || '').toLowerCase()] ?? 99));
+  const team = rows.filter(m => m.category === 'team' || !m.category)
+    .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  const advisory = rows.filter(m => m.category === 'advisory')
+    .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+  const section = (title, members) => members.length ? `
+    <div class="committee-group">
+      <h3 class="committee-group-title" data-no-translate>${esc(title)}</h3>
+      <div class="committee-grid">${members.map(cardHTML).join('')}</div>
+    </div>` : '';
+
+  grid.innerHTML = section('RWA Core Committee', core) + section('RWA Team', team) + section('RWA Advisory Committee', advisory)
+    || '<div class="empty" style="grid-column:1/-1;"><p>Committee directory will appear here once added from the Admin Panel.</p></div>';
   translateSubtree(grid);
 };
 window.__renderCommittee(window.__COMMITTEE_FALLBACK);
@@ -1971,7 +1989,7 @@ import {
   signOut, sendPasswordResetEmail, deleteUser
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
 import {
-  doc, getDoc, setDoc, updateDoc, addDoc, collection, query, where, orderBy, getDocs, serverTimestamp, limit
+  doc, getDoc, setDoc, updateDoc, addDoc, collection, query, where, orderBy, getDocs, serverTimestamp, limit, writeBatch, onSnapshot
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 import {
   ref as storageRef, uploadBytes, getDownloadURL
@@ -1986,7 +2004,7 @@ import {
   waShareText, downloadImageFromUrl,
   initFamilyMembersEditor, addFamilyMemberRow, collectFamilyMembers,
   initVehiclesEditor, addVehicleRow, collectVehicles,
-  initPetsEditor, addPetCard, collectPets, petVaccinationStatus, profileCompleteness, flatClaimId, findBlockingFlatClaim, generatePetId, rentAgreementStatus
+  initPetsEditor, addPetCard, collectPets, petVaccinationStatus, profileCompleteness, flatClaimId, findBlockingFlatClaim, generatePetId, rentAgreementStatus, flatKey
 } from './app-common.js';
 
 /* Branding, the year stamp and the committee fallback are handled by the
@@ -2647,6 +2665,7 @@ document.getElementById('forgotPasswordLink').addEventListener('click', async (e
 /* ---- Auth state → dashboard ---- */
 let currentUser = null;
 let currentMember = null;
+let unsubscribeGateVisitors = null;
 
 onAuthStateChanged(auth, async (user) => {
   currentUser = user;
@@ -2673,6 +2692,7 @@ onAuthStateChanged(auth, async (user) => {
     window.__loggedIn = false;
     document.body.classList.remove('logged-in');
     currentMember = null;
+    if (unsubscribeGateVisitors) { unsubscribeGateVisitors(); unsubscribeGateVisitors = null; }
     window.__setDynamicLabel(navBtn, 'Resident Login');
     navBtn.onclick = () => window.__goToPortal('login');
     portal.style.display = 'block';
@@ -2740,6 +2760,7 @@ async function loadDashboard(uid) {
         </div>` : ''}
       ${statusExtra}
     </div>
+    ${currentMember.status === 'approved' ? `<div id="gateCard"></div>` : ''}
     ${currentMember.status === 'approved' ? `<div id="expiryCenterCard" style="display:none;"></div>` : ''}
     ${currentMember.status === 'approved' ? `
     <div class="dash-grid">
@@ -2796,6 +2817,14 @@ async function loadDashboard(uid) {
           <button class="btn btn-outline btn-sm" id="editVehiclesBtn">✎ Edit</button>
         </div>
         <div id="myVehiclesList"></div>
+      </div>
+      <div class="card card-pad">
+        <div class="spread" style="margin-bottom:12px;">
+          <h3 style="font-size:16px;">My Family</h3>
+          <button class="btn btn-outline btn-sm" id="editProfileBtnFamily">✎ Edit</button>
+        </div>
+        <p class="t-muted" style="font-size:12px; margin-bottom:10px;">Each family member can carry their own membership card — same QR, since it verifies against this flat's registration.</p>
+        <div id="myFamilyList"></div>
       </div>
       <div class="card card-pad">
         <div class="spread" style="margin-bottom:12px;">
@@ -2857,6 +2886,7 @@ async function loadDashboard(uid) {
     document.getElementById('editProfileBtn')?.addEventListener('click', openProfileModal);
     document.getElementById('fillProfileNudgeBtn')?.addEventListener('click', openProfileModal);
     document.getElementById('editVehiclesBtn')?.addEventListener('click', openVehiclesModal);
+    document.getElementById('editProfileBtnFamily')?.addEventListener('click', openProfileModal);
     document.getElementById('addPetBtn')?.addEventListener('click', () => openPetModal());
     document.getElementById('raiseComplaintBtn')?.addEventListener('click', openComplaintModal);
     document.getElementById('newBookingBtn')?.addEventListener('click', openBookingModal);
@@ -2877,6 +2907,7 @@ async function loadDashboard(uid) {
       });
     }));
     renderMyVehicles();
+    renderMyFamily();
     // Three independent reads (different collections, different DOM targets,
     // no shared state) — previously sequential awaits meant the dashboard's
     // load time was the SUM of three network round-trips instead of just
@@ -2886,6 +2917,7 @@ async function loadDashboard(uid) {
     // (Home/Notices/Pay/Account) is just a same-page scroll once this has
     // actually finished.
     await Promise.allSettled([loadPayments(uid), loadMyPets(uid), loadMyComplaints(uid), loadMyBookings(uid), loadMyGuests(uid), loadMySuggestions(uid)]);
+    subscribeGateVisitors(currentMember);
   }
 }
 
@@ -3094,12 +3126,50 @@ function renderMyVehicles() {
   } else {
     el.innerHTML = vehicles.map(v => `
       <div style="display:flex; align-items:center; gap:10px; padding:9px 0; border-top:1px solid var(--line,#E2E6EF);">
-        <span style="font-size:18px;">🚗</span>
+        <span style="font-size:18px;">${v.vehicleType === '2-wheeler' ? '🏍️' : '🚗'}</span>
         <div>
           <div style="font-weight:600; font-size:13.5px;" class="mono">${escapeHtml(v.vehicleNumber || '—')}</div>
-          ${v.parkingSlot ? `<div class="t-muted" style="font-size:12px;">Parking: ${escapeHtml(v.parkingSlot)}</div>` : ''}
+          <div class="t-muted" style="font-size:12px;">
+            ${v.vehicleType ? (v.vehicleType === '2-wheeler' ? '2-Wheeler' : '4-Wheeler') : ''}
+            ${v.parkingSlot ? `${v.vehicleType ? ' · ' : ''}Parking: ${escapeHtml(v.parkingSlot)}` : ''}
+            ${v.rfidNumber ? `${(v.vehicleType || v.parkingSlot) ? ' · ' : ''}RFID: ${escapeHtml(v.rfidNumber)}` : ''}
+          </div>
         </div>
       </div>`).join('');
+  }
+  window.__translate(el);
+}
+
+function relationAge(dob) {
+  if (!dob) return null;
+  const d = new Date(dob), now = new Date();
+  let age = now.getFullYear() - d.getFullYear();
+  const monthDiff = now.getMonth() - d.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < d.getDate())) age--;
+  return age;
+}
+
+function renderMyFamily() {
+  const el = document.getElementById('myFamilyList');
+  if (!el) return;
+  const family = currentMember.familyMembers || [];
+  if (!family.length) {
+    el.innerHTML = `<p class="t-muted" style="font-size:13px;">No family members on file yet — add them from Edit Profile.</p>`;
+  } else {
+    el.innerHTML = family.map((fm, i) => {
+      const age = relationAge(fm.dob);
+      const isMinor = age !== null && age >= 0 && age < 18;
+      return `
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:9px 0; border-top:1px solid var(--line,#E2E6EF);">
+        <div>
+          <div style="font-weight:600; font-size:13.5px;">${escapeHtml(fm.name || '—')}</div>
+          <div class="t-muted" style="font-size:12px;">${escapeHtml(fm.relation || 'Family Member')}${isMinor ? ' · Minor' : ''}</div>
+        </div>
+        <button class="btn btn-outline btn-sm" data-family-card="${i}">⬇ Card</button>
+      </div>`;
+    }).join('');
+    el.querySelectorAll('[data-family-card]').forEach(btn =>
+      btn.addEventListener('click', () => downloadFamilyMemberCard(family[Number(btn.dataset.familyCard)], Number(btn.dataset.familyCard))));
   }
   window.__translate(el);
 }
@@ -3248,6 +3318,74 @@ async function loadMyBookings(uid) {
 }
 const BOOKING_STATUS_BADGE_R = { pending: 'warning', approved: 'success', rejected: 'danger', cancelled: 'neutral' };
 const BOOKING_SLOT_LABEL_R = { morning: 'Morning', evening: 'Evening', full_day: 'Full Day' };
+/* ---------------------------------------------------------------------- */
+/*  Gate — live visitor approvals                                          */
+/*                                                                          */
+/*  A single equality where() on flatKey (no orderBy on a different        */
+/*  field), sorted client-side — same reasoning as every other list in     */
+/*  this app that isn't a plain single-field query: it never needs a       */
+/*  Firestore composite index. Any approved member of this flat sees and   */
+/*  can decide the same request (firestore.rules matches on tower+         */
+/*  flatNumber read from THIS caller's own member doc, not a stored uid),  */
+/*  so if two family members are both logged in, whichever taps first      */
+/*  wins — the security rule only allows pending -> approved/rejected      */
+/*  once, so the second tap simply fails harmlessly with a permission      */
+/*  error the resident never needs to see (there's nothing pending left    */
+/*  to act on by the time it fires).                                      */
+/* ---------------------------------------------------------------------- */
+function subscribeGateVisitors(member) {
+  if (unsubscribeGateVisitors) { unsubscribeGateVisitors(); unsubscribeGateVisitors = null; }
+  if (!member?.tower || !member?.flatNumber) return;
+  const key = flatKey(member.tower, member.flatNumber);
+  const q = query(collection(db, 'visitors'), where('flatKey', '==', key));
+  unsubscribeGateVisitors = onSnapshot(q, (snap) => {
+    const rows = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    rows.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+    renderGateCard(rows);
+  }, (err) => console.warn('Gate visitors listener failed:', err?.code || err));
+}
+
+const GATE_PURPOSE_LABEL = { guest: 'Guest', delivery: 'Delivery', cab: 'Cab', service: 'Service', other: 'Other' };
+function renderGateCard(rows) {
+  const el = document.getElementById('gateCard');
+  if (!el) return;
+  const pending = rows.filter(r => r.status === 'pending');
+  const recent = rows.filter(r => r.status !== 'pending').slice(0, 3);
+  if (!pending.length && !recent.length) { el.innerHTML = ''; return; }
+
+  el.innerHTML = `
+    <div class="card card-pad"${pending.length ? ' style="border-color:var(--gold-500,#C9A227); background:var(--gold-glow,rgba(201,162,39,.06));"' : ''}>
+      <h3 style="font-size:15px; margin-bottom:10px;">🚪 At the Gate</h3>
+      ${pending.length ? pending.map(r => `
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 0; border-bottom:1px solid var(--line,#EAE6DC);">
+          <div style="min-width:0;">
+            <b style="font-size:14px;">${escapeHtml(r.visitorName)}</b>
+            <div class="t-muted" style="font-size:12px; margin-top:2px;">${GATE_PURPOSE_LABEL[r.purpose] || escapeHtml(r.purpose || '')}${r.visitorPhone ? ' · ' + escapeHtml(r.visitorPhone) : ''}</div>
+          </div>
+          <div style="display:flex; gap:6px; flex-shrink:0;">
+            <button class="btn btn-primary btn-sm" data-gate-decide="${r.id}" data-gate-status="approved">Let In</button>
+            <button class="btn btn-outline btn-sm" data-gate-decide="${r.id}" data-gate-status="rejected">Deny</button>
+          </div>
+        </div>`).join('') : '<p class="t-muted" style="font-size:13px;">No one waiting right now.</p>'}
+      ${recent.length ? `
+        <div style="margin-top:${pending.length ? '10px' : '4px'};">
+          ${recent.map(r => `<div class="t-muted" style="font-size:11.5px; padding:3px 0;">${escapeHtml(r.visitorName)} — ${escapeHtml(String(r.status || '').replace('_', ' '))}</div>`).join('')}
+        </div>` : ''}
+    </div>`;
+  el.querySelectorAll('[data-gate-decide]').forEach(b => b.onclick = () => decideGateVisitor(b.dataset.gateDecide, b.dataset.gateStatus));
+}
+
+async function decideGateVisitor(id, status) {
+  try {
+    await updateDoc(doc(db, 'visitors', id), {
+      status, decidedByUid: auth.currentUser.uid, decidedAt: serverTimestamp(), updatedAt: serverTimestamp()
+    });
+  } catch (err) {
+    console.error('Gate decision failed:', err);
+    showToast('Could not send your decision — please try again.', 'error');
+  }
+}
+
 function renderMyBookings() {
   const el = document.getElementById('myBookingsList');
   if (!el) return;
@@ -3268,14 +3406,34 @@ function renderMyBookings() {
 async function cancelMyBooking(id) {
   if (!confirm('Cancel this booking request?')) return;
   try {
-    await updateDoc(doc(db, 'facilityBookings', id), { status: 'cancelled', updatedAt: serverTimestamp() });
-    showToast('Cancelled.', 'success');
     const b = (window.__myBookings || []).find(x => x.id === id);
+    const batch = writeBatch(db);
+    batch.update(doc(db, 'facilityBookings', id), { status: 'cancelled', updatedAt: serverTimestamp() });
+    // Only an APPROVED booking ever holds a facilitySlots doc (approveBooking()
+    // is the only place one is created) — cancelling a still-pending request
+    // has no slot to release. Including the delete unconditionally would try
+    // to delete a document that was never created, which the security rules
+    // correctly deny (nothing to prove ownership of), failing the whole
+    // batch — so this is deliberately conditional on the booking having
+    // actually been approved.
+    if (b && b.status === 'approved') {
+      batch.delete(doc(db, 'facilitySlots', `${b.facilityId}_${b.date}_${b.slot}`));
+    }
+    await batch.commit();
+    showToast('Cancelled.', 'success');
     if (b) b.status = 'cancelled';
     renderMyBookings();
   } catch (e) { showToast('Could not cancel — please try again.', 'error'); }
 }
 function openBookingModal() {
+  // Same pattern as MyGate's "block defaulters from booking amenities" —
+  // a resident with outstanding maintenance can't request a facility until
+  // it's cleared. This checks currentDues, which is already recomputed
+  // whenever payments load, so it reflects the current FY's actual standing.
+  if (currentDues && currentDues.outstanding > 0) {
+    showToast(`You have ${formatINR(currentDues.outstanding)} outstanding in maintenance dues — please clear this before booking a facility.`, 'error');
+    return;
+  }
   const sel = document.getElementById('bk-facility');
   if (!allActiveFacilities.length) { showToast('No facilities are available to book right now.', 'error'); return; }
   sel.innerHTML = allActiveFacilities.map(f => `<option value="${f.id}">${escapeHtml(f.name)}</option>`).join('');
@@ -3517,6 +3675,16 @@ function openProfileModal() {
   const editor = document.getElementById('pfFamilyEditor');
   initFamilyMembersEditor(editor, currentMember.familyMembers || []);
   document.getElementById('pfFamilyAdd').onclick = () => addFamilyMemberRow(editor);
+  // Rent agreement upload only makes sense for tenants — an owner has no
+  // agreement to store, and rentAgreementStart/End (set at registration)
+  // are themselves tenant-only fields.
+  const raWrap = document.getElementById('pfRentAgreementWrap');
+  if (raWrap) {
+    raWrap.style.display = currentMember.residentType === 'tenant' ? '' : 'none';
+    const link = document.getElementById('pfRentAgreementCurrentLink');
+    if (currentMember.rentAgreementURL) { link.href = currentMember.rentAgreementURL; link.style.display = ''; }
+    else if (link) link.style.display = 'none';
+  }
   document.getElementById('profileModalBackdrop').classList.add('open');
 }
 document.getElementById('closeProfileModal')?.addEventListener('click', () =>
@@ -3535,6 +3703,13 @@ document.getElementById('profileEditForm')?.addEventListener('submit', async (e)
   };
   btn.disabled = true;
   try {
+    // Same private documents/{uid}/ storage-path Aadhaar/PAN already use —
+    // owner + admin only, never public. Only uploads if the tenant actually
+    // picked a new file; leaves rentAgreementURL untouched otherwise.
+    const raFile = f.rentAgreement?.files?.[0];
+    if (raFile) {
+      patch.rentAgreementURL = await uploadFile(`documents/${currentUser.uid}/rentAgreement_${Date.now()}`, raFile);
+    }
     await updateDoc(doc(db, 'members', currentUser.uid), patch);
     Object.assign(currentMember, patch);
     showToast('Profile updated.', 'success');
@@ -3660,7 +3835,51 @@ async function downloadCard() {
   }
 }
 
-/* ---- Payments ---- */
+/* Family-member cards share the parent card's data-fetching (society info,
+   office address, logo) but swap in the family member's own name/relation
+   and a derived sub-ID (memberID-F1, F2...). The suffix is the family
+   member's array-index, which is stable as long as the list isn't
+   reordered — good enough for a household card, not a claim of a
+   permanent independent identifier. */
+async function downloadFamilyMemberCard(familyMember, index) {
+  if (!window.jspdf || !window.jspdf.jsPDF) {
+    showToast('PDF library failed to load — check your connection or refresh the page and try again.', 'error');
+    return;
+  }
+  const btn = document.querySelector(`[data-family-card="${index}"]`);
+  setLoading(btn, true);
+  try {
+    let society = { name: SOCIETY.fullName, regNumber: SOCIETY.regNumber };
+    try {
+      const societySnap = await getDoc(doc(db, 'settings', 'society'));
+      if (societySnap.exists()) society = societySnap.data();
+    } catch (e) {}
+
+    let officeAddress = '';
+    try {
+      const paySnap = await getDoc(doc(db, 'settings', 'payment'));
+      officeAddress = paymentDetails(paySnap.exists() ? paySnap.data() : {}).officeAddress || '';
+    } catch (e) { officeAddress = paymentDetails({}).officeAddress || ''; }
+
+    let logoDataUrl = null;
+    try { logoDataUrl = await window.__MHM_LOGO_DATAURI(); } catch (e) {}
+
+    await generateMembershipCard({
+      member: currentMember,
+      society,
+      logoDataUrl,
+      financialYear: currentFinancialYear(),
+      officeAddress,
+      familyMember: { ...familyMember, suffix: `F${index + 1}` }
+    });
+  } catch (e) {
+    console.error('Family membership card error:', e);
+    const detail = (e && e.message) ? ` (${e.message})` : '';
+    showToast('There was a problem creating the card' + detail + '. Please try again.', 'error');
+  } finally {
+    setLoading(btn, false);
+  }
+}
 let currentDues = null;   // recomputed whenever payments are loaded
 let currentMembership = null;   // one-time membership fee status for this member
 let currentMaintenance = null;  // cached maintenance settings for the payment modal
@@ -4106,7 +4325,11 @@ function renderPayDetailForm(mode, paySettings, payContext) {
             : (hasRate ? `<div class="hint">Maintenance is fully cleared for this year. You can pay in advance or make another payment.</div>` : '')}
         </div>
       </div>
-      ${!isOffline ? `<div class="field"><label for="payUtr">UTR / Transaction ID</label><input id="payUtr" required autocapitalize="characters"></div>
+      ${!isOffline ? `<div class="field">
+        <label for="payUtr">UTR / Transaction ID</label>
+        <input id="payUtr" required autocapitalize="characters">
+        <div class="hint">Whichever your payment app shows you — the bank's UTR/RRN number, or your UPI app's own Transaction ID. Either is fine.</div>
+      </div>
       <div class="field"><label for="payProof">Payment Screenshot <span class="t-muted" style="font-weight:400;">(optional)</span></label><input type="file" id="payProof" accept="image/*"></div>` : ''}
       <button class="btn btn-primary btn-block" id="submitPaymentBtn">${isOffline ? 'Submit — I Will Pay at Office' : 'I Have Paid'}</button>
     </div>
@@ -4227,7 +4450,7 @@ async function loadNotices() {
   const listEl = document.getElementById('noticeList');
   try {
     const q = query(collection(db, 'notices'), orderBy('postedAt', 'desc'), limit(5));
-    window.__notices = (await getDocs(q)).docs.map(d => d.data());
+    window.__notices = (await getDocs(q)).docs.map(d => ({ id: d.id, ...d.data() }));
     renderNotices();
   } catch (e) {
     window.__notices = null;
@@ -4272,6 +4495,17 @@ function renderNotices() {
       </div>`;
   }).join('');
   window.__translate(listEl);
+  // Read-tracking: rendering the notice IS the read-receipt (same pattern
+  // email-open-tracking uses) — fire-and-forget, never blocking or erroring
+  // the notice list itself if it fails. Only for signed-in residents; the
+  // public landing page (currentUser undefined) has nothing to attribute
+  // the read to, and the create-rule requires isApprovedMember() anyway.
+  if (window.__loggedIn && currentUser?.uid) {
+    rows.forEach(n => {
+      setDoc(doc(db, 'notices', n.id, 'reads', currentUser.uid), { readAt: serverTimestamp() })
+        .catch(e => console.warn('Notice read-receipt failed:', e?.code || e));
+    });
+  }
 }
 
 const CAL_TYPE_ICON = { festival: '🎉', meeting: '🗓️', maintenance: '🔧', shutdown: '⚡', event: '🎊', other: '📌' };
@@ -4462,55 +4696,6 @@ window.addEventListener('mhm:langchange', () => {
   if (document.getElementById('noticeList')) renderNotices();
 });
 
-async function loadAccounts() {
-  const el = document.getElementById('accountsPanel');
-  const fy = currentFinancialYear();
-  try {
-    // Reads the ONE aggregate summary the admin app keeps in sync, not the
-    // raw expenses/payments collections — those are member- and
-    // admin-scoped respectively, so an anonymous visitor's browser was
-    // never actually able to query them directly for this. This is what
-    // makes the figures below real instead of a permission-denied that
-    // quietly fell back to "no accounts published".
-    const snap = await getDoc(doc(db, 'publicFinancialSummary', fy));
-    if (!snap.exists()) {
-      el.innerHTML = '<div class="empty" style="padding:38px 12px;"><p>No accounts have been published for this year yet.</p></div>';
-      window.__translate(el); return;
-    }
-    const s = snap.data();
-    const balance = Number(s.balance) || 0;
-
-    el.innerHTML = `
-      <div class="fund-row">
-        <div class="fund-card"><div class="lbl">Collected &middot; FY ${escapeHtml(fy)}</div><div class="amt">${formatINR(s.collected)}</div></div>
-        <div class="fund-card spend"><div class="lbl">Spent</div><div class="amt">${formatINR(s.spent)}</div></div>
-        <div class="fund-card balance ${balance < 0 ? 'negative' : ''}"><div class="lbl">Balance</div><div class="amt">${formatINR(balance)}</div></div>
-      </div>
-      ${Array.isArray(s.majorExpenses) && s.majorExpenses.length ? `
-      <div class="spend-list" style="margin-top:16px;">
-        <h3 style="font-size:15.5px; margin-bottom:14px;">Major expenses this year</h3>
-        <div class="table-wrap">
-          <table><thead><tr><th>Description</th><th>Category</th><th>Paid To</th><th>Date</th><th>Amount</th></tr></thead>
-          <tbody>
-            ${s.majorExpenses.map(e => `
-              <tr>
-                <td>${escapeHtml(e.description)}</td>
-                <td>${escapeHtml(e.category)}</td>
-                <td>${escapeHtml(e.paidTo || '—')}</td>
-                <td>${e.date ? fmtDate(e.date) : '—'}</td>
-                <td><b>${formatINR(e.amount)}</b></td>
-              </tr>`).join('')}
-          </tbody></table>
-        </div>
-      </div>` : ''}
-    `;
-    window.__translate(el);
-  } catch (e) {
-    el.innerHTML = emptyState('Could not load accounts', 'Please try again in a little while.', { compact: true });
-    window.__translate(el);
-  }
-}
-
 async function loadDownloads() {
   const el = document.getElementById('downloadsList');
   try {
@@ -4603,7 +4788,6 @@ function loadStats() {
 loadNotices();
 loadCalendar();
 loadPolls();
-loadAccounts();
 loadDownloads();
 loadCommittee();
 loadSettingsPublic();

@@ -1,0 +1,14 @@
+{
+  "//": "This file exists only so `npm run test:rules` can start a local Firestore emulator loaded with the real firestore.rules. Hosting is NOT configured here — this project deploys via GitHub Pages (see SETUP-GUIDE.md, Step 6), not Firebase Hosting.",
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "emulators": {
+    "firestore": {
+      "port": 8080
+    },
+    "ui": {
+      "enabled": false
+    }
+  }
+}

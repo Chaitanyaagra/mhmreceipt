@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<!-- Same policy as index.html/admin.html — see the long comment there for
+     why each directive is what it is. Firebase Auth + Firestore only here;
+     no Google Drive/OAuth surface, so this is the simpler of the two. -->
+<meta http-equiv="Content-Security-Policy" content="
+  default-src 'self';
+  script-src 'self' 'unsafe-inline' https://www.gstatic.com;
+  style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+  img-src 'self' data: blob:;
+  font-src 'self' data: https://fonts.gstatic.com;
+  connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://www.gstatic.com;
+  worker-src 'self';
+  object-src 'none';
+  base-uri 'self';
+  form-action 'self';
+">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<title>Gate App — MHMRWS</title>
+<meta name="theme-color" content="#0A1B33">
+<link rel="icon" href="favicon-32.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="color-scheme" content="dark">
+<link rel="stylesheet" href="styles.css">
+<style>
+  /* Deliberately its own small stylesheet, not styles.css's public-site
+     layout: this runs on a locked tablet at a gate, often outdoors in
+     daylight, tapped by someone who does not have a spare hand for
+     precision. Dark, high-contrast, big touch targets, nothing else. */
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; min-height:100vh; background:var(--navy-950); color:#fff; font-family:'Inter',system-ui,-apple-system,sans-serif; -webkit-tap-highlight-color:transparent; }
+  .screen{ display:none; min-height:100vh; }
+  .screen.active{ display:flex; flex-direction:column; }
+
+  /* ---- Login ---- */
+  #screen-login{ align-items:center; justify-content:center; padding:24px; }
+  .login-card{ width:100%; max-width:340px; background:var(--navy-900); border:1px solid rgba(255,255,255,.08); border-radius:18px; padding:28px 24px; text-align:center; }
+  .login-card img{ height:44px; margin-bottom:14px; }
+  .login-card h1{ font-size:17px; margin:0 0 4px; }
+  .login-card p{ font-size:12.5px; color:rgba(255,255,255,.55); margin:0 0 20px; }
+  .login-field{ text-align:left; margin-bottom:14px; }
+  .login-field label{ display:block; font-size:12px; color:rgba(255,255,255,.6); margin-bottom:5px; }
+  .login-field input{ width:100%; padding:13px 14px; border-radius:10px; border:1px solid rgba(255,255,255,.15); background:rgba(255,255,255,.05); color:#fff; font-size:17px; letter-spacing:.04em; }
+  .login-field input:focus{ outline:none; border-color:var(--gold-500); }
+  #loginError{ display:none; color:#FF8A80; font-size:12.5px; margin-bottom:12px; }
+  .login-card .btn{ width:100%; padding:13px; font-size:15px; }
+
+  /* ---- Main shell ---- */
+  #screen-main .g-header{ display:flex; align-items:center; justify-content:space-between; padding:14px 16px; background:var(--navy-900); border-bottom:1px solid rgba(255,255,255,.08); flex-shrink:0; }
+  #screen-main .g-header .who{ font-size:13px; }
+  #screen-main .g-header .who b{ display:block; font-size:14.5px; }
+  #screen-main .g-header .who span{ color:rgba(255,255,255,.5); font-size:11.5px; }
+  #logoutBtn{ background:rgba(255,255,255,.08); border:none; color:#fff; padding:8px 14px; border-radius:8px; font-size:12.5px; }
+
+  .g-body{ flex:1; overflow-y:auto; padding:16px; padding-bottom:32px; }
+
+  .purpose-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-bottom:22px; }
+  .purpose-btn{ background:var(--navy-900); border:1px solid rgba(255,255,255,.08); border-radius:14px; padding:14px 4px; color:#fff; text-align:center; font-size:12px; }
+  .purpose-btn:active{ background:var(--navy-800); }
+  .purpose-btn .ico{ font-size:22px; display:block; margin-bottom:6px; }
+
+  .q-label{ font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:rgba(255,255,255,.45); margin:18px 0 8px; }
+  .q-group:first-of-type .q-label{ margin-top:0; }
+  .q-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; background:var(--navy-900); border-radius:12px; padding:12px 14px; margin-bottom:8px; }
+  .q-row b{ font-size:14px; }
+  .q-sub{ font-size:12px; color:rgba(255,255,255,.5); margin-top:2px; }
+  .q-empty{ text-align:center; color:rgba(255,255,255,.4); font-size:13px; padding:40px 0; }
+  .q-row .btn{ flex-shrink:0; padding:8px 14px; font-size:12.5px; }
+
+  /* ---- Entry sheet ---- */
+  .g-sheet-backdrop{ position:fixed; inset:0; background:rgba(0,0,0,.55); display:none; align-items:flex-end; justify-content:center; z-index:50; }
+  .g-sheet-backdrop.open{ display:flex; }
+  .g-sheet{ width:100%; max-width:420px; background:var(--navy-900); border-radius:20px 20px 0 0; padding:20px; max-height:88vh; overflow-y:auto; }
+  .g-sheet-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
+  .g-sheet-head h3{ font-size:16px; margin:0; }
+  .g-sheet-head button{ background:none; border:none; color:rgba(255,255,255,.6); font-size:18px; }
+  .g-field{ margin-bottom:12px; }
+  .g-field label{ display:block; font-size:12px; color:rgba(255,255,255,.6); margin-bottom:5px; }
+  .g-field input, .g-field select{ width:100%; padding:11px 12px; border-radius:9px; border:1px solid rgba(255,255,255,.15); background:rgba(255,255,255,.05); color:#fff; font-size:15px; }
+  .g-row2{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+</style>
+</head>
+<body>
+
+<!-- ============================= LOGIN ============================= -->
+<div class="screen active" id="screen-login">
+  <div class="login-card">
+    <h1>Gate App</h1>
+    <p>Max Heights Majestic RWS — Security</p>
+    <form id="loginForm">
+      <div class="login-field">
+        <label for="loginId">Login ID</label>
+        <input type="text" id="loginId" autocomplete="off" autocapitalize="characters" placeholder="e.g. G001" required>
+      </div>
+      <div class="login-field">
+        <label for="loginPin">PIN</label>
+        <input type="password" id="loginPin" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="off" placeholder="6-digit PIN" required>
+      </div>
+      <div id="loginError"></div>
+      <button class="btn btn-primary" type="submit">Sign In</button>
+    </form>
+  </div>
+</div>
+
+<!-- ============================= MAIN ============================= -->
+<div class="screen" id="screen-main">
+  <div class="g-header">
+    <div class="who"><b id="guardNameLabel">—</b><span id="gateLabelText"></span></div>
+    <button id="logoutBtn">Sign Out</button>
+  </div>
+  <div class="g-body">
+    <div class="purpose-grid">
+      <button class="purpose-btn" data-purpose="guest" data-label="Guest"><span class="ico">🧑</span>Guest</button>
+      <button class="purpose-btn" data-purpose="delivery" data-label="Delivery"><span class="ico">📦</span>Delivery</button>
+      <button class="purpose-btn" data-purpose="cab" data-label="Cab"><span class="ico">🚗</span>Cab</button>
+      <button class="purpose-btn" data-purpose="service" data-label="Service"><span class="ico">🔧</span>Service</button>
+    </div>
+
+    <div id="queueWrap"><p class="q-empty">Loading…</p></div>
+  </div>
+</div>
+
+<!-- ============================= ENTRY SHEET ============================= -->
+<div class="g-sheet-backdrop" id="entrySheetBackdrop">
+  <div class="g-sheet">
+    <div class="g-sheet-head"><h3 id="entryFormTitle">New Entry</h3><button type="button" id="closeEntrySheet">✕</button></div>
+    <form id="entryForm">
+      <div class="g-field"><label for="vName">Name</label><input type="text" id="vName" maxlength="100" required autocomplete="off"></div>
+      <div class="g-field"><label for="vPhone">Phone <span style="opacity:.5;">(optional)</span></label><input type="tel" id="vPhone" maxlength="20" autocomplete="off"></div>
+      <div class="g-row2">
+        <div class="g-field"><label for="vTower">Tower</label><select id="vTower"></select></div>
+        <div class="g-field"><label for="vFlat">Flat</label><select id="vFlat"></select></div>
+      </div>
+      <button class="btn btn-primary" type="submit" style="width:100%; margin-top:6px;">Send for Approval</button>
+    </form>
+  </div>
+</div>
+
+<div id="toast-region"></div>
+
+<script type="module">
+import { auth, db } from './firebase-config.js';
+import {
+  signInWithEmailAndPassword, onAuthStateChanged, signOut
+} from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
+import {
+  doc, getDoc, addDoc, updateDoc, collection, query, where, onSnapshot, serverTimestamp
+} from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
+import { showToast, escapeHtml, TOWER_IDS, flatsForTower, flatKey } from './app-common.js';
+import { installOfflineBanner } from './ui-a11y.js';
+installOfflineBanner();
+
+let currentGuard = null;
+let unsubscribeVisitors = null;
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id)?.classList.add('active');
+}
+
+/* ---------------------------------------------------------------------- */
+/*  Login — a Login ID + PIN, not an email a guard has to remember typing. */
+/*  The pair maps deterministically to the real Firebase Auth account     */
+/*  (loginId@mhmrws-portal.local) that admin.html's Gate Security tab     */
+/*  created; the guard never sees or types that email themselves.         */
+/* ---------------------------------------------------------------------- */
+document.getElementById('loginForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const loginId = document.getElementById('loginId').value.trim().toUpperCase();
+  const pin = document.getElementById('loginPin').value.trim();
+  const errEl = document.getElementById('loginError');
+  errEl.style.display = 'none';
+  if (!loginId || !pin) return;
+  const btn = e.target.querySelector('button[type="submit"]');
+  btn.disabled = true;
+  try {
+    await signInWithEmailAndPassword(auth, `${loginId.toLowerCase()}@mhmrws-portal.local`, pin);
+  } catch (err) {
+    errEl.textContent = 'Incorrect Login ID or PIN.';
+    errEl.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+document.getElementById('logoutBtn').addEventListener('click', () => signOut(auth));
+
+onAuthStateChanged(auth, async (user) => {
+  if (unsubscribeVisitors) { unsubscribeVisitors(); unsubscribeVisitors = null; }
+  if (!user) {
+    currentGuard = null;
+    document.getElementById('loginPin').value = '';
+    showScreen('screen-login');
+    return;
+  }
+  try {
+    // A guard signing in is still just a Firebase Auth account — the
+    // guards/{uid} doc (and its active flag) is what the security rules
+    // actually gate every visitors/ write on. This read is what tells the
+    // UI whether to proceed, not what grants access; firestore.rules'
+    // isGuard() is the real check, re-run on every single write.
+    const snap = await getDoc(doc(db, 'guards', user.uid));
+    if (!snap.exists() || snap.data().active === false) {
+      const errEl = document.getElementById('loginError');
+      errEl.textContent = 'This login is not active. Please contact the committee.';
+      errEl.style.display = 'block';
+      await signOut(auth);
+      return;
+    }
+    currentGuard = { uid: user.uid, ...snap.data() };
+    document.getElementById('guardNameLabel').textContent = currentGuard.name || 'Guard';
+    document.getElementById('gateLabelText').textContent = currentGuard.gateLabel || '';
+    showScreen('screen-main');
+    populateTowerSelect();
+    subscribeVisitors();
+  } catch (err) {
+    console.error('Guard profile load failed:', err);
+    const errEl = document.getElementById('loginError');
+    errEl.textContent = 'Could not verify this account — check your connection and try again.';
+    errEl.style.display = 'block';
+    await signOut(auth);
+  }
+});
+
+/* ---------------------------------------------------------------------- */
+/*  Tower / Flat pickers — same TOWER_PLAN every registration form in the  */
+/*  app already uses, so what the guard picks here can only ever be a     */
+/*  value that actually matches a real member's tower/flatNumber.         */
+/* ---------------------------------------------------------------------- */
+function populateTowerSelect() {
+  const sel = document.getElementById('vTower');
+  sel.innerHTML = TOWER_IDS.map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
+  populateFlatSelect();
+}
+document.getElementById('vTower').addEventListener('change', populateFlatSelect);
+function populateFlatSelect() {
+  const tower = document.getElementById('vTower').value;
+  const sel = document.getElementById('vFlat');
+  sel.innerHTML = flatsForTower(tower).map(f => `<option value="${escapeHtml(f)}">${escapeHtml(f)}</option>`).join('');
+}
+
+/* ---------------------------------------------------------------------- */
+/*  Quick-create entry                                                     */
+/* ---------------------------------------------------------------------- */
+let activePurpose = null;
+document.querySelectorAll('[data-purpose]').forEach(btn => btn.addEventListener('click', () => {
+  activePurpose = btn.dataset.purpose;
+  document.getElementById('entryFormTitle').textContent = `New ${btn.dataset.label} Entry`;
+  document.getElementById('vName').value = '';
+  document.getElementById('vPhone').value = '';
+  document.getElementById('entrySheetBackdrop').classList.add('open');
+  document.getElementById('vName').focus();
+}));
+document.getElementById('closeEntrySheet').addEventListener('click', () => document.getElementById('entrySheetBackdrop').classList.remove('open'));
+document.getElementById('entrySheetBackdrop').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) e.currentTarget.classList.remove('open');
+});
+
+document.getElementById('entryForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const name = document.getElementById('vName').value.trim();
+  const tower = document.getElementById('vTower').value;
+  const flat = document.getElementById('vFlat').value;
+  if (!name || !tower || !flat || !currentGuard) return;
+  const btn = e.target.querySelector('button[type="submit"]');
+  btn.disabled = true;
+  try {
+    await addDoc(collection(db, 'visitors'), {
+      visitorName: name,
+      visitorPhone: document.getElementById('vPhone').value.trim() || null,
+      purpose: activePurpose,
+      tower, flatNumber: flat,
+      flatKey: flatKey(tower, flat),
+      createdByGuardUid: currentGuard.uid,
+      status: 'pending',
+      createdAt: serverTimestamp()
+    });
+    showToast('Sent to the resident for approval.', 'success');
+    document.getElementById('entrySheetBackdrop').classList.remove('open');
+  } catch (err) {
+    console.error('Create visitor entry failed:', err);
+    showToast(`Could not send${err?.code ? ` (${err.code})` : ''} — please try again.`, 'error');
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+/* ---------------------------------------------------------------------- */
+/*  Live queue — a single status-only filter (no orderBy on a different    */
+/*  field) so this never needs a Firestore composite index; sorted        */
+/*  client-side instead, the same pattern the rest of this app already    */
+/*  uses for every list that isn't a single straight equality+orderBy.    */
+/* ---------------------------------------------------------------------- */
+const PURPOSE_LABEL = { guest: 'Guest', delivery: 'Delivery', cab: 'Cab', service: 'Service', other: 'Other' };
+
+function subscribeVisitors() {
+  const q = query(collection(db, 'visitors'), where('status', 'in', ['pending', 'approved', 'checked_in']));
+  unsubscribeVisitors = onSnapshot(q, (snap) => {
+    const rows = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    rows.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+    renderQueue(rows);
+  }, (err) => {
+    console.warn('Visitor queue listener failed:', err?.code || err);
+    document.getElementById('queueWrap').innerHTML = '<p class="q-empty">Could not load the queue — check your connection.</p>';
+  });
+}
+
+function renderQueue(rows) {
+  const groups = [
+    { key: 'pending', label: 'Sent — waiting for the resident', items: rows.filter(r => r.status === 'pending') },
+    { key: 'approved', label: 'Approved — let them in', items: rows.filter(r => r.status === 'approved') },
+    { key: 'checked_in', label: 'Currently inside', items: rows.filter(r => r.status === 'checked_in') }
+  ];
+  const wrap = document.getElementById('queueWrap');
+  if (!groups.some(g => g.items.length)) {
+    wrap.innerHTML = '<p class="q-empty">No visitors right now — use a button above to log one in.</p>';
+    return;
+  }
+  wrap.innerHTML = groups.filter(g => g.items.length).map(g => `
+    <div class="q-group">
+      <div class="q-label">${escapeHtml(g.label)}</div>
+      ${g.items.map(rowHtml).join('')}
+    </div>`).join('');
+  wrap.querySelectorAll('[data-checkin]').forEach(b => b.onclick = () => checkIn(b.dataset.checkin));
+  wrap.querySelectorAll('[data-checkout]').forEach(b => b.onclick = () => checkOut(b.dataset.checkout));
+}
+
+function rowHtml(r) {
+  return `
+    <div class="q-row">
+      <div>
+        <b>${escapeHtml(r.visitorName)}</b>
+        <div class="q-sub">${PURPOSE_LABEL[r.purpose] || escapeHtml(r.purpose || '')} · ${escapeHtml(r.tower || '')}-${escapeHtml(r.flatNumber || '')}</div>
+      </div>
+      ${r.status === 'approved' ? `<button class="btn btn-primary btn-sm" data-checkin="${r.id}">Check In</button>` : ''}
+      ${r.status === 'checked_in' ? `<button class="btn btn-outline btn-sm on-dark" data-checkout="${r.id}">Check Out</button>` : ''}
+    </div>`;
+}
+
+async function checkIn(id) {
+  try {
+    await updateDoc(doc(db, 'visitors', id), { status: 'checked_in', checkedInAt: serverTimestamp(), updatedAt: serverTimestamp() });
+  } catch (err) {
+    console.error('Check-in failed:', err);
+    showToast('Could not check in — please try again.', 'error');
+  }
+}
+async function checkOut(id) {
+  try {
+    await updateDoc(doc(db, 'visitors', id), { status: 'checked_out', checkedOutAt: serverTimestamp(), updatedAt: serverTimestamp() });
+  } catch (err) {
+    console.error('Check-out failed:', err);
+    showToast('Could not check out — please try again.', 'error');
+  }
+}
+</script>
+</body>
+</html>

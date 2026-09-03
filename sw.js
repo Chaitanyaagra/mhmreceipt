@@ -8,11 +8,12 @@
    Bump CACHE_NAME on any future structural change to force a clean cache.
    ========================================================================== */
 
-const CACHE_NAME = 'mhmrws-shell-v12';
+const CACHE_NAME = 'mhmrws-shell-v13';
 const SHELL_FILES = [
   './',
   './index.html',
   './admin.html',
+  './guard.html',
   './styles.css',
   './firebase-config.js',
   './app-common.js',

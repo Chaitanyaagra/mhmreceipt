@@ -79,7 +79,13 @@ export const LIMITS = {
   towerMax: 50,
   flatMax: 30,
   utrMin: 6,
-  utrMax: 22
+  // Must stay <= firestore.rules' isOptionalString(..., 'utrOrChequeNo', 40)
+  // limit on payments.create/update, and matches the maxlength="40" already
+  // used on the membership-fee UTR field elsewhere in index.html. This was
+  // 22 until a real HDFC UPI transaction ID (24 characters) got rejected on
+  // the live site — 22 was never based on an actual UTR-format survey, it
+  // was just too tight.
+  utrMax: 40
 };
 
 export const PAYMENT_MODES = ['cash', 'cheque', 'upi', 'netbanking'];
@@ -618,6 +624,17 @@ export function flatClaimId(tower, flatNumber, residentType) {
   const base = `${String(tower || '').trim()}_${String(flatNumber || '').trim()}`;
   const slot = residentType === 'tenant' ? 'tenant' : (residentType === 'owner' || residentType === 'jointowner') ? 'owner' : null;
   return slot ? `${base}_${slot}` : base;
+}
+
+/* Used by the gate-security visitor log (guards/{uid}, visitors/{id} in
+   firestore.rules) so a resident's live query and a guard's write agree on
+   exactly the same key for "this household" — deliberately NOT the same
+   string as flatClaimId() above, which is further split by residentType
+   (owner slot vs tenant slot); a visitor at the gate is for the whole
+   flat, everyone living there, regardless of who is the owner and who is
+   the tenant. */
+export function flatKey(tower, flatNumber) {
+  return `${String(tower || '').trim()}_${String(flatNumber || '').trim()}`;
 }
 
 /* A flat has two independent slots (owner-side, tenant-side) as of the
@@ -1645,7 +1662,7 @@ export async function sealOnWhiteDisc(logoDataUrl, size = 256) {
   }
 }
 
-export async function generateMembershipCard({ member, society, logoDataUrl, financialYear, officeAddress }) {
+export async function generateMembershipCard({ member, society, logoDataUrl, financialYear, officeAddress, familyMember = null }) {
   const { jsPDF } = window.jspdf;
   const pdf = new jsPDF({ unit: 'mm', format: [CARD_W, CARD_H], orientation: 'landscape' });
 
@@ -1731,15 +1748,15 @@ export async function generateMembershipCard({ member, society, logoDataUrl, fin
   const value = (t, y, size = 8) => { pdf.setFont('helvetica','bold'); pdf.setFontSize(size); pdf.setTextColor(255,255,255); pdf.text(t, dx, y); };
 
   label('MEMBER NAME', 18);
-  value(String(member.name || '').slice(0, 26), 22.4, 9);
+  value(String((familyMember?.name || member.name || '')).slice(0, 26), 22.4, 9);
 
   label('TOWER / FLAT', 27.6);
   value(`${member.tower || '—'}  ·  ${member.flatNumber || '—'}`, 31.6, 7.6);
 
   pdf.setFont('courier','normal'); pdf.setFontSize(3.9); pdf.setTextColor(185,196,212);
-  pdf.text('STATUS', dx + 26, 27.6);
+  pdf.text(familyMember ? 'RELATION' : 'STATUS', dx + 26, 27.6);
   pdf.setFont('helvetica','bold'); pdf.setFontSize(7.6); pdf.setTextColor(255,255,255);
-  pdf.text((member.residentType || '—').replace(/^\w/, c => c.toUpperCase()), dx + 26, 31.6);
+  pdf.text((familyMember ? (familyMember.relation || '—') : (member.residentType || '—')).replace(/^\w/, c => c.toUpperCase()), dx + 26, 31.6);
 
   // --- QR ----------------------------------------------------------------
   try {
@@ -1759,7 +1776,8 @@ export async function generateMembershipCard({ member, society, logoDataUrl, fin
   pdf.setFont('courier','normal'); pdf.setFontSize(3.9); pdf.setTextColor(185,196,212);
   pdf.text('MEMBER ID', M, CARD_H - 6.4);
   pdf.setFont('courier','bold'); pdf.setFontSize(8); pdf.setTextColor(255, 201, 120);
-  pdf.text(String(member.memberID || '—'), M, CARD_H - 2.6);
+  const displayID = familyMember ? `${member.memberID || '—'}-${familyMember.suffix || 'F1'}` : String(member.memberID || '—');
+  pdf.text(displayID, M, CARD_H - 2.6);
 
   pdf.setFont('courier','normal'); pdf.setFontSize(3.3); pdf.setTextColor(165,178,196);
   // Office address (or a short fallback) shown bottom-right so residents know
@@ -1775,7 +1793,9 @@ export async function generateMembershipCard({ member, society, logoDataUrl, fin
   // download prompt ever appears, which reads to the user as "nothing
   // happened". So build the file as a blob and hand it over the most reliable
   // way for the device: a real <a download> click, with a new-tab fallback.
-  const filename = `MHMRWS-Card-${member.memberID || 'member'}.pdf`;
+  const filename = familyMember
+    ? `MHMRWS-Card-${member.memberID || 'member'}-${familyMember.suffix || 'F1'}.pdf`
+    : `MHMRWS-Card-${member.memberID || 'member'}.pdf`;
   deliverPdf(pdf, filename);
 }
 
@@ -2092,10 +2112,17 @@ export function collectFamilyMembers(container) {
 /* ---------------------------------------------------------------------- */
 function vehicleRowHTML(v = {}) {
   const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+  const sel = (want) => (v.vehicleType === want ? ' selected' : '');
   return `
     <div class="vehicle-row">
+      <select class="veh-type">
+        <option value="">Type</option>
+        <option value="2-wheeler"${sel('2-wheeler')}>2-Wheeler</option>
+        <option value="4-wheeler"${sel('4-wheeler')}>4-Wheeler</option>
+      </select>
       <input type="text" class="veh-number" placeholder="Vehicle No. (e.g. RJ14AB1234)" maxlength="20" value="${esc(v.vehicleNumber)}" style="text-transform:uppercase;">
       <input type="text" class="veh-parking" placeholder="Parking Slot No." maxlength="20" value="${esc(v.parkingSlot)}">
+      <input type="text" class="veh-rfid" placeholder="Boom Barrier RFID No." maxlength="30" value="${esc(v.rfidNumber)}">
       <button type="button" class="fm-remove" aria-label="Remove vehicle">✕</button>
     </div>`;
 }
@@ -2108,8 +2135,10 @@ function wireVehicleRemoveButtons(container) {
         btn.closest('.vehicle-row').remove();
       } else {
         const row = btn.closest('.vehicle-row');
+        row.querySelector('.veh-type').value = '';
         row.querySelector('.veh-number').value = '';
         row.querySelector('.veh-parking').value = '';
+        row.querySelector('.veh-rfid').value = '';
       }
     };
   });
@@ -2130,12 +2159,17 @@ export function addVehicleRow(container) {
    "rj14ab1234" and "RJ14AB1234" being treated as different vehicles by a
    future duplicate-check would be a real, silly bug. A row is only kept if
    it has a vehicle number; a parking slot with no vehicle recorded against
-   it isn't a vehicle registration at all. */
+   it isn't a vehicle registration at all. vehicleType and rfidNumber are
+   both optional — a resident filling this in from a phone at the gate
+   often doesn't have the RFID tag number on hand, and blocking the whole
+   vehicle entry on it would lose the vehicle number too. */
 export function collectVehicles(container) {
   return [...container.querySelectorAll('.vehicle-row')]
     .map((row) => ({
+      vehicleType: row.querySelector('.veh-type').value || null,
       vehicleNumber: row.querySelector('.veh-number').value.trim().toUpperCase(),
-      parkingSlot: row.querySelector('.veh-parking').value.trim()
+      parkingSlot: row.querySelector('.veh-parking').value.trim(),
+      rfidNumber: row.querySelector('.veh-rfid').value.trim() || null
     }))
     .filter((v) => v.vehicleNumber);
 }

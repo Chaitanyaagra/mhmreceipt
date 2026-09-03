@@ -213,6 +213,22 @@ Aur Firebase Console → Authentication → Settings → **Authorized domains** 
 
 ---
 
+## Step 8 — Gate Security (Guard App) Setup Karein
+
+Yeh feature security guard ke liye ek alag, chhota app hai (`guard.html`) — resident ya admin login se bilkul alag, guard ke paas apna Login ID + PIN hota hai.
+
+1. `admin.html` mein Super Admin/President/Secretary se login karein → **Gate Security** tab kholein
+2. **+ Add Guard** par click karein → Guard ka naam aur Gate/Device label bharein (jaise "Ramesh Kumar", "Main Gate")
+3. Save karte hi ek **Login ID** (jaise `G001`) aur ek **6-digit PIN** dikhega — yeh sirf **ek baar** dikhta hai, likh lein
+4. Gate wale device/tablet ke browser mein `guard.html` kholein (URL: `https://aapki-site.com/guard.html`) → wahi Login ID + PIN se sign in karein
+5. Guard "Guest / Delivery / Cab / Service" mein se koi ek chunkar visitor ka naam + Tower/Flat bhare aur bheje
+6. Us flat ke resident ke dashboard (`index.html`) par turant **"🚪 At the Gate"** card dikhega — "Let In" ya "Deny" kar sakte hain
+7. Approve hote hi guard app mein **"Check In"** button aa jaayega, aur visitor ke jaane par **"Check Out"**
+
+⚠️ **PIN kho jaaye toh:** password reset ka koi option nahi hai (yeh app bina server/Cloud Function ke chalta hai). Gate Security tab mein us guard ko **Deactivate** karein aur ek naya guard add kar dein — PIN kabhi recover nahi hoga, sirf revoke.
+
+---
+
 ## 💾 Backup ke baare mein saaf baat
 
 Is setup mein **sach mein apne aap chalne wala backup nahi ho sakta** — uske liye ek server ya paid Cloud Function chahiye, jo static hosting par nahi hota. Isliye maine banane ki jagah **bhoolna mushkil** bana diya:
@@ -286,8 +302,27 @@ npm test
 
 Iske liye sirf Node.js (v18+) chahiye — koi package install nahi karna. Yeh
 maintenance dues ki calculation, receipt tokens, payment validation waghera
-ke 38 tests chalata hai. Sab "passed" aana chahiye. `tests/` folder aur
+ke 77 tests chalata hai. Sab "passed" aana chahiye. `tests/` folder aur
 `package.json` live site par publish nahi hote (deploy workflow inhe chhod deta hai).
+
+### `firestore.rules` khud test karna (optional, isse zyada bharosa milta hai)
+
+Upar wala `npm test` sirf JavaScript logic check karta hai — `firestore.rules`
+file khud kabhi run nahi hoti. Agar aap rules mein kuch badlein (ya bas double-check
+karna chahein), yeh **asli Firestore rules-engine** ke against test chalata hai:
+
+```bash
+npm install --include=dev
+npm run test:rules
+```
+
+Pehli baar chalane par ek chhota Firestore emulator download hoga (~15 MB,
+sirf ek baar) — iske liye **Java 11+** installed hona chahiye
+([adoptium.net](https://adoptium.net) se free mil jaata hai) aur normal internet
+access (koi restricted/corporate network nahi). Ye sirf Gate Security
+(`guards`/`visitors`) aur facility-booking rules ko cover karta hai — 42
+scenarios (kaun approve kar sakta hai, kaun nahi, wrong flat/wrong guard block
+hota hai ya nahi, waghera).
 
 ## 🆘 Common Errors
 

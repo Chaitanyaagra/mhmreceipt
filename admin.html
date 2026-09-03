@@ -218,6 +218,7 @@
 </script>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
   <g id="a-overview"><path d="M4 20V11M9.3 20V5M14.7 20v-6M20 20V8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" fill="none"/></g>
+  <g id="a-approvals"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7" fill="none"/><path d="M8 12.3l2.6 2.6L16.2 9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/></g>
   <g id="a-members"><circle cx="9" cy="8.4" r="3.3" stroke="currentColor" stroke-width="1.7" fill="none"/><path d="M2.6 19.4c.8-3.2 3.4-5 6.4-5s5.6 1.8 6.4 5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" fill="none"/><path d="M16.2 5.6a3.1 3.1 0 010 5.8M18.4 19.4c-.3-1.5-.9-2.8-1.8-3.8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" fill="none"/></g>
   <g id="a-payments"><rect x="2.5" y="5.5" width="19" height="13" rx="2.4" stroke="currentColor" stroke-width="1.7" fill="none"/><path d="M2.5 10h19M6 14.6h4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></g>
   <g id="a-events"><rect x="3.5" y="4.5" width="17" height="16" rx="2.4" stroke="currentColor" stroke-width="1.7" fill="none"/><path d="M3.5 9h17M8 2.5v4M16 2.5v4M8 13h3M8 16.5h6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></g>
@@ -232,6 +233,8 @@
   <g id="a-adminUsers"><circle cx="8.6" cy="10.4" r="4.1" stroke="currentColor" stroke-width="1.7" fill="none"/><path d="M12.4 8.6H21M18.2 8.6v3.4M15.4 8.6v2.4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" fill="none"/></g>
   <g id="a-community"><path d="M4 21V10.5L12 4l8 6.5V21" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" fill="none"/><path d="M9.5 21v-6h5v6" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" fill="none"/></g>
   <g id="a-vendors"><rect x="3" y="7.5" width="18" height="12" rx="2" stroke="currentColor" stroke-width="1.7" fill="none"/><path d="M8 7.5V6a2 2 0 012-2h4a2 2 0 012 2v1.5" stroke="currentColor" stroke-width="1.7" fill="none"/><path d="M3 12.5h18" stroke="currentColor" stroke-width="1.7"/></g>
+  <g id="a-gate"><path d="M12 3l7 3v5c0 5-3.2 7.8-7 9-3.8-1.2-7-4-7-9V6z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" fill="none"/><path d="M9.3 12l1.9 1.9L14.9 10" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" fill="none"/></g>
+  <g id="a-operations"><circle cx="12" cy="12" r="2.6" stroke="currentColor" stroke-width="1.6" fill="none"/><path d="M12 3.5v3M12 17.5v3M3.5 12h3M17.5 12h3M6 6l2.1 2.1M15.9 15.9L18 18M18 6l-2.1 2.1M8.1 15.9L6 18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></g>
   <g id="a-auditLog"><path d="M5.5 3.5h9l4 4v13h-13z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" fill="none"/><path d="M14.2 3.5V8H18.6M8.6 12.4h7M8.6 16h7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></g>
   <g id="a-mail"><rect x="2.5" y="5" width="19" height="14" rx="2.4" stroke="currentColor" stroke-width="1.7" fill="none"/><path d="M3 6.5l9 6.4 9-6.4" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" fill="none"/></g>
   <g id="a-archive"><path d="M3 7.5h18v12.5H3z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" fill="none"/><path d="M2.2 3.8h19.6v3.7H2.2zM9.6 12h4.8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" fill="none"/></g>
@@ -276,6 +279,7 @@
     </div>
     <nav class="side-nav" id="sideNav">
       <button data-view="overview" class="active"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-overview"/></svg></span> Overview</button>
+      <button data-view="approvals"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-approvals"/></svg></span> Approval Center<span class="nav-badge" id="navBadgeApprovals" style="display:none;">0</span></button>
       <button data-view="members"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-members"/></svg></span> Members<span class="nav-badge" id="navBadgeMembers" style="display:none;">0</span></button>
       <button data-view="payments"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-payments"/></svg></span> Payments<span class="nav-badge" id="navBadgePayments" style="display:none;">0</span></button>
       <button data-view="events"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-events"/></svg></span> Events</button>
@@ -285,6 +289,8 @@
       <button data-view="complaints"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-complaints"/></svg></span> Complaints</button>
       <button data-view="community"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-community"/></svg></span> Community<span class="nav-badge" id="navBadgeCommunity" style="display:none;">0</span></button>
       <button data-view="vendors"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-vendors"/></svg></span> Vendors</button>
+      <button data-view="gateSecurity"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-gate"/></svg></span> Gate Security</button>
+      <button data-view="operations"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-operations"/></svg></span> Operations<span class="nav-badge" id="navBadgeOperations" style="display:none;">0</span></button>
       <button data-view="polls"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-polls"/></svg></span> Polls</button>
       <button data-view="financials"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-financials"/></svg></span> Financials</button>
       <button data-view="importExport"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-importExport"/></svg></span> Import / Export</button>
@@ -453,6 +459,43 @@
           </div>
           <button class="btn btn-navy btn-sm" id="downloadIncomeExpBtn"><svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#a-doc"/></svg>Download PDF (Selected FY)</button>
         </div>
+      </div>
+    </div>
+
+    <!-- ---------------- APPROVAL CENTER ----------------
+         One screen for every request currently waiting on a committee
+         decision, so nobody has to hunt across Members/Community/Expenses
+         to find what needs doing. Populated by renderApprovalCenter().
+         Member approvals still route to the full profile review (openMemberModal)
+         rather than a bare one-click button here — approving a member is a
+         document-verification decision (Aadhaar/PAN, duplicate mobile/vehicle
+         checks in approveMember()) that deserves the full record on screen,
+         not a name in a list. Bookings and expenses don't carry that same
+         review need, so those stay one-click, reusing the exact same
+         approveBooking/rejectBooking/decideExpenseRequest functions the
+         Community and Expenses tabs already call — no parallel decision logic
+         to keep in sync with the real one. -->
+    <div class="view-panel" id="view-approvals">
+      <div class="topbar"><h2 class="view-title">Approval Center</h2></div>
+      <p class="t-muted" style="font-size:12.5px; margin-bottom:16px;">Everything currently waiting on a decision, in one place.</p>
+
+      <div class="card card-pad" id="apMembersCard" style="margin-bottom:16px; display:none;">
+        <h3 style="font-size:14.5px; margin-bottom:10px;">New Registrations</h3>
+        <div id="apMembersList"></div>
+      </div>
+
+      <div class="card card-pad" id="apBookingsCard" style="margin-bottom:16px; display:none;">
+        <h3 style="font-size:14.5px; margin-bottom:10px;">Facility Bookings</h3>
+        <div id="apBookingsList"></div>
+      </div>
+
+      <div class="card card-pad" id="apExpensesCard" style="margin-bottom:16px; display:none;">
+        <h3 style="font-size:14.5px; margin-bottom:10px;">Expense Requests</h3>
+        <div id="apExpensesList"></div>
+      </div>
+
+      <div class="card card-pad" id="apEmptyCard" style="display:none;">
+        <p class="t-muted" style="font-size:13px;">Nothing waiting on a decision right now.</p>
       </div>
     </div>
 
@@ -713,8 +756,15 @@
         </div>
 
         <div class="card">
-          <h3 style="font-size:15.5px; margin-bottom:10px;">Upcoming Approved Bookings</h3>
-          <div class="table-wrap responsive">
+          <div class="spread" style="margin-bottom:10px;">
+            <h3 style="font-size:15.5px;">Upcoming Approved Bookings</h3>
+            <div class="tab-strip" style="margin:0;">
+              <button data-bkview="list" class="active">List</button>
+              <button data-bkview="calendar">Calendar</button>
+            </div>
+          </div>
+          <div id="bookingsCalendar" style="display:none; margin-bottom:14px;"></div>
+          <div class="table-wrap responsive" id="bookingsListWrap">
             <table>
               <thead><tr><th>Facility</th><th>Resident</th><th>Flat</th><th>Date</th><th>Slot</th><th>Actions</th></tr></thead>
               <tbody id="approvedBookingsBody"><tr><td colspan="6" class="t-muted">Loading…</td></tr></tbody>
@@ -760,6 +810,115 @@
           <thead><tr><th>Name</th><th>Category</th><th>Contact Person</th><th>Phone</th><th>Notes</th><th>Actions</th></tr></thead>
           <tbody id="vendorsBody"><tr><td colspan="6" class="t-muted">Loading…</td></tr></tbody>
         </table>
+      </div>
+    </div>
+
+    <!-- ---------------- GATE SECURITY (Guard accounts + Visitor log) ----------------
+         Guards are a separate identity from residents/admins (see isGuard()
+         in firestore.rules) — each logs into their own minimal app
+         (guard.html), never into this admin panel or the resident portal.
+         The visitor log here is read-only for the committee: the actual
+         approve/check-in/check-out flow happens between guard.html and the
+         resident's own dashboard in real time. -->
+    <div class="view-panel" id="view-gateSecurity">
+      <div class="topbar"><h2 class="view-title">Gate Security</h2></div>
+      <div class="card" style="margin-bottom:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <h3 style="font-size:15.5px;">Guard Accounts</h3>
+          <button class="btn btn-primary btn-sm" id="addGuardBtn">+ Add Guard</button>
+        </div>
+        <p class="t-muted" style="font-size:12px; margin-bottom:0;">Each guard/device signs in separately on the Gate app (<code>guard.html</code>) with a Login ID and PIN — never with a resident or committee login. Lost a PIN? Deactivate that guard and add a new one; PINs cannot be recovered or viewed again.</p>
+      </div>
+      <div class="table-wrap responsive" style="margin-bottom:24px;">
+        <table>
+          <thead><tr><th>Name</th><th>Gate / Device</th><th>Login ID</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="guardsBody"><tr><td colspan="5" class="t-muted">Loading…</td></tr></tbody>
+        </table>
+      </div>
+
+      <div class="card" style="margin-bottom:12px;">
+        <h3 style="font-size:15.5px; margin-bottom:4px;">Visitor Log</h3>
+        <p class="t-muted" style="font-size:12px;">Every gate entry, most recent first — read-only here. Approvals happen on the resident's own dashboard.</p>
+      </div>
+      <div class="table-wrap responsive">
+        <table>
+          <thead><tr><th>Visitor</th><th>Purpose</th><th>Flat</th><th>Logged By</th><th>Status</th><th>Time</th></tr></thead>
+          <tbody id="visitorLogBody"><tr><td colspan="6" class="t-muted">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ---------------- OPERATIONS (Assets/AMC + Move-In/Move-Out) ---------------- -->
+    <div class="view-panel" id="view-operations">
+      <div class="topbar"><h2 class="view-title">Operations</h2></div>
+      <div class="tab-strip">
+        <button data-optab="assets" class="active">Assets &amp; AMC</button>
+        <button data-optab="moves">Move-In / Move-Out</button>
+        <button data-optab="parking">Parking</button>
+        <button data-optab="ownership">Ownership History</button>
+      </div>
+
+      <div id="opPanel-assets">
+        <div class="card" style="margin-bottom:16px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <h3 style="font-size:15.5px;">Assets</h3>
+            <button class="btn btn-primary btn-sm" id="addAssetBtn">+ Add Asset</button>
+          </div>
+          <p class="t-muted" style="font-size:12px; margin-bottom:0;">Lift, DG set, pumps, fire system, CCTV, etc. — AMC and service tracking.</p>
+        </div>
+        <div class="table-wrap responsive">
+          <table>
+            <thead><tr><th>Name</th><th>Category</th><th>AMC Provider</th><th>AMC Ends</th><th>Next Service</th><th>Actions</th></tr></thead>
+            <tbody id="assetsBody"><tr><td colspan="6" class="t-muted">Loading…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="opPanel-moves" style="display:none;">
+        <div class="card" style="margin-bottom:16px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <h3 style="font-size:15.5px;">Move-In / Move-Out Requests</h3>
+            <button class="btn btn-primary btn-sm" id="addMoveBtn">+ Log a Move</button>
+          </div>
+        </div>
+        <div class="table-wrap responsive">
+          <table>
+            <thead><tr><th>Resident</th><th>Flat</th><th>Type</th><th>Date</th><th>Checklist</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody id="movesBody"><tr><td colspan="7" class="t-muted">Loading…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="opPanel-parking" style="display:none;">
+        <div class="card" style="margin-bottom:16px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <h3 style="font-size:15.5px;">Parking Slots</h3>
+            <button class="btn btn-primary btn-sm" id="addParkingSlotBtn">+ Add Slot</button>
+          </div>
+          <p class="t-muted" style="font-size:12px; margin-bottom:0;" id="parkingSummary"></p>
+        </div>
+        <div class="table-wrap responsive">
+          <table>
+            <thead><tr><th>Slot</th><th>Status</th><th>Assigned Flat</th><th>Vehicle</th><th>Actions</th></tr></thead>
+            <tbody id="parkingSlotsBody"><tr><td colspan="5" class="t-muted">Loading…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="opPanel-ownership" style="display:none;">
+        <div class="card" style="margin-bottom:16px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <h3 style="font-size:15.5px;">Ownership Change History</h3>
+            <button class="btn btn-primary btn-sm" id="addOwnershipLogBtn">+ Log Ownership Change</button>
+          </div>
+          <p class="t-muted" style="font-size:12px; margin-bottom:0;">A permanent record — once logged, an entry can't be edited or deleted.</p>
+        </div>
+        <div class="table-wrap responsive">
+          <table>
+            <thead><tr><th>Flat</th><th>Previous Owner</th><th>New Owner</th><th>Change Date</th><th>Notes</th></tr></thead>
+            <tbody id="ownershipHistoryBody"><tr><td colspan="5" class="t-muted">Loading…</td></tr></tbody>
+          </table>
+        </div>
       </div>
     </div>
 
@@ -863,6 +1022,12 @@
         </div>
         <h3 style="font-size:14.5px; margin-bottom:12px;">Previously Closed Months</h3>
         <div id="closedMonthsList"></div>
+
+        <h3 style="font-size:14.5px; margin:24px 0 12px;">Financial-Year Audit Lock</h3>
+        <div class="card card-pad">
+          <p class="t-muted" style="font-size:12.5px; margin-bottom:14px;">Closing months confirms the data is complete — this locks it. Once a financial year is locked, verified payments and approved expenses dated to it can no longer be voided. Use this only after the year's accounts are finalised.</p>
+          <div id="fyLockList"></div>
+        </div>
       </div>
     </div>
 
@@ -902,6 +1067,14 @@
             <div class="field"><label for="fld-contactPhone-6">Contact Phone</label><input name="contactPhone" id="fld-contactPhone-6"></div>
             <div class="field"><label for="fld-contactEmail-7">Contact Email</label><input name="contactEmail" type="email" id="fld-contactEmail-7"></div>
             <button class="btn btn-primary" type="submit">Save Society Info</button>
+          </form>
+        </div>
+        <div class="card card-pad">
+          <h3 style="font-size:15px; margin-bottom:6px;">Help Desk Escalation Matrix</h3>
+          <p class="t-muted" style="font-size:12px; margin-bottom:14px;">Which committee role a complaint category should escalate to once it breaches its SLA. This is a visibility aid, not an automatic notification — the escalation shows on the breached complaint for whoever opens it.</p>
+          <form id="escalationMatrixForm">
+            <div id="escalationMatrixFields"></div>
+            <button class="btn btn-primary" type="submit" style="margin-top:8px;">Save Escalation Matrix</button>
           </form>
         </div>
         <div class="card card-pad">
@@ -1108,6 +1281,104 @@
         <div class="field"><label for="venPhone">Phone <span class="t-muted" style="font-weight:400;">(optional)</span></label><input type="text" id="venPhone" maxlength="20"></div>
         <div class="field"><label for="venNotes">Notes <span class="t-muted" style="font-weight:400;">(optional)</span></label><textarea id="venNotes" rows="2" maxlength="1000"></textarea></div>
         <button class="btn btn-primary btn-block" type="submit">Save</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="guardModalBackdrop">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-head"><h3 style="font-size:16px;">Add Guard</h3><button class="icon-btn" id="closeGuardModal">✕</button></div>
+    <div class="modal-body">
+      <form id="guardForm">
+        <div class="field"><label for="guardName">Guard Name</label><input type="text" id="guardName" maxlength="100" required placeholder="e.g. Ramesh Kumar"></div>
+        <div class="field"><label for="guardGateLabel">Gate / Device Label</label><input type="text" id="guardGateLabel" maxlength="100" required placeholder="e.g. Main Gate, Tablet 1"></div>
+        <p class="t-muted" style="font-size:12px; margin-bottom:12px;">A Login ID and PIN will be generated after you save — they're shown exactly once, so have a pen ready.</p>
+        <button class="btn btn-primary btn-block" type="submit">Create Guard Login</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="guardCredsModalBackdrop">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-head"><h3 style="font-size:16px;">Guard Login Created</h3><button class="icon-btn" id="closeGuardCredsModal">✕</button></div>
+    <div class="modal-body">
+      <p style="font-size:13px; margin-bottom:14px;">Give these to the guard, on paper or verbally — not over an unsecured chat. This PIN is <b>not stored anywhere retrievable</b>; if it's lost, deactivate this guard from the list and add a new one.</p>
+      <div class="field"><label>Gate App</label><input type="text" readonly value="guard.html (open on the gate device/tablet)"></div>
+      <div class="field"><label>Login ID</label><input type="text" id="guardCredsId" readonly class="mono" style="font-size:18px; font-weight:700;"></div>
+      <div class="field"><label>PIN</label><input type="text" id="guardCredsPin" readonly class="mono" style="font-size:18px; font-weight:700;"></div>
+      <button class="btn btn-primary btn-block" id="closeGuardCredsBtn">Done — I've written these down</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="assetModalBackdrop">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-head"><h3 style="font-size:16px;">Asset</h3><button class="icon-btn" id="closeAssetModal">✕</button></div>
+    <div class="modal-body">
+      <form id="assetForm">
+        <div class="field"><label for="astName">Name</label><input type="text" id="astName" maxlength="150" required placeholder="e.g. Lift #1, DG Set"></div>
+        <div class="field"><label for="astCategory">Category <span class="t-muted" style="font-weight:400;">(optional)</span></label><input type="text" id="astCategory" maxlength="100" placeholder="e.g. Lift, Fire System, CCTV"></div>
+        <div class="field"><label for="astProvider">AMC Provider <span class="t-muted" style="font-weight:400;">(optional)</span></label><input type="text" id="astProvider" maxlength="150"></div>
+        <div class="field"><label for="astAmcStart">AMC Start <span class="t-muted" style="font-weight:400;">(optional)</span></label><input type="date" id="astAmcStart"></div>
+        <div class="field"><label for="astAmcEnd">AMC End <span class="t-muted" style="font-weight:400;">(optional)</span></label><input type="date" id="astAmcEnd"></div>
+        <div class="field"><label for="astLastService">Last Service <span class="t-muted" style="font-weight:400;">(optional)</span></label><input type="date" id="astLastService"></div>
+        <div class="field"><label for="astNextService">Next Service Due <span class="t-muted" style="font-weight:400;">(optional)</span></label><input type="date" id="astNextService"></div>
+        <div class="field"><label for="astNotes">Notes <span class="t-muted" style="font-weight:400;">(optional)</span></label><textarea id="astNotes" rows="2" maxlength="1000"></textarea></div>
+        <button class="btn btn-primary btn-block" type="submit">Save</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="moveModalBackdrop">
+  <div class="modal">
+    <div class="modal-head"><h3 style="font-size:16px;">Log a Move</h3><button class="icon-btn" id="closeMoveModal">✕</button></div>
+    <div class="modal-body">
+      <form id="moveForm">
+        <div class="field"><label for="mvType">Type</label>
+          <select id="mvType" required>
+            <option value="move_in">Move-In</option>
+            <option value="move_out">Move-Out</option>
+          </select>
+        </div>
+        <div class="field"><label for="mvResident">Resident Name</label><input type="text" id="mvResident" maxlength="100" required></div>
+        <div class="field"><label for="mvFlat">Flat <span class="t-muted" style="font-weight:400;">(e.g. A-101)</span></label><input type="text" id="mvFlat" maxlength="30" required></div>
+        <div class="field"><label for="mvDate">Date</label><input type="date" id="mvDate" required></div>
+        <button class="btn btn-primary btn-block" type="submit">Log Move</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="parkingSlotModalBackdrop">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-head"><h3 style="font-size:16px;" id="parkingSlotModalTitle">Parking Slot</h3><button class="icon-btn" id="closeParkingSlotModal">✕</button></div>
+    <div class="modal-body">
+      <form id="parkingSlotForm">
+        <div class="field"><label for="pkSlotNumber">Slot Number</label><input type="text" id="pkSlotNumber" maxlength="20" required placeholder="e.g. P12"></div>
+        <div class="field"><label for="pkAssignedFlat">Assigned Flat <span class="t-muted" style="font-weight:400;">(optional — leave blank to keep unassigned)</span></label><input type="text" id="pkAssignedFlat" maxlength="30" placeholder="e.g. A-101"></div>
+        <div class="field"><label for="pkVehicleNumber">Vehicle Number <span class="t-muted" style="font-weight:400;">(optional)</span></label><input type="text" id="pkVehicleNumber" maxlength="20"></div>
+        <div class="field"><label for="pkNotes">Notes <span class="t-muted" style="font-weight:400;">(optional)</span></label><textarea id="pkNotes" rows="2" maxlength="300"></textarea></div>
+        <button class="btn btn-primary btn-block" type="submit">Save</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="ownershipModalBackdrop">
+  <div class="modal">
+    <div class="modal-head"><h3 style="font-size:16px;">Log Ownership Change</h3><button class="icon-btn" id="closeOwnershipModal">✕</button></div>
+    <div class="modal-body">
+      <form id="ownershipForm">
+        <div class="field"><label for="owTower">Tower</label><input type="text" id="owTower" maxlength="50" required></div>
+        <div class="field"><label for="owFlat">Flat Number</label><input type="text" id="owFlat" maxlength="30" required></div>
+        <div class="field"><label for="owPrevious">Previous Owner <span class="t-muted" style="font-weight:400;">(optional — leave blank for first-ever owner)</span></label><input type="text" id="owPrevious" maxlength="100"></div>
+        <div class="field"><label for="owNew">New Owner</label><input type="text" id="owNew" maxlength="100" required></div>
+        <div class="field"><label for="owDate">Change Date</label><input type="date" id="owDate" required></div>
+        <div class="field"><label for="owNotes">Notes <span class="t-muted" style="font-weight:400;">(optional)</span></label><textarea id="owNotes" rows="2" maxlength="500"></textarea></div>
+        <button class="btn btn-primary btn-block" type="submit">Save — This Cannot Be Edited Later</button>
       </form>
     </div>
   </div>
@@ -1423,7 +1694,15 @@
         <input type="hidden" name="id">
         <div class="field"><label for="fld-name-23">Name</label><input name="name" required id="fld-name-23"></div>
         <div class="field"><label for="fld-role-24">Role</label><input name="role" required placeholder="e.g. President" id="fld-role-24"></div>
+        <div class="field"><label for="fld-category-26">Category</label>
+          <select name="category" required id="fld-category-26">
+            <option value="core">RWA Core Committee</option>
+            <option value="team" selected>RWA Team</option>
+            <option value="advisory">RWA Advisory Committee</option>
+          </select>
+        </div>
         <div class="field"><label for="fld-photo-25">Photo</label><input type="file" name="photo" accept="image/*" id="fld-photo-25"></div>
+        <div id="committeePhotoCurrent" style="display:none; margin-bottom:12px;"></div>
         <button class="btn btn-primary btn-block" type="submit">Save</button>
       </form>
     </div>
@@ -1568,12 +1847,12 @@ const ROLE_LABELS = {
   secretary: 'Secretary', jointsecretary: 'Joint Secretary', treasurer: 'Treasurer'
 };
 const ROLE_NAV = {
-  superadmin: ['overview','members','payments','events','expenses','content','calendar','complaints','community','vendors','polls','financials','importExport','settings','adminUsers','auditLog'],
+  superadmin: ['overview','members','payments','events','expenses','content','calendar','complaints','community','vendors','operations','polls','financials','importExport','settings','adminUsers','auditLog'],
   // Office-bearers can see where the money went even though only the
   // Treasurer may record it — that visibility is the point of the ledger.
-  president: ['overview','members','events','expenses','content','calendar','complaints','community','polls','auditLog'],
-  secretary: ['overview','members','events','expenses','content','calendar','complaints','community','polls','auditLog'],
-  jointsecretary: ['overview','members','events','expenses','content','calendar','complaints','community','polls','auditLog'],
+  president: ['overview','members','events','expenses','content','calendar','complaints','community','operations','polls','auditLog'],
+  secretary: ['overview','members','events','expenses','content','calendar','complaints','community','operations','polls','auditLog'],
+  jointsecretary: ['overview','members','events','expenses','content','calendar','complaints','community','operations','polls','auditLog'],
   treasurer: ['overview','members','payments','events','expenses','calendar','community','vendors','financials','importExport','auditLog']
 };
 const ACTION_PERMS = {
@@ -1863,8 +2142,11 @@ function switchView(view) {
     renderMembersTable();
     populateTowerFilter();
   }
+  if (view === 'approvals' && typeof renderApprovalCenter === 'function') renderApprovalCenter();
   if (view === 'community' && !window.__communityLoaded) { window.__communityLoaded = true; loadCommunityData(); }
   if (view === 'vendors' && !window.__vendorsLoaded) { window.__vendorsLoaded = true; loadVendorsPanel(); }
+  if (view === 'gateSecurity' && !window.__gateSecurityLoaded) { window.__gateSecurityLoaded = true; loadGateSecurityData(); }
+  if (view === 'operations' && !window.__operationsLoaded) { window.__operationsLoaded = true; loadOperationsData(); }
 }
 document.querySelectorAll('#sideNav button').forEach(btn => btn.addEventListener('click', () => switchView(btn.dataset.view)));
 
@@ -1975,7 +2257,8 @@ async function bootData() {
   fySel.innerHTML = financialYearOptions().map(fy => `<option value="${fy}" ${fy === selectedFY ? 'selected' : ''}>FY ${fy}</option>`).join('');
   fySel.addEventListener('change', () => { selectedFY = fySel.value; renderOverview(); renderDefaulters(); renderExpenses(); });
 
-  await Promise.all([reloadMembers(), reloadPayments(), reloadExpenses(), reloadEvents()]);
+  await Promise.all([reloadMembers(), reloadPayments(), reloadExpenses(), reloadEvents(), loadCommunityData()]);
+  window.__communityLoaded = true;
   subscribeMembers();
   checkRulesHealth();
   // Maintenance rates must be loaded BEFORE the overview renders, otherwise the
@@ -2115,6 +2398,7 @@ function renderCommandCenter(pendingMemberCount, pendingPaymentCount) {
   const strip = document.getElementById('commandCenterStrip');
   if (!strip) return;
   const pendingExpenseCount = allExpenses.filter(e => e.status === 'pending_approval').length;
+  const pendingBookingCount = (typeof allBookings !== 'undefined' ? allBookings : []).filter(b => b.status === 'pending').length;
   const unmatchedBankCount = (window.__bankTxs || []).filter(t => !t.status || t.status === 'unmatched').length;
   const petVaxCount = allPets.filter(p => ['overdue', 'due_soon'].includes(petVaccinationStatus(p).status)).length;
   const rentAgreementCount = allMembers.filter(m => m.status === 'approved' && m.residentType === 'tenant' && ['expired', 'expiring_soon'].includes(rentAgreementStatus(m).status)).length;
@@ -2122,9 +2406,10 @@ function renderCommandCenter(pendingMemberCount, pendingPaymentCount) {
 
   const pills = [
     { count: pendingPaymentCount, label: 'Payments Pending', show: can('verifyPayments'), go: () => switchView('payments') },
-    { count: pendingMemberCount, label: 'Member Approvals', show: can('approveMembers'), go: () => switchView('members') },
+    { count: pendingMemberCount, label: 'Member Approvals', show: can('approveMembers'), go: () => switchView('approvals') },
+    { count: pendingBookingCount, label: 'Booking Approvals', show: can('approveMembers'), go: () => switchView('approvals') },
     { count: openComplaintCount, label: 'Open Complaints', show: can('approveMembers'), go: () => switchView('complaints') },
-    { count: pendingExpenseCount, label: 'Expense Approvals', show: can('recordExpenses'), go: () => switchView('expenses') },
+    { count: pendingExpenseCount, label: 'Expense Approvals', show: can('recordExpenses'), go: () => switchView('approvals') },
     { count: unmatchedBankCount, label: 'Bank Unmatched', show: can('verifyPayments'), go: () => switchView('financials') },
     // Lives on Overview itself (not a separate tab), so this scrolls to it
     // instead of switching views — visible to any role that can see
@@ -2453,6 +2738,26 @@ const COMPLAINT_CATEGORY_LABEL = {
 };
 const COMPLAINT_STATUS_BADGE = { open: 'badge-warning', in_progress: 'badge-neutral', resolved: 'badge-success', closed: 'badge-success', rejected: 'badge-danger' };
 const COMPLAINT_STATUS_LABEL = { open: 'Open', in_progress: 'In Progress', resolved: 'Resolved', closed: 'Closed', rejected: 'Rejected' };
+// Response-time targets by category — security/plumbing/electrical are
+// treated as more urgent than, say, noise or "other". A single number for
+// every category would either be too lenient for a leak or too strict for
+// a minor annoyance; this at least gives each its own reasonable clock.
+// Purely a display computation from createdAt — no new field, no write, so
+// changing these numbers later needs no migration of existing complaints.
+const COMPLAINT_SLA_HOURS = {
+  security: 4, plumbing: 24, electrical: 24, maintenance: 48,
+  housekeeping: 48, noise: 48, parking: 72, other: 72
+};
+function complaintSlaStatus(c) {
+  if (!['open', 'in_progress'].includes(c.status)) return null; // resolved/closed/rejected complaints aren't "breaching" anything
+  const created = c.createdAt?.toMillis ? c.createdAt.toMillis() : (c.createdAt ? new Date(c.createdAt).getTime() : null);
+  if (!created) return null;
+  const slaHours = COMPLAINT_SLA_HOURS[c.category] ?? 48;
+  const hoursElapsed = (Date.now() - created) / 3600000;
+  if (hoursElapsed >= slaHours) return 'breached';
+  if (hoursElapsed >= slaHours * 0.75) return 'due_soon'; // within the last quarter of the window
+  return 'on_track';
+}
 
 async function loadComplaints() {
   try {
@@ -2475,15 +2780,19 @@ function renderComplaints() {
   // 'all' — no filter.
   rows = [...rows].sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
 
-  body.innerHTML = rows.map(c => `
+  const SLA_BADGE = { breached: '<span class="badge badge-danger" style="margin-left:6px;">SLA breached</span>', due_soon: '<span class="badge badge-warning" style="margin-left:6px;">Due soon</span>' };
+  body.innerHTML = rows.map(c => {
+    const sla = complaintSlaStatus(c);
+    return `
     <tr style="cursor:pointer;" data-open-complaint="${c.id}">
       <td data-label="Resident">${escapeHtml(c.raisedByName || '—')}</td>
       <td data-label="Flat">${escapeHtml(c.tower || '—')}-${escapeHtml(c.flatNumber || '—')}</td>
       <td data-label="Category">${escapeHtml(COMPLAINT_CATEGORY_LABEL[c.category] || c.category || '—')}</td>
       <td data-label="Title">${escapeHtml(c.title)}</td>
-      <td data-label="Status"><span class="badge ${COMPLAINT_STATUS_BADGE[c.status] || 'badge-neutral'}">${escapeHtml(COMPLAINT_STATUS_LABEL[c.status] || c.status)}</span></td>
+      <td data-label="Status"><span class="badge ${COMPLAINT_STATUS_BADGE[c.status] || 'badge-neutral'}">${escapeHtml(COMPLAINT_STATUS_LABEL[c.status] || c.status)}</span>${sla && SLA_BADGE[sla] ? SLA_BADGE[sla] : ''}</td>
       <td data-label="Raised On">${fmtDate(c.createdAt)}</td>
-    </tr>`).join('') || `<tr><td colspan="6" class="t-muted">No complaints.</td></tr>`;
+    </tr>`;
+  }).join('') || `<tr><td colspan="6" class="t-muted">No complaints.</td></tr>`;
 
   document.querySelectorAll('[data-open-complaint]').forEach(tr => tr.addEventListener('click', () => openComplaintDetail(tr.dataset.openComplaint)));
 }
@@ -2500,11 +2809,19 @@ function openComplaintDetail(id) {
   const body = document.getElementById('complaintDetailModalBody');
   const canManage = can('approveMembers');
   const isOpenState = !['resolved', 'closed', 'rejected'].includes(c.status);
+  const sla = complaintSlaStatus(c);
+  const slaLine = sla === 'breached' ? '<span class="badge badge-danger" style="margin-left:6px;">SLA breached</span>'
+    : sla === 'due_soon' ? '<span class="badge badge-warning" style="margin-left:6px;">Due soon</span>' : '';
+  const escalateRole = escalationMatrix[c.category];
+  const escalationLine = (sla === 'breached' && escalateRole)
+    ? `<div class="detail-line" style="background:#FDEDED; margin:0 -4px 8px; padding:8px 4px; border-radius:6px;"><span>⚠️ Escalate to</span><span><b>${escapeHtml(ESCALATION_ROLE_LABEL[escalateRole] || escalateRole)}</b></span></div>`
+    : '';
   body.innerHTML = `
     <div class="spread" style="margin-bottom:10px;">
       <b style="font-size:15px;">${escapeHtml(c.title)}</b>
-      <span class="badge ${COMPLAINT_STATUS_BADGE[c.status] || 'badge-neutral'}">${escapeHtml(COMPLAINT_STATUS_LABEL[c.status] || c.status)}</span>
+      <span><span class="badge ${COMPLAINT_STATUS_BADGE[c.status] || 'badge-neutral'}">${escapeHtml(COMPLAINT_STATUS_LABEL[c.status] || c.status)}</span>${slaLine}</span>
     </div>
+    ${escalationLine}
     <div class="detail-line"><span>Resident</span><span>${escapeHtml(c.raisedByName || '—')}</span></div>
     <div class="detail-line"><span>Flat</span><span>${escapeHtml(c.tower || '—')}-${escapeHtml(c.flatNumber || '—')}</span></div>
     <div class="detail-line"><span>Category</span><span>${escapeHtml(COMPLAINT_CATEGORY_LABEL[c.category] || c.category || '—')}</span></div>
@@ -3037,6 +3354,7 @@ async function decideExpenseRequest(id, decision) {
     await logAudit(auth.currentUser, decision === 'approved' ? 'approve_expense' : 'reject_expense', { id, description: e?.description, amount: e?.amount });
     showToast(`Request ${decision === 'approved' ? 'approved' : 'rejected'}.`, 'success');
     await reloadExpenses(); renderExpenses(); renderOverview();
+    if (document.getElementById('view-approvals')?.classList.contains('active')) renderApprovalCenter();
   } catch (err) {
     console.error(`${verb} expense failed:`, err);
     const code = err?.code || '';
@@ -3202,11 +3520,25 @@ function updateNavBadges() {
     payBadge.textContent = n > 99 ? '99+' : String(n);
     payBadge.style.display = n > 0 ? 'block' : 'none';
   }
+  const apBadge = document.getElementById('navBadgeApprovals');
+  if (apBadge) {
+    const n = allMembers.filter(m => m.status === 'pending').length
+            + (typeof allBookings !== 'undefined' ? allBookings : []).filter(b => b.status === 'pending').length
+            + (typeof allExpenses !== 'undefined' ? allExpenses : []).filter(e => e.status === 'pending_approval').length;
+    apBadge.textContent = n > 99 ? '99+' : String(n);
+    apBadge.style.display = n > 0 ? 'block' : 'none';
+  }
   const cmBadge = document.getElementById('navBadgeCommunity');
   if (cmBadge) {
     const n = (typeof allBookings !== 'undefined' ? allBookings : []).filter(b => b.status === 'pending').length;
     cmBadge.textContent = n > 99 ? '99+' : String(n);
     cmBadge.style.display = n > 0 ? 'block' : 'none';
+  }
+  const opBadge = document.getElementById('navBadgeOperations');
+  if (opBadge) {
+    const n = (typeof allAssets !== 'undefined' ? allAssets : []).filter(a => { const d = daysUntil(a.amcEnd); return d !== null && d <= 30; }).length;
+    opBadge.textContent = n > 99 ? '99+' : String(n);
+    opBadge.style.display = n > 0 ? 'block' : 'none';
   }
 }
 
@@ -3303,9 +3635,15 @@ function renderMemberDetailView(m) {
       <div class="vrow"><span class="t-muted">Date of Birth</span><span>${m.dob ? fmtDate({toDate:()=>new Date(m.dob)}) : '—'}</span></div>
       <div class="vrow"><span class="t-muted">Anniversary</span><span>${m.anniversary ? fmtDate({toDate:()=>new Date(m.anniversary)}) : '—'}</span></div>
       <div class="vrow"><span class="t-muted">Family Members</span><span>${(m.familyMembers && m.familyMembers.length) ? m.familyMembers.map(fm => escapeHtml(fm.name) + (fm.relation ? ` (${escapeHtml(fm.relation)})` : '')).join(', ') : '—'}</span></div>
-      <div class="vrow"><span class="t-muted">Vehicles</span><span>${(m.vehicles && m.vehicles.length) ? m.vehicles.map(v => escapeHtml(v.vehicleNumber) + (v.parkingSlot ? ` (${escapeHtml(v.parkingSlot)})` : '')).join(', ') : '—'}</span></div>
+      <div class="vrow"><span class="t-muted">Vehicles</span><span>${(m.vehicles && m.vehicles.length) ? m.vehicles.map(v => {
+        const parts = [escapeHtml(v.vehicleNumber)];
+        if (v.vehicleType) parts.push(v.vehicleType === '2-wheeler' ? '2W' : '4W');
+        if (v.parkingSlot) parts.push(`Parking: ${escapeHtml(v.parkingSlot)}`);
+        if (v.rfidNumber) parts.push(`RFID: ${escapeHtml(v.rfidNumber)}`);
+        return parts.join(' · ');
+      }).join('; ') : '—'}</span></div>
       ${m.residentType === 'tenant' ? `
-      <div class="vrow"><span class="t-muted">Rent Agreement</span><span>${(m.rentAgreementStart || m.rentAgreementEnd) ? `${m.rentAgreementStart ? fmtDate({toDate:()=>new Date(m.rentAgreementStart)}) : '—'} to ${m.rentAgreementEnd ? fmtDate({toDate:()=>new Date(m.rentAgreementEnd)}) : '—'}` : '—'}</span></div>
+      <div class="vrow"><span class="t-muted">Rent Agreement</span><span>${(m.rentAgreementStart || m.rentAgreementEnd) ? `${m.rentAgreementStart ? fmtDate({toDate:()=>new Date(m.rentAgreementStart)}) : '—'} to ${m.rentAgreementEnd ? fmtDate({toDate:()=>new Date(m.rentAgreementEnd)}) : '—'}` : '—'}${m.rentAgreementURL ? ` · <a href="${escapeHtml(m.rentAgreementURL)}" target="_blank" rel="noopener">View document</a>` : ''}</span></div>
       <div class="vrow"><span class="t-muted">Police Verification</span><span>${{ pending: 'Pending', submitted: 'Submitted', verified: 'Verified', rejected: 'Rejected', not_applicable: 'Not applicable' }[m.policeVerification] || '—'}</span></div>` : ''}
       <div class="vrow"><span class="t-muted">Member ID</span><span class="mono">${escapeHtml(m.memberID || '—')}</span></div>
       ${(() => {
@@ -3858,6 +4196,7 @@ async function approveMember(id) {
     showToast(`Approved! Member ID: ${memberID}`, 'success');
     document.getElementById('memberModalBackdrop').classList.remove('open');
     await reloadMembers(); renderMembersTable(); renderOverview(); populateTowerFilter();
+    if (document.getElementById('view-approvals')?.classList.contains('active')) renderApprovalCenter();
     promptSendWhatsApp(
       m.mobile,
       `Namaste ${m.name} ji,\n\nAapka registration Max Heights Majestic RWS mein approve ho gaya hai. Aapka Member ID hai: ${memberID}\n\nAb aap portal par login karke apni details, payments aur receipts dekh sakte hain.\n\nDhanyavaad,\nMHMRWS Committee`,
@@ -3891,6 +4230,7 @@ async function rejectMember(id) {
     showToast('Registration has been rejected.', 'success');
     document.getElementById('memberModalBackdrop').classList.remove('open');
     await reloadMembers(); renderMembersTable(); renderOverview();
+    if (document.getElementById('view-approvals')?.classList.contains('active')) renderApprovalCenter();
   } catch (err) {
     console.error('Reject member failed:', err);
     const code = err?.code || '';
@@ -4662,9 +5002,15 @@ async function loadContentPanels() {
   try {
     notices = (await getDocs(query(collection(db, 'notices'), orderBy('postedAt', 'desc')))).docs.map(d => ({ id: d.id, ...d.data() }));
   } catch (e) { console.warn('Notices read failed:', e?.code || e); }
-  document.getElementById('noticesEditList').innerHTML = notices.map(n => `
+  // Read-count per notice — fetched in parallel, one query per notice
+  // (there are only ever a handful of notices, so this stays cheap).
+  const readCounts = await Promise.all(notices.map(n =>
+    getDocs(collection(db, 'notices', n.id, 'reads')).then(s => s.size).catch(() => null)
+  ));
+  const approvedCount = allMembers.filter(m => m.status === 'approved').length;
+  document.getElementById('noticesEditList').innerHTML = notices.map((n, i) => `
     <div class="list-edit-item">
-      <div><b style="font-size:13.5px;">${escapeHtml(n.titleEn)}</b><div class="t-muted" style="font-size:12px;">${fmtDate(n.postedAt)}</div></div>
+      <div><b style="font-size:13.5px;">${escapeHtml(n.titleEn)}</b><div class="t-muted" style="font-size:12px;">${fmtDate(n.postedAt)}${readCounts[i] !== null ? ` · Read by ${readCounts[i]}${approvedCount ? ` of ${approvedCount}` : ''} residents` : ''}</div></div>
       <button class="btn btn-danger btn-sm" data-del-notice="${n.id}">Delete</button>
     </div>`).join('') || '<p class="t-muted" style="font-size:13px;">No notices yet.</p>';
   document.querySelectorAll('[data-del-notice]').forEach(b => b.addEventListener('click', async () => {
@@ -4682,15 +5028,21 @@ async function loadContentPanels() {
 
   loadDocuments();
 
-  let committee = [];
+  allCommitteeMembers = [];
   try {
-    committee = (await getDocs(collection(db, 'committee'))).docs.map(d => ({ id: d.id, ...d.data() }));
+    allCommitteeMembers = (await getDocs(collection(db, 'committee'))).docs.map(d => ({ id: d.id, ...d.data() }));
   } catch (e) { console.warn('Committee read failed:', e?.code || e); }
-  document.getElementById('committeeEditList').innerHTML = committee.map(c => `
+  const CATEGORY_BADGE_LABEL = { core: 'Core Committee', team: 'Team', advisory: 'Advisory' };
+  document.getElementById('committeeEditList').innerHTML = allCommitteeMembers.map(c => `
     <div class="list-edit-item">
-      <div><b style="font-size:13.5px;">${escapeHtml(c.name)}</b><div class="t-muted" style="font-size:12px;">${escapeHtml(c.role)}</div></div>
-      <button class="btn btn-danger btn-sm" data-del-committee="${c.id}">Delete</button>
+      <div><b style="font-size:13.5px;">${escapeHtml(c.name)}</b><div class="t-muted" style="font-size:12px;">${escapeHtml(c.role)} · <span class="badge badge-neutral" style="font-size:10px;">${CATEGORY_BADGE_LABEL[c.category] || 'Team'}</span></div></div>
+      <div style="display:flex; gap:6px;">
+        <button class="btn btn-outline btn-sm" data-edit-committee="${c.id}">Edit</button>
+        <button class="btn btn-danger btn-sm" data-del-committee="${c.id}">Delete</button>
+      </div>
     </div>`).join('') || '<p class="t-muted" style="font-size:13px;">No committee members yet.</p>';
+  document.querySelectorAll('[data-edit-committee]').forEach(b => b.addEventListener('click', () =>
+    openCommitteeModal(allCommitteeMembers.find(c => c.id === b.dataset.editCommittee))));
   document.querySelectorAll('[data-del-committee]').forEach(b => b.addEventListener('click', async () => {
     if (!confirm('Delete this committee member?')) return;
     try {
@@ -4878,6 +5230,98 @@ async function loadCommunityData() {
   updateNavBadges();
 }
 
+// Approval Center — the same three "someone is waiting on us" queues the
+// Command Center pills already count (members/bookings/expenses), rendered
+// as one actionable list instead of three separate tab visits. Reuses
+// allMembers/allBookings/allExpenses, all loaded at boot (see bootData()),
+// so opening this view never needs its own network round-trip.
+//
+// Member rows deliberately open the full profile (openMemberModal) rather
+// than exposing a bare one-click Approve here — approveMember() runs
+// document/duplicate checks that deserve the full record on screen, and
+// this screen must not become a second, thinner way to approve a member
+// that skips them. Bookings and expenses don't carry that same review
+// need, so those stay one-click, calling the exact same
+// approveBooking/rejectBooking/decideExpenseRequest functions the
+// Community and Expenses tabs already use — no parallel decision logic
+// to keep in sync with the real one.
+function renderApprovalCenter() {
+  const membersCard = document.getElementById('apMembersCard');
+  if (!membersCard) return;
+  let anyShown = false;
+
+  const pendingMembers = can('approveMembers') ? allMembers.filter(m => m.status === 'pending') : [];
+  if (pendingMembers.length) {
+    anyShown = true;
+    membersCard.style.display = 'block';
+    document.getElementById('apMembersList').innerHTML = pendingMembers.map(m => `
+      <div class="list-edit-item" style="align-items:flex-start;">
+        <div>
+          <b style="font-size:13.5px;">${escapeHtml(m.name)}</b>
+          <div class="t-muted" style="font-size:11.5px; margin-top:2px;">
+            ${escapeHtml(m.tower || '—')}-${escapeHtml(m.flatNumber || '—')} · ${escapeHtml(m.residentType || '—')} · ${escapeHtml(m.mobile || '—')}
+          </div>
+        </div>
+        <div style="display:flex; gap:6px; flex-shrink:0;">
+          <button class="btn btn-primary btn-sm" data-ap-review-member="${m.id}">Review</button>
+        </div>
+      </div>`).join('');
+    membersCard.querySelectorAll('[data-ap-review-member]').forEach(b => b.onclick = () => openMemberModal(b.dataset.apReviewMember));
+  } else {
+    membersCard.style.display = 'none';
+  }
+
+  const bookingsCard = document.getElementById('apBookingsCard');
+  const pendingBookings = can('approveMembers') ? (typeof allBookings !== 'undefined' ? allBookings : []).filter(b => b.status === 'pending') : [];
+  if (pendingBookings.length) {
+    anyShown = true;
+    bookingsCard.style.display = 'block';
+    document.getElementById('apBookingsList').innerHTML = pendingBookings.map(b => `
+      <div class="list-edit-item" style="align-items:flex-start;">
+        <div>
+          <b style="font-size:13.5px;">${escapeHtml(b.facilityName)}</b>
+          <div class="t-muted" style="font-size:11.5px; margin-top:2px;">
+            ${fmtDate(b.date)} · ${BOOKING_SLOT_LABEL[b.slot] || escapeHtml(String(b.slot || ''))} · ${escapeHtml(b.residentName)} (${escapeHtml(b.tower || '—')}-${escapeHtml(b.flatNumber || '—')})
+          </div>
+        </div>
+        <div style="display:flex; gap:6px; flex-shrink:0;">
+          <button class="btn btn-primary btn-sm" data-ap-approve-booking="${b.id}">Approve</button>
+          <button class="btn btn-danger btn-sm" data-ap-reject-booking="${b.id}">Reject</button>
+        </div>
+      </div>`).join('');
+    bookingsCard.querySelectorAll('[data-ap-approve-booking]').forEach(b => b.onclick = () => approveBooking(b.dataset.apApproveBooking));
+    bookingsCard.querySelectorAll('[data-ap-reject-booking]').forEach(b => b.onclick = () => rejectBooking(b.dataset.apRejectBooking));
+  } else {
+    bookingsCard.style.display = 'none';
+  }
+
+  const expensesCard = document.getElementById('apExpensesCard');
+  const pendingExpenses = can('recordExpenses') ? allExpenses.filter(e => e.status === 'pending_approval') : [];
+  if (pendingExpenses.length) {
+    anyShown = true;
+    expensesCard.style.display = 'block';
+    document.getElementById('apExpensesList').innerHTML = pendingExpenses.map(e => `
+      <div class="list-edit-item" style="align-items:flex-start;">
+        <div>
+          <b style="font-size:13.5px;">${escapeHtml(e.description)}</b> — <span class="mono">${formatINR(e.amount)}</span>
+          <div class="t-muted" style="font-size:11.5px; margin-top:2px;">
+            ${escapeHtml(e.category || '—')} · ${escapeHtml(e.paidTo || '—')} · Requested by ${escapeHtml(e.requestedBy || '—')}
+          </div>
+        </div>
+        <div style="display:flex; gap:6px; flex-shrink:0;">
+          <button class="btn btn-primary btn-sm" data-ap-approve-exp="${e.id}">Approve</button>
+          <button class="btn btn-danger btn-sm" data-ap-reject-exp="${e.id}">Reject</button>
+        </div>
+      </div>`).join('');
+    expensesCard.querySelectorAll('[data-ap-approve-exp]').forEach(b => b.onclick = () => decideExpenseRequest(b.dataset.apApproveExp, 'approved'));
+    expensesCard.querySelectorAll('[data-ap-reject-exp]').forEach(b => b.onclick = () => decideExpenseRequest(b.dataset.apRejectExp, 'rejected'));
+  } else {
+    expensesCard.style.display = 'none';
+  }
+
+  document.getElementById('apEmptyCard').style.display = anyShown ? 'none' : 'block';
+}
+
 function renderFacilitiesList() {
   const el = document.getElementById('facilitiesList');
   if (!el) return;
@@ -4979,7 +5423,43 @@ function renderApprovedBookings() {
       <td data-label="Actions">${can('approveMembers') ? `<button class="btn btn-danger btn-sm" data-cancel-booking="${b.id}">Cancel</button>` : '<span class="t-muted">—</span>'}</td>
     </tr>`).join('');
   body.querySelectorAll('[data-cancel-booking]').forEach(b => b.onclick = () => rejectBooking(b.dataset.cancelBooking, true));
+  renderBookingsCalendar();
 }
+function renderBookingsCalendar() {
+  const el = document.getElementById('bookingsCalendar');
+  if (!el) return;
+  const today = new Date();
+  const year = today.getFullYear(), month = today.getMonth();
+  const firstDay = new Date(year, month, 1);
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const startWeekday = firstDay.getDay(); // 0=Sun
+  const byDate = {};
+  allBookings.filter(b => b.status === 'approved').forEach(b => {
+    (byDate[b.date] = byDate[b.date] || []).push(b);
+  });
+  const cells = [];
+  for (let i = 0; i < startWeekday; i++) cells.push('<div></div>');
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const dayBookings = byDate[dateStr] || [];
+    cells.push(`
+      <div style="min-height:64px; border:1px solid var(--line); border-radius:6px; padding:4px; font-size:11px;">
+        <div style="font-weight:600; margin-bottom:2px;">${d}</div>
+        ${dayBookings.map(b => `<div style="background:var(--gold-tint,#F5EDD8); border-radius:4px; padding:1px 4px; margin-bottom:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${escapeHtml(b.facilityName)} — ${escapeHtml(b.residentName)}">${escapeHtml(b.facilityName)}</div>`).join('')}
+      </div>`);
+  }
+  el.innerHTML = `
+    <div style="font-weight:600; margin-bottom:8px;">${today.toLocaleString('en-IN', { month: 'long', year: 'numeric' })}</div>
+    <div style="display:grid; grid-template-columns:repeat(7,1fr); gap:4px; font-size:11px; margin-bottom:4px; text-align:center; color:var(--ink-400);">
+      ${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d => `<div>${d}</div>`).join('')}
+    </div>
+    <div style="display:grid; grid-template-columns:repeat(7,1fr); gap:4px;">${cells.join('')}</div>`;
+}
+document.querySelectorAll('[data-bkview]').forEach(btn => btn.addEventListener('click', () => {
+  document.querySelectorAll('[data-bkview]').forEach(b => b.classList.toggle('active', b === btn));
+  document.getElementById('bookingsCalendar').style.display = btn.dataset.bkview === 'calendar' ? '' : 'none';
+  document.getElementById('bookingsListWrap').style.display = btn.dataset.bkview === 'calendar' ? 'none' : '';
+}));
 
 function facilitySlotId(facilityId, date, slot) { return `${facilityId}_${date}_${slot}`; }
 
@@ -5002,6 +5482,7 @@ async function approveBooking(id) {
     await logAudit(auth.currentUser, 'approve_booking', { bookingId: id, facility: b.facilityName, date: b.date, slot: b.slot });
     showToast('Booking approved.', 'success');
     await loadCommunityData();
+    if (document.getElementById('view-approvals')?.classList.contains('active')) renderApprovalCenter();
   } catch (err) {
     if (err.message === 'SLOT_TAKEN') {
       showToast('That facility/date/slot was just approved for someone else — please reject this request and ask the resident to pick another slot.', 'error');
@@ -5017,17 +5498,31 @@ async function rejectBooking(id, wasApproved = false) {
   const reason = prompt(wasApproved ? 'Reason for cancelling this booking (shown to the resident):' : 'Reason for rejecting this request (shown to the resident):');
   if (reason === null) return;
   try {
+    const bookingRef = doc(db, 'facilityBookings', id);
     if (wasApproved) {
-      // Free the slot that approveBooking() claimed, so someone else can
-      // book the same facility/date/slot.
-      await deleteDoc(doc(db, 'facilitySlots', facilitySlotId(b.facilityId, b.date, b.slot)));
+      // Freeing the slot and updating the booking used to be two separate
+      // writes. If the second one failed after the first succeeded, the
+      // slot was freed but the booking still read 'approved' — a second
+      // resident could then get the same date/slot approved on top of it.
+      // A single batch makes the two writes all-or-nothing. Status is now
+      // 'cancelled' (not 'rejected') so the resident sees an accurate
+      // reason for what happened to an already-approved request.
+      const slotRef = doc(db, 'facilitySlots', facilitySlotId(b.facilityId, b.date, b.slot));
+      const batch = writeBatch(db);
+      batch.delete(slotRef);
+      batch.update(bookingRef, {
+        status: 'cancelled', decidedBy: currentAdmin.email, decidedAt: serverTimestamp(), decisionNote: reason.trim() || null, updatedAt: serverTimestamp()
+      });
+      await batch.commit();
+    } else {
+      await updateDoc(bookingRef, {
+        status: 'rejected', decidedBy: currentAdmin.email, decidedAt: serverTimestamp(), decisionNote: reason.trim() || null, updatedAt: serverTimestamp()
+      });
     }
-    await updateDoc(doc(db, 'facilityBookings', id), {
-      status: 'rejected', decidedBy: currentAdmin.email, decidedAt: serverTimestamp(), decisionNote: reason.trim() || null, updatedAt: serverTimestamp()
-    });
-    await logAudit(auth.currentUser, 'reject_booking', { bookingId: id, facility: b.facilityName });
+    await logAudit(auth.currentUser, wasApproved ? 'cancel_booking' : 'reject_booking', { bookingId: id, facility: b.facilityName });
     showToast(wasApproved ? 'Booking cancelled.' : 'Request rejected.', 'success');
     await loadCommunityData();
+    if (document.getElementById('view-approvals')?.classList.contains('active')) renderApprovalCenter();
   } catch (err) { showToast(`Could not update${err?.code ? ` (${err.code})` : ''}.`, 'error'); }
 }
 
@@ -5170,6 +5665,460 @@ async function deleteVendor(id) {
     await loadVendorsPanel();
   } catch (err) { showToast(`Could not delete${err?.code ? ` (${err.code})` : ''}.`, 'error'); }
 }
+
+/* ======================= GATE SECURITY: Guards + Visitor Log ======================= */
+let allGuards = [];
+let allVisitorLog = [];
+async function loadGateSecurityData() {
+  document.getElementById('addGuardBtn').style.display = can('approveMembers') ? 'inline-flex' : 'none';
+  try {
+    const [guardSnap, visSnap] = await Promise.all([
+      getDocs(collection(db, 'guards')),
+      getDocs(collection(db, 'visitors'))
+    ]);
+    allGuards = guardSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    allVisitorLog = visSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+  } catch (e) { console.warn('Gate security load failed:', e?.code || e); }
+  renderGuardsTable();
+  renderVisitorLogTable();
+}
+function renderGuardsTable() {
+  const body = document.getElementById('guardsBody');
+  if (!body) return;
+  if (!allGuards.length) { body.innerHTML = '<tr><td colspan="5" class="t-muted">No guards added yet.</td></tr>'; return; }
+  body.innerHTML = allGuards.map(g => `
+    <tr>
+      <td data-label="Name">${escapeHtml(g.name)}</td>
+      <td data-label="Gate / Device">${escapeHtml(g.gateLabel || '—')}</td>
+      <td data-label="Login ID" class="mono">${escapeHtml(g.loginId || '—')}</td>
+      <td data-label="Status"><span class="badge badge-${g.active !== false ? 'success' : 'neutral'}">${g.active !== false ? 'Active' : 'Deactivated'}</span></td>
+      <td data-label="Actions"><button class="btn btn-outline btn-sm" data-toggle-guard="${g.id}">${g.active !== false ? 'Deactivate' : 'Reactivate'}</button></td>
+    </tr>`).join('');
+  body.querySelectorAll('[data-toggle-guard]').forEach(b => b.onclick = () => toggleGuardActive(b.dataset.toggleGuard));
+}
+const VISITOR_STATUS_BADGE = { pending: 'warning', approved: 'success', rejected: 'danger', checked_in: 'success', checked_out: 'neutral' };
+const VISITOR_PURPOSE_LABEL = { guest: 'Guest', delivery: 'Delivery', cab: 'Cab', service: 'Service', other: 'Other' };
+function renderVisitorLogTable() {
+  const body = document.getElementById('visitorLogBody');
+  if (!body) return;
+  // A log, not a live queue — the most recent 100 is plenty for "what
+  // happened at the gate recently"; older history is still in Firestore,
+  // just not paged through here.
+  const rows = allVisitorLog.slice(0, 100);
+  if (!rows.length) { body.innerHTML = '<tr><td colspan="6" class="t-muted">No gate activity yet.</td></tr>'; return; }
+  body.innerHTML = rows.map(v => `
+    <tr>
+      <td data-label="Visitor">${escapeHtml(v.visitorName)}</td>
+      <td data-label="Purpose">${VISITOR_PURPOSE_LABEL[v.purpose] || escapeHtml(v.purpose || '—')}</td>
+      <td data-label="Flat">${escapeHtml(v.tower || '—')}-${escapeHtml(v.flatNumber || '—')}</td>
+      <td data-label="Logged By">${escapeHtml((allGuards.find(g => g.id === v.createdByGuardUid) || {}).name || '—')}</td>
+      <td data-label="Status"><span class="badge badge-${VISITOR_STATUS_BADGE[v.status] || 'neutral'}">${escapeHtml(String(v.status || '—').replace('_', ' '))}</span></td>
+      <td data-label="Time">${v.createdAt ? fmtDateTime(v.createdAt) : '—'}</td>
+    </tr>`).join('');
+}
+
+// Same strictly-increasing counters/{id} pattern as receipt/member numbers
+// (see generateMemberId()/generateReceiptNumberAtomic() in app-common.js),
+// reused directly here rather than adding a fourth near-identical helper.
+async function generateGuardLoginId() {
+  const ref = doc(db, 'counters', 'guardSeq');
+  const seq = await runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    const next = (snap.exists() ? (snap.data().value || 0) : 0) + 1;
+    tx.set(ref, { value: next, updatedAt: serverTimestamp() }, { merge: true });
+    return next;
+  });
+  return 'G' + String(seq).padStart(3, '0');
+}
+
+document.getElementById('addGuardBtn')?.addEventListener('click', () => document.getElementById('guardModalBackdrop').classList.add('open'));
+document.getElementById('closeGuardModal')?.addEventListener('click', () => document.getElementById('guardModalBackdrop').classList.remove('open'));
+document.getElementById('closeGuardCredsModal')?.addEventListener('click', () => document.getElementById('guardCredsModalBackdrop').classList.remove('open'));
+document.getElementById('closeGuardCredsBtn')?.addEventListener('click', () => document.getElementById('guardCredsModalBackdrop').classList.remove('open'));
+
+// Guard accounts use a fake, never-mailable @mhmrws-portal.local address —
+// Firebase Auth needs an email-shaped identifier, but a guard has no real
+// mailbox and shouldn't need one; the Login ID + PIN pair (not the email)
+// is what actually gets handed to them. Created on a throwaway secondary
+// Firebase app, same pattern "Add Admin" above already uses, so creating a
+// guard account never signs the currently logged-in committee member out
+// of their own admin session.
+document.getElementById('guardForm')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const f = e.target;
+  const btn = f.querySelector('button[type="submit"]');
+  btn.disabled = true;
+  const secondaryApp = initializeApp(firebaseConfig, 'Secondary_' + Date.now());
+  let cred;
+  try {
+    const loginId = await generateGuardLoginId();
+    const pin = String(Math.floor(100000 + Math.random() * 900000));
+    const guardEmail = `${loginId.toLowerCase()}@mhmrws-portal.local`;
+
+    const secondaryAuth = getAuth(secondaryApp);
+    cred = await createUserWithEmailAndPassword(secondaryAuth, guardEmail, pin);
+    const newUid = cred.user.uid;
+
+    await setDoc(doc(db, 'guards', newUid), {
+      uid: newUid, name: document.getElementById('guardName').value.trim(),
+      gateLabel: document.getElementById('guardGateLabel').value.trim(),
+      loginId, active: true, createdAt: serverTimestamp(), createdBy: currentAdmin.email
+    });
+
+    await logAudit(auth.currentUser, 'add_guard', { loginId, name: document.getElementById('guardName').value.trim() });
+    document.getElementById('guardModalBackdrop').classList.remove('open');
+    f.reset();
+    document.getElementById('guardCredsId').value = loginId;
+    document.getElementById('guardCredsPin').value = pin;
+    document.getElementById('guardCredsModalBackdrop').classList.add('open');
+    await loadGateSecurityData();
+  } catch (err) {
+    // Same rollback reasoning as Add Admin: the Auth account is created
+    // first, so anything failing after it would otherwise leave a login
+    // that exists but has no guards/{uid} record and no way to fix that
+    // from the UI.
+    if (cred?.user) {
+      try { await deleteUser(cred.user); }
+      catch (e2) { console.warn('Could not roll back the half-created guard account:', e2); }
+    }
+    console.error('Create guard failed:', err);
+    showToast(`Could not create guard${err?.code ? ` (${err.code})` : ''}.`, 'error');
+  } finally {
+    try { await deleteApp(secondaryApp); } catch (_) {}
+    btn.disabled = false;
+  }
+});
+
+async function toggleGuardActive(id) {
+  const g = allGuards.find(x => x.id === id);
+  if (!g) return;
+  const nextActive = !(g.active !== false);
+  if (!confirm(`${nextActive ? 'Reactivate' : 'Deactivate'} "${g.name}"?${nextActive ? '' : ' They will not be able to log in again until reactivated.'}`)) return;
+  try {
+    await updateDoc(doc(db, 'guards', id), { active: nextActive, updatedAt: serverTimestamp() });
+    await logAudit(auth.currentUser, nextActive ? 'reactivate_guard' : 'deactivate_guard', { id, name: g.name });
+    showToast('Updated.', 'success');
+    await loadGateSecurityData();
+  } catch (err) { showToast(`Could not update${err?.code ? ` (${err.code})` : ''}.`, 'error'); }
+}
+
+/* ======================= OPERATIONS: Assets & AMC ======================= */
+let allAssets = [];
+let allMoveRequests = [];
+async function loadOperationsData() {
+  try {
+    const [astSnap, mvSnap, pkSnap, owSnap] = await Promise.all([
+      getDocs(collection(db, 'assets')), getDocs(collection(db, 'moveRequests')),
+      getDocs(collection(db, 'parkingSlots')), getDocs(collection(db, 'ownershipHistory'))
+    ]);
+    allAssets = astSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    allMoveRequests = mvSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    allParkingSlots = pkSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    allOwnershipHistory = owSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch (e) { console.warn('Operations data load failed:', e?.code || e); }
+  renderAssetsTable();
+  renderMovesTable();
+  renderParkingSlots();
+  renderOwnershipHistory();
+  updateNavBadges();
+}
+
+function daysUntil(dateStr) {
+  if (!dateStr) return null;
+  const target = new Date(dateStr + 'T00:00:00');
+  return Math.round((target - new Date(new Date().toDateString())) / 86400000);
+}
+function renderAssetsTable() {
+  const body = document.getElementById('assetsBody');
+  if (!body) return;
+  if (!allAssets.length) { body.innerHTML = '<tr><td colspan="6" class="t-muted">No assets added yet.</td></tr>'; return; }
+  const sorted = [...allAssets].sort((a, b) => (a.amcEnd || '9999').localeCompare(b.amcEnd || '9999'));
+  body.innerHTML = sorted.map(a => {
+    const daysLeft = daysUntil(a.amcEnd);
+    const amcBadge = daysLeft === null ? '' :
+      daysLeft < 0 ? '<span class="badge badge-danger" style="margin-left:6px;">Expired</span>' :
+      daysLeft <= 30 ? `<span class="badge badge-warning" style="margin-left:6px;">${daysLeft}d left</span>` : '';
+    return `
+    <tr>
+      <td data-label="Name">${escapeHtml(a.name)}</td>
+      <td data-label="Category">${escapeHtml(a.category || '—')}</td>
+      <td data-label="AMC Provider">${escapeHtml(a.amcProvider || '—')}</td>
+      <td data-label="AMC Ends">${a.amcEnd ? fmtDate(a.amcEnd) : '—'}${amcBadge}</td>
+      <td data-label="Next Service">${a.nextServiceDate ? fmtDate(a.nextServiceDate) : '—'}</td>
+      <td data-label="Actions">
+        <button class="btn btn-outline btn-sm" data-edit-asset="${a.id}">Edit</button>
+        <button class="btn btn-danger btn-sm" data-delete-asset="${a.id}">Delete</button>
+      </td>
+    </tr>`;
+  }).join('');
+  body.querySelectorAll('[data-edit-asset]').forEach(b => b.onclick = () => openAssetModal(allAssets.find(a => a.id === b.dataset.editAsset)));
+  body.querySelectorAll('[data-delete-asset]').forEach(b => b.onclick = () => deleteAsset(b.dataset.deleteAsset));
+}
+let editingAssetId = null;
+function openAssetModal(asset = null) {
+  editingAssetId = asset?.id || null;
+  document.getElementById('astName').value = asset?.name || '';
+  document.getElementById('astCategory').value = asset?.category || '';
+  document.getElementById('astProvider').value = asset?.amcProvider || '';
+  document.getElementById('astAmcStart').value = asset?.amcStart || '';
+  document.getElementById('astAmcEnd').value = asset?.amcEnd || '';
+  document.getElementById('astLastService').value = asset?.lastServiceDate || '';
+  document.getElementById('astNextService').value = asset?.nextServiceDate || '';
+  document.getElementById('astNotes').value = asset?.notes || '';
+  document.getElementById('assetModalBackdrop').classList.add('open');
+}
+document.getElementById('addAssetBtn')?.addEventListener('click', () => openAssetModal());
+document.getElementById('closeAssetModal')?.addEventListener('click', () => document.getElementById('assetModalBackdrop').classList.remove('open'));
+document.getElementById('assetForm')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const name = document.getElementById('astName').value.trim();
+  if (!name) return;
+  const data = {
+    name, category: document.getElementById('astCategory').value.trim() || null,
+    amcProvider: document.getElementById('astProvider').value.trim() || null,
+    amcStart: document.getElementById('astAmcStart').value || null,
+    amcEnd: document.getElementById('astAmcEnd').value || null,
+    lastServiceDate: document.getElementById('astLastService').value || null,
+    nextServiceDate: document.getElementById('astNextService').value || null,
+    notes: document.getElementById('astNotes').value.trim() || null,
+    updatedAt: serverTimestamp()
+  };
+  try {
+    if (editingAssetId) {
+      await updateDoc(doc(db, 'assets', editingAssetId), data);
+    } else {
+      await setDoc(doc(collection(db, 'assets')), { ...data, createdAt: serverTimestamp() });
+    }
+    document.getElementById('assetModalBackdrop').classList.remove('open');
+    showToast('Asset saved.', 'success');
+    await loadOperationsData();
+  } catch (err) { showToast(`Could not save${err?.code ? ` (${err.code})` : ''}.`, 'error'); }
+});
+async function deleteAsset(id) {
+  if (!confirm('Delete this asset?')) return;
+  try {
+    await deleteDoc(doc(db, 'assets', id));
+    showToast('Deleted.', 'success');
+    await loadOperationsData();
+  } catch (err) { showToast(`Could not delete${err?.code ? ` (${err.code})` : ''}.`, 'error'); }
+}
+
+/* ======================= OPERATIONS: Move-In / Move-Out ======================= */
+const MOVE_CHECKLIST_ITEMS = {
+  move_in: { registration_verified: 'Registration verified', deposit_collected: 'Deposit collected', keys_issued: 'Keys / access cards issued', parking_allotted: 'Parking allotted' },
+  move_out: { dues_cleared: 'Dues cleared', keys_returned: 'Keys / access cards returned', parking_vacated: 'Parking vacated', noc_issued: 'NOC issued' }
+};
+function renderMovesTable() {
+  const body = document.getElementById('movesBody');
+  if (!body) return;
+  if (!allMoveRequests.length) { body.innerHTML = '<tr><td colspan="7" class="t-muted">No move requests logged.</td></tr>'; return; }
+  const sorted = [...allMoveRequests].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  body.innerHTML = sorted.map(m => {
+    const items = MOVE_CHECKLIST_ITEMS[m.type] || {};
+    const done = Object.keys(items).filter(k => m.checklist?.[k]).length;
+    const total = Object.keys(items).length;
+    return `
+    <tr>
+      <td data-label="Resident">${escapeHtml(m.residentName)}</td>
+      <td data-label="Flat">${escapeHtml(m.flatNumber)}</td>
+      <td data-label="Type">${m.type === 'move_in' ? 'Move-In' : 'Move-Out'}</td>
+      <td data-label="Date">${fmtDate(m.date)}</td>
+      <td data-label="Checklist">${done}/${total} done</td>
+      <td data-label="Status"><span class="badge ${m.status === 'completed' ? 'badge-success' : 'badge-warning'}">${escapeHtml(m.status)}</span></td>
+      <td data-label="Actions"><button class="btn btn-outline btn-sm" data-open-move="${m.id}">Checklist</button></td>
+    </tr>`;
+  }).join('');
+  body.querySelectorAll('[data-open-move]').forEach(b => b.onclick = () => openMoveChecklist(b.dataset.openMove));
+}
+function openMoveChecklist(id) {
+  const m = allMoveRequests.find(x => x.id === id);
+  if (!m) return;
+  const items = MOVE_CHECKLIST_ITEMS[m.type] || {};
+  const itemsHtml = Object.entries(items).map(([key, label]) => `
+    <label style="display:flex; align-items:center; gap:8px; padding:6px 0;">
+      <input type="checkbox" data-checklist-item="${key}" ${m.checklist?.[key] ? 'checked' : ''}> ${escapeHtml(label)}
+    </label>`).join('');
+  const modalHtml = `
+    <div class="modal-head"><h3 style="font-size:16px;">${m.type === 'move_in' ? 'Move-In' : 'Move-Out'} — ${escapeHtml(m.residentName)}</h3><button class="icon-btn" id="closeMoveChecklistModal">✕</button></div>
+    <div class="modal-body">
+      <p class="t-muted" style="font-size:12.5px; margin-bottom:10px;">${escapeHtml(m.flatNumber)} · ${fmtDate(m.date)}</p>
+      ${itemsHtml}
+      <button class="btn btn-primary btn-block" id="saveMoveChecklistBtn" style="margin-top:14px;">Save Checklist</button>
+    </div>`;
+  let backdrop = document.getElementById('moveChecklistModalBackdrop');
+  if (!backdrop) {
+    backdrop = document.createElement('div');
+    backdrop.className = 'modal-backdrop';
+    backdrop.id = 'moveChecklistModalBackdrop';
+    backdrop.innerHTML = '<div class="modal"></div>';
+    document.body.appendChild(backdrop);
+  }
+  backdrop.querySelector('.modal').innerHTML = modalHtml;
+  backdrop.classList.add('open');
+  backdrop.querySelector('#closeMoveChecklistModal').addEventListener('click', () => backdrop.classList.remove('open'));
+  backdrop.querySelector('#saveMoveChecklistBtn').addEventListener('click', async () => {
+    const checklist = {};
+    backdrop.querySelectorAll('[data-checklist-item]').forEach(cb => { checklist[cb.dataset.checklistItem] = cb.checked; });
+    const allDone = Object.keys(items).every(k => checklist[k]);
+    try {
+      await updateDoc(doc(db, 'moveRequests', id), { checklist, status: allDone ? 'completed' : 'pending', updatedAt: serverTimestamp() });
+      showToast('Checklist saved.', 'success');
+      backdrop.classList.remove('open');
+      await loadOperationsData();
+    } catch (err) { showToast(`Could not save${err?.code ? ` (${err.code})` : ''}.`, 'error'); }
+  });
+}
+document.getElementById('addMoveBtn')?.addEventListener('click', () => {
+  document.getElementById('moveForm').reset();
+  document.getElementById('moveModalBackdrop').classList.add('open');
+});
+document.getElementById('closeMoveModal')?.addEventListener('click', () => document.getElementById('moveModalBackdrop').classList.remove('open'));
+document.getElementById('moveForm')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const type = document.getElementById('mvType').value;
+  const items = MOVE_CHECKLIST_ITEMS[type] || {};
+  const checklist = {};
+  Object.keys(items).forEach(k => { checklist[k] = false; });
+  try {
+    await setDoc(doc(collection(db, 'moveRequests')), {
+      type, residentName: document.getElementById('mvResident').value.trim(),
+      flatNumber: document.getElementById('mvFlat').value.trim(), date: document.getElementById('mvDate').value,
+      checklist, status: 'pending', createdAt: serverTimestamp()
+    });
+    document.getElementById('moveModalBackdrop').classList.remove('open');
+    showToast('Move logged.', 'success');
+    await loadOperationsData();
+  } catch (err) { showToast(`Could not log${err?.code ? ` (${err.code})` : ''}.`, 'error'); }
+});
+
+document.querySelectorAll('[data-optab]').forEach(btn => btn.addEventListener('click', () => {
+  document.querySelectorAll('[data-optab]').forEach(b => b.classList.toggle('active', b === btn));
+  ['assets', 'moves', 'parking', 'ownership'].forEach(t => {
+    const panel = document.getElementById(`opPanel-${t}`);
+    if (panel) panel.style.display = (t === btn.dataset.optab) ? '' : 'none';
+  });
+}));
+
+/* ======================= OPERATIONS: Parking Slots ======================= */
+let allParkingSlots = [];
+async function loadParkingSlots() {
+  try {
+    allParkingSlots = (await getDocs(collection(db, 'parkingSlots'))).docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch (e) { console.warn('Parking slots load failed:', e?.code || e); allParkingSlots = []; }
+  renderParkingSlots();
+}
+function renderParkingSlots() {
+  const body = document.getElementById('parkingSlotsBody');
+  if (!body) return;
+  const occupied = allParkingSlots.filter(s => s.assignedFlat).length;
+  const summaryEl = document.getElementById('parkingSummary');
+  if (summaryEl) summaryEl.textContent = allParkingSlots.length ? `${occupied} of ${allParkingSlots.length} slots assigned` : 'No slots added yet.';
+  if (!allParkingSlots.length) { body.innerHTML = '<tr><td colspan="5" class="t-muted">No parking slots added yet.</td></tr>'; return; }
+  const sorted = [...allParkingSlots].sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
+  body.innerHTML = sorted.map(s => `
+    <tr>
+      <td data-label="Slot">${escapeHtml(s.id)}</td>
+      <td data-label="Status"><span class="badge ${s.assignedFlat ? 'badge-neutral' : 'badge-success'}">${s.assignedFlat ? 'Occupied' : 'Vacant'}</span></td>
+      <td data-label="Assigned Flat">${escapeHtml(s.assignedFlat || '—')}</td>
+      <td data-label="Vehicle">${escapeHtml(s.vehicleNumber || '—')}</td>
+      <td data-label="Actions">
+        <button class="btn btn-outline btn-sm" data-edit-slot="${s.id}">Edit</button>
+        <button class="btn btn-danger btn-sm" data-delete-slot="${s.id}">Delete</button>
+      </td>
+    </tr>`).join('');
+  body.querySelectorAll('[data-edit-slot]').forEach(b => b.onclick = () => openParkingSlotModal(allParkingSlots.find(s => s.id === b.dataset.editSlot)));
+  body.querySelectorAll('[data-delete-slot]').forEach(b => b.onclick = () => deleteParkingSlot(b.dataset.deleteSlot));
+}
+let editingSlotId = null;
+function openParkingSlotModal(slot = null) {
+  editingSlotId = slot?.id || null;
+  document.getElementById('parkingSlotModalTitle').textContent = slot ? `Slot ${slot.id}` : 'New Parking Slot';
+  document.getElementById('pkSlotNumber').value = slot?.id || '';
+  document.getElementById('pkSlotNumber').disabled = !!slot; // slot number IS the doc-ID — can't rename an existing slot, only re-add
+  document.getElementById('pkAssignedFlat').value = slot?.assignedFlat || '';
+  document.getElementById('pkVehicleNumber').value = slot?.vehicleNumber || '';
+  document.getElementById('pkNotes').value = slot?.notes || '';
+  document.getElementById('parkingSlotModalBackdrop').classList.add('open');
+}
+document.getElementById('addParkingSlotBtn')?.addEventListener('click', () => openParkingSlotModal());
+document.getElementById('closeParkingSlotModal')?.addEventListener('click', () => document.getElementById('parkingSlotModalBackdrop').classList.remove('open'));
+document.getElementById('parkingSlotForm')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const slotNumber = document.getElementById('pkSlotNumber').value.trim();
+  if (!slotNumber) return;
+  const data = {
+    assignedFlat: document.getElementById('pkAssignedFlat').value.trim() || null,
+    vehicleNumber: document.getElementById('pkVehicleNumber').value.trim() || null,
+    notes: document.getElementById('pkNotes').value.trim() || null,
+    updatedAt: serverTimestamp()
+  };
+  try {
+    // Same slotId doc-ID whether creating or editing — this IS the
+    // conflict-prevention: two admins can't independently create "P12"
+    // twice, the second create just overwrites (or, if that's ever a
+    // problem, a transaction could check tx.get() first the same way
+    // facility-booking's approve step does).
+    await setDoc(doc(db, 'parkingSlots', slotNumber), data, { merge: true });
+    document.getElementById('parkingSlotModalBackdrop').classList.remove('open');
+    showToast('Parking slot saved.', 'success');
+    await loadParkingSlots();
+  } catch (err) { showToast(`Could not save${err?.code ? ` (${err.code})` : ''}.`, 'error'); }
+});
+async function deleteParkingSlot(id) {
+  if (!confirm(`Delete slot ${id}?`)) return;
+  try {
+    await deleteDoc(doc(db, 'parkingSlots', id));
+    showToast('Deleted.', 'success');
+    await loadParkingSlots();
+  } catch (err) { showToast(`Could not delete${err?.code ? ` (${err.code})` : ''}.`, 'error'); }
+}
+
+/* ======================= OPERATIONS: Ownership History ======================= */
+let allOwnershipHistory = [];
+async function loadOwnershipHistory() {
+  try {
+    allOwnershipHistory = (await getDocs(collection(db, 'ownershipHistory'))).docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch (e) { console.warn('Ownership history load failed:', e?.code || e); allOwnershipHistory = []; }
+  renderOwnershipHistory();
+}
+function renderOwnershipHistory() {
+  const body = document.getElementById('ownershipHistoryBody');
+  if (!body) return;
+  if (!allOwnershipHistory.length) { body.innerHTML = '<tr><td colspan="5" class="t-muted">No ownership changes logged yet.</td></tr>'; return; }
+  const sorted = [...allOwnershipHistory].sort((a, b) => (b.changeDate || '').localeCompare(a.changeDate || ''));
+  body.innerHTML = sorted.map(o => `
+    <tr>
+      <td data-label="Flat">${escapeHtml(o.tower)}-${escapeHtml(o.flatNumber)}</td>
+      <td data-label="Previous Owner">${escapeHtml(o.previousOwnerName || 'First owner')}</td>
+      <td data-label="New Owner">${escapeHtml(o.newOwnerName)}</td>
+      <td data-label="Change Date">${fmtDate(o.changeDate)}</td>
+      <td data-label="Notes">${escapeHtml(o.notes || '—')}</td>
+    </tr>`).join('');
+}
+document.getElementById('addOwnershipLogBtn')?.addEventListener('click', () => {
+  document.getElementById('ownershipForm').reset();
+  document.getElementById('ownershipModalBackdrop').classList.add('open');
+});
+document.getElementById('closeOwnershipModal')?.addEventListener('click', () => document.getElementById('ownershipModalBackdrop').classList.remove('open'));
+document.getElementById('ownershipForm')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  try {
+    await addDoc(collection(db, 'ownershipHistory'), {
+      tower: document.getElementById('owTower').value.trim(),
+      flatNumber: document.getElementById('owFlat').value.trim(),
+      previousOwnerName: document.getElementById('owPrevious').value.trim() || null,
+      newOwnerName: document.getElementById('owNew').value.trim(),
+      changeDate: document.getElementById('owDate').value,
+      notes: document.getElementById('owNotes').value.trim() || null,
+      recordedBy: currentAdmin.email, createdAt: serverTimestamp()
+    });
+    await logAudit(auth.currentUser, 'log_ownership_change', { tower: document.getElementById('owTower').value.trim(), flat: document.getElementById('owFlat').value.trim() });
+    document.getElementById('ownershipModalBackdrop').classList.remove('open');
+    showToast('Ownership change logged.', 'success');
+    await loadOwnershipHistory();
+  } catch (err) { showToast(`Could not save${err?.code ? ` (${err.code})` : ''}.`, 'error'); }
+});
 
 async function loadPollsPanel() {
   const canEdit = can('approveMembers');
@@ -5517,6 +6466,47 @@ async function loadClosingPanel() {
     <div class="list-edit-item">
       <div><b style="font-size:13px;">${escapeHtml(c.id)}</b><div class="t-muted" style="font-size:11.5px;">Closed by ${escapeHtml(c.closedBy || '—')} on ${fmtDate(c.closedAt)}${c.allChecksOk === false ? ' · kuch checks pending the' : ''}</div></div>
     </div>`).join('') || '<p class="t-muted" style="font-size:13px;">No months closed yet.</p>';
+
+  await renderFyLockList();
+}
+let allFyLocks = [];
+async function renderFyLockList() {
+  const el = document.getElementById('fyLockList');
+  if (!el) return;
+  try {
+    allFyLocks = (await getDocs(collection(db, 'financialYearLocks'))).docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch (e) { console.warn('FY locks read failed:', e?.code || e); allFyLocks = []; }
+  const fys = financialYearOptions();
+  el.innerHTML = fys.map(fy => {
+    const lock = allFyLocks.find(l => l.id === fy);
+    return `
+    <div class="list-edit-item">
+      <div><b style="font-size:13px;">FY ${escapeHtml(fy)}</b>${lock ? `<div class="t-muted" style="font-size:11.5px;">Locked by ${escapeHtml(lock.lockedBy || '—')} on ${fmtDate(lock.lockedAt)}</div>` : ''}</div>
+      ${lock
+        ? `<button class="btn btn-outline btn-sm" data-unlock-fy="${fy}">Unlock</button>`
+        : `<button class="btn btn-danger btn-sm" data-lock-fy="${fy}">Lock</button>`}
+    </div>`;
+  }).join('');
+  el.querySelectorAll('[data-lock-fy]').forEach(b => b.onclick = () => lockFY(b.dataset.lockFy));
+  el.querySelectorAll('[data-unlock-fy]').forEach(b => b.onclick = () => unlockFY(b.dataset.unlockFy));
+}
+async function lockFY(fy) {
+  if (!confirm(`Lock FY ${fy}? Verified payments and approved expenses dated to this year can no longer be voided until it's unlocked.`)) return;
+  try {
+    await setDoc(doc(db, 'financialYearLocks', fy), { lockedBy: currentAdmin.email, lockedAt: serverTimestamp() });
+    await logAudit(auth.currentUser, 'lock_financial_year', { fy });
+    showToast(`FY ${fy} locked.`, 'success');
+    await renderFyLockList();
+  } catch (err) { showToast(`Could not lock${err?.code ? ` (${err.code})` : ''}.`, 'error'); }
+}
+async function unlockFY(fy) {
+  if (!confirm(`Unlock FY ${fy}? This is a visible, logged action.`)) return;
+  try {
+    await deleteDoc(doc(db, 'financialYearLocks', fy));
+    await logAudit(auth.currentUser, 'unlock_financial_year', { fy });
+    showToast(`FY ${fy} unlocked.`, 'success');
+    await renderFyLockList();
+  } catch (err) { showToast(`Could not unlock${err?.code ? ` (${err.code})` : ''}.`, 'error'); }
 }
 document.getElementById('closeMonthBtn')?.addEventListener('click', async (e) => {
   const btn = e.currentTarget;
@@ -5662,27 +6652,59 @@ document.getElementById('noticeForm').addEventListener('submit', async (e) => {
     if (btn) btn.disabled = false;
   }
 });
-document.getElementById('addCommitteeBtn').addEventListener('click', () => document.getElementById('committeeModalBackdrop').classList.add('open'));
+let allCommitteeMembers = [];
+function openCommitteeModal(member = null) {
+  const f = document.getElementById('committeeForm');
+  f.reset();
+  f.id.value = member?.id || '';
+  f.name.value = member?.name || '';
+  f.role.value = member?.role || '';
+  f.category.value = member?.category || 'team';
+  document.getElementById('committeeModalTitle').textContent = member ? 'Edit Committee Member' : 'Add Committee Member';
+  const photoWrap = document.getElementById('committeePhotoCurrent');
+  if (member?.photoURL) {
+    photoWrap.innerHTML = `<img src="${escapeHtml(member.photoURL)}" alt="" style="width:56px; height:56px; border-radius:50%; object-fit:cover;"> <span class="t-muted" style="font-size:12px;">Current photo — choose a new file only to replace it.</span>`;
+    photoWrap.style.display = 'flex';
+    photoWrap.style.alignItems = 'center';
+    photoWrap.style.gap = '10px';
+  } else {
+    photoWrap.style.display = 'none';
+  }
+  document.getElementById('committeeModalBackdrop').classList.add('open');
+}
+document.getElementById('addCommitteeBtn').addEventListener('click', () => openCommitteeModal());
 document.getElementById('closeCommitteeModal').addEventListener('click', () => document.getElementById('committeeModalBackdrop').classList.remove('open'));
 document.getElementById('committeeForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const f = e.target;
   const btn = f.querySelector('button[type="submit"]');
   if (btn) btn.disabled = true;
+  const editingId = f.id.value || null;
+  const existing = editingId ? allCommitteeMembers.find(c => c.id === editingId) : null;
   try {
-    let photoURL = '';
+    // photoURL is only touched if a new file was chosen — editing purely
+    // to fix a spelling or swap a designation shouldn't require re-uploading
+    // a photo that's already fine.
+    let photoURL = existing?.photoURL || '';
     if (f.photo.files[0]) {
       const r = storageRef(storage, `committeePhotos/${safeStorageFilename(f.photo.files[0].name)}`);
       await uploadBytes(r, f.photo.files[0]);
       photoURL = await getDownloadURL(r);
     }
-    await addDoc(collection(db, 'committee'), { name: f.name.value, role: f.role.value, photoURL, addedAt: serverTimestamp() });
-    await logAudit(auth.currentUser, 'add_committee', { name: f.name.value });
-    showToast('Committee member added.', 'success');
+    const data = { name: f.name.value, role: f.role.value, category: f.category.value, photoURL };
+    if (editingId) {
+      await updateDoc(doc(db, 'committee', editingId), data);
+      await logAudit(auth.currentUser, 'edit_committee', { id: editingId, name: f.name.value });
+      showToast('Committee member updated.', 'success');
+    } else {
+      await addDoc(collection(db, 'committee'), { ...data, addedAt: serverTimestamp() });
+      await logAudit(auth.currentUser, 'add_committee', { name: f.name.value });
+      showToast('Committee member added.', 'success');
+    }
     document.getElementById('committeeModalBackdrop').classList.remove('open');
     f.reset(); loadContentPanels();
   } catch (err) {
-    console.error('Add committee member failed:', err);
+    console.error('Save committee member failed:', err);
     const code = err?.code || '';
     showToast(`Could not save committee member${code ? ` (${code})` : ''}.`, 'error');
   } finally {
@@ -5944,7 +6966,38 @@ async function loadSettingsForms() {
     pf.branch.value = PAYMENT_DEFAULTS.branch; pf.officeAddress.value = PAYMENT_DEFAULTS.officeAddress;
     showToast(`Could not load payment settings${e?.code ? ` (${e.code})` : ''} — showing defaults.`, 'error');
   }
+
+  await loadEscalationMatrix();
 }
+const ESCALATION_ROLE_LABEL = { superadmin: 'Super Admin', president: 'President', secretary: 'Secretary', jointsecretary: 'Joint Secretary', treasurer: 'Treasurer' };
+let escalationMatrix = {};
+async function loadEscalationMatrix() {
+  try {
+    const snap = await getDoc(doc(db, 'settings', 'escalationMatrix'));
+    escalationMatrix = snap.exists() ? snap.data() : {};
+  } catch (e) { console.warn('Escalation matrix read failed:', e?.code || e); escalationMatrix = {}; }
+  const el = document.getElementById('escalationMatrixFields');
+  if (!el) return;
+  el.innerHTML = Object.entries(COMPLAINT_CATEGORY_LABEL).map(([key, label]) => `
+    <div class="field" style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+      <label style="flex:1; margin:0; font-size:13px;">${escapeHtml(label)}</label>
+      <select data-escalate-category="${key}" style="flex:1;">
+        <option value="">— Not set —</option>
+        ${Object.entries(ESCALATION_ROLE_LABEL).map(([role, roleLabel]) => `<option value="${role}" ${escalationMatrix[key] === role ? 'selected' : ''}>${roleLabel}</option>`).join('')}
+      </select>
+    </div>`).join('');
+}
+document.getElementById('escalationMatrixForm')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const data = {};
+  document.querySelectorAll('[data-escalate-category]').forEach(sel => { if (sel.value) data[sel.dataset.escalateCategory] = sel.value; });
+  try {
+    await setDoc(doc(db, 'settings', 'escalationMatrix'), data);
+    escalationMatrix = data;
+    showToast('Escalation matrix saved.', 'success');
+  } catch (err) { showToast(`Could not save${err?.code ? ` (${err.code})` : ''}.`, 'error'); }
+});
+
 /* ---- Maintenance rates -------------------------------------------------
    Stored as settings/maintenance = { rates: { "2026-27": { default, byTower } } }
    so each financial year keeps its own rate and history stays intact. */

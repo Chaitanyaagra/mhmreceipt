@@ -847,12 +847,17 @@ body.logged-in #dashboard{ min-height:calc(100vh - 66px); padding-top:26px; }
 .fm-row{ display:grid; grid-template-columns:1fr 130px 150px 34px; gap:8px; align-items:center; }
 .fm-row input, .fm-row select{ margin:0; }
 .vehicle-editor{ display:flex; flex-direction:column; gap:8px; margin-bottom:6px; }
-.vehicle-row{ display:grid; grid-template-columns:1fr 1fr 34px; gap:8px; align-items:center; }
-.vehicle-row input{ margin:0; }
-@media (max-width:520px){
-  .vehicle-row{ grid-template-columns:1fr 1fr; grid-template-areas:"veh park" "rem rem"; }
+.vehicle-row{ display:grid; grid-template-columns:110px 1fr 1fr 1fr 34px; gap:8px; align-items:center; }
+.vehicle-row input, .vehicle-row select{ margin:0; }
+@media (max-width:640px){
+  .vehicle-row{
+    grid-template-columns:1fr 1fr;
+    grid-template-areas:"type type" "veh park" "rfid rfid" "rem rem";
+  }
+  .vehicle-row .veh-type{ grid-area:type; }
   .vehicle-row .veh-number{ grid-area:veh; }
   .vehicle-row .veh-parking{ grid-area:park; }
+  .vehicle-row .veh-rfid{ grid-area:rfid; }
   .vehicle-row .fm-remove{ grid-area:rem; width:100%; }
 }
 .fm-remove{

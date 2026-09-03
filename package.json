@@ -5,9 +5,15 @@
   "description": "Max Heights Majestic Resident Welfare Society — member, payment and receipt portal.",
   "type": "module",
   "scripts": {
-    "test": "node tests/run.mjs"
+    "test": "node tests/run.mjs",
+    "test:rules": "firebase emulators:exec --only firestore \"node --test tests/rules.test.mjs\""
   },
   "engines": {
     "node": ">=18"
+  },
+  "devDependencies": {
+    "firebase": "^12.18.0",
+    "firebase-tools": "^13.35.1",
+    "@firebase/rules-unit-testing": "^5.0.2"
   }
 }
