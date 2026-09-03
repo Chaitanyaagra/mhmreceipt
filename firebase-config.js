@@ -44,7 +44,7 @@ const SOCIETY = {
    no build step needed). Every page imports { auth, db, storage } from here.
    -------------------------------------------------------------------------- */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
-import { initializeAppCheck, ReCaptchaV3Provider } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app-check.js";
+import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app-check.js";
 import { getAuth, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
 import { getFirestore } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 import { getStorage } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-storage.js";
@@ -61,11 +61,21 @@ export const app = initializeApp(firebaseConfig);
    that budgets in four figures. The rules would hold — but you would be paying
    for every rejected request.
 
-   To enable (about half an hour, and free):
-     1. Google Cloud Console -> reCAPTCHA -> create a key of type
-        "Website" / reCAPTCHA v3, with this site's domain in the allow-list.
-     2. Firebase Console -> App Check -> register the web app with that key.
-     3. Paste the SITE key (the public one, safe to commit) below.
+   Uses reCAPTCHA ENTERPRISE, not classic reCAPTCHA v3 — Firebase Console's own
+   App Check screen now issues Enterprise keys by default for new projects, and
+   an Enterprise key pasted into v3's provider class silently fails, so this
+   must match whichever the Console actually gave you.
+
+   To enable (about half an hour; free up to 10,000 assessments/month, which is
+   far more than a single-society portal will ever use):
+     1. Google Cloud Console -> Security -> reCAPTCHA Enterprise -> Create key.
+        Choose "Website", add this site's domain(s) to the allow-list. This
+        needs a Cloud Billing account linked to the project (still $0 unless
+        you go over the free 10,000/month — Firebase itself doesn't require
+        one, reCAPTCHA Enterprise specifically does).
+     2. Firebase Console -> App Check -> register the web app -> reCAPTCHA
+        Enterprise -> it should find the key from step 1 in the same project.
+     3. Paste that key ID (the public one, safe to commit) below.
      4. Watch Firebase Console -> App Check -> Metrics for a few days. Once
         nearly all traffic shows as verified, click Enforce on Firestore,
         Storage and Authentication.
@@ -73,13 +83,13 @@ export const app = initializeApp(firebaseConfig);
    Leaving the placeholder in place is safe: App Check simply stays off and the
    portal behaves exactly as before.
    -------------------------------------------------------------------------- */
-export const RECAPTCHA_V3_SITE_KEY = "REPLACE_WITH_YOUR_RECAPTCHA_V3_SITE_KEY";
+export const RECAPTCHA_ENTERPRISE_SITE_KEY = "REPLACE_WITH_YOUR_RECAPTCHA_ENTERPRISE_SITE_KEY";
 
-export const APP_CHECK_ENABLED = !RECAPTCHA_V3_SITE_KEY.startsWith("REPLACE_WITH");
+export const APP_CHECK_ENABLED = !RECAPTCHA_ENTERPRISE_SITE_KEY.startsWith("REPLACE_WITH");
 if (APP_CHECK_ENABLED) {
   try {
     initializeAppCheck(app, {
-      provider: new ReCaptchaV3Provider(RECAPTCHA_V3_SITE_KEY),
+      provider: new ReCaptchaEnterpriseProvider(RECAPTCHA_ENTERPRISE_SITE_KEY),
       isTokenAutoRefreshEnabled: true
     });
   } catch (e) {
