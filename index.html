@@ -62,6 +62,7 @@
      worker for offline use. -->
 <script src="./jspdf.umd.min.js"></script>
 <script src="./qrcode.local.js"></script>
+<script src="./back-button-handler.js"></script>
 <style>
 /* =====================================================================
    index.html — Resident Portal
@@ -1684,6 +1685,13 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
   </div>
 </div>
 
+<div class="modal-backdrop no-print" id="inspectionInfoModalBackdrop">
+  <div class="modal" style="max-width:560px;">
+    <div class="modal-head"><h3 id="inspectionInfoTitle" style="font-size:16.5px;">Inspection</h3><button class="icon-btn" id="closeInspectionInfoModal">✕</button></div>
+    <div class="modal-body" id="inspectionInfoBody" style="max-height:70vh; overflow-y:auto;"></div>
+  </div>
+</div>
+
 <div id="printReceiptArea" aria-hidden="true"></div>
 <div id="toast-region"></div>
 
@@ -1765,14 +1773,35 @@ window.__renderCommittee = (rows) => {
       <div class="role">${esc(m.role)}</div>
     </div>`;
 
-  // Existing entries from before this categorisation existed have no
-  // `category` field at all — they land in Team rather than silently
-  // vanishing from the page.
-  const core = rows.filter(m => m.category === 'core')
-    .sort((a, b) => (CORE_ROLE_ORDER[(a.role || '').toLowerCase()] ?? 99) - (CORE_ROLE_ORDER[(b.role || '').toLowerCase()] ?? 99));
-  const team = rows.filter(m => m.category === 'team' || !m.category)
+  // Grouping is driven primarily by ROLE, so it's correct even for members
+  // added before the category field existed (whose category is unset).
+  // Roles in the real data read like "RWA President", "RWA Secretary",
+  // "RWA Advisory Committee" — so we look for the office-bearer keyword
+  // ANYWHERE in the role text, not an exact match, which is what used to
+  // leave Core empty and dump everyone into Team.
+  //   • Core  = role contains President / Secretary / Joint Secretary /
+  //             Treasurer, OR category:'core'.
+  //   • Advisory = role contains "advisory", OR category:'advisory'.
+  //   • Team   = everyone else.
+  // Order within Core: President, then Joint Secretary, then Secretary, then
+  // Treasurer. (Joint Secretary is checked before Secretary because
+  // "joint secretary" also contains "secretary".)
+  const coreRank = (role) => {
+    const r = (role || '').toLowerCase();
+    if (r.includes('president')) return 0;
+    if (r.includes('joint secretary') || r.includes('joint-secretary')) return 1;
+    if (r.includes('secretary')) return 2;
+    if (r.includes('treasurer')) return 3;
+    return null;
+  };
+  const roleIsCore = (m) => coreRank(m.role) != null || m.category === 'core';
+  const roleIsAdvisory = (m) => /advisory/i.test(m.role || '') || m.category === 'advisory';
+
+  const core = rows.filter(roleIsCore)
+    .sort((a, b) => (coreRank(a.role) ?? 99) - (coreRank(b.role) ?? 99));
+  const advisory = rows.filter(m => !roleIsCore(m) && roleIsAdvisory(m))
     .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-  const advisory = rows.filter(m => m.category === 'advisory')
+  const team = rows.filter(m => !roleIsCore(m) && !roleIsAdvisory(m))
     .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
   const section = (title, members) => members.length ? `
@@ -2476,7 +2505,7 @@ registerForm.addEventListener('submit', async (e) => {
     try { await cred.user.getIdToken(true); } catch (tokenErr) { console.warn('Token refresh failed, continuing anyway:', tokenErr?.code || tokenErr); }
 
     let photoURL = '';
-    if (f.photo.files[0]) photoURL = await uploadFile(`photos/${uid}/photo_${Date.now()}`, f.photo.files[0]);
+    if (f.photo.files[0]) photoURL = await uploadFile(`photos/${uid}/photo_${Date.now()}_${Math.random().toString(36).slice(2,8)}`, f.photo.files[0]);
 
     await setDoc(doc(db, 'members', uid), {
       uid,
@@ -2524,7 +2553,7 @@ registerForm.addEventListener('submit', async (e) => {
     for (const pet of pets) {
       try {
         if (pet.photoFile) {
-          try { pet.photoURL = await uploadFile(`petPhotos/${uid}/pet_${Date.now()}`, pet.photoFile); }
+          try { pet.photoURL = await uploadFile(`petPhotos/${uid}/pet_${Date.now()}_${Math.random().toString(36).slice(2,8)}`, pet.photoFile); }
           catch (photoErr) { console.warn('Pet photo upload failed (continuing without it):', photoErr?.code || photoErr); }
         }
         delete pet.photoFile;
@@ -3266,7 +3295,7 @@ document.getElementById('petEditForm')?.addEventListener('submit', async (e) => 
   btn.disabled = true;
   try {
     if (pet.photoFile) {
-      try { pet.photoURL = await uploadFile(`petPhotos/${currentUser.uid}/pet_${Date.now()}`, pet.photoFile); }
+      try { pet.photoURL = await uploadFile(`petPhotos/${currentUser.uid}/pet_${Date.now()}_${Math.random().toString(36).slice(2,8)}`, pet.photoFile); }
       catch (photoErr) { console.warn('Pet photo upload failed (continuing without it):', photoErr?.code || photoErr); }
     }
     delete pet.photoFile;
@@ -3411,12 +3440,13 @@ async function loadInspectionsCard() {
   } catch (e) { console.warn('Inspections load failed:', e?.code || e); }
 }
 // Resident transparency view: a daily/weekly/monthly summary (counts +
-// issues found) so residents can see the facility is being checked, plus
-// the five most recent as a simple pass/issue list. The full checklist —
-// exactly what was flagged, staff notes — stays admin-only.
+// issues found), plus the five most recent as tappable rows that open the
+// full section-by-section checklist — residents can see exactly what was
+// checked and what was flagged, same detail the committee sees.
 function renderInspectionsCard(all) {
   const el = document.getElementById('inspectionsCard');
   if (!el || !all.length) { if (el) el.innerHTML = ''; return; }
+  window.__residentInspections = all;
 
   const now = new Date();
   const startOfToday = new Date(now); startOfToday.setHours(0, 0, 0, 0);
@@ -3440,7 +3470,7 @@ function renderInspectionsCard(all) {
       <div style="font-size:10.5px; margin-top:2px; color:${p.issues ? 'var(--warning,#B8860B)' : 'var(--success,#2e7d5b)'};">${p.issues ? p.issues + ' issue' + (p.issues > 1 ? 's' : '') : 'all clear'}</div>
     </div>`;
 
-  const recent = all.slice(0, 5);
+  const recent = all.slice(0, 8);
   el.innerHTML = `
     <div class="card card-pad">
       <h3 style="font-size:15px; margin-bottom:10px;">🔍 Facility Inspections</h3>
@@ -3449,17 +3479,54 @@ function renderInspectionsCard(all) {
         ${box('This Week', week)}
         ${box('This Month', month)}
       </div>
-      <div class="t-muted" style="font-size:11.5px; margin-bottom:6px;">Most recent</div>
-      ${recent.map(r => `
-        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 0; border-bottom:1px solid var(--line,#EAE6DC);">
-          <div>
+      <div class="t-muted" style="font-size:11.5px; margin-bottom:6px;">Most recent — tap to see details</div>
+      ${recent.map((r, i) => `
+        <button type="button" data-insp-detail="${i}" style="width:100%; text-align:left; background:none; border:none; border-bottom:1px solid var(--line,#EAE6DC); padding:8px 0; cursor:pointer; display:flex; align-items:center; justify-content:space-between; gap:10px;">
+          <span>
             <b style="font-size:13.5px;">${escapeHtml(INSPECTION_TYPES[r.formType]?.label || r.formType)}</b>
-            <div class="t-muted" style="font-size:11.5px; margin-top:1px;">${r.tower ? 'Tower ' + escapeHtml(r.tower) + ' · ' : ''}${r.createdAt ? fmtDate(r.createdAt) : ''}</div>
-          </div>
+            <span class="t-muted" style="font-size:11.5px; display:block; margin-top:1px;">${r.tower ? 'Tower ' + escapeHtml(r.tower) + ' · ' : ''}${r.createdAt ? fmtDate(r.createdAt) : ''} · view ›</span>
+          </span>
           ${r.issueCount ? `<span class="badge badge-warning">${r.issueCount} issue${r.issueCount > 1 ? 's' : ''}</span>` : `<span class="badge badge-success">All clear</span>`}
-        </div>`).join('')}
+        </button>`).join('')}
     </div>`;
+  el.querySelectorAll('[data-insp-detail]').forEach(b =>
+    b.addEventListener('click', () => openResidentInspectionDetail(Number(b.dataset.inspDetail))));
 }
+
+// Full section-by-section checklist for one inspection, shown to a resident
+// in the same modal the rest of the app uses. Issues (with any note) surface
+// first in each section, then a compact "N OK" line.
+function openResidentInspectionDetail(idx) {
+  const r = (window.__residentInspections || [])[idx];
+  if (!r) return;
+  const sections = r.sections || [];
+  const body = sections.map(sec => {
+    const issues = sec.items.filter(it => it.status === 'issue');
+    const oks = sec.items.filter(it => it.status === 'ok');
+    return `
+      <div style="margin-bottom:12px; border:1px solid var(--line,#EAE6DC); border-radius:10px; padding:12px;">
+        <b style="font-size:13.5px;">${escapeHtml(sec.title)}</b>
+        ${issues.length ? issues.map(it => `
+          <div style="padding:6px 0; border-bottom:1px solid var(--line,#EAE6DC);">
+            <div style="display:flex; justify-content:space-between; gap:8px;"><span style="font-size:12.5px;">${escapeHtml(it.label)}</span><span class="badge badge-warning">Issue</span></div>
+            ${it.note ? `<div class="t-muted" style="font-size:11.5px; margin-top:2px;">${escapeHtml(it.note)}</div>` : ''}
+          </div>`).join('') : ''}
+        ${oks.length ? `<div class="t-muted" style="font-size:11.5px; margin-top:8px;">${oks.length} item${oks.length > 1 ? 's' : ''} OK</div>` : ''}
+      </div>`;
+  }).join('');
+
+  const title = (INSPECTION_TYPES[r.formType]?.label || r.formType) + (r.tower ? ' — Tower ' + r.tower : '');
+  const meta = 'Filed by ' + (r.createdByName || '—') + (r.createdAt ? ' · ' + fmtDate(r.createdAt) : '');
+  openInfoModal(title, `<p class="t-muted" style="font-size:12px; margin-bottom:12px;">${escapeHtml(meta)}</p>${body || '<p class="t-muted">No checklist details recorded.</p>'}`);
+}
+
+function openInfoModal(title, bodyHtml) {
+  document.getElementById('inspectionInfoTitle').textContent = title;
+  document.getElementById('inspectionInfoBody').innerHTML = bodyHtml;
+  document.getElementById('inspectionInfoModalBackdrop').classList.add('open');
+}
+document.getElementById('closeInspectionInfoModal')?.addEventListener('click', () =>
+  document.getElementById('inspectionInfoModalBackdrop').classList.remove('open'));
 
 function renderMyBookings() {
   const el = document.getElementById('myBookingsList');
@@ -3757,7 +3824,7 @@ document.getElementById('complaintForm')?.addEventListener('submit', async (e) =
   btn.disabled = true;
   try {
     let photoURL = '';
-    if (f.photo.files[0]) photoURL = await uploadFile(`complaintPhotos/${currentUser.uid}/complaint_${Date.now()}`, f.photo.files[0]);
+    if (f.photo.files[0]) photoURL = await uploadFile(`complaintPhotos/${currentUser.uid}/complaint_${Date.now()}_${Math.random().toString(36).slice(2,8)}`, f.photo.files[0]);
     await addDoc(collection(db, 'complaints'), {
       raisedByUid: currentUser.uid, raisedByName: currentMember.name,
       tower: currentMember.tower, flatNumber: currentMember.flatNumber,

@@ -144,6 +144,7 @@
 
 <div id="toast-region"></div>
 
+<script src="./back-button-handler.js"></script>
 <!-- Service worker registration lives here, not in the Firebase module —
      same reasoning as index.html: if the SDK fails to load, offline
      support and installability shouldn't silently never register. -->
@@ -314,7 +315,16 @@ document.getElementById('entryForm').addEventListener('submit', async (e) => {
 const PURPOSE_LABEL = { guest: 'Guest', delivery: 'Delivery', cab: 'Cab', service: 'Service', other: 'Other' };
 
 function subscribeVisitors() {
-  const q = query(collection(db, 'visitors'), where('status', 'in', ['pending', 'approved', 'checked_in']));
+  // The query MUST be at least as narrow as the read rule (Firestore rejects
+  // a query that could return docs the rule forbids, rather than filtering
+  // after). The rule lets a guard read only visitors they created, so the
+  // query filters on createdByGuardUid too — otherwise this whole listener
+  // fails with permission-denied and the queue shows empty.
+  const q = query(
+    collection(db, 'visitors'),
+    where('createdByGuardUid', '==', currentGuard.uid),
+    where('status', 'in', ['pending', 'approved', 'checked_in'])
+  );
   unsubscribeVisitors = onSnapshot(q, (snap) => {
     const rows = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     rows.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));

@@ -42,7 +42,7 @@
   base-uri 'self';
   form-action 'self';
 ">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Admin Panel — MHMRWS Digital Portal</title>
 <meta name="robots" content="noindex">
 <meta name="theme-color" content="#0A1B33">
@@ -67,6 +67,7 @@
 <script src="./xlsx.full.min.js"></script>
 <script src="./jszip.min.js"></script>
 <script src="./chart.umd.min.js"></script>
+<script src="./back-button-handler.js"></script>
 <style>
   body{ background:var(--paper); }
   .login-screen{ min-height:100vh; display:grid; place-items:center; background:var(--gradient-navy); padding:20px; }
@@ -2269,7 +2270,9 @@ async function checkStorageAvailable() {
 /* ---------------------------------------------------------------------- */
 /*  Nav / view switching                                                  */
 /* ---------------------------------------------------------------------- */
+let currentAdminView = 'overview';
 function switchView(view) {
+  currentAdminView = view;
   document.querySelectorAll('.view-panel').forEach(p => p.classList.remove('active'));
   const panel = document.getElementById('view-' + view);
   if (panel) {
@@ -2295,6 +2298,16 @@ function switchView(view) {
   if (view === 'operations' && !window.__operationsLoaded) { window.__operationsLoaded = true; loadOperationsData(); }
 }
 document.querySelectorAll('#sideNav button').forEach(btn => btn.addEventListener('click', () => switchView(btn.dataset.view)));
+
+// Back button: if the admin is on any view other than Overview, back returns
+// to Overview rather than exiting the app. On Overview it falls through to
+// the handler's double-press-to-exit guard.
+if (window.__registerBackStep) {
+  window.__registerBackStep(() => {
+    if (currentAdminView !== 'overview') { switchView('overview'); return true; }
+    return false;
+  });
+}
 
 // Universal Search — searches across everything already loaded in memory
 // (Members, Payments, Events, Expenses), so it costs no extra Firestore
@@ -4375,11 +4388,19 @@ async function submitMemberEdit(e, original) {
         }
       });
     } else {
-      await updateDoc(doc(db, 'members', original.id), patch);
+      // members and membersPublic must move together — a bare updateDoc on
+      // each meant a failed second write left the public/QR record showing
+      // the old name while the member record had the new one. A batch makes
+      // both land or neither.
       if (original.status === 'approved' && original.publicToken) {
-        await updateDoc(doc(db, 'membersPublic', original.publicToken), {
+        const batch = writeBatch(db);
+        batch.update(doc(db, 'members', original.id), patch);
+        batch.update(doc(db, 'membersPublic', original.publicToken), {
           name: patch.name, tower, flatNumber, residentType: patch.residentType, updatedAt: serverTimestamp()
         });
+        await batch.commit();
+      } else {
+        await updateDoc(doc(db, 'members', original.id), patch);
       }
     }
     await logAudit(auth.currentUser, 'edit_member', { memberId: original.id, flatChanged });

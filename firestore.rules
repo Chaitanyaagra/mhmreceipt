@@ -98,6 +98,12 @@ service cloud.firestore {
         && exists(/databases/$(database)/documents/staff/$(request.auth.uid))
         && staffDoc().data.active == true;
     }
+    // A Managing Staff triages the whole queue; a Supervisor is a field
+    // worker who should only ever see complaints assigned to them. This
+    // distinction is enforced in the complaints read rule, not just the UI.
+    function isManagerStaff() {
+      return isStaff() && staffDoc().data.role == 'manager';
+    }
     /* ---------- validation helpers ---------- */
     //
     // ABSENCE vs NULL — read this before editing anything below.
@@ -159,8 +165,33 @@ service cloud.firestore {
       return v in ['pending_approval', 'pending_verification', 'verified', 'rejected', 'voided'];
     }
     // "2025-26" style financial year.
+    // Build today's date as YYYY-MM-DD from request.time for "not in the
+    // past" checks. UTC-based; the IST/UTC edge only matters in the ~5.5h
+    // before UTC midnight, where being a day lenient is harmless for a
+    // past-date guard (it never wrongly rejects a valid same-day booking).
+    function todayISO() {
+      return string(request.time.year()) + '-'
+        + (request.time.month() < 10 ? '0' : '') + string(request.time.month()) + '-'
+        + (request.time.day() < 10 ? '0' : '') + string(request.time.day());
+    }
     function isValidFY(v) {
-      return v is string && v.matches('^[0-9]{4}-[0-9]{2}$');
+      // Format: YYYY-YY, then bound the start-year to a window around now so
+      // a raw client can't post into 1990-91 or 2035-36. Indian FY starts in
+      // April: current FY start-year is this calendar year once past March,
+      // else last year. Accept [now-2 .. now+1] — covers backdated office
+      // entries and just-before-new-FY payments. The 4-char year prefix is
+      // read with a substring slice (supported on strings in rules) and
+      // compared as an int.
+      return v is string
+          && v.matches('^[0-9]{4}-[0-9]{2}$')
+          && fyStartYear(v) >= currentFyStart() - 2
+          && fyStartYear(v) <= currentFyStart() + 1;
+    }
+    function fyStartYear(v) {
+      return int(v[0:4]);
+    }
+    function currentFyStart() {
+      return request.time.year() - (request.time.month() >= 4 ? 0 : 1);
     }
     // 32 hex characters from crypto.getRandomValues() — see newPublicToken()
     // in app-common.js. 128 bits of entropy is not walkable.
@@ -349,8 +380,16 @@ service cloud.firestore {
                     && (request.resource.data.type != 'event' || isNonEmptyString(request.resource.data.eventId, 200))
                     && absentOrNull(request.resource.data, 'receiptNumber')
                     && absentOrNull(request.resource.data, 'publicToken')
-                    && isNonEmptyString(request.resource.data.residentName, 100)
-                    && isNonEmptyString(request.resource.data.flatNumber, 30)
+                    // Name and flat must match the caller's OWN member record —
+                    // not just be non-empty. Without this a modified client
+                    // could submit a payment under their own memberUid but
+                    // carrying another resident's name/flat, and verifyPayment()
+                    // copies these straight onto the issued receipt, so the
+                    // wrong details would propagate into the financial record.
+                    && request.resource.data.residentName
+                       == get(/databases/$(database)/documents/members/$(request.auth.uid)).data.name
+                    && request.resource.data.flatNumber
+                       == get(/databases/$(database)/documents/members/$(request.auth.uid)).data.flatNumber
                     && isOptionalString(request.resource.data, 'utrOrChequeNo', 40))
                     // Treasurer / Super Admin recording a payment handed in or
                     // confirmed at the office — cash, cheque, or a UPI/bank
@@ -415,8 +454,17 @@ service cloud.firestore {
                     && isValidAmount(request.resource.data.amount)
                     && isValidPaymentMode(request.resource.data.mode)
                     && isValidFY(request.resource.data.financialYear)
-                    && isNonEmptyString(request.resource.data.residentName, 100)
-                    && isNonEmptyString(request.resource.data.flatNumber, 30)
+                    // Name/flat must still match the (locked) memberUid's real
+                    // record — not merely be non-empty. Otherwise a correction
+                    // edit could keep memberUid but swap in another resident's
+                    // name/flat, which then prints on the receipt and shows in
+                    // ledger/history. exists() guards a member deleted after
+                    // the payment was recorded.
+                    && exists(/databases/$(database)/documents/members/$(resource.data.memberUid))
+                    && request.resource.data.residentName
+                       == get(/databases/$(database)/documents/members/$(resource.data.memberUid)).data.name
+                    && request.resource.data.flatNumber
+                       == get(/databases/$(database)/documents/members/$(resource.data.memberUid)).data.flatNumber
                     && isOptionalString(request.resource.data, 'utrOrChequeNo', 40)
                     && isOptionalString(request.resource.data, 'remarks', 500)
                     // A receipt number, once issued, is never rewritten or removed —
@@ -424,10 +472,14 @@ service cloud.firestore {
                     // a new receipt number, it keeps the one already handed out.
                     && (absentOrNull(resource.data, 'receiptNumber') || unchanged('receiptNumber'))
                     && (absentOrNull(resource.data, 'publicToken') || unchanged('publicToken'))
-                    // Marking something verified must actually produce a receipt.
+                    // Marking something verified must actually produce a receipt
+                    // AND record who verified it and when — an audit-complete
+                    // financial record, not just a receipt number floating free.
                     && (request.resource.data.status != 'verified' || (
                           isNonEmptyString(request.resource.data.receiptNumber, 40)
                           && isPublicToken(request.resource.data.publicToken)
+                          && isNonEmptyString(request.resource.data.verifiedBy, 150)
+                          && request.resource.data.verifiedAt is timestamp
                        ))
                     // Voiding must say who and why — this is the one status
                     // change that permanently reduces someone's recorded
@@ -543,6 +595,18 @@ service cloud.firestore {
     // already gets, rather than this app growing a second, parallel
     // issue-tracking system next to the one that already works.
     match /inspections/{inspectionId} {
+      // Approved residents CAN read inspections — this is a deliberate,
+      // explicitly-requested transparency feature (residents see a
+      // daily/weekly/monthly summary of facility inspections on their
+      // dashboard). The tradeoff, called out honestly: a resident with
+      // devtools can read the full checklist, including any staff notes on a
+      // flagged item, not just the summary the UI shows. That's acceptable
+      // for routine facility checks (lift, housekeeping, MEP), but staff
+      // should NOT put anything sensitive/personal in an inspection note.
+      // If inspections ever need to carry confidential observations, the
+      // right fix is a separate admin-only summary aggregate (a Cloud
+      // Function writing per-period counts residents can read) rather than
+      // exposing the raw documents — not expressible in static rules alone.
       allow read: if isAdmin() || isStaff() || isApprovedMember();
       allow create: if isStaff()
                     && request.resource.data.createdByUid == request.auth.uid
@@ -580,7 +644,10 @@ service cloud.firestore {
     // rating" an enforced fact rather than a UI convention a modified
     // client could ignore.
     match /complaints/{complaintId} {
-      allow read: if isAdmin() || isStaff() || (isSignedIn() && resource.data.raisedByUid == request.auth.uid);
+      allow read: if isAdmin()
+                  || isManagerStaff()
+                  || (isStaff() && resource.data.assignedToUid == request.auth.uid)
+                  || (isSignedIn() && resource.data.raisedByUid == request.auth.uid);
       allow create: if (
                       isSignedIn()
                       && request.resource.data.raisedByUid == request.auth.uid
@@ -862,6 +929,7 @@ service cloud.firestore {
       // verified payment can only be voided, never quietly edited back to
       // looking like it never happened.
       allow update: if canVerifyPayments()
+                    && request.resource.data.status in ['approved', 'pending_approval', 'rejected', 'voided']
                     && (absentOrNull(resource.data, 'addedBy') || unchanged('addedBy'))
                     && (absentOrNull(resource.data, 'addedAt') || unchanged('addedAt'))
                     && (
@@ -953,7 +1021,15 @@ service cloud.firestore {
     // kind of thing an AGM would want visible.
     match /budgets/{fy} {
       allow read: if true;
-      allow create, update: if canVerifyPayments() && request.resource.data.categories is map;
+      // categories is an arbitrary-keyed map, and Firestore rules can't
+      // iterate it to check each value is a non-negative finite number — the
+      // admin UI enforces that, and a future Cloud Function is the right
+      // place for authoritative validation. What we CAN enforce here: the
+      // doc id is a valid FY, categories is a map, and the doc isn't huge.
+      allow create, update: if canVerifyPayments()
+                            && isValidFY(fy)
+                            && request.resource.data.categories is map
+                            && request.resource.size() < 100000;
       // Categories can already be added, changed, or zeroed out via update —
       // there's no case where losing the whole FY's budget record is the
       // right fix for a mistake, only editing it is.
@@ -967,7 +1043,10 @@ service cloud.firestore {
     // reasoning as "void, don't delete" for individual transactions.
     match /monthClosures/{yearMonth} {
       allow read: if true;
-      allow create, update: if canVerifyPayments();
+      allow create, update: if canVerifyPayments()
+                            && request.resource.data.closedAt is timestamp
+                            && request.resource.data.allChecksOk is bool
+                            && request.resource.size() < 5000;
       allow delete: if false;
     }
 
@@ -1084,6 +1163,7 @@ service cloud.firestore {
                     && request.resource.data.facilityName
                        == get(/databases/$(database)/documents/facilities/$(request.resource.data.facilityId)).data.name
                     && request.resource.data.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+                    && request.resource.data.date >= todayISO()
                     && request.resource.data.slot in ['morning', 'evening', 'full_day']
                     && request.resource.data.residentName
                        == get(/databases/$(database)/documents/members/$(request.auth.uid)).data.name
@@ -1168,6 +1248,7 @@ service cloud.firestore {
                     && request.resource.data.flatNumber
                        == get(/databases/$(database)/documents/members/$(request.auth.uid)).data.flatNumber
                     && request.resource.data.expectedDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+                    && request.resource.data.expectedDate >= todayISO()
                     && isOptionalString(request.resource.data, 'purpose', 200);
       allow update: if isSignedIn() && isOwner(resource.data.memberUid)
                     && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
@@ -1295,8 +1376,10 @@ service cloud.firestore {
       allow read: if isAdmin()
                   || (isGuard() && resource.data.createdByGuardUid == request.auth.uid)
                   || (isApprovedMember()
-                      && resource.data.tower == get(/databases/$(database)/documents/members/$(request.auth.uid)).data.tower
-                      && resource.data.flatNumber == get(/databases/$(database)/documents/members/$(request.auth.uid)).data.flatNumber);
+                      && resource.data.flatKey ==
+                         get(/databases/$(database)/documents/members/$(request.auth.uid)).data.tower
+                         + '_' +
+                         get(/databases/$(database)/documents/members/$(request.auth.uid)).data.flatNumber);
 
       allow create: if isGuard()
                     && isNonEmptyString(request.resource.data.visitorName, 100)

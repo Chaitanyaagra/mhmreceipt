@@ -101,6 +101,7 @@
 
 <div id="toast-region"></div>
 
+<script src="./back-button-handler.js"></script>
 <!-- Service worker registration lives here, not in the Firebase module —
      same reasoning as index.html: if the SDK fails to load, offline
      support and installability shouldn't silently never register. -->
@@ -136,7 +137,9 @@ function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id)?.classList.add('active');
 }
+let currentStaffTab = 'home';
 function showTab(name) {
+  currentStaffTab = name;
   document.querySelectorAll('.st-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
   document.querySelectorAll('.tab-panel').forEach(p => p.style.display = 'none');
   document.getElementById('tab-' + name).style.display = 'block';
@@ -146,6 +149,14 @@ function showTab(name) {
   if (name === 'complaints') renderComplaints();
 }
 document.querySelectorAll('.st-tab').forEach(b => b.addEventListener('click', () => showTab(b.dataset.tab)));
+// Back button: from any tab other than Home, back returns to Home rather
+// than exiting the app.
+if (window.__registerBackStep) {
+  window.__registerBackStep(() => {
+    if (currentStaffTab !== 'home') { showTab('home'); return true; }
+    return false;
+  });
+}
 
 /* ---------------------------------------------------------------------- */
 /*  Login                                                                  */
@@ -212,25 +223,30 @@ onAuthStateChanged(auth, async (user) => {
 /* ---------------------------------------------------------------------- */
 /*  Data loads                                                             */
 /* ---------------------------------------------------------------------- */
+let inspectionsLoadFailed = false;
 async function loadMyInspections() {
   try {
     const snap = await getDocs(query(collection(db, 'inspections'), where('createdByUid', '==', currentStaff.uid)));
     myInspections = snap.docs.map(d => ({ id: d.id, ...d.data() }))
       .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
-  } catch (e) { console.warn('Inspection history load failed:', e?.code || e); myInspections = []; }
+    inspectionsLoadFailed = false;
+  } catch (e) { console.warn('Inspection history load failed:', e?.code || e); myInspections = []; inspectionsLoadFailed = true; }
 }
 let allStaffList = [];
 async function loadComplaints() {
   try {
-    const snap = await getDocs(collection(db, 'complaints'));
-    const all = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+    // A Managing Staff triages the whole queue; a Supervisor may only read
+    // complaints assigned to them (enforced by the rule now, not just the
+    // UI). The query must match: a supervisor filters on assignedToUid, so
+    // other residents' complaints never even reach their browser.
+    let snap;
+    if (currentStaff.role === 'manager') {
+      snap = await getDocs(collection(db, 'complaints'));
+    } else {
+      snap = await getDocs(query(collection(db, 'complaints'), where('assignedToUid', '==', currentStaff.uid)));
+    }
+    myComplaints = snap.docs.map(d => ({ id: d.id, ...d.data() }))
       .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
-    // A Managing Staff triages the whole queue (and assigns work), so they
-    // see everything. A Supervisor is a field worker — they see only what's
-    // been assigned to them, nothing else.
-    myComplaints = currentStaff.role === 'manager'
-      ? all
-      : all.filter(c => c.assignedToUid === currentStaff.uid);
   } catch (e) { console.warn('Complaints load failed:', e?.code || e); myComplaints = []; }
 
   // Managing Staff needs the staff list to assign complaints to supervisors.
@@ -251,7 +267,7 @@ function renderHome() {
   el.innerHTML = `
     <div class="card card-pad" style="margin-bottom:12px;">
       <div style="display:flex; justify-content:space-between; align-items:center;">
-        <div><div class="t-muted" style="font-size:11.5px;">Inspections filed</div><div style="font-size:22px; font-weight:800;">${myInspections.length}</div></div>
+        <div><div class="t-muted" style="font-size:11.5px;">Inspections filed</div><div style="font-size:22px; font-weight:800;">${inspectionsLoadFailed ? '—' : myInspections.length}</div>${inspectionsLoadFailed ? '<div style="font-size:10px; color:var(--danger);">couldn\'t load</div>' : ''}</div>
         <div><div class="t-muted" style="font-size:11.5px;">${complaintLabel}</div><div style="font-size:22px; font-weight:800; color:${openComplaints ? 'var(--danger)' : 'var(--success)'};">${openComplaints}</div></div>
       </div>
     </div>

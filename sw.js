@@ -8,7 +8,7 @@
    Bump CACHE_NAME on any future structural change to force a clean cache.
    ========================================================================== */
 
-const CACHE_NAME = 'mhmrws-shell-v22';
+const CACHE_NAME = 'mhmrws-shell-v29';
 const SHELL_FILES = [
   './',
   './index.html',
@@ -27,6 +27,7 @@ const SHELL_FILES = [
   './xlsx.full.min.js',
   './ui-a11y.js',
   './install-prompt.js',
+  './back-button-handler.js',
   './manifest.json',
   './manifest-admin.json',
   './manifest-guard.json',
