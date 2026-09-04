@@ -691,6 +691,34 @@ export const INSPECTION_CRITICAL_ITEMS = new Set([
 // this app already has (see firestore.rules' complaints.create) — a flagged
 // checklist item becomes a normal complaint via this mapping rather than a
 // parallel category system just for inspections.
+// How often each inspection type is expected, and whether it's filed once
+// society-wide or once per tower. Drives the "what's due / what's been
+// missed" scheduler in the admin panel. Ported from the inspection app,
+// where daily-tower was the only per-tower one and MEP was weekly.
+// Staff trades — the kind of work a staff member does, separate from their
+// role (manager/supervisor, which is the permission level). 'general' is the
+// fallback for someone not tied to one trade (e.g. a Managing Staff who just
+// triages). The category is the complaint category this trade usually
+// handles, used to suggest the right person when assigning.
+export const STAFF_TRADES = {
+  plumber:     { label: 'Plumber',     category: 'plumbing' },
+  electrician: { label: 'Electrician', category: 'electrical' },
+  stp:         { label: 'STP Operator', category: 'plumbing' },
+  carpenter:   { label: 'Carpenter',   category: 'maintenance' },
+  cleaning:    { label: 'Cleaning',    category: 'housekeeping' },
+  civil:       { label: 'Civil',       category: 'maintenance' },
+  guard:       { label: 'Guard',       category: 'security' },
+  gardener:    { label: 'Gardener',    category: 'housekeeping' },
+  general:     { label: 'General',     category: null }
+};
+
+export const INSPECTION_SCHEDULE = {
+  'daily-tower':    { frequency: 'daily',  perTower: true },
+  'daily-security': { frequency: 'daily',  perTower: false },
+  'club-house':     { frequency: 'daily',  perTower: false },
+  'weekly-mep':     { frequency: 'weekly', perTower: false }
+};
+
 export function inspectionSectionToComplaintCategory(sectionTitle) {
   const t = String(sectionTitle || '').toLowerCase();
   if (t.includes('security') || t.includes('gate') || t.includes('cctv')) return 'security';
@@ -1003,7 +1031,6 @@ export async function generateRegistrationConfirmationPDF({ formData, membership
   if (formData.occupation) row('Occupation', formData.occupation);
   if (formData.bloodGroup) row('Blood Group', formData.bloodGroup);
   row('Resident Type', RESIDENT_TYPE_LABEL[formData.residentType] || formData.residentType);
-  if (formData.registryDate) row('Date of Registry', fmtDate(formData.registryDate));
   if (formData.coOwnerName) row("Co-Owner's Name", formData.coOwnerName);
   if (formData.coOwnerMobile) row("Co-Owner's Mobile", formData.coOwnerMobile);
   if (formData.coOwnerEmail) row("Co-Owner's Email", formData.coOwnerEmail);

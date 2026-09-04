@@ -527,6 +527,8 @@ service cloud.firestore {
       allow create, update: if canApproveMembers()
                             && isNonEmptyString(request.resource.data.name, 100)
                             && request.resource.data.role in ['manager', 'supervisor']
+                            && (absentOrNull(request.resource.data, 'trade') || request.resource.data.trade in
+                               ['plumber', 'electrician', 'stp', 'carpenter', 'cleaning', 'civil', 'guard', 'gardener', 'general'])
                             && request.resource.data.active is bool;
       allow delete: if canApproveMembers();
     }
@@ -589,11 +591,6 @@ service cloud.firestore {
                          ['security', 'housekeeping', 'maintenance', 'electrical', 'plumbing', 'noise', 'parking', 'other']
                       && request.resource.data.status == 'open'
                     ) || (
-                      // A flagged item from a staff-filed inspection becomes
-                      // an ordinary complaint, attributed to the staff
-                      // member who filed it (never a resident's uid) and
-                      // explicitly tagged so it's visually distinguishable
-                      // from a resident's own report in the same list.
                       isStaff()
                       && request.resource.data.raisedByUid == request.auth.uid
                       && isNonEmptyString(request.resource.data.title, 200)
@@ -603,43 +600,69 @@ service cloud.firestore {
                       && request.resource.data.status == 'open'
                       && request.resource.data.source == 'inspection'
                     );
-      // Admin's own update branch is now locked the same way the resident's
-      // rating-branch below already was: only the fields updateComplaintStatus()
-      // actually writes are allowed to change. Previously only raisedByUid
-      // was protected, meaning title/description/category — the resident's
-      // original submission — could be silently rewritten by a raw write.
       allow update: if (
+                      // --- Committee: full control incl. assigning to staff
+                      // and setting a target/SLA date. Still can never rewrite
+                      // what the complaint was originally about.
                       canApproveMembers()
-                      && unchanged('raisedByUid')
-                      && unchanged('title')
-                      && unchanged('description')
-                      && unchanged('category')
-                      && unchanged('createdAt')
-                      && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'resolutionNote', 'resolvedAt', 'updatedAt'])
-                      && (isValidComplaintStatus(request.resource.data.status))
+                      && unchanged('raisedByUid') && unchanged('title')
+                      && unchanged('description') && unchanged('category') && unchanged('createdAt')
+                      && request.resource.data.diff(resource.data).affectedKeys()
+                           .hasOnly(['status', 'resolutionNote', 'resolvedAt', 'updatedAt', 'assignedToUid', 'assignedToName', 'targetDate', 'assignedAt'])
+                      && isValidComplaintStatus(request.resource.data.status)
                       && isOptionalString(request.resource.data, 'resolutionNote', 500)
                     )
                     || (
-                      // Staff can work a complaint (open it, resolve it)
-                      // exactly the same field-scoped way admin can, but
-                      // never delete or rewrite what it was originally about.
+                      // --- Staff assigning/routing work: any active staff
+                      // member (a Managing Staff triaging the queue, say) can
+                      // assign a complaint to a supervisor and set its target
+                      // date, without needing to be committee. This branch
+                      // touches ONLY the assignment fields — never status or
+                      // the original complaint text — so it can't be used to
+                      // silently resolve or rewrite a complaint.
                       isStaff()
-                      && unchanged('raisedByUid')
-                      && unchanged('title')
-                      && unchanged('description')
-                      && unchanged('category')
-                      && unchanged('createdAt')
-                      && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'resolutionNote', 'resolvedAt', 'updatedAt'])
-                      && (isValidComplaintStatus(request.resource.data.status))
+                      && unchanged('raisedByUid') && unchanged('title')
+                      && unchanged('description') && unchanged('category') && unchanged('createdAt')
+                      && unchanged('status')
+                      && request.resource.data.diff(resource.data).affectedKeys()
+                           .hasOnly(['assignedToUid', 'assignedToName', 'targetDate', 'assignedAt', 'updatedAt'])
+                    )
+                    || (
+                      // --- Assigned staff: may work ONLY a complaint assigned
+                      // to them (resource.data.assignedToUid == their uid), and
+                      // only move it forward / add a resolution note. They
+                      // cannot reassign it, retarget its date, or touch a
+                      // complaint that isn't theirs.
+                      isStaff()
+                      && resource.data.assignedToUid == request.auth.uid
+                      && unchanged('raisedByUid') && unchanged('title')
+                      && unchanged('description') && unchanged('category') && unchanged('createdAt')
+                      && unchanged('assignedToUid') && unchanged('targetDate')
+                      && request.resource.data.diff(resource.data).affectedKeys()
+                           .hasOnly(['status', 'resolutionNote', 'resolvedAt', 'updatedAt'])
+                      && request.resource.data.status in ['in_progress', 'resolved']
                       && isOptionalString(request.resource.data, 'resolutionNote', 500)
                     )
                     || (
+                      // --- Resident, rating a closed/resolved complaint (unchanged from before)
                       isSignedIn() && isOwner(resource.data.raisedByUid)
                       && resource.data.status in ['resolved', 'closed']
                       && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['satisfactionRating', 'updatedAt'])
                       && request.resource.data.satisfactionRating is int
                       && request.resource.data.satisfactionRating >= 1
                       && request.resource.data.satisfactionRating <= 5
+                    )
+                    || (
+                      // --- Resident verification of a resolved complaint:
+                      // the person who raised it either ACCEPTS the fix
+                      // (resolved -> closed) or REOPENS it if it isn't
+                      // actually fixed (resolved -> in_progress). Only the
+                      // raiser, only from 'resolved', only these two targets.
+                      isSignedIn() && isOwner(resource.data.raisedByUid)
+                      && resource.data.status == 'resolved'
+                      && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt', 'residentVerifiedAt', 'reopenNote'])
+                      && request.resource.data.status in ['closed', 'in_progress']
+                      && isOptionalString(request.resource.data, 'reopenNote', 500)
                     );
       allow delete: if isAdmin();
     }

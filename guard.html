@@ -166,7 +166,9 @@ import {
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 import { showToast, escapeHtml, TOWER_IDS, flatsForTower, flatKey } from './app-common.js';
 import { installOfflineBanner } from './ui-a11y.js';
+import { installAppInstallPrompt } from './install-prompt.js';
 installOfflineBanner();
+installAppInstallPrompt({ appName: 'MHMRWS Gate', showToast });
 
 let currentGuard = null;
 let unsubscribeVisitors = null;

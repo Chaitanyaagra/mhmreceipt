@@ -742,6 +742,11 @@
     <!-- ---------------- COMPLAINTS ---------------- -->
     <div class="view-panel" id="view-complaints">
       <div class="topbar"><h2 class="view-title">Complaints</h2></div>
+      <div class="card" style="margin-bottom:16px;">
+        <h3 style="font-size:15px; margin-bottom:4px;">This Week's Performance</h3>
+        <p class="t-muted" style="font-size:12px;">Complaints raised and resolved this week, with a rating based on how many got resolved.</p>
+        <div id="complaintWeeklyReport" style="margin-top:12px;"><p class="t-muted" style="font-size:12.5px;">Loading…</p></div>
+      </div>
       <div class="tab-strip">
         <button data-cptab="open" class="active">Open</button>
         <button data-cptab="in_progress">In Progress</button>
@@ -894,9 +899,21 @@
       </div>
       <div class="table-wrap responsive" style="margin-bottom:24px;">
         <table>
-          <thead><tr><th>Name</th><th>Role</th><th>Email</th><th>Status</th><th>Actions</th></tr></thead>
-          <tbody id="staffBody"><tr><td colspan="5" class="t-muted">Loading…</td></tr></tbody>
+          <thead><tr><th>Name</th><th>Role</th><th>Trade</th><th>Email</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="staffBody"><tr><td colspan="6" class="t-muted">Loading…</td></tr></tbody>
         </table>
+      </div>
+
+      <div class="card" style="margin-bottom:12px;">
+        <h3 style="font-size:15.5px; margin-bottom:4px;">Today's Inspection Schedule</h3>
+        <p class="t-muted" style="font-size:12px;">What's expected today and this week, and what's still pending.</p>
+        <div id="inspectionSchedule" style="margin-top:12px;"><p class="t-muted" style="font-size:12.5px;">Loading…</p></div>
+      </div>
+
+      <div class="card" style="margin-bottom:12px;">
+        <h3 style="font-size:15.5px; margin-bottom:4px;">Inspection Analytics</h3>
+        <p class="t-muted" style="font-size:12px;">A snapshot across every filed inspection — totals, activity, and where the issues are.</p>
+        <div id="inspectionAnalytics" style="margin-top:12px;"><p class="t-muted" style="font-size:12.5px;">Loading…</p></div>
       </div>
 
       <div class="card" style="margin-bottom:12px;">
@@ -908,6 +925,20 @@
           <thead><tr><th>Type</th><th>Tower</th><th>Filed By</th><th>Issues</th><th>Time</th></tr></thead>
           <tbody id="inspectionLogBody"><tr><td colspan="5" class="t-muted">Loading…</td></tr></tbody>
         </table>
+      </div>
+
+      <div class="card" style="margin-top:16px;">
+        <h3 style="font-size:15.5px; margin-bottom:4px;">📄 Inspection Report Builder</h3>
+        <p class="t-muted" style="font-size:12px; margin-bottom:12px;">Export filed inspections and flagged issues for an RWA meeting or records. Leave dates blank for everything.</p>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;">
+          <div class="field"><label for="inspRptFrom">From (optional)</label><input type="date" id="inspRptFrom"></div>
+          <div class="field"><label for="inspRptTo">To (optional)</label><input type="date" id="inspRptTo"></div>
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button class="btn btn-primary btn-sm" id="inspReportPdfBtn">Download PDF</button>
+          <button class="btn btn-outline btn-sm" id="inspReportXlsxBtn">Download Excel</button>
+        </div>
+        <p class="t-muted" style="font-size:11px; margin-top:8px;">PDF needs internet the first time to load the PDF engine.</p>
       </div>
     </div>
 
@@ -1384,6 +1415,17 @@
         <div class="field"><label for="staffName">Name</label><input type="text" id="staffName" maxlength="100" required placeholder="e.g. Ramesh Kumar"></div>
         <div class="field"><label for="staffEmail">Email</label><input type="email" id="staffEmail" required placeholder="their real email — they'll sign in with this"></div>
         <div class="field"><label for="staffRole">Role</label><select id="staffRole"><option value="supervisor">Supervisor</option><option value="manager">Managing Staff</option></select></div>
+        <div class="field"><label for="staffTrade">Trade / Department</label><select id="staffTrade">
+          <option value="general">General</option>
+          <option value="plumber">Plumber</option>
+          <option value="electrician">Electrician</option>
+          <option value="stp">STP Operator</option>
+          <option value="carpenter">Carpenter</option>
+          <option value="cleaning">Cleaning</option>
+          <option value="civil">Civil</option>
+          <option value="guard">Guard</option>
+          <option value="gardener">Gardener</option>
+        </select></div>
         <p class="t-muted" style="font-size:12px; margin-bottom:12px;">They'll get an email to set their own password — nothing to write down here.</p>
         <button class="btn btn-primary btn-block" type="submit">Create Staff Account</button>
       </form>
@@ -1874,7 +1916,7 @@ import {
   initFamilyMembersEditor, addFamilyMemberRow, collectFamilyMembers,
   initVehiclesEditor, addVehicleRow, collectVehicles,
   initPetsEditor, addPetCard, collectPets, petVaccinationStatus, rentAgreementStatus, tsMillis, todayLocalISO, dateToLocalISO,
-  todaysCelebrations, upcomingCelebrations, celebrationWishMessage
+  todaysCelebrations, upcomingCelebrations, celebrationWishMessage, INSPECTION_TYPES, INSPECTION_SCHEDULE, STAFF_TRADES
 } from './app-common.js';
 
 /* ---------------------------------------------------------------------- */
@@ -2917,6 +2959,15 @@ async function loadComplaints() {
     console.warn('Complaints read failed:', e?.code || e);
     allComplaints = [];
   }
+  // The assign-to-staff dropdown in the complaint detail needs the staff
+  // list. It's normally loaded by the Facility Staff tab, but a committee
+  // member may open a complaint without visiting that tab first, so ensure
+  // it's available here too (cheap, and only fetched once).
+  if (!allStaff || !allStaff.length) {
+    try {
+      allStaff = (await getDocs(collection(db, 'staff'))).docs.map(d => ({ id: d.id, ...d.data() }));
+    } catch (e) { console.warn('Staff list for assignment failed:', e?.code || e); }
+  }
   renderComplaints();
   renderOverview();
 }
@@ -2946,6 +2997,71 @@ function renderComplaints() {
   }).join('') || `<tr><td colspan="6" class="t-muted">No complaints.</td></tr>`;
 
   document.querySelectorAll('[data-open-complaint]').forEach(tr => tr.addEventListener('click', () => openComplaintDetail(tr.dataset.openComplaint)));
+  renderComplaintWeeklyReport();
+}
+
+// Weekly complaint report + rating. "Resolved" here means moved to
+// resolved/closed within the week; the rating is a plain letter grade off
+// the resolution rate so the committee gets an at-a-glance sense of how the
+// week went, plus a resident-satisfaction average when ratings exist.
+function renderComplaintWeeklyReport() {
+  const el = document.getElementById('complaintWeeklyReport');
+  if (!el) return;
+
+  const now = new Date();
+  const weekStart = new Date(now); weekStart.setHours(0, 0, 0, 0); weekStart.setDate(now.getDate() - now.getDay());
+  const prevWeekStart = new Date(weekStart); prevWeekStart.setDate(weekStart.getDate() - 7);
+  const ms = (t) => (t?.seconds ? t.seconds * 1000 : 0);
+
+  const windowStats = (start, end) => {
+    const raised = allComplaints.filter(c => ms(c.createdAt) >= start.getTime() && ms(c.createdAt) < end).length;
+    const resolved = allComplaints.filter(c => ['resolved', 'closed'].includes(c.status) && ms(c.resolvedAt) >= start.getTime() && ms(c.resolvedAt) < end).length;
+    return { raised, resolved };
+  };
+  const thisWeek = windowStats(weekStart, Infinity);
+  const lastWeek = windowStats(prevWeekStart, weekStart.getTime());
+
+  // Resolution rate over complaints that are actually actionable this week:
+  // resolved / (resolved + still-open-raised-this-week). Guard divide-by-zero.
+  const openThisWeek = allComplaints.filter(c => ['open', 'in_progress'].includes(c.status) && ms(c.createdAt) >= weekStart.getTime()).length;
+  const denom = thisWeek.resolved + openThisWeek;
+  const rate = denom ? Math.round((thisWeek.resolved / denom) * 100) : null;
+
+  const grade = rate === null ? '—'
+    : rate >= 90 ? 'A' : rate >= 75 ? 'B' : rate >= 60 ? 'C' : rate >= 40 ? 'D' : 'E';
+  const gradeColor = rate === null ? 'var(--ink-500)'
+    : rate >= 75 ? 'var(--success)' : rate >= 40 ? 'var(--warning)' : 'var(--danger)';
+
+  // Resident satisfaction — average of any star ratings given this week.
+  const ratedThisWeek = allComplaints.filter(c => c.satisfactionRating && ms(c.updatedAt) >= weekStart.getTime());
+  const avgStars = ratedThisWeek.length
+    ? (ratedThisWeek.reduce((s, c) => s + c.satisfactionRating, 0) / ratedThisWeek.length)
+    : null;
+
+  const trendTxt = thisWeek.resolved === lastWeek.resolved ? 'same as last week'
+    : thisWeek.resolved > lastWeek.resolved ? `▲ ${thisWeek.resolved - lastWeek.resolved} more resolved than last week`
+    : `▼ ${lastWeek.resolved - thisWeek.resolved} fewer resolved than last week`;
+
+  const box = (num, label, color) => `
+    <div style="flex:1; min-width:90px; background:var(--paper); border:1px solid var(--line); border-radius:12px; padding:12px 14px; text-align:center;">
+      <div style="font-size:22px; font-weight:800; ${color ? `color:${color};` : ''}">${num}</div>
+      <div class="t-muted" style="font-size:10.5px;">${label}</div>
+    </div>`;
+
+  el.innerHTML = `
+    <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:12px;">
+      ${box(thisWeek.raised, 'Raised this week')}
+      ${box(thisWeek.resolved, 'Resolved this week', 'var(--success)')}
+      ${box(openThisWeek, 'Still open', openThisWeek ? 'var(--danger)' : 'var(--success)')}
+      ${box(rate === null ? '—' : rate + '%', 'Resolution rate')}
+      <div style="flex:1; min-width:90px; background:${gradeColor}; color:#fff; border-radius:12px; padding:12px 14px; text-align:center;">
+        <div style="font-size:22px; font-weight:800;">${grade}</div>
+        <div style="font-size:10.5px; opacity:.85;">Rating</div>
+      </div>
+    </div>
+    <div style="font-size:12px; color:var(--ink-600); margin-bottom:${avgStars ? '6px' : '0'};">${trendTxt}</div>
+    ${avgStars ? `<div style="font-size:12.5px;">Resident satisfaction this week: <b>${avgStars.toFixed(1)}</b> ${'⭐'.repeat(Math.round(avgStars))} <span class="t-muted">(${ratedThisWeek.length} rated)</span></div>` : ''}
+  `;
 }
 document.querySelectorAll('[data-cptab]').forEach(btn => btn.addEventListener('click', () => {
   document.querySelectorAll('[data-cptab]').forEach(b => b.classList.remove('active'));
@@ -2975,12 +3091,26 @@ function openComplaintDetail(id) {
     ${escalationLine}
     <div class="detail-line"><span>Resident</span><span>${escapeHtml(c.raisedByName || '—')}</span></div>
     <div class="detail-line"><span>Flat</span><span>${escapeHtml(c.tower || '—')}-${escapeHtml(c.flatNumber || '—')}</span></div>
+    ${c.location ? `<div class="detail-line"><span>Location</span><span>${c.location === 'common' ? 'Common Area' : 'Inside Flat'}</span></div>` : ''}
     <div class="detail-line"><span>Category</span><span>${escapeHtml(COMPLAINT_CATEGORY_LABEL[c.category] || c.category || '—')}</span></div>
     <div class="detail-line"><span>Raised On</span><span>${fmtDate(c.createdAt)}</span></div>
     <div style="margin:12px 0;"><div class="t-muted" style="font-size:12px; margin-bottom:4px;">Description</div><p style="font-size:13.5px; white-space:pre-wrap;">${escapeHtml(c.description)}</p></div>
     ${c.photoURL ? `<img src="${escapeHtml(c.photoURL)}" alt="" style="max-width:100%; border-radius:8px; margin-bottom:12px;">` : ''}
     ${c.resolutionNote ? `<div style="margin-bottom:12px;"><div class="t-muted" style="font-size:12px; margin-bottom:4px;">Resolution Note</div><p style="font-size:13.5px;">${escapeHtml(c.resolutionNote)}</p></div>` : ''}
     ${c.satisfactionRating ? `<div class="t-muted" style="font-size:12.5px; margin-bottom:12px;">Resident Rating: ${'⭐'.repeat(c.satisfactionRating)}</div>` : ''}
+    ${c.assignedToName ? `<div class="detail-line"><span>Assigned To</span><span><b>${escapeHtml(c.assignedToName)}</b></span></div>` : ''}
+    ${c.targetDate ? `<div class="detail-line"><span>Target Date</span><span>${escapeHtml(c.targetDate)}</span></div>` : ''}
+    ${c.reopenNote ? `<div style="margin-bottom:12px; background:#FDEDED; padding:8px 10px; border-radius:6px;"><div class="t-muted" style="font-size:12px; margin-bottom:2px;">Resident reopened — reason</div><p style="font-size:13px;">${escapeHtml(c.reopenNote)}</p></div>` : ''}
+    ${canManage && isOpenState ? `
+      <div class="field"><label for="complaintAssignSelect">Assign to Staff${STAFF_TRADES[Object.keys(STAFF_TRADES).find(t => STAFF_TRADES[t].category === c.category)] ? ' — ' + (COMPLAINT_CATEGORY_LABEL[c.category] || c.category) + ' issue' : ''}</label>
+        <select id="complaintAssignSelect">
+          <option value="">— Unassigned —</option>
+          ${assignableStaffFor(c).map(s => `<option value="${escapeHtml(s.id)}" ${c.assignedToUid === s.id ? 'selected' : ''}>${escapeHtml(s.name)} — ${STAFF_TRADES[s.trade]?.label || (s.role === 'manager' ? 'Managing Staff' : 'Supervisor')}${s.__recommended ? ' ✓ recommended' : ''}</option>`).join('')}
+        </select>
+      </div>
+      <div class="field"><label for="complaintTargetDate">Target Date <span class="t-muted" style="font-weight:400;">(SLA deadline — auto-set from category, editable)</span></label><input type="date" id="complaintTargetDate" value="${escapeHtml(c.targetDate || suggestedTargetDate(c.category))}"></div>
+      <button class="btn btn-outline btn-block" id="complaintAssignSaveBtn" style="margin-bottom:14px;">Save Assignment</button>
+    ` : ''}
     ${canManage && isOpenState ? `
       <div class="field"><label for="complaintStatusSelect">Update Status</label>
         <select id="complaintStatusSelect">
@@ -2994,6 +3124,12 @@ function openComplaintDetail(id) {
       <button class="btn btn-primary btn-block" id="complaintStatusSaveBtn">Save</button>
     ` : ''}
   `;
+  document.getElementById('complaintAssignSaveBtn')?.addEventListener('click', () => {
+    const staffId = document.getElementById('complaintAssignSelect').value;
+    const targetDate = document.getElementById('complaintTargetDate').value;
+    const staff = (allStaff || []).find(s => s.id === staffId);
+    assignComplaint(id, staff, targetDate);
+  });
   document.getElementById('complaintStatusSaveBtn')?.addEventListener('click', () => {
     const newStatus = document.getElementById('complaintStatusSelect').value;
     const note = document.getElementById('complaintNote').value.trim();
@@ -3018,6 +3154,48 @@ async function updateComplaintStatus(id, newStatus, note) {
     console.error('Update complaint failed:', err);
     const code = err?.code || '';
     showToast(`Could not save${code ? ` (${code})` : ''}.`, 'error');
+  }
+}
+
+// Active staff for the assign dropdown, with anyone whose trade matches the
+// complaint's category floated to the top and flagged as recommended — so a
+// plumbing complaint suggests the plumber first, without hiding anyone else.
+function assignableStaffFor(c) {
+  const list = (allStaff || []).filter(s => s.active !== false).map(s => ({
+    ...s,
+    __recommended: STAFF_TRADES[s.trade]?.category === c.category && !!c.category
+  }));
+  return list.sort((a, b) => (b.__recommended ? 1 : 0) - (a.__recommended ? 1 : 0));
+}
+
+// A default target/SLA date from the category's response-time budget, as a
+// local YYYY-MM-DD. Rounds up to at least the next day so same-day 4h SLAs
+// still land on a real date the date input can show.
+function suggestedTargetDate(category) {
+  const hours = COMPLAINT_SLA_HOURS[category] ?? 48;
+  const d = new Date(Date.now() + hours * 3600000);
+  return dateToLocalISO(d);
+}
+
+// Assign (or reassign/unassign) a complaint to a staff member and optionally
+// set a target/SLA date. Committee-only (the rule requires canApproveMembers).
+async function assignComplaint(id, staff, targetDate) {
+  try {
+    const patch = {
+      assignedToUid: staff?.id || null,
+      assignedToName: staff?.name || null,
+      assignedAt: serverTimestamp(),
+      targetDate: targetDate || null,
+      updatedAt: serverTimestamp()
+    };
+    await updateDoc(doc(db, 'complaints', id), patch);
+    await logAudit(auth.currentUser, 'assign_complaint', { id, to: staff?.name || 'unassigned', targetDate: targetDate || null });
+    showToast(staff ? `Assigned to ${staff.name}.` : 'Assignment cleared.', 'success');
+    document.getElementById('complaintDetailModalBackdrop').classList.remove('open');
+    await loadComplaints();
+  } catch (err) {
+    console.error('Assign complaint failed:', err);
+    showToast(`Could not assign${err?.code ? ` (${err.code})` : ''}.`, 'error');
   }
 }
 
@@ -5980,17 +6158,289 @@ async function loadFacilityStaffData() {
       .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
   } catch (e) { console.warn('Facility staff load failed:', e?.code || e); }
   renderStaffTable();
+  renderInspectionSchedule();
+  renderInspectionAnalytics();
   renderInspectionLogTable();
+}
+
+// Analytics computed entirely from allInspections (already loaded above) —
+// no new fetch. Every number is a real count over real filed inspections;
+// a section with nothing to show (no inspections yet) says so rather than
+// rendering an empty grid. INSPECTION_TYPES is imported from app-common.
+// ---- Inspection Report Builder ----
+// Filters by the optional date range (inclusive), covering both the
+// inspections themselves and the issues they raised (complaints tagged
+// source:'inspection'). Reuses the same jsPDF engine as receipts and the
+// same exportToExcel helper as the other admin exports.
+function inspectionsInRange() {
+  const from = document.getElementById('inspRptFrom')?.value || '';
+  const to = document.getElementById('inspRptTo')?.value || '';
+  const ms = (r) => (r.createdAt?.seconds ? r.createdAt.seconds * 1000 : 0);
+  const fromMs = from ? new Date(from + 'T00:00:00').getTime() : -Infinity;
+  const toMs = to ? new Date(to + 'T23:59:59').getTime() : Infinity;
+  const insp = allInspections.filter(r => ms(r) >= fromMs && ms(r) <= toMs);
+  const issues = allComplaints.filter(c => c.source === 'inspection' && ms(c) >= fromMs && ms(c) <= toMs);
+  return { insp, issues, from, to };
+}
+
+function inspReportRangeLabel(from, to) {
+  if (!from && !to) return 'All dates';
+  if (from && to) return `${from} to ${to}`;
+  if (from) return `From ${from}`;
+  return `Up to ${to}`;
+}
+
+async function generateInspectionReportPDF() {
+  const { insp, issues, from, to } = inspectionsInRange();
+  if (!insp.length && !issues.length) { showToast('No inspections in that date range.', 'error'); return; }
+  const btn = document.getElementById('inspReportPdfBtn');
+  btn.disabled = true; btn.textContent = 'Building…';
+  try {
+    const { jsPDF } = window.jspdf;
+    const docp = new jsPDF({ unit: 'pt', format: 'a4' });
+    const pageW = docp.internal.pageSize.getWidth();
+    let y = 48;
+
+    docp.setFont('helvetica', 'bold'); docp.setFontSize(16);
+    docp.text('Max Heights Majestic RWS', pageW / 2, y, { align: 'center' }); y += 20;
+    docp.setFontSize(12); docp.setFont('helvetica', 'normal');
+    docp.text('Facility Inspection Report', pageW / 2, y, { align: 'center' }); y += 16;
+    docp.setFontSize(9); docp.setTextColor(120);
+    docp.text(`${inspReportRangeLabel(from, to)}  ·  Generated ${todayLocalISO()}`, pageW / 2, y, { align: 'center' });
+    docp.setTextColor(0); y += 24;
+
+    const totalIssues = insp.reduce((s, r) => s + (r.issueCount || 0), 0);
+    docp.setFontSize(10); docp.setFont('helvetica', 'bold');
+    docp.text(`Inspections filed: ${insp.length}    Issues flagged: ${totalIssues}`, 48, y); y += 22;
+
+    // Inspections table (manual rows — no autotable dependency)
+    docp.setFontSize(11); docp.text('Inspections', 48, y); y += 16;
+    docp.setFontSize(9); docp.setFont('helvetica', 'bold');
+    docp.text('Type', 48, y); docp.text('Tower', 230, y); docp.text('Filed by', 300, y); docp.text('Issues', 430, y); docp.text('Date', 480, y);
+    y += 4; docp.line(48, y, pageW - 48, y); y += 12; docp.setFont('helvetica', 'normal');
+    for (const r of insp) {
+      if (y > 780) { docp.addPage(); y = 48; }
+      docp.text(String(INSPECTION_TYPES[r.formType]?.label || r.formType).slice(0, 30), 48, y);
+      docp.text(String(r.tower || '—'), 230, y);
+      docp.text(String(r.createdByName || '—').slice(0, 22), 300, y);
+      docp.text(String(r.issueCount || 0), 438, y);
+      docp.text(r.createdAt?.seconds ? new Date(r.createdAt.seconds * 1000).toLocaleDateString('en-IN') : '—', 480, y);
+      y += 14;
+    }
+    y += 14;
+
+    if (issues.length) {
+      if (y > 720) { docp.addPage(); y = 48; }
+      docp.setFontSize(11); docp.setFont('helvetica', 'bold'); docp.text('Issues Raised', 48, y); y += 16;
+      docp.setFontSize(9);
+      docp.text('Issue', 48, y); docp.text('Category', 300, y); docp.text('Status', 420, y);
+      y += 4; docp.line(48, y, pageW - 48, y); y += 12; docp.setFont('helvetica', 'normal');
+      for (const c of issues) {
+        if (y > 790) { docp.addPage(); y = 48; }
+        docp.text(String(c.title || '—').slice(0, 42), 48, y);
+        docp.text(String(c.category || '—'), 300, y);
+        docp.text(String(c.status || '—'), 420, y);
+        y += 14;
+      }
+    }
+
+    docp.save(`MHMRWS-Inspection-Report-${todayLocalISO()}.pdf`);
+    await logAudit(auth.currentUser, 'inspection_report_pdf', { count: insp.length, from, to });
+  } catch (err) {
+    console.error('Inspection report PDF failed:', err);
+    showToast('Could not build the PDF — check your connection and try again.', 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Download PDF';
+  }
+}
+
+function generateInspectionReportExcel() {
+  const { insp, issues, from } = inspectionsInRange();
+  if (!insp.length && !issues.length) { showToast('No inspections in that date range.', 'error'); return; }
+  try {
+    const inspRows = insp.map(r => ({
+      Type: INSPECTION_TYPES[r.formType]?.label || r.formType,
+      Tower: r.tower || '',
+      'Filed By': r.createdByName || '',
+      Issues: r.issueCount || 0,
+      Date: r.createdAt?.seconds ? new Date(r.createdAt.seconds * 1000).toLocaleString('en-IN') : ''
+    }));
+    // Two-sheet workbook built directly so both sheets land in one file.
+    const wb = window.XLSX.utils.book_new();
+    window.XLSX.utils.book_append_sheet(wb, window.XLSX.utils.json_to_sheet(inspRows.length ? inspRows : [{ Note: 'No inspections in range' }]), 'Inspections');
+    const issueRows = issues.map(c => ({
+      Issue: c.title || '', Category: c.category || '', Status: c.status || '',
+      Date: c.createdAt?.seconds ? new Date(c.createdAt.seconds * 1000).toLocaleString('en-IN') : ''
+    }));
+    window.XLSX.utils.book_append_sheet(wb, window.XLSX.utils.json_to_sheet(issueRows.length ? issueRows : [{ Note: 'No issues in range' }]), 'Issues');
+    window.XLSX.writeFile(wb, `MHMRWS-Inspection-Report-${from || todayLocalISO()}.xlsx`);
+    logAudit(auth.currentUser, 'inspection_report_xlsx', { count: insp.length });
+  } catch (err) {
+    console.error('Inspection report Excel failed:', err);
+    showToast('Could not build the Excel file — please try again.', 'error');
+  }
+}
+
+document.getElementById('inspReportPdfBtn')?.addEventListener('click', generateInspectionReportPDF);
+document.getElementById('inspReportXlsxBtn')?.addEventListener('click', generateInspectionReportExcel);
+
+// "What's due today, what's still missing" — ported from the inspection
+// app's getMissedToday(). Daily types are expected every day (daily-tower
+// once per tower, the others once society-wide); weekly-mep is expected
+// once in the current week. An inspection filed today for that type (and
+// tower, where per-tower) clears it; anything left is shown as pending.
+function renderInspectionSchedule() {
+  const el = document.getElementById('inspectionSchedule');
+  if (!el) return;
+
+  const now = new Date();
+  const todayKey = todayLocalISO();
+  const isSameDay = (r) => r.createdAt?.seconds && dateToLocalISO(new Date(r.createdAt.seconds * 1000)) === todayKey;
+  const weekStart = new Date(now); weekStart.setHours(0, 0, 0, 0); weekStart.setDate(now.getDate() - now.getDay());
+  const inThisWeek = (r) => r.createdAt?.seconds && (r.createdAt.seconds * 1000) >= weekStart.getTime();
+
+  const filedTodayKeys = new Set(allInspections.filter(isSameDay).map(r => `${r.formType}:${r.tower || ''}`));
+  const filedThisWeekTypes = new Set(allInspections.filter(inThisWeek).map(r => r.formType));
+
+  const dueToday = [];
+  const dueThisWeek = [];
+
+  for (const [type, sched] of Object.entries(INSPECTION_SCHEDULE)) {
+    const label = INSPECTION_TYPES[type]?.label || type;
+    if (sched.frequency === 'daily') {
+      if (sched.perTower) {
+        TOWER_IDS.forEach(t => dueToday.push({ label: `${label} — Tower ${t}`, done: filedTodayKeys.has(`${type}:${t}`) }));
+      } else {
+        dueToday.push({ label, done: filedTodayKeys.has(`${type}:`) });
+      }
+    } else if (sched.frequency === 'weekly') {
+      dueThisWeek.push({ label, done: filedThisWeekTypes.has(type) });
+    }
+  }
+
+  const doneToday = dueToday.filter(d => d.done).length;
+  const pendingToday = dueToday.filter(d => !d.done);
+  const pendingWeek = dueThisWeek.filter(d => !d.done);
+
+  const line = (d) => `
+    <div style="display:flex; align-items:center; gap:8px; padding:4px 0; font-size:12.5px;">
+      <span style="width:16px; flex-shrink:0;">${d.done ? '✅' : '⬜'}</span>
+      <span style="${d.done ? 'color:var(--ink-500); text-decoration:line-through;' : ''}">${escapeHtml(d.label)}</span>
+    </div>`;
+
+  el.innerHTML = `
+    <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px;">
+      <div style="flex:1; min-width:120px; background:var(--paper); border:1px solid var(--line); border-radius:12px; padding:12px 14px;">
+        <div style="font-size:22px; font-weight:800;">${doneToday}/${dueToday.length}</div>
+        <div class="t-muted" style="font-size:11px;">Daily inspections done today</div>
+      </div>
+      <div style="flex:1; min-width:120px; background:var(--paper); border:1px solid var(--line); border-radius:12px; padding:12px 14px;">
+        <div style="font-size:22px; font-weight:800; color:${pendingToday.length ? 'var(--danger)' : 'var(--success)'};">${pendingToday.length}</div>
+        <div class="t-muted" style="font-size:11px;">Still pending today</div>
+      </div>
+    </div>
+
+    ${pendingToday.length ? `
+      <div style="font-size:12px; font-weight:700; color:var(--danger); margin-bottom:6px;">⚠️ Pending today</div>
+      <div style="margin-bottom:14px;">${pendingToday.map(line).join('')}</div>` : `
+      <div style="font-size:12.5px; color:var(--success); font-weight:600; margin-bottom:14px;">✓ All daily inspections done for today.</div>`}
+
+    ${dueThisWeek.length ? `
+      <div style="font-size:12px; font-weight:700; margin-bottom:6px;">This week</div>
+      <div>${dueThisWeek.map(line).join('')}</div>
+      ${pendingWeek.length ? '' : `<div style="font-size:12px; color:var(--success); margin-top:4px;">✓ Weekly inspections done.</div>`}` : ''}
+  `;
+}
+
+function renderInspectionAnalytics() {
+  const el = document.getElementById('inspectionAnalytics');
+  if (!el) return;
+  const rows = allInspections;
+  if (!rows.length) {
+    el.innerHTML = '<p class="t-muted" style="font-size:12.5px;">No inspections filed yet — analytics will appear once staff start filing.</p>';
+    return;
+  }
+
+  const totalInspections = rows.length;
+  const totalIssues = rows.reduce((s, r) => s + (r.issueCount || 0), 0);
+  const cleanRuns = rows.filter(r => !r.issueCount).length;
+  const cleanPct = Math.round((cleanRuns / totalInspections) * 100);
+
+  // This week vs last week (Sunday-based week, device-local).
+  const now = new Date();
+  const weekStart = new Date(now); weekStart.setHours(0, 0, 0, 0); weekStart.setDate(now.getDate() - now.getDay());
+  const prevWeekStart = new Date(weekStart); prevWeekStart.setDate(weekStart.getDate() - 7);
+  const secOf = (r) => (r.createdAt?.seconds ? r.createdAt.seconds * 1000 : 0);
+  const thisWeek = rows.filter(r => secOf(r) >= weekStart.getTime()).length;
+  const lastWeek = rows.filter(r => secOf(r) >= prevWeekStart.getTime() && secOf(r) < weekStart.getTime()).length;
+  const trend = thisWeek === lastWeek ? '→ same as last week'
+    : thisWeek > lastWeek ? `▲ ${thisWeek - lastWeek} more than last week`
+    : `▼ ${lastWeek - thisWeek} fewer than last week`;
+  const trendColor = thisWeek >= lastWeek ? 'var(--success)' : 'var(--danger)';
+
+  // Per-type and per-tower breakdowns.
+  const byType = {};
+  for (const key of Object.keys(INSPECTION_TYPES)) byType[key] = rows.filter(r => r.formType === key).length;
+  const byTower = {};
+  rows.forEach(r => { if (r.tower) byTower[r.tower] = (byTower[r.tower] || 0) + 1; });
+  const towerRows = Object.entries(byTower).sort((a, b) => b[1] - a[1]);
+
+  // Top staff by submissions.
+  const byStaff = {};
+  rows.forEach(r => { if (r.createdByName) byStaff[r.createdByName] = (byStaff[r.createdByName] || 0) + 1; });
+  const staffRows = Object.entries(byStaff).sort((a, b) => b[1] - a[1]).slice(0, 5);
+
+  const stat = (num, label, color) => `
+    <div style="flex:1; min-width:110px; background:var(--paper); border:1px solid var(--line); border-radius:12px; padding:12px 14px;">
+      <div style="font-size:24px; font-weight:800; ${color ? `color:${color};` : ''}">${num}</div>
+      <div class="t-muted" style="font-size:11px;">${label}</div>
+    </div>`;
+
+  el.innerHTML = `
+    <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px;">
+      ${stat(totalInspections, 'Total inspections')}
+      ${stat(totalIssues, 'Issues flagged', totalIssues ? 'var(--danger)' : 'var(--success)')}
+      ${stat(cleanPct + '%', 'Filed all-clear', 'var(--success)')}
+      ${stat(thisWeek, 'This week')}
+    </div>
+    <div style="font-size:12px; color:${trendColor}; font-weight:600; margin-bottom:14px;">${trend}</div>
+
+    <div style="font-size:12px; font-weight:700; margin-bottom:6px;">By checklist type</div>
+    <div style="margin-bottom:14px;">
+      ${Object.entries(byType).map(([k, c]) => `
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+          <span style="font-size:12px; width:150px; flex-shrink:0;">${escapeHtml(INSPECTION_TYPES[k]?.label || k)}</span>
+          <div style="flex:1; background:var(--line); border-radius:6px; height:14px; overflow:hidden;"><div style="width:${totalInspections ? Math.round(c / totalInspections * 100) : 0}%; height:100%; background:var(--navy-900);"></div></div>
+          <span style="font-size:12px; font-weight:700; width:28px; text-align:right;">${c}</span>
+        </div>`).join('')}
+    </div>
+
+    ${towerRows.length ? `
+      <div style="font-size:12px; font-weight:700; margin-bottom:6px;">By tower</div>
+      <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px;">
+        ${towerRows.map(([t, c]) => `<span class="badge badge-neutral" style="font-size:11.5px;">Tower ${escapeHtml(t)}: <b>${c}</b></span>`).join('')}
+      </div>` : ''}
+
+    ${staffRows.length ? `
+      <div style="font-size:12px; font-weight:700; margin-bottom:6px;">Most active staff</div>
+      <div>
+        ${staffRows.map(([name, c]) => `
+          <div style="display:flex; justify-content:space-between; font-size:12.5px; padding:4px 0; border-bottom:1px solid var(--line);">
+            <span>${escapeHtml(name)}</span><span><b>${c}</b> inspection${c > 1 ? 's' : ''}</span>
+          </div>`).join('')}
+      </div>` : ''}
+  `;
 }
 const STAFF_ROLE_LABEL = { manager: 'Managing Staff', supervisor: 'Supervisor' };
 function renderStaffTable() {
   const body = document.getElementById('staffBody');
   if (!body) return;
-  if (!allStaff.length) { body.innerHTML = '<tr><td colspan="5" class="t-muted">No staff added yet.</td></tr>'; return; }
+  if (!allStaff.length) { body.innerHTML = '<tr><td colspan="6" class="t-muted">No staff added yet.</td></tr>'; return; }
   body.innerHTML = allStaff.map(s => `
     <tr>
       <td data-label="Name">${escapeHtml(s.name)}</td>
       <td data-label="Role">${STAFF_ROLE_LABEL[s.role] || escapeHtml(s.role || '—')}</td>
+      <td data-label="Trade">${STAFF_TRADES[s.trade]?.label || '—'}</td>
       <td data-label="Email">${escapeHtml(s.email || '—')}</td>
       <td data-label="Status"><span class="badge badge-${s.active !== false ? 'success' : 'neutral'}">${s.active !== false ? 'Active' : 'Deactivated'}</span></td>
       <td data-label="Actions"><button class="btn btn-outline btn-sm" data-toggle-staff="${s.id}">${s.active !== false ? 'Deactivate' : 'Reactivate'}</button></td>
@@ -6067,6 +6517,7 @@ document.getElementById('staffForm')?.addEventListener('submit', async (e) => {
     const name = document.getElementById('staffName').value.trim();
     const email = document.getElementById('staffEmail').value.trim();
     const role = document.getElementById('staffRole').value;
+    const trade = document.getElementById('staffTrade').value;
     const tempPassword = 'Tmp-' + Math.random().toString(36).slice(2, 10) + 'Aa1!';
 
     const secondaryAuth = getAuth(secondaryApp);
@@ -6074,11 +6525,11 @@ document.getElementById('staffForm')?.addEventListener('submit', async (e) => {
     const newUid = cred.user.uid;
 
     await setDoc(doc(db, 'staff', newUid), {
-      uid: newUid, name, email, role, active: true, createdAt: serverTimestamp(), createdBy: currentAdmin.email
+      uid: newUid, name, email, role, trade, active: true, createdAt: serverTimestamp(), createdBy: currentAdmin.email
     });
     await sendPasswordResetEmail(secondaryAuth, email);
 
-    await logAudit(auth.currentUser, 'add_staff', { email, name, role });
+    await logAudit(auth.currentUser, 'add_staff', { email, name, role, trade });
     showToast('Staff account created — a password-reset email has been sent.', 'success');
     document.getElementById('staffModalBackdrop').classList.remove('open');
     f.reset();
@@ -7039,32 +7490,41 @@ function inferCommitteeCategory(role) {
   if (/advisory/.test(r)) return 'advisory';
   return 'team';
 }
-const COMMITTEE_CATEGORY_LABEL = { core: 'Core Committee', team: 'Team', advisory: 'Advisory' };
+const COMMITTEE_CATEGORY_LABEL = { core: 'RWA Core Committee', team: 'RWA Team', advisory: 'RWA Advisory Committee' };
 
 document.getElementById('checkCommitteeCategoriesBtn')?.addEventListener('click', () => {
   const panel = document.getElementById('committeeCategoryFixPanel');
-  const mismatched = allCommitteeMembers
-    .map((c) => ({ ...c, suggested: inferCommitteeCategory(c.role) }))
-    .filter((c) => c.suggested !== (c.category || 'team'));
-
   panel.style.display = 'block';
 
-  if (!mismatched.length) {
-    panel.innerHTML = `<div class="card" style="background:var(--good-bg,#E4F5EC);"><p style="font-size:13px; margin:0;">Everyone's category already matches their Role text. Nothing to fix.</p></div>`;
+  if (!allCommitteeMembers.length) {
+    panel.innerHTML = `<div class="card"><p style="font-size:13px; margin:0;">No committee members added yet.</p></div>`;
     return;
   }
 
+  // Show EVERY member (not just mismatches) with their current vs suggested
+  // category, so it's obvious what the data actually looks like and what
+  // "Fix All" will change. Mismatches are highlighted; matches are shown
+  // greyed so the admin can see the tool considered them.
+  const rows = allCommitteeMembers
+    .map((c) => ({ ...c, current: c.category || 'team', suggested: inferCommitteeCategory(c.role) }));
+  const mismatchCount = rows.filter((c) => c.current !== c.suggested).length;
+
   panel.innerHTML = `
     <div class="card">
-      <p style="font-size:13px; margin-bottom:10px;"><b>${mismatched.length}</b> member(s) look mis-categorised, guessed from their Role text. Untick anyone this guessed wrong, then Apply.</p>
-      ${mismatched.map((c) => `
-        <label style="display:flex; align-items:center; gap:8px; padding:6px 0; font-size:12.5px;">
-          <input type="checkbox" checked data-fix-id="${c.id}" data-fix-category="${c.suggested}">
-          <span><b>${escapeHtml(c.name)}</b> — "${escapeHtml(c.role)}": ${COMMITTEE_CATEGORY_LABEL[c.category] || 'Team'} → <b>${COMMITTEE_CATEGORY_LABEL[c.suggested]}</b></span>
-        </label>`).join('')}
-      <div style="display:flex; gap:8px; margin-top:10px;">
-        <button class="btn btn-primary btn-sm" id="applyCommitteeCategoryFixBtn">Apply Selected</button>
-        <button class="btn btn-outline btn-sm" id="cancelCommitteeCategoryFixBtn">Cancel</button>
+      <p style="font-size:13px; margin-bottom:4px;"><b>${allCommitteeMembers.length}</b> committee member(s). ${mismatchCount ? `<b style="color:var(--danger);">${mismatchCount} in the wrong group.</b>` : `<b style="color:var(--success);">All correctly grouped.</b>`}</p>
+      <p class="t-muted" style="font-size:11.5px; margin-bottom:10px;">Group is decided from each person's Role text. If a guess is wrong, fix that person's Role wording (e.g. include "President"/"Advisory"), then run this again.</p>
+      <div style="max-height:320px; overflow-y:auto; border:1px solid var(--line); border-radius:8px; padding:4px 10px;">
+        ${rows.map((c) => {
+          const changed = c.current !== c.suggested;
+          return `<div style="display:flex; justify-content:space-between; gap:8px; padding:6px 0; font-size:12.5px; ${changed ? '' : 'opacity:.55;'} border-bottom:1px solid var(--line);">
+            <span><b>${escapeHtml(c.name)}</b> <span class="t-muted">— ${escapeHtml(c.role || 'no role')}</span></span>
+            <span style="flex-shrink:0; text-align:right;">${changed ? `<span class="badge badge-warning">${COMMITTEE_CATEGORY_LABEL[c.current]}</span> → <span class="badge badge-success">${COMMITTEE_CATEGORY_LABEL[c.suggested]}</span>` : `<span class="badge badge-neutral">${COMMITTEE_CATEGORY_LABEL[c.current]}</span>`}</span>
+          </div>`;
+        }).join('')}
+      </div>
+      <div style="display:flex; gap:8px; margin-top:12px;">
+        ${mismatchCount ? `<button class="btn btn-primary btn-sm" id="applyCommitteeCategoryFixBtn">Fix All ${mismatchCount}</button>` : ''}
+        <button class="btn btn-outline btn-sm" id="cancelCommitteeCategoryFixBtn">Close</button>
       </div>
     </div>`;
 
@@ -7072,24 +7532,32 @@ document.getElementById('checkCommitteeCategoriesBtn')?.addEventListener('click'
     panel.style.display = 'none';
     panel.innerHTML = '';
   };
-  document.getElementById('applyCommitteeCategoryFixBtn').onclick = async (ev) => {
-    const btn = ev.target;
-    btn.disabled = true;
-    const checked = [...panel.querySelectorAll('[data-fix-id]:checked')];
+
+  const applyBtn = document.getElementById('applyCommitteeCategoryFixBtn');
+  if (applyBtn) applyBtn.onclick = async () => {
+    applyBtn.disabled = true;
+    applyBtn.textContent = 'Fixing…';
+    const toFix = rows.filter((c) => c.current !== c.suggested);
+    let done = 0;
     try {
-      for (const cb of checked) {
-        await updateDoc(doc(db, 'committee', cb.dataset.fixId), { category: cb.dataset.fixCategory });
+      for (const c of toFix) {
+        await updateDoc(doc(db, 'committee', c.id), { category: c.suggested });
+        // Keep the in-memory copy in sync so the re-render below is correct
+        // even before loadContentPanels refetches.
+        const live = allCommitteeMembers.find(m => m.id === c.id);
+        if (live) live.category = c.suggested;
+        done++;
       }
-      await logAudit(auth.currentUser, 'fix_committee_categories', { count: checked.length });
-      showToast(`Updated ${checked.length} member(s).`, 'success');
+      await logAudit(auth.currentUser, 'fix_committee_categories', { count: done });
+      showToast(`Fixed ${done} member(s). Residents will see the groups on their next refresh.`, 'success');
       panel.style.display = 'none';
       panel.innerHTML = '';
       await loadContentPanels();
     } catch (err) {
       console.error('Fix committee categories failed:', err);
-      showToast('Could not update — please try again.', 'error');
-    } finally {
-      btn.disabled = false;
+      showToast(`Fixed ${done} of ${toFix.length}${err?.code ? ` (${err.code})` : ''} — please try again for the rest.`, 'error');
+      applyBtn.disabled = false;
+      applyBtn.textContent = `Fix All ${toFix.length}`;
     }
   };
 });

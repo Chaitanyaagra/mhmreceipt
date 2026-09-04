@@ -1310,15 +1310,6 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
             </div>
           </div>
 
-          <!-- Only meaningful for an owner (a tenant has no registry date at
-               all) — shown/hidden by the residentType toggle below, and never
-               required, since not everyone has the exact date on hand while
-               filling this form. -->
-          <div class="field" id="regRegistryDateWrap" style="display:none;">
-            <label for="fld-registryDate">Date of Registry <span class="t-muted" style="font-weight:400;">(optional)</span></label>
-            <input type="date" name="registryDate" id="fld-registryDate">
-          </div>
-
           <!-- Joint Owner only (not a sole Owner, who by definition has no
                co-owner) — so the society has at least a name on record for
                the other owner, even if that person never registers their
@@ -1647,21 +1638,29 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
     <div class="modal-head"><h3 style="font-size:16.5px;">Raise a Complaint</h3><button class="icon-btn" id="closeComplaintModal">✕</button></div>
     <div class="modal-body">
       <form id="complaintForm">
-        <div class="field"><label for="cplt-category">Category</label>
-          <select name="category" id="cplt-category" required>
-            <option value="security">Security</option>
-            <option value="housekeeping">Housekeeping</option>
-            <option value="maintenance">Maintenance</option>
-            <option value="electrical">Electrical</option>
-            <option value="plumbing">Plumbing</option>
-            <option value="noise">Noise</option>
-            <option value="parking">Parking</option>
-            <option value="other">Other</option>
+        <div class="field"><label for="cplt-location">Where is the problem?</label>
+          <select name="location" id="cplt-location" required>
+            <option value="">Select…</option>
+            <option value="common">Common Area (lift, lobby, parking, garden…)</option>
+            <option value="flat">Inside My Flat</option>
           </select>
         </div>
-        <div class="field"><label for="cplt-title">Title</label><input name="title" id="cplt-title" required maxlength="200" placeholder="e.g. Lift not working in Tower B"></div>
-        <div class="field"><label for="cplt-desc">Description</label><textarea name="description" id="cplt-desc" required rows="4" maxlength="2000"></textarea></div>
-        <div class="field"><label for="cplt-photo">Photo <span class="t-muted" style="font-weight:400;">(optional)</span></label><input type="file" name="photo" id="cplt-photo" accept="image/*"></div>
+        <div class="field"><label for="cplt-category">What is it about?</label>
+          <select name="category" id="cplt-category" required>
+            <option value="">Select…</option>
+            <option value="plumbing">Plumbing (taps, leakage, drainage)</option>
+            <option value="electrical">Electrical (lights, wiring, power)</option>
+            <option value="housekeeping">Cleaning / Housekeeping</option>
+            <option value="maintenance">Carpentry / Civil / Repair</option>
+            <option value="security">Security / Guard</option>
+            <option value="parking">Parking</option>
+            <option value="noise">Noise</option>
+            <option value="other">Something else</option>
+          </select>
+        </div>
+        <div class="field"><label for="cplt-title">Short title</label><input name="title" id="cplt-title" required maxlength="200" placeholder="e.g. Kitchen tap leaking"></div>
+        <div class="field"><label for="cplt-desc">Describe the problem</label><textarea name="description" id="cplt-desc" required rows="4" maxlength="2000" placeholder="Aap yahan type karke apni problem bata sakte hain…"></textarea></div>
+        <div class="field"><label for="cplt-photo">Photo <span class="t-muted" style="font-weight:400;">(optional — problem ki photo laga sakte hain)</span></label><input type="file" name="photo" id="cplt-photo" accept="image/*"></div>
         <button class="btn btn-primary btn-block" type="submit">Submit Complaint</button>
       </form>
     </div>
@@ -1883,6 +1882,10 @@ if ('serviceWorker' in navigator) {
   });
 }
 
+/* The "install this app" prompt lives in the shared install-prompt.js
+   module now (block below imports it) — it needs showToast, which is only
+   imported in that block, not this one. */
+
 /* ---- Motion -----------------------------------------------------------
    Everything here is skipped entirely when the person's device asks for
    reduced motion; the CSS also force-shows .reveal in that case, so no
@@ -2009,6 +2012,12 @@ import {
   initVehiclesEditor, addVehicleRow, collectVehicles,
   initPetsEditor, addPetCard, collectPets, petVaccinationStatus, profileCompleteness, flatClaimId, findBlockingFlatClaim, generatePetId, rentAgreementStatus, flatKey, INSPECTION_TYPES, todayLocalISO
 } from './app-common.js';
+import { installAppInstallPrompt } from './install-prompt.js';
+
+// The "install this app" prompt runs from here (not the branding block above)
+// because it uses showToast, which is imported in this block. Same shared
+// module guard.html and staff.html use.
+installAppInstallPrompt({ appName: 'MHMRWS Portal', showToast });
 
 /* Branding, the year stamp and the committee fallback are handled by the
    standalone module above, which has no Firebase dependency. LOGO_DATA_URI
@@ -2107,7 +2116,6 @@ const regResidentTypeSelect = registerForm.querySelector('[name=residentType]');
 // taken for "owner" may be perfectly free for "tenant", so switching the
 // toggle can change the answer even with the same tower/flat still selected.
 regResidentTypeSelect?.addEventListener('change', checkFlatAvailability);
-const regRegistryDateWrap = document.getElementById('regRegistryDateWrap');
 const regMembershipFeeWrap = document.getElementById('regMembershipFeeWrap');
 let feeQrFetched = false;
 async function fetchFeeQrIfNeeded() {
@@ -2132,10 +2140,6 @@ function toggleResidentTypeFields() {
   const isOwner = regResidentTypeSelect.value === 'owner' || regResidentTypeSelect.value === 'jointowner';
   const isJointOwner = regResidentTypeSelect.value === 'jointowner';
   const isTenant = regResidentTypeSelect.value === 'tenant';
-  if (regRegistryDateWrap) {
-    regRegistryDateWrap.style.display = isOwner ? 'block' : 'none';
-    if (!isOwner) regRegistryDateWrap.querySelector('input').value = '';
-  }
   if (regCoOwnerWrap) {
     regCoOwnerWrap.style.display = isJointOwner ? 'block' : 'none';
     if (!isJointOwner) regCoOwnerWrap.querySelectorAll('input').forEach((el) => { el.value = ''; });
@@ -2296,7 +2300,7 @@ if (regPetsEditor && regPetsWrap) {
 const DRAFT_KEY = 'mhmrws_reg_draft';
 const DRAFT_TEXT_FIELDS = [
   'residentType', 'name', 'fatherHusbandName', 'tower', 'flatNumber', 'mobile', 'email',
-  'occupation', 'bloodGroup', 'registryDate', 'coOwnerName', 'coOwnerMobile', 'coOwnerEmail',
+  'occupation', 'bloodGroup', 'coOwnerName', 'coOwnerMobile', 'coOwnerEmail',
   'emergencyContactName', 'emergencyContactPhone', 'dob', 'anniversary',
   'rentAgreementStart', 'rentAgreementEnd', 'policeVerification'
 ];
@@ -2328,7 +2332,7 @@ function restoreDraft(data) {
   const f = registerForm;
   DRAFT_TEXT_FIELDS.forEach((name) => { if (f[name] && data[name] != null) f[name].value = data[name]; });
   // Re-fire the change handlers that depend on these — the tower→flat
-  // cascade and the registryDate/tenant-details/membership-fee toggle both
+  // cascade and the tenant-details/membership-fee toggle both
   // key off "change", not off the value being set programmatically.
   document.getElementById('towerSelect')?.dispatchEvent(new Event('change', { bubbles: true }));
   setTimeout(() => {
@@ -2492,7 +2496,6 @@ registerForm.addEventListener('submit', async (e) => {
       emergencyContactPhone: f.emergencyContactPhone.value.trim() || null,
       familyMembers: regFamilyEditor ? collectFamilyMembers(regFamilyEditor) : [],
       vehicles: regVehiclesEditor ? collectVehicles(regVehiclesEditor) : [],
-      registryDate: f.registryDate.value || null,
       coOwnerName: f.coOwnerName.value.trim() || null,
       coOwnerMobile: f.coOwnerMobile.value.trim() || null,
       coOwnerEmail: f.coOwnerEmail.value.trim() || null,
@@ -2588,7 +2591,7 @@ registerForm.addEventListener('submit', async (e) => {
           name: f.name.value.trim(), fatherHusbandName: f.fatherHusbandName.value.trim(),
           tower: f.tower.value.trim(), flatNumber: f.flatNumber.value.trim(),
           mobile: f.mobile.value.trim(), email, occupation: f.occupation.value.trim(),
-          residentType: f.residentType.value, registryDate: f.registryDate.value || null,
+          residentType: f.residentType.value,
           coOwnerName: f.coOwnerName.value.trim() || null,
       coOwnerMobile: f.coOwnerMobile.value.trim() || null,
       coOwnerEmail: f.coOwnerEmail.value.trim() || null,
@@ -3402,23 +3405,52 @@ async function loadInspectionsCard() {
   if (!el) return;
   try {
     const snap = await getDocs(collection(db, 'inspections'));
-    const rows = snap.docs.map(d => ({ id: d.id, ...d.data() }))
-      .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))
-      .slice(0, 5);
-    renderInspectionsCard(rows);
+    const all = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+    renderInspectionsCard(all);
   } catch (e) { console.warn('Inspections load failed:', e?.code || e); }
 }
-// Summary only — type, tower, date, and a pass/issue badge. The full
-// section-by-section checklist (what exactly was flagged, staff notes) is
-// an admin-panel view, not a resident one — see Facility Staff → Inspection
-// Log in admin.html for that.
-function renderInspectionsCard(rows) {
+// Resident transparency view: a daily/weekly/monthly summary (counts +
+// issues found) so residents can see the facility is being checked, plus
+// the five most recent as a simple pass/issue list. The full checklist —
+// exactly what was flagged, staff notes — stays admin-only.
+function renderInspectionsCard(all) {
   const el = document.getElementById('inspectionsCard');
-  if (!el || !rows.length) { if (el) el.innerHTML = ''; return; }
+  if (!el || !all.length) { if (el) el.innerHTML = ''; return; }
+
+  const now = new Date();
+  const startOfToday = new Date(now); startOfToday.setHours(0, 0, 0, 0);
+  const startOfWeek = new Date(startOfToday); startOfWeek.setDate(startOfToday.getDate() - now.getDay());
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const ms = (r) => (r.createdAt?.seconds ? r.createdAt.seconds * 1000 : 0);
+
+  const period = (start) => {
+    const rows = all.filter(r => ms(r) >= start.getTime());
+    const issues = rows.reduce((s, r) => s + (r.issueCount || 0), 0);
+    return { count: rows.length, issues };
+  };
+  const today = period(startOfToday);
+  const week = period(startOfWeek);
+  const month = period(startOfMonth);
+
+  const box = (label, p) => `
+    <div style="flex:1; min-width:90px; background:var(--paper,#FAF7F0); border:1px solid var(--line,#EAE6DC); border-radius:12px; padding:10px 12px; text-align:center;">
+      <div style="font-size:20px; font-weight:800;">${p.count}</div>
+      <div class="t-muted" style="font-size:10.5px;">${label}</div>
+      <div style="font-size:10.5px; margin-top:2px; color:${p.issues ? 'var(--warning,#B8860B)' : 'var(--success,#2e7d5b)'};">${p.issues ? p.issues + ' issue' + (p.issues > 1 ? 's' : '') : 'all clear'}</div>
+    </div>`;
+
+  const recent = all.slice(0, 5);
   el.innerHTML = `
     <div class="card card-pad">
-      <h3 style="font-size:15px; margin-bottom:10px;">🔍 Recent Facility Inspections</h3>
-      ${rows.map(r => `
+      <h3 style="font-size:15px; margin-bottom:10px;">🔍 Facility Inspections</h3>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px;">
+        ${box('Today', today)}
+        ${box('This Week', week)}
+        ${box('This Month', month)}
+      </div>
+      <div class="t-muted" style="font-size:11.5px; margin-bottom:6px;">Most recent</div>
+      ${recent.map(r => `
         <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 0; border-bottom:1px solid var(--line,#EAE6DC);">
           <div>
             <b style="font-size:13.5px;">${escapeHtml(INSPECTION_TYPES[r.formType]?.label || r.formType)}</b>
@@ -3635,6 +3667,10 @@ function renderMyComplaints() {
   }
   el.innerHTML = rows.map((c, i) => {
     const canRate = ['resolved', 'closed'].includes(c.status) && !c.satisfactionRating;
+    // Resident verification: only while the complaint is 'resolved' (staff
+    // says done, resident hasn't confirmed yet). Accept -> closed; reopen
+    // -> back to in_progress with a reason the staff will see.
+    const canVerify = c.status === 'resolved';
     return `
     <div class="detail-line" style="align-items:flex-start; flex-direction:column; gap:4px; padding:10px 0;">
       <div class="spread" style="width:100%;">
@@ -3642,6 +3678,14 @@ function renderMyComplaints() {
         <span class="t-muted" style="font-size:12px;">${escapeHtml(COMPLAINT_STATUS_LABEL_R[c.status] || c.status)}</span>
       </div>
       ${c.resolutionNote ? `<p class="t-muted" style="font-size:12px; margin:0;">${escapeHtml(c.resolutionNote)}</p>` : ''}
+      ${canVerify ? `
+        <div style="width:100%; background:var(--paper,#FAF7F0); border:1px solid var(--line,#EAE6DC); border-radius:8px; padding:8px 10px; margin-top:4px;">
+          <div style="font-size:12px; font-weight:600; margin-bottom:6px;">Staff marked this fixed. Is it actually resolved?</div>
+          <div style="display:flex; gap:6px; flex-wrap:wrap;">
+            <button type="button" class="btn btn-primary btn-sm" data-verify-close="${i}">Yes, it's fixed</button>
+            <button type="button" class="btn btn-outline btn-sm" data-verify-reopen="${i}">No, reopen</button>
+          </div>
+        </div>` : ''}
       ${c.satisfactionRating ? `<div style="font-size:13px;">${'⭐'.repeat(c.satisfactionRating)}</div>` :
         canRate ? `<div class="cplt-rate-row" data-rate-complaint="${i}">Rate: ${[1,2,3,4,5].map(n => `<button type="button" class="cplt-star" data-star="${n}">☆</button>`).join('')}</div>` : ''}
     </div>`;
@@ -3653,6 +3697,36 @@ function renderMyComplaints() {
       starBtn.addEventListener('click', () => submitComplaintRating(complaint.id, Number(starBtn.dataset.star)));
     });
   });
+  el.querySelectorAll('[data-verify-close]').forEach(b => b.onclick = () => verifyComplaintClose(rows[Number(b.dataset.verifyClose)].id));
+  el.querySelectorAll('[data-verify-reopen]').forEach(b => b.onclick = () => verifyComplaintReopen(rows[Number(b.dataset.verifyReopen)].id));
+}
+
+async function verifyComplaintClose(complaintId) {
+  try {
+    await updateDoc(doc(db, 'complaints', complaintId), { status: 'closed', residentVerifiedAt: serverTimestamp(), updatedAt: serverTimestamp() });
+    showToast('Thank you! Marked as resolved.', 'success');
+    await loadMyComplaints(currentUser.uid);
+  } catch (err) {
+    console.error('Verify-close failed:', err);
+    showToast(`Could not update${err?.code ? ` (${err.code})` : ''}.`, 'error');
+  }
+}
+
+async function verifyComplaintReopen(complaintId) {
+  const reason = prompt('What is still not fixed? (this is shown to the staff)');
+  if (reason === null) return; // cancelled
+  try {
+    await updateDoc(doc(db, 'complaints', complaintId), {
+      status: 'in_progress',
+      reopenNote: reason.trim().slice(0, 500) || 'Resident says the issue is not resolved.',
+      updatedAt: serverTimestamp()
+    });
+    showToast('Reopened — the staff will look at it again.', 'success');
+    await loadMyComplaints(currentUser.uid);
+  } catch (err) {
+    console.error('Verify-reopen failed:', err);
+    showToast(`Could not reopen${err?.code ? ` (${err.code})` : ''}.`, 'error');
+  }
 }
 async function submitComplaintRating(complaintId, rating) {
   try {
@@ -3687,7 +3761,7 @@ document.getElementById('complaintForm')?.addEventListener('submit', async (e) =
     await addDoc(collection(db, 'complaints'), {
       raisedByUid: currentUser.uid, raisedByName: currentMember.name,
       tower: currentMember.tower, flatNumber: currentMember.flatNumber,
-      category: f.category.value, title, description, photoURL,
+      category: f.category.value, location: f.location.value || null, title, description, photoURL,
       status: 'open', createdAt: serverTimestamp(), updatedAt: serverTimestamp()
     });
     showToast('Complaint submitted. The committee will review it shortly.', 'success');

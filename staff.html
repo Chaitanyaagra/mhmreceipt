@@ -121,9 +121,11 @@ import {
 import {
   doc, getDoc, addDoc, updateDoc, collection, query, where, getDocs, orderBy, serverTimestamp, writeBatch
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { showToast, escapeHtml, fmtDate, fmtDateTime, TOWER_IDS, INSPECTION_TYPES, INSPECTION_CRITICAL_ITEMS, inspectionSectionToComplaintCategory } from './app-common.js';
+import { showToast, escapeHtml, fmtDate, fmtDateTime, TOWER_IDS, INSPECTION_TYPES, INSPECTION_CRITICAL_ITEMS, inspectionSectionToComplaintCategory, STAFF_TRADES, dateToLocalISO } from './app-common.js';
 import { installOfflineBanner } from './ui-a11y.js';
+import { installAppInstallPrompt } from './install-prompt.js';
 installOfflineBanner();
+installAppInstallPrompt({ appName: 'MHMRWS Staff', showToast });
 
 let currentStaff = null; // {uid, name, role}
 let draft = null;        // in-progress inspection {formType, tower, sections:[{title, items:[{label,status,note,priority}]}]}
@@ -217,15 +219,26 @@ async function loadMyInspections() {
       .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
   } catch (e) { console.warn('Inspection history load failed:', e?.code || e); myInspections = []; }
 }
+let allStaffList = [];
 async function loadComplaints() {
   try {
-    // isStaff() has blanket complaint read access (see firestore.rules), so
-    // this is every complaint in the society, not just ones this staff
-    // member created — that's the point: complaints now reach staff too.
     const snap = await getDocs(collection(db, 'complaints'));
-    myComplaints = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+    const all = snap.docs.map(d => ({ id: d.id, ...d.data() }))
       .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+    // A Managing Staff triages the whole queue (and assigns work), so they
+    // see everything. A Supervisor is a field worker — they see only what's
+    // been assigned to them, nothing else.
+    myComplaints = currentStaff.role === 'manager'
+      ? all
+      : all.filter(c => c.assignedToUid === currentStaff.uid);
   } catch (e) { console.warn('Complaints load failed:', e?.code || e); myComplaints = []; }
+
+  // Managing Staff needs the staff list to assign complaints to supervisors.
+  if (currentStaff.role === 'manager' && !allStaffList.length) {
+    try {
+      allStaffList = (await getDocs(collection(db, 'staff'))).docs.map(d => ({ id: d.id, ...d.data() }));
+    } catch (e) { console.warn('Staff list load failed:', e?.code || e); }
+  }
 }
 
 /* ---------------------------------------------------------------------- */
@@ -233,12 +246,13 @@ async function loadComplaints() {
 /* ---------------------------------------------------------------------- */
 function renderHome() {
   const openComplaints = myComplaints.filter(c => c.status === 'open' || c.status === 'in_progress').length;
+  const complaintLabel = currentStaff.role === 'manager' ? 'Open complaints' : 'Assigned to me';
   const el = document.getElementById('tab-home');
   el.innerHTML = `
     <div class="card card-pad" style="margin-bottom:12px;">
       <div style="display:flex; justify-content:space-between; align-items:center;">
         <div><div class="t-muted" style="font-size:11.5px;">Inspections filed</div><div style="font-size:22px; font-weight:800;">${myInspections.length}</div></div>
-        <div><div class="t-muted" style="font-size:11.5px;">Open complaints</div><div style="font-size:22px; font-weight:800; color:${openComplaints ? 'var(--danger)' : 'var(--success)'};">${openComplaints}</div></div>
+        <div><div class="t-muted" style="font-size:11.5px;">${complaintLabel}</div><div style="font-size:22px; font-weight:800; color:${openComplaints ? 'var(--danger)' : 'var(--success)'};">${openComplaints}</div></div>
       </div>
     </div>
     <button class="btn btn-primary" style="width:100%; margin-bottom:8px;" data-goto="inspect">+ Start an Inspection</button>
@@ -408,25 +422,98 @@ function renderHistory() {
 /* ---------------------------------------------------------------------- */
 /*  Complaints tab — staff can move status forward, same as admin can      */
 /* ---------------------------------------------------------------------- */
+// SLA response-time budget per category — kept in step with admin.html's
+// COMPLAINT_SLA_HOURS. Used to pre-fill a sensible target date on assign.
+const STAFF_SLA_HOURS = {
+  security: 4, plumbing: 24, electrical: 24, maintenance: 48,
+  housekeeping: 48, noise: 48, parking: 72, other: 72
+};
+function staffSuggestedTarget(category) {
+  const hours = STAFF_SLA_HOURS[category] ?? 48;
+  return dateToLocalISO(new Date(Date.now() + hours * 3600000));
+}
+
 const COMPLAINT_STATUS_NEXT = { open: 'in_progress', in_progress: 'resolved' };
 const COMPLAINT_STATUS_LABEL = { open: 'Open', in_progress: 'In Progress', resolved: 'Resolved', closed: 'Closed', rejected: 'Rejected' };
 const COMPLAINT_STATUS_BADGE = { open: 'warning', in_progress: 'warning', resolved: 'success', closed: 'neutral', rejected: 'neutral' };
 
+// SLA status from the target date: overdue if past and still open, due-soon
+// if within 24h. Mirrors the admin panel's complaintSlaStatus intent.
+function complaintSla(c) {
+  if (!c.targetDate || ['resolved', 'closed', 'rejected'].includes(c.status)) return null;
+  const target = new Date(c.targetDate + 'T23:59:59').getTime();
+  const now = Date.now();
+  if (now > target) return 'overdue';
+  if (target - now < 24 * 60 * 60 * 1000) return 'due_soon';
+  return null;
+}
+
 function renderComplaints() {
   const el = document.getElementById('tab-complaints');
-  if (!myComplaints.length) { el.innerHTML = '<p class="t-muted" style="font-size:13px;">No complaints on record.</p>'; return; }
-  el.innerHTML = myComplaints.map(c => `
+  const isManager = currentStaff.role === 'manager';
+  if (!myComplaints.length) {
+    el.innerHTML = `<p class="t-muted" style="font-size:13px;">${isManager ? 'No complaints on record.' : 'No complaints assigned to you yet. A Managing Staff or the committee will assign them.'}</p>`;
+    return;
+  }
+  el.innerHTML = myComplaints.map(c => {
+    const sla = complaintSla(c);
+    const slaBadge = sla === 'overdue' ? '<span class="badge badge-danger" style="margin-left:6px;">Overdue</span>'
+      : sla === 'due_soon' ? '<span class="badge badge-warning" style="margin-left:6px;">Due soon</span>' : '';
+    // A supervisor can only act on complaints assigned to them; a manager
+    // sees the queue but acts on the same rule basis (assigned to them) —
+    // otherwise the manager assigns first.
+    const canAct = c.assignedToUid === currentStaff.uid && COMPLAINT_STATUS_NEXT[c.status];
+    return `
     <div class="cx-row">
       <div style="display:flex; justify-content:space-between; align-items:start; gap:8px;">
         <div style="min-width:0;">
           <b style="font-size:13.5px;">${escapeHtml(c.title)}</b>
-          <div class="t-muted" style="font-size:11.5px; margin-top:2px;">${escapeHtml(c.category || '')}${c.source === 'inspection' ? ' · from inspection' : ' · resident report'}${c.createdAt ? ' · ' + fmtDate(c.createdAt) : ''}</div>
+          <div class="t-muted" style="font-size:11.5px; margin-top:2px;">${escapeHtml(c.category || '')}${c.location ? ' · ' + (c.location === 'common' ? 'Common Area' : 'Inside Flat') : ''}${c.source === 'inspection' ? ' · from inspection' : ' · resident report'}${c.createdAt ? ' · ' + fmtDate(c.createdAt) : ''}</div>
+          ${c.assignedToName ? `<div class="t-muted" style="font-size:11px; margin-top:2px;">Assigned to: <b>${escapeHtml(c.assignedToName)}</b></div>` : '<div style="font-size:11px; margin-top:2px; color:var(--danger);">Unassigned</div>'}
+          ${c.targetDate ? `<div class="t-muted" style="font-size:11px; margin-top:1px;">Target: ${escapeHtml(c.targetDate)}</div>` : ''}
+          ${c.reopenNote ? `<div style="font-size:11px; margin-top:3px; color:var(--danger);">Reopened by resident: ${escapeHtml(c.reopenNote)}</div>` : ''}
         </div>
-        <span class="badge badge-${COMPLAINT_STATUS_BADGE[c.status] || 'neutral'}" style="flex-shrink:0;">${COMPLAINT_STATUS_LABEL[c.status] || c.status}</span>
+        <span style="flex-shrink:0; text-align:right;"><span class="badge badge-${COMPLAINT_STATUS_BADGE[c.status] || 'neutral'}">${COMPLAINT_STATUS_LABEL[c.status] || c.status}</span>${slaBadge}</span>
       </div>
-      ${COMPLAINT_STATUS_NEXT[c.status] ? `<button class="btn btn-outline btn-sm" style="margin-top:8px;" data-advance="${c.id}" data-next="${COMPLAINT_STATUS_NEXT[c.status]}">Mark ${COMPLAINT_STATUS_LABEL[COMPLAINT_STATUS_NEXT[c.status]]}</button>` : ''}
-    </div>`).join('');
+      ${isManager ? `
+        <div style="display:flex; gap:6px; margin-top:8px; flex-wrap:wrap; align-items:center;">
+          <select data-assign-sel="${c.id}" style="font-size:12px; padding:5px 8px; border-radius:7px; border:1px solid var(--line); flex:1; min-width:120px;">
+            <option value="">— Assign to —</option>
+            ${allStaffList.filter(s => s.active !== false && s.role === 'supervisor').map(s => ({ ...s, __rec: STAFF_TRADES[s.trade]?.category === c.category && !!c.category })).sort((a, b) => (b.__rec ? 1 : 0) - (a.__rec ? 1 : 0)).map(s => `<option value="${escapeHtml(s.id)}" ${c.assignedToUid === s.id ? 'selected' : ''}>${escapeHtml(s.name)}${STAFF_TRADES[s.trade] ? ' — ' + STAFF_TRADES[s.trade].label : ''}${s.__rec ? ' ✓' : ''}</option>`).join('')}
+          </select>
+          <input type="date" data-target-sel="${c.id}" value="${escapeHtml(c.targetDate || staffSuggestedTarget(c.category))}" style="font-size:12px; padding:5px 8px; border-radius:7px; border:1px solid var(--line);">
+          <button class="btn btn-outline btn-sm" data-assign-save="${c.id}">Save</button>
+        </div>` : ''}
+      ${canAct ? `<button class="btn btn-primary btn-sm" style="margin-top:8px;" data-advance="${c.id}" data-next="${COMPLAINT_STATUS_NEXT[c.status]}">Mark ${COMPLAINT_STATUS_LABEL[COMPLAINT_STATUS_NEXT[c.status]]}</button>` : ''}
+    </div>`;
+  }).join('');
+
   el.querySelectorAll('[data-advance]').forEach(b => b.onclick = () => advanceComplaint(b.dataset.advance, b.dataset.next));
+  el.querySelectorAll('[data-assign-save]').forEach(b => b.onclick = () => {
+    const id = b.dataset.assignSave;
+    const staffId = el.querySelector(`[data-assign-sel="${id}"]`).value;
+    const targetDate = el.querySelector(`[data-target-sel="${id}"]`).value;
+    const staff = allStaffList.find(s => s.id === staffId);
+    assignComplaintFromStaff(id, staff, targetDate);
+  });
+}
+
+async function assignComplaintFromStaff(id, staff, targetDate) {
+  try {
+    await updateDoc(doc(db, 'complaints', id), {
+      assignedToUid: staff?.id || null,
+      assignedToName: staff?.name || null,
+      assignedAt: serverTimestamp(),
+      targetDate: targetDate || null,
+      updatedAt: serverTimestamp()
+    });
+    showToast(staff ? `Assigned to ${staff.name}.` : 'Assignment cleared.', 'success');
+    await loadComplaints();
+    renderComplaints();
+  } catch (err) {
+    console.error('Assign failed:', err);
+    showToast(`Could not assign${err?.code ? ` (${err.code})` : ''}.`, 'error');
+  }
 }
 
 async function advanceComplaint(id, nextStatus) {
@@ -434,7 +521,7 @@ async function advanceComplaint(id, nextStatus) {
     const payload = { status: nextStatus, updatedAt: serverTimestamp() };
     if (nextStatus === 'resolved') payload.resolvedAt = serverTimestamp();
     await updateDoc(doc(db, 'complaints', id), payload);
-    showToast('Updated.', 'success');
+    showToast(nextStatus === 'resolved' ? 'Marked resolved — the resident will be asked to confirm.' : 'Updated.', 'success');
     await loadComplaints();
     renderComplaints();
   } catch (err) {
