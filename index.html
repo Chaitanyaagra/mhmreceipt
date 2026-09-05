@@ -101,7 +101,7 @@
 }
 .site-header .wrap{ display:flex; align-items:center; justify-content:space-between; height:70px; gap:12px; }
 .brand{ display:flex; align-items:center; gap:11px; color:var(--white); min-width:0; }
-.brand-text .full{ font-family:var(--font-display); font-weight:600; font-size:15.5px; line-height:1.14; white-space:nowrap; }
+.brand-text .full{ font-family:var(--font-display); font-weight:600; font-size:15.5px; line-height:1.14; white-space:normal; }
 .brand-text .eyebrow{ color:var(--saffron-300); font-size:9.5px; }
   .brand-eyebrow{ display:block; font-family:var(--font-mono); letter-spacing:.12em; text-transform:uppercase; }
 nav.main-nav{ display:flex; align-items:center; gap:26px; }
@@ -816,10 +816,17 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
   /* The header now carries a language toggle too, so trim the brand block
      rather than letting the society name squeeze into an unreadable column. */
   .site-header .brand-text .eyebrow{ display:none; }
-  .site-header .brand-text .full{ font-size:12.5px; white-space:normal; line-height:1.2; }
+  .site-header .brand-text .full{ font-size:12.5px; white-space:normal; line-height:1.2; word-break:normal; }
   .header-actions{ gap:7px; }
   .lang-toggle-header button{ padding:6px 10px; font-size:12px; }
   #navAuthBtn{ padding:10px 14px; font-size:13px; }
+}
+/* When logged in the header also carries the language toggle, bell and
+   Logout — on phones that's too much beside a society name, so the name
+   (the seal already identifies the app) steps aside to prevent the overlap
+   seen on the resident dashboard. */
+@media (max-width: 600px){
+  body.logged-in .site-header .brand-text{ display:none; }
 }
 
 /* On a short screen the hero was tall enough to push "Register as Resident"
@@ -1054,16 +1061,6 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
         <p>Cash or cheque at the office, or UPI and bank transfer from home — both tracked the same way.</p>
       </div>
       <div class="benefit-card">
-        <div class="glyph"><svg viewBox="0 0 24 24"><use href="#i-ledger"/></svg></div>
-        <h3>Nothing changes quietly</h3>
-        <p>Every approval, edit and verification is timestamped in an audit trail the committee can always review.</p>
-      </div>
-      <div class="benefit-card">
-        <div class="glyph"><svg viewBox="0 0 24 24"><use href="#i-globe"/></svg></div>
-        <h3>English or Hindi notices</h3>
-        <p>Society announcements post in both languages, so nobody misses what matters.</p>
-      </div>
-      <div class="benefit-card">
         <div class="glyph"><svg viewBox="0 0 24 24"><use href="#i-phone"/></svg></div>
         <h3>Built for one hand</h3>
         <p>Register, pay, and pull up a receipt from your phone — no app store, no download needed.</p>
@@ -1216,6 +1213,13 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
         <div class="field"><label for="fld-password-2">Password</label><input type="password" name="password" required autocomplete="current-password" id="fld-password-2"></div>
         <button class="btn btn-primary btn-block" type="submit">Log In</button>
         <p style="text-align:center; margin-top:14px; font-size:13px;"><a href="#" id="forgotPasswordLink" class="t-sub" style="text-decoration:underline;">Forgot password?</a></p>
+        <div class="staff-gate-links" style="margin-top:18px; padding-top:16px; border-top:1px solid var(--line,#EAE6DC); text-align:center;">
+          <p class="t-sub" style="font-size:12px; margin-bottom:10px;">Society staff? Sign in to your own app:</p>
+          <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
+            <a href="staff.html" class="btn btn-outline btn-sm">🧰 Staff Login</a>
+            <a href="guard.html" class="btn btn-outline btn-sm">🛡️ Gate Login</a>
+          </div>
+        </div>
       </form>
 
       <form id="registerForm" style="display:none;">
@@ -1478,6 +1482,8 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
       <div>
         <h4>Official</h4>
         <a href="admin.html">Admin Panel →</a>
+        <a href="staff.html">Staff App →</a>
+        <a href="guard.html">Gate App →</a>
         <a href="verify.html">Verify a Receipt →</a>
       </div>
     </div>
@@ -1783,14 +1789,15 @@ window.__renderCommittee = (rows) => {
   //             Treasurer, OR category:'core'.
   //   • Advisory = role contains "advisory", OR category:'advisory'.
   //   • Team   = everyone else.
-  // Order within Core: President, then Joint Secretary, then Secretary, then
-  // Treasurer. (Joint Secretary is checked before Secretary because
-  // "joint secretary" also contains "secretary".)
+  // Order within Core: President, then Secretary, then Joint Secretary, then
+  // Treasurer. (We still TEST for "joint secretary" before plain "secretary"
+  // because the joint title also contains the word "secretary" — but its rank
+  // is 2, so it sorts after the plain Secretary's rank 1.)
   const coreRank = (role) => {
     const r = (role || '').toLowerCase();
     if (r.includes('president')) return 0;
-    if (r.includes('joint secretary') || r.includes('joint-secretary')) return 1;
-    if (r.includes('secretary')) return 2;
+    if (r.includes('joint secretary') || r.includes('joint-secretary')) return 2;
+    if (r.includes('secretary')) return 1;
     if (r.includes('treasurer')) return 3;
     return null;
   };
@@ -2761,7 +2768,26 @@ async function loadDashboard(uid) {
     content.innerHTML = '<p class="t-muted">Could not load your profile right now — check your connection and refresh the page.</p>';
     return;
   }
-  if (!snap.exists()) { content.innerHTML = '<p class="t-muted">Profile record not found. Please contact the office.</p>'; return; }
+  if (!snap.exists()) {
+    // No member record. This is most often an ADMIN/committee account (they
+    // live in admins/{uid}, not members/{uid}) that happened to open the
+    // resident app — show them a way into the Admin Panel instead of a
+    // dead-end "contact the office". Only if they're not an admin either do
+    // we show the genuine missing-profile message.
+    let isAdminAccount = false;
+    try { isAdminAccount = (await getDoc(doc(db, 'admins', uid))).exists(); } catch (e) { /* ignore */ }
+    if (isAdminAccount) {
+      content.innerHTML = `
+        <div class="card card-pad" style="text-align:center;">
+          <h3 style="font-size:16px; margin-bottom:8px;">You're signed in as committee/admin</h3>
+          <p class="t-muted" style="font-size:13.5px; margin-bottom:16px;">This is the resident app. Your tools are in the Admin Panel.</p>
+          <a class="btn btn-primary" href="admin.html">Go to Admin Panel</a>
+        </div>`;
+      return;
+    }
+    content.innerHTML = '<p class="t-muted">Profile record not found. Please contact the office.</p>';
+    return;
+  }
   currentMember = snap.data();
   document.getElementById('dashGreeting').textContent = `Welcome, ${currentMember.name.split(' ')[0]}`;
 

@@ -199,7 +199,7 @@
   }
 </style>
 </head>
-<body>
+<body data-admin-view="overview">
 <!-- Elegant loading screen (society seal). Removed by __hideAppLoader(). -->
 <div id="appLoader" role="status" aria-label="Loading">
   <img class="al-seal" id="appLoaderSeal" alt="" src="logo.webp">
@@ -2273,6 +2273,7 @@ async function checkStorageAvailable() {
 let currentAdminView = 'overview';
 function switchView(view) {
   currentAdminView = view;
+  document.body.setAttribute('data-admin-view', view);
   document.querySelectorAll('.view-panel').forEach(p => p.classList.remove('active'));
   const panel = document.getElementById('view-' + view);
   if (panel) {

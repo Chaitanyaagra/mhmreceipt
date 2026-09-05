@@ -833,7 +833,13 @@ body.logged-in #dashboard{ min-height:calc(100vh - 66px); padding-top:26px; }
   transition:opacity .15s ease, transform .15s ease; pointer-events:none;
 }
 @media (max-width:820px){
-  .app-shell.active ~ .fab, .fab.fab-always{ display:flex; }
+  /* The Record Payment FAB only belongs on payment-relevant views. On every
+     other view it just floated over the content (covering "pending today",
+     "Add Guard", etc.), so it's scoped to those three views here. */
+  body[data-admin-view="overview"] .fab,
+  body[data-admin-view="payments"] .fab,
+  body[data-admin-view="members"] .fab,
+  .fab.fab-always{ display:flex; }
 }
 
 /* --- Larger touch targets on small screens -------------------------------
