@@ -168,41 +168,42 @@
     .app-shell.active{ grid-template-columns:minmax(0, 1fr); }
     .sidebar{
       position:sticky; top:0; z-index:70; height:auto; flex-direction:row; flex-wrap:wrap;
-      align-items:center; padding:10px 12px; gap:8px; box-shadow:0 2px 10px rgba(10,27,51,.18);
+      align-items:center; padding:10px 12px; gap:8px 10px; box-shadow:0 2px 10px rgba(10,27,51,.18);
     }
-    .sidebar-brand{ padding:0 8px 0 0; flex-shrink:0; }
+    .sidebar-brand{ padding:0; flex:1 1 auto; min-width:0; order:1; }
     .sidebar-brand .brand-text .eyebrow{ display:none; }
-    .sidebar-brand .full{ font-size:12.5px; }
+    .sidebar-brand .full{ font-size:13px; }
 
-    /* The nav becomes a dropdown: a toggle button shows the current view,
-       and tapping it drops the full menu down as a vertical overlay — every
-       option and section label visible at once, no horizontal scrolling. */
+    /* Account controls sit on the same top row as the brand, pushed right. */
+    .sidebar-foot{
+      margin:0; padding:0; border-top:none; flex-shrink:0; order:2;
+      display:flex; align-items:center; gap:10px;
+    }
+    .admin-chip{ display:none; }
+    .sidebar-foot .btn{ white-space:nowrap; width:auto; }
+
+    /* The view-dropdown gets its OWN full-width row below — so its label
+       ("Notices & Committee" etc.) shows in full and never clips. */
     .nav-menu-toggle{
       display:flex; align-items:center; justify-content:space-between; gap:8px;
-      flex:1; min-width:0; order:3; margin-left:auto;
+      order:3; width:100%; flex:0 0 100%;
       background:rgba(255,255,255,.12); color:var(--white); border:1px solid rgba(255,255,255,.18);
-      border-radius:10px; padding:10px 14px; font-size:13.5px; font-weight:600; cursor:pointer;
+      border-radius:10px; padding:11px 16px; font-size:14px; font-weight:600; cursor:pointer;
     }
     .nav-menu-toggle-label{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .nav-menu-toggle-caret{ transition:transform .2s ease; flex-shrink:0; }
     .nav-menu-toggle[aria-expanded="true"] .nav-menu-toggle-caret{ transform:rotate(180deg); }
 
     .side-nav{
-      display:none; order:4; width:100%;
+      display:none; order:4; width:100%; flex:0 0 100%;
       background:var(--navy-900); border:1px solid rgba(255,255,255,.12);
-      border-radius:12px; padding:8px; margin-top:6px; max-height:70vh; overflow-y:auto;
+      border-radius:12px; padding:8px; margin-top:2px; max-height:70vh; overflow-y:auto;
       box-shadow:0 12px 30px rgba(10,27,51,.35);
     }
     .side-nav.menu-open{ display:block; }
     .side-nav button{ width:100%; text-align:left; padding:12px 12px; font-size:14px; white-space:normal; }
     .nav-section-label{ display:block; font-size:10.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:rgba(255,255,255,.4); padding:12px 12px 4px; }
 
-    .sidebar-foot{
-      margin-top:0; padding-top:0; border-top:none; flex-shrink:0; order:2;
-      display:flex; align-items:center; padding-left:10px; border-left:1px solid rgba(255,255,255,.15);
-    }
-    .admin-chip{ display:none; }
-    .sidebar-foot .btn{ white-space:nowrap; width:auto; }
     .main-area{ padding:18px 16px 50px; }
     .topbar{ flex-direction:column; align-items:flex-start; gap:10px; }
     .stat-cards{ grid-template-columns:1fr 1fr; gap:10px; }
@@ -1344,7 +1345,7 @@
         A record of committee actions. This is written from the browser, so treat it as a
         reference — not as proof in a dispute.
       </p>
-      <div class="table-wrap">
+      <div class="table-wrap responsive">
         <table><thead><tr><th>Time</th><th>User</th><th>Action</th><th>Details</th></tr></thead>
         <tbody id="auditLogBody"><tr><td colspan="4" class="t-muted">Loading…</td></tr></tbody></table>
       </div>
@@ -8713,8 +8714,8 @@ async function loadAuditLog() {
   try {
     const rows = (await getDocs(query(collection(db, 'auditLogs'), orderBy('timestamp', 'desc'), limit(200)))).docs.map(d => d.data());
     document.getElementById('auditLogBody').innerHTML = rows.map(r => `
-      <tr><td>${fmtDateTime(r.timestamp)}</td><td>${escapeHtml(r.userEmail)}</td><td>${escapeHtml(r.action)}</td>
-      <td class="mono" style="font-size:11.5px;">${escapeHtml(JSON.stringify(r.details || {}))}</td></tr>
+      <tr><td data-label="Time">${fmtDateTime(r.timestamp)}</td><td data-label="User">${escapeHtml(r.userEmail)}</td><td data-label="Action">${escapeHtml(r.action)}</td>
+      <td data-label="Details" class="mono" style="font-size:11.5px; overflow-wrap:anywhere;">${escapeHtml(JSON.stringify(r.details || {}))}</td></tr>
     `).join('') || '<tr><td colspan="4" class="t-muted">No activity recorded yet.</td></tr>';
   } catch (e) { document.getElementById('auditLogBody').innerHTML = '<tr><td colspan="4" class="t-muted">Could not load activity log.</td></tr>'; }
 }
