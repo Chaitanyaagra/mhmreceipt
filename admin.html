@@ -62,12 +62,12 @@
      blocked on the user's network, and let the service worker cache them for
      genuine offline use. jsPDF + QRCode power the card/receipt PDFs; xlsx +
      jszip + chart.js power Excel export and the dashboard charts. -->
-<script src="./jspdf.umd.min.js"></script>
-<script src="./qrcode.local.js"></script>
-<script src="./xlsx.full.min.js"></script>
-<script src="./jszip.min.js"></script>
-<script src="./chart.umd.min.js"></script>
-<script src="./back-button-handler.js"></script>
+<script src="./jspdf.umd.min.js" defer></script>
+<script src="./qrcode.local.js" defer></script>
+<script src="./xlsx.full.min.js" defer></script>
+<script src="./jszip.min.js" defer></script>
+<script src="./chart.umd.min.js" defer></script>
+<script src="./back-button-handler.js" defer></script>
 <style>
   body{ background:var(--paper); }
   .login-screen{ min-height:100vh; display:grid; place-items:center; background:var(--gradient-navy); padding:20px; }
@@ -167,21 +167,41 @@
   @media (max-width: 980px){
     .app-shell.active{ grid-template-columns:minmax(0, 1fr); }
     .sidebar{
-      position:sticky; top:0; z-index:70; height:auto; flex-direction:row;
-      overflow-x:auto; -webkit-overflow-scrolling:touch; align-items:center;
-      padding:10px 12px; gap:8px; box-shadow:0 2px 10px rgba(10,27,51,.18);
+      position:sticky; top:0; z-index:70; height:auto; flex-direction:row; flex-wrap:wrap;
+      align-items:center; padding:10px 12px; gap:8px; box-shadow:0 2px 10px rgba(10,27,51,.18);
     }
     .sidebar-brand{ padding:0 8px 0 0; flex-shrink:0; }
     .sidebar-brand .brand-text .eyebrow{ display:none; }
     .sidebar-brand .full{ font-size:12.5px; }
-    .side-nav{ display:flex; gap:4px; flex-shrink:0; }
-    .side-nav button{ white-space:nowrap; padding:9px 11px; }
-    .nav-section-label{ display:none; }
+
+    /* The nav becomes a dropdown: a toggle button shows the current view,
+       and tapping it drops the full menu down as a vertical overlay — every
+       option and section label visible at once, no horizontal scrolling. */
+    .nav-menu-toggle{
+      display:flex; align-items:center; justify-content:space-between; gap:8px;
+      flex:1; min-width:0; order:3; margin-left:auto;
+      background:rgba(255,255,255,.12); color:var(--white); border:1px solid rgba(255,255,255,.18);
+      border-radius:10px; padding:10px 14px; font-size:13.5px; font-weight:600; cursor:pointer;
+    }
+    .nav-menu-toggle-label{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .nav-menu-toggle-caret{ transition:transform .2s ease; flex-shrink:0; }
+    .nav-menu-toggle[aria-expanded="true"] .nav-menu-toggle-caret{ transform:rotate(180deg); }
+
+    .side-nav{
+      display:none; order:4; width:100%;
+      background:var(--navy-900); border:1px solid rgba(255,255,255,.12);
+      border-radius:12px; padding:8px; margin-top:6px; max-height:70vh; overflow-y:auto;
+      box-shadow:0 12px 30px rgba(10,27,51,.35);
+    }
+    .side-nav.menu-open{ display:block; }
+    .side-nav button{ width:100%; text-align:left; padding:12px 12px; font-size:14px; white-space:normal; }
+    .nav-section-label{ display:block; font-size:10.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:rgba(255,255,255,.4); padding:12px 12px 4px; }
+
     .sidebar-foot{
-      margin-top:0; padding-top:0; border-top:none; margin-left:auto; flex-shrink:0;
+      margin-top:0; padding-top:0; border-top:none; flex-shrink:0; order:2;
       display:flex; align-items:center; padding-left:10px; border-left:1px solid rgba(255,255,255,.15);
     }
-    .admin-chip{ display:none; } /* name/role text hidden to save space — logout stays */
+    .admin-chip{ display:none; }
     .sidebar-foot .btn{ white-space:nowrap; width:auto; }
     .main-area{ padding:18px 16px 50px; }
     .topbar{ flex-direction:column; align-items:flex-start; gap:10px; }
@@ -189,6 +209,11 @@
     .chart-grid{ grid-template-columns:1fr; }
     .settings-grid{ grid-template-columns:1fr; }
     .card-pad{ padding:18px; }
+  }
+  /* On desktop the sidebar is the always-visible vertical column, so the
+     mobile toggle is never shown and the nav is always displayed. */
+  @media (min-width: 981px){
+    .nav-menu-toggle{ display:none; }
   }
   @media (max-width: 480px){
     .stat-cards{ grid-template-columns:1fr; }
@@ -285,6 +310,10 @@
       <input type="search" id="universalSearch" placeholder="Search everything…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="Search members, payments, events, expenses">
       <div class="usearch-results" id="usearchResults"></div>
     </div>
+    <button class="nav-menu-toggle" id="navMenuToggle" aria-expanded="false" aria-controls="sideNav">
+      <span class="nav-menu-toggle-label" id="navMenuToggleLabel">Overview</span>
+      <span class="nav-menu-toggle-caret">▾</span>
+    </button>
     <nav class="side-nav" id="sideNav">
       <button data-view="overview" class="active"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-overview"/></svg></span> Overview</button>
       <button data-view="approvals"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-approvals"/></svg></span> Approval Center<span class="nav-badge" id="navBadgeApprovals" style="display:none;">0</span></button>
@@ -1324,13 +1353,6 @@
   </main>
 </div>
 
-<!-- Floating action button (mobile only) — quick access to the treasurer's most
-     frequent action, Record Payment. Hidden on desktop where the inline
-     button is always in view. Wired in the module block below. -->
-<button class="fab no-print" id="fabRecordPayment" aria-label="Record a payment" title="Record Payment">
-  <span class="fab-label">Record Payment</span>
-  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
-</button>
 <!-- ============================= MODALS ============================= -->
 <div class="modal-backdrop" id="memberModalBackdrop">
   <div class="modal">
@@ -2281,6 +2303,7 @@ function switchView(view) {
     panel.classList.remove('fade-in-soft'); void panel.offsetWidth; panel.classList.add('fade-in-soft');
   }
   document.querySelectorAll('#sideNav button').forEach(b => b.classList.toggle('active', b.dataset.view === view));
+  if (window.__syncNavToggleLabel) window.__syncNavToggleLabel();
   // allMembers can have moved on since this view was last shown — the
   // members listener keeps it current in the background, but only
   // re-renders the table itself while Members is the visible view. This
@@ -2299,6 +2322,36 @@ function switchView(view) {
   if (view === 'operations' && !window.__operationsLoaded) { window.__operationsLoaded = true; loadOperationsData(); }
 }
 document.querySelectorAll('#sideNav button').forEach(btn => btn.addEventListener('click', () => switchView(btn.dataset.view)));
+
+// Mobile nav dropdown: the toggle shows the full menu; picking an item closes
+// it. The toggle's label always reflects the current view so it reads like
+// "Payments ▾" rather than a generic "Menu".
+(function initNavDropdown() {
+  const toggle = document.getElementById('navMenuToggle');
+  const nav = document.getElementById('sideNav');
+  const label = document.getElementById('navMenuToggleLabel');
+  if (!toggle || !nav) return;
+
+  const closeMenu = () => { nav.classList.remove('menu-open'); toggle.setAttribute('aria-expanded', 'false'); };
+  const openMenu = () => { nav.classList.add('menu-open'); toggle.setAttribute('aria-expanded', 'true'); };
+
+  toggle.addEventListener('click', (e) => {
+    e.stopPropagation();
+    nav.classList.contains('menu-open') ? closeMenu() : openMenu();
+  });
+  // Pick an item -> close the dropdown.
+  nav.querySelectorAll('button[data-view]').forEach(b => b.addEventListener('click', closeMenu));
+  // Tap anywhere outside -> close.
+  document.addEventListener('click', (e) => {
+    if (nav.classList.contains('menu-open') && !nav.contains(e.target) && e.target !== toggle && !toggle.contains(e.target)) closeMenu();
+  });
+  // Keep the toggle label in sync with the active view.
+  window.__syncNavToggleLabel = () => {
+    const active = nav.querySelector('button[data-view].active');
+    if (active && label) label.textContent = active.textContent.trim().replace(/\d+$/, '').trim();
+  };
+  window.__syncNavToggleLabel();
+})();
 
 // Back button: if the admin is on any view other than Overview, back returns
 // to Overview rather than exiting the app. On Overview it falls through to
@@ -3336,17 +3389,77 @@ function renderMonthlySummary() {
   set('msDefaulters', defaulters);
   set('msNewMembers', newMembers);
 
-  // Share the snapshot on WhatsApp (opens WhatsApp with a prefilled message).
+  // Share the monthly snapshot as a PDF via the device's native share sheet
+  // (WhatsApp, email, Drive, etc.). A wa.me link can only ever carry text —
+  // never a file — so a real PDF must go through navigator.share({ files }).
+  // Where that isn't supported, we download the PDF and still offer the old
+  // WhatsApp text as a fallback so nothing is lost.
   const waBtn = document.getElementById('msWhatsAppBtn');
-  if (waBtn) waBtn.onclick = () => {
-    const msg =
+  if (waBtn) waBtn.onclick = async () => {
+    const textMsg =
       `*Max Heights Majestic RWS*\n${monthLabel} — Summary\n\n` +
       `Collected: ${formatINR(collected)}\n` +
       `Payments: ${thisMonthPays.length}\n` +
       `Pending verify: ${pendingVerify}\n` +
       `Defaulters (FY ${selectedFY}): ${defaulters}\n` +
       `New members: ${newMembers}`;
-    window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
+
+    if (!window.jspdf || !window.jspdf.jsPDF) {
+      // PDF engine not loaded yet — fall back to the WhatsApp text.
+      window.open('https://wa.me/?text=' + encodeURIComponent(textMsg), '_blank');
+      return;
+    }
+
+    waBtn.disabled = true; const orig = waBtn.textContent; waBtn.textContent = 'Preparing…';
+    try {
+      const { jsPDF } = window.jspdf;
+      const d = new jsPDF({ unit: 'pt', format: 'a4' });
+      const pageW = d.internal.pageSize.getWidth();
+      let y = 60;
+      d.setFont('helvetica', 'bold'); d.setFontSize(17);
+      d.text('Max Heights Majestic RWS', pageW / 2, y, { align: 'center' }); y += 24;
+      d.setFontSize(13); d.setFont('helvetica', 'normal');
+      d.text(`${monthLabel} — Monthly Summary`, pageW / 2, y, { align: 'center' }); y += 18;
+      d.setFontSize(9); d.setTextColor(120);
+      d.text(`Financial Year ${selectedFY} · Generated ${todayLocalISO()}`, pageW / 2, y, { align: 'center' });
+      d.setTextColor(0); y += 40;
+
+      const row = (label, value) => {
+        d.setFont('helvetica', 'normal'); d.setFontSize(12);
+        d.text(label, 60, y);
+        d.setFont('helvetica', 'bold');
+        d.text(String(value), pageW - 60, y, { align: 'right' });
+        y += 26;
+        d.setDrawColor(230); d.line(60, y - 12, pageW - 60, y - 12);
+      };
+      row('Collected this month', formatINR(collected));
+      row('Payments recorded', thisMonthPays.length);
+      row('Pending verification', pendingVerify);
+      row(`Defaulters (FY ${selectedFY})`, defaulters);
+      row('New members', newMembers);
+
+      const filename = `MHMRWS-${monthLabel.replace(/\s+/g, '-')}-Summary.pdf`;
+      const blob = d.output('blob');
+      const file = new File([blob], filename, { type: 'application/pdf' });
+
+      // Native share with the actual file (works on most modern mobile browsers).
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: 'Monthly Summary', text: `${monthLabel} — Summary` });
+      } else {
+        // Desktop / unsupported: download the PDF, then also open WhatsApp text.
+        d.save(filename);
+        window.open('https://wa.me/?text=' + encodeURIComponent(textMsg), '_blank');
+      }
+      await logAudit(auth.currentUser, 'share_month_summary', { month: monthLabel });
+    } catch (err) {
+      console.error('Share summary PDF failed:', err);
+      // Any failure (including the user cancelling the share sheet) — offer text.
+      if (err && err.name !== 'AbortError') {
+        window.open('https://wa.me/?text=' + encodeURIComponent(textMsg), '_blank');
+      }
+    } finally {
+      waBtn.disabled = false; waBtn.textContent = orig;
+    }
   };
 }
 
@@ -4984,12 +5097,6 @@ document.getElementById('closePaymentDetailModal').addEventListener('click', () 
 
 // Record payment wiring (cash, cheque, UPI, or net banking).
 document.getElementById('recordPaymentBtn')?.addEventListener('click', openRecordPaymentModal);
-// Mobile FAB opens the same Record Payment flow. Switch to the Payments
-// view first so the context matches, then open the modal.
-document.getElementById('fabRecordPayment')?.addEventListener('click', () => {
-  if (typeof switchView === 'function') switchView('payments');
-  openRecordPaymentModal();
-});
 document.getElementById('closeRecordPaymentModal')?.addEventListener('click', () => document.getElementById('recordPaymentModalBackdrop').classList.remove('open'));
 document.getElementById('recordPaymentForm')?.addEventListener('submit', submitRecordPayment);
 // A reference number is asked for cheque (cheque no.) and for UPI / Net

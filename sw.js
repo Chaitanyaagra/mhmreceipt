@@ -8,7 +8,7 @@
    Bump CACHE_NAME on any future structural change to force a clean cache.
    ========================================================================== */
 
-const CACHE_NAME = 'mhmrws-shell-v37';
+const CACHE_NAME = 'mhmrws-shell-v41';
 const SHELL_FILES = [
   './',
   './index.html',
@@ -75,23 +75,29 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET' || url.origin !== self.location.origin) return;
 
   // --------------------------------------------------------------------
-  // Two strategies, chosen per file type.
+  // Three strategies, chosen per file type, tuned for speed on weak mobile
+  // networks (the old "network-first for everything" made every file wait
+  // on the network on every single visit, which felt very slow).
   //
-  // IMAGES -> cache-first. They are ~59% of the page weight and their
-  // contents never change (a new photo means a new filename), so serving
-  // them straight from cache is both instant and always correct.
+  // 1) IMAGES and VENDORED LIBRARIES (jspdf, xlsx, chart, jszip, qrcode)
+  //    -> cache-first. Their contents never change for a given filename
+  //    (a new photo = new name; a library is a fixed file), so serving
+  //    straight from cache is instant and always correct. These libraries
+  //    are ~1.6 MB together — not re-fetching them on every visit is the
+  //    single biggest speed win.
   //
-  // EVERYTHING ELSE (html, css, js) -> network-first with cache fallback.
-  // A cache-first strategy here would be faster on repeat visits, but it
-  // also means a freshly deployed fix does not reach residents until their
-  // second visit. For a portal that is still being changed regularly, an
-  // update that silently fails to appear is far more costly than a few
-  // hundred milliseconds, so correctness wins. Offline still works: the
-  // cached copy is served whenever the network request fails.
+  // 2) APP CODE + MARKUP (html, css, our own .js) -> stale-while-revalidate.
+  //    Serve the cached copy immediately (fast), AND fetch a fresh copy in
+  //    the background to update the cache for next time. Residents get an
+  //    instant load; a deployed fix reaches them on their very next visit
+  //    (one visit later than network-first, but without the per-visit wait).
+  //
+  // 3) Anything else falls through to the same stale-while-revalidate.
   // --------------------------------------------------------------------
   const isImage = /\.(webp|jpg|jpeg|png|gif|svg|ico)$/i.test(url.pathname);
+  const isVendorLib = /\.(min|umd\.min)\.js$/i.test(url.pathname) || /qrcode\.local\.js$/i.test(url.pathname);
 
-  if (isImage) {
+  if (isImage || isVendorLib) {
     event.respondWith(
       caches.match(event.request).then((cached) => {
         if (cached) return cached;
@@ -107,15 +113,21 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Stale-while-revalidate: return cache now (if present), refresh in bg.
   event.respondWith(
-    fetch(event.request)
-      .then((response) => {
-        if (response && response.ok) {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
-        }
-        return response;
-      })
-      .catch(() => caches.match(event.request)) // offline fallback only
+    caches.match(event.request).then((cached) => {
+      const networkFetch = fetch(event.request)
+        .then((response) => {
+          if (response && response.ok) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+          }
+          return response;
+        })
+        .catch(() => cached); // offline: fall back to whatever we had
+      // If we have a cached copy, serve it instantly and let the network
+      // update happen in the background; otherwise wait for the network.
+      return cached || networkFetch;
+    })
   );
 });
