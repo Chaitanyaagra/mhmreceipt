@@ -204,6 +204,19 @@ export function paidSoFar(payments, memberUid, financialYear) {
  *          status is 'no_rate' | 'paid' | 'partial' | 'unpaid' | 'overpaid'
  */
 export function duesFor(member, payments, financialYear, maintenanceSettings) {
+  // Someone else registered on this flat is the one responsible for
+  // maintenance (set at approval time when a flat has both an owner and a
+  // tenant claim). This member owes nothing here — full stop, before the
+  // rate/payment math runs at all — because callers besides the dashboard's
+  // own dues card (which had its own separate check) also read this result
+  // directly: the facility-booking dues gate and the payment modal's
+  // maintenance invoice line both trusted duesFor()'s numbers with no
+  // awareness of maintenanceResponsible, which wrongly blocked bookings
+  // over dues that weren't theirs and risked the flat's maintenance being
+  // paid twice.
+  if (member?.maintenanceResponsible === false) {
+    return { expected: 0, paid: 0, outstanding: 0, status: 'not_responsible' };
+  }
   const expected = expectedDue(member, financialYear, maintenanceSettings);
   const paid = paidSoFar(payments, member?.uid, financialYear);
   const outstanding = Math.max(0, expected - paid);
@@ -236,6 +249,7 @@ export function duesFor(member, payments, financialYear, maintenanceSettings) {
 export function maintenanceHealthStatus(member, payments, financialYear, maintenanceSettings) {
   if (member?.duesDisputed) return { level: 'disputed', label: 'Disputed', icon: '⚫' };
   const d = duesFor(member, payments, financialYear, maintenanceSettings);
+  if (d.status === 'not_responsible') return { level: 'not_responsible', label: 'Other Resident Pays', icon: '🔵', ...d };
   if (d.status === 'no_rate') return { level: 'no_rate', label: 'Rate Not Set', icon: '⚪', ...d };
   if (d.outstanding === 0) return { level: 'current', label: 'Paid Current', icon: '🟢', ...d };
   if (d.status === 'partial') return { level: 'partial', label: 'Partially Paid', icon: '🟡', ...d };
@@ -349,7 +363,8 @@ export const DUES_LABEL = {
   unpaid:   'Unpaid',
   partial:  'Partially Paid',
   paid:     'Paid',
-  overpaid: 'Overpaid'
+  overpaid: 'Overpaid',
+  not_responsible: 'Other Resident Pays'
 };
 
 export const DUES_BADGE = {
@@ -357,7 +372,8 @@ export const DUES_BADGE = {
   unpaid:   'badge-danger',
   partial:  'badge-warning',
   paid:     'badge-success',
-  overpaid: 'badge-info'
+  overpaid: 'badge-info',
+  not_responsible: 'badge-neutral'
 };
 
 /* ---------------------------------------------------------------------- */

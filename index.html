@@ -62,6 +62,7 @@
      worker for offline use. -->
 <script src="./jspdf.umd.min.js" defer></script>
 <script src="./qrcode.local.js" defer></script>
+<script src="./update-banner.js" defer></script>
 <script src="./back-button-handler.js" defer></script>
 <style>
 /* =====================================================================
@@ -2511,9 +2512,15 @@ registerForm.addEventListener('submit', async (e) => {
     // here closes that window before the first real write is attempted.
     try { await cred.user.getIdToken(true); } catch (tokenErr) { console.warn('Token refresh failed, continuing anyway:', tokenErr?.code || tokenErr); }
 
-    let photoURL = '';
-    if (f.photo.files[0]) photoURL = await uploadFile(`photos/${uid}/photo_${Date.now()}_${Math.random().toString(36).slice(2,8)}`, f.photo.files[0]);
-
+    // The member document is created FIRST, right after the Auth account —
+    // deliberately BEFORE the (slower, network-heavier) photo upload. If the
+    // photo upload is slow, fails, or the connection drops mid-upload on a
+    // weak network, the registration itself must already be safely recorded:
+    // otherwise the resident is left with a login (Auth account) but no
+    // profile at all — invisible to admin, and blocking them from trying to
+    // register again with the same email. The photo is attached afterward
+    // with a follow-up update; if THAT fails, the registration has already
+    // gone through, so it's reported as a non-fatal, separate problem.
     await setDoc(doc(db, 'members', uid), {
       uid,
       name: f.name.value.trim(),
@@ -2540,7 +2547,7 @@ registerForm.addEventListener('submit', async (e) => {
       policeVerification: f.policeVerification.value || null,
       ownerName: f.ownerName.value.trim() || null,
       ownerContact: f.ownerContact.value.trim() || null,
-      photoURL,
+      photoURL: '',
       declarationAccepted: true,
       memberID: null,
       status: 'pending',
@@ -2548,6 +2555,21 @@ registerForm.addEventListener('submit', async (e) => {
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
     });
+
+    // Now that the registration itself is safely recorded, attempt the photo
+    // upload. A failure here is reported as non-fatal (see the toast logic
+    // below) — the office can add the photo later — rather than losing the
+    // whole registration.
+    let photoURL = '';
+    if (f.photo.files[0]) {
+      try {
+        photoURL = await uploadFile(`photos/${uid}/photo_${Date.now()}_${Math.random().toString(36).slice(2,8)}`, f.photo.files[0]);
+        if (photoURL) await updateDoc(doc(db, 'members', uid), { photoURL });
+      } catch (photoErr) {
+        console.warn('Registration photo upload failed (non-fatal, registration already recorded):', photoErr);
+        photoURL = '';
+      }
+    }
 
     // Pets are their own documents (not embedded in the member record) so
     // the vaccination-reminder job can query across all of them directly.
@@ -2785,7 +2807,12 @@ async function loadDashboard(uid) {
         </div>`;
       return;
     }
-    content.innerHTML = '<p class="t-muted">Profile record not found. Please contact the office.</p>';
+    content.innerHTML = `
+      <div class="card card-pad" style="text-align:center;">
+        <h3 style="font-size:16px; margin-bottom:8px;">We couldn't find your registration</h3>
+        <p class="t-muted" style="font-size:13.5px; margin-bottom:4px;">Your login works, but your registration details didn't finish saving — this can happen if your connection dropped partway through registering.</p>
+        <p class="t-muted" style="font-size:13.5px;">Please contact the society office with this email address (<b>${escapeHtml(auth.currentUser?.email || '')}</b>) so they can reset your account, then register again.</p>
+      </div>`;
     return;
   }
   currentMember = snap.data();
@@ -4612,16 +4639,15 @@ async function submitPayment(mode) {
   paymentInFlight = true;
   setLoading(btn, true);
   try {
-    if (!isOffline) {
-      const proofFile = document.getElementById('payProof').files[0];
-      if (proofFile) {
-        proofURL = await uploadFile(`paymentProofs/${currentUser.uid}/${Date.now()}`, proofFile);
-        // The UTR is what the Treasurer actually verifies against, so a
-        // missing screenshot must never stop the payment being recorded.
-        if (!proofURL) showToast('Screenshot upload failed, but the payment was recorded. It will be verified against the UTR.', 'error');
-      }
-    }
-    await addDoc(collection(db, 'payments'), {
+    // The payment record is created FIRST — before the (slower,
+    // network-heavier) proof-screenshot upload. If the upload is slow,
+    // fails, or the connection drops mid-upload, the payment itself must
+    // already be recorded and visible to admin: otherwise the resident
+    // believes they submitted a payment that never actually reached
+    // Firestore, and no approval request ever appears. The screenshot is
+    // attached afterward with a follow-up update; its failure is reported
+    // as non-fatal since the payment is already safely recorded.
+    const paymentRef = await addDoc(collection(db, 'payments'), {
       memberUid: currentUser.uid,
       memberID: currentMember.memberID,
       flatNumber: currentMember.flatNumber,
@@ -4636,12 +4662,32 @@ async function submitPayment(mode) {
       financialYear: currentFinancialYear(),
       mode,
       utrOrChequeNo: utr,
-      paymentProofURL: proofURL,
+      paymentProofURL: '',
       status: isOffline ? 'pending_approval' : 'pending_verification',
       receiptNumber: null,
       clientToken: crypto.randomUUID(),
       submittedAt: serverTimestamp()
     });
+
+    if (!isOffline) {
+      const proofFile = document.getElementById('payProof').files[0];
+      if (proofFile) {
+        try {
+          proofURL = await uploadFile(`paymentProofs/${currentUser.uid}/${Date.now()}`, proofFile);
+          // The UTR is what the Treasurer actually verifies against, so a
+          // missing screenshot must never stop the payment being recorded.
+          if (proofURL) {
+            await updateDoc(paymentRef, { paymentProofURL: proofURL, updatedAt: serverTimestamp() });
+          } else {
+            showToast('Screenshot upload failed, but the payment was recorded. It will be verified against the UTR.', 'error');
+          }
+        } catch (proofErr) {
+          console.warn('Payment proof upload failed (non-fatal, payment already recorded):', proofErr);
+          showToast('Screenshot upload failed, but the payment was recorded. It will be verified against the UTR.', 'error');
+        }
+      }
+    }
+
     document.getElementById('paymentModalBackdrop').classList.remove('open');
     showSuccess('Payment Recorded!', isOffline
       ? 'Your payment has been recorded. You will get a receipt once the office confirms it.'

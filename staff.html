@@ -101,6 +101,7 @@
 
 <div id="toast-region"></div>
 
+<script src="./update-banner.js"></script>
 <script src="./back-button-handler.js"></script>
 <!-- Service worker registration lives here, not in the Firebase module —
      same reasoning as index.html: if the SDK fails to load, offline
@@ -377,7 +378,15 @@ async function submitInspection() {
   const btn = document.getElementById('submitInspBtn');
   btn.disabled = true; btn.textContent = 'Submitting…';
   try {
-    const inspDoc = await addDoc(collection(db, 'inspections'), {
+    // One batch for the inspection AND every auto-created complaint — either
+    // all of it lands, or none of it does. Previously each write was a
+    // separate addDoc(): a network failure partway through the complaints
+    // loop left the inspection (and however many complaints had already
+    // gone through) permanently saved, and a retry would then duplicate the
+    // whole thing on top of that partial state.
+    const batch = writeBatch(db);
+    const inspRef = doc(collection(db, 'inspections'));
+    batch.set(inspRef, {
       formType: draft.formType,
       tower: draft.tower || null,
       sections: draft.sections.map(sec => ({ title: sec.title, items: sec.items.map(it => ({ label: it.label, status: it.status || 'unchecked', note: it.note || null })) })),
@@ -393,20 +402,22 @@ async function submitInspection() {
     // visually distinguishable in that list.
     const issues = allItems.filter(it => it.status === 'issue');
     for (const it of issues) {
-      await addDoc(collection(db, 'complaints'), {
+      const complaintRef = doc(collection(db, 'complaints'));
+      batch.set(complaintRef, {
         raisedByUid: currentStaff.uid,
         title: it.label,
         description: (it.note || 'Flagged during ' + INSPECTION_TYPES[draft.formType].label + (draft.tower ? ' — Tower ' + draft.tower : '') + '.'),
         category: inspectionSectionToComplaintCategory(it.section),
         status: 'open',
         source: 'inspection',
-        sourceInspectionId: inspDoc.id,
+        sourceInspectionId: inspRef.id,
         priority: it.priority,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       });
     }
 
+    await batch.commit();
     showToast('Inspection submitted' + (issues.length ? ' — ' + issues.length + ' issue(s) logged.' : '.'), 'success');
     await Promise.all([loadMyInspections(), loadComplaints()]);
     showTab('history');

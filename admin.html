@@ -67,6 +67,7 @@
 <script src="./xlsx.full.min.js" defer></script>
 <script src="./jszip.min.js" defer></script>
 <script src="./chart.umd.min.js" defer></script>
+<script src="./update-banner.js" defer></script>
 <script src="./back-button-handler.js" defer></script>
 <style>
   body{ background:var(--paper); }
@@ -4487,6 +4488,19 @@ async function submitMemberEdit(e, original) {
       const newClaimRef = doc(db, 'flatClaims', flatClaimId(tower, flatNumber, f.residentType.value));
       const oldClaimRef = doc(db, 'flatClaims', flatClaimId(original.tower, original.flatNumber, original.residentType));
 
+      // If this is a genuine move to a different flat (not just switching
+      // owner/tenant side on the SAME flat) and this member was the one
+      // billed there, the OLD flat's other resident (if any) must be
+      // promoted — otherwise moving the payer away silently leaves that
+      // flat with nobody billed, dropping out of defaulter tracking with
+      // no error anywhere to catch it. Same protection deactivateMember()
+      // already has; this move path was the gap.
+      const isCrossFlatMove = original.tower !== tower || original.flatNumber !== flatNumber;
+      const oldOtherSide = original.residentType === 'tenant' ? 'owner' : 'tenant';
+      const oldOtherClaimRef = (isCrossFlatMove && original.maintenanceResponsible === true)
+        ? doc(db, 'flatClaims', flatClaimId(original.tower, original.flatNumber, oldOtherSide))
+        : null;
+
       // Same flat-slot-double-billing consideration as approveMember(): if
       // this move lands on a slot whose other side is unoccupied, this
       // member becomes the sole (billed) resident; otherwise leave whoever
@@ -4505,6 +4519,19 @@ async function submitMemberEdit(e, original) {
         if (claim.exists() && claim.data().memberDocId !== original.id) throw new Error('FLAT_TAKEN');
         const otherClaim = await tx.get(otherClaimRef);
         patch.maintenanceResponsible = !otherClaim.exists();
+        // Promote the old flat's remaining resident, if this move leaves
+        // that flat's payer behind. Read inside the transaction for the
+        // same race-safety reason as the other tx.get() calls here.
+        if (oldOtherClaimRef) {
+          const oldOtherClaim = await tx.get(oldOtherClaimRef);
+          if (oldOtherClaim.exists() && oldOtherClaim.data().memberDocId) {
+            const oldOtherMemberRef = doc(db, 'members', oldOtherClaim.data().memberDocId);
+            const oldOtherMemberSnap = await tx.get(oldOtherMemberRef);
+            if (oldOtherMemberSnap.exists() && oldOtherMemberSnap.data().status === 'approved') {
+              tx.update(oldOtherMemberRef, { maintenanceResponsible: true, updatedAt: serverTimestamp() });
+            }
+          }
+        }
         tx.update(doc(db, 'members', original.id), patch);
         tx.delete(oldClaimRef);
         tx.set(newClaimRef, {
@@ -4729,16 +4756,32 @@ async function deactivateMember(id) {
   if (reason === null) return;
   const m = allMembers.find(x => x.id === id) || {};
   try {
-    const batch = writeBatch(db);
-    batch.update(doc(db, 'members', id), { status: 'inactive', deactivatedReason: reason, deactivatedAt: serverTimestamp(), updatedAt: serverTimestamp() });
-    // Flip the public record too, so the card stops verifying at the gate the
-    // moment the member is deactivated — in the same commit, so it can never be
-    // the case that the member is inactive but the card still scans as valid.
-    const deacKey = publicKeyForMember(m);
-    if (deacKey) batch.set(doc(db, 'membersPublic', deacKey), { status: 'inactive', updatedAt: serverTimestamp() }, { merge: true });
-    // Release the flat for the next resident.
-    if (m.tower && m.flatNumber) batch.delete(doc(db, 'flatClaims', flatClaimId(m.tower, m.flatNumber, m.residentType)));
-    await batch.commit();
+    await runTransaction(db, async (tx) => {
+      // If this member was the one billed for the flat's maintenance, the
+      // flat's OTHER resident (owner/tenant, if one is approved there) must
+      // be promoted to responsible — otherwise deactivating the payer
+      // silently leaves nobody billed for that flat at all, and it drops
+      // out of defaulter tracking with no error anywhere to catch it.
+      if (m.maintenanceResponsible === true && m.tower && m.flatNumber) {
+        const otherSide = m.residentType === 'tenant' ? 'owner' : 'tenant';
+        const otherClaimSnap = await tx.get(doc(db, 'flatClaims', flatClaimId(m.tower, m.flatNumber, otherSide)));
+        if (otherClaimSnap.exists() && otherClaimSnap.data().memberDocId) {
+          const otherMemberRef = doc(db, 'members', otherClaimSnap.data().memberDocId);
+          const otherMemberSnap = await tx.get(otherMemberRef);
+          if (otherMemberSnap.exists() && otherMemberSnap.data().status === 'approved') {
+            tx.update(otherMemberRef, { maintenanceResponsible: true, updatedAt: serverTimestamp() });
+          }
+        }
+      }
+      tx.update(doc(db, 'members', id), { status: 'inactive', deactivatedReason: reason, deactivatedAt: serverTimestamp(), updatedAt: serverTimestamp() });
+      // Flip the public record too, so the card stops verifying at the gate the
+      // moment the member is deactivated — in the same commit, so it can never be
+      // the case that the member is inactive but the card still scans as valid.
+      const deacKey = publicKeyForMember(m);
+      if (deacKey) tx.set(doc(db, 'membersPublic', deacKey), { status: 'inactive', updatedAt: serverTimestamp() }, { merge: true });
+      // Release the flat for the next resident.
+      if (m.tower && m.flatNumber) tx.delete(doc(db, 'flatClaims', flatClaimId(m.tower, m.flatNumber, m.residentType)));
+    });
     await logAudit(auth.currentUser, 'deactivate_member', { id, reason });
     showToast('Member deactivated.', 'success');
     document.getElementById('memberModalBackdrop').classList.remove('open');
@@ -5071,7 +5114,7 @@ async function submitPaymentEdit(e, original) {
       // Keep the public receipt in sync so a QR scan shows the corrected figure,
       // not the original mistake — only when this payment actually has one.
       if (original.receiptNumber && original.publicToken) {
-        tx.update(doc(db, 'receiptsPublic', original.publicToken), { amount, receiptNumber: original.receiptNumber });
+        tx.update(doc(db, 'receiptsPublic', original.publicToken), { amount, receiptNumber: original.receiptNumber, financialYear: f.financialYear.value });
       }
     });
     await logAudit(auth.currentUser, 'edit_payment', {
@@ -7855,28 +7898,70 @@ async function confirmImport() {
     for (const row of importRows) {
       if (row.errors.length) continue;
       try {
+        // Generated before the transaction starts — generateMemberId() and
+        // newPublicToken() each do their own atomic work (a counter
+        // transaction, a random token), and Firestore doesn't allow nesting
+        // a transaction inside another. Same order approveMember() uses.
         const memberID = await generateMemberId();
-        await addDoc(collection(db, 'members'), {
-          uid: null, name: row.name, fatherHusbandName: row.fatherHusbandName, tower: row.tower, flatNumber: row.flat,
-          mobile: row.mobile, email: row.email, residentType: row.residentType, address: '',
-          dob: row.dob || null, anniversary: row.anniversary || null, familyMembers: row.familyMembers || [],
-          photoURL: '', declarationAccepted: true, memberID, status: 'approved', role: 'resident',
-          source: 'bulk_import', createdAt: serverTimestamp(), updatedAt: serverTimestamp()
+        const publicToken = newPublicToken();
+        const memberRef = doc(collection(db, 'members'));
+        const claimRef = doc(db, 'flatClaims', flatClaimId(row.tower, row.flat, row.residentType));
+        const otherSide = row.residentType === 'tenant' ? 'owner' : 'tenant';
+        const otherClaimRef = doc(db, 'flatClaims', flatClaimId(row.tower, row.flat, otherSide));
+
+        await runTransaction(db, async (tx) => {
+          // A flat already claimed for this exact slot (owner/tenant) by
+          // someone else must stop the row rather than silently create a
+          // second resident on top of an existing one — same protection
+          // approveMember() has for the normal registration path.
+          const claim = await tx.get(claimRef);
+          if (claim.exists()) throw new Error('FLAT_TAKEN');
+          // Whoever already holds the flat's OTHER slot is presumably
+          // already the one billed for maintenance — a second resident on
+          // the same flat must default to NOT independently billed, or the
+          // defaulters list and fund totals would double-count one flat.
+          const otherClaim = await tx.get(otherClaimRef);
+          const maintenanceResponsible = !otherClaim.exists();
+
+          tx.set(memberRef, {
+            uid: null, name: row.name, fatherHusbandName: row.fatherHusbandName, tower: row.tower, flatNumber: row.flat,
+            mobile: row.mobile, email: row.email, residentType: row.residentType, address: '',
+            dob: row.dob || null, anniversary: row.anniversary || null, familyMembers: row.familyMembers || [],
+            photoURL: '', declarationAccepted: true, memberID, publicToken, status: 'approved', role: 'resident',
+            maintenanceResponsible, source: 'bulk_import', createdAt: serverTimestamp(), updatedAt: serverTimestamp()
+          });
+          // Same public QR/membership-card record every approval creates —
+          // without this, a bulk-imported resident's membership card and
+          // receipt QR verification would never work.
+          tx.set(doc(db, 'membersPublic', publicToken), {
+            memberID, name: row.name || '', tower: row.tower || '', flatNumber: row.flat || '',
+            residentType: row.residentType || '', status: 'approved', updatedAt: serverTimestamp()
+          });
+          // The flat-occupancy lock itself — this is the fix: without it,
+          // a genuine new registration for the same flat was never blocked,
+          // since the availability check only ever looks at flatClaims.
+          tx.set(claimRef, {
+            tower: row.tower || '', flatNumber: row.flat || '',
+            memberDocId: memberRef.id, memberUid: null, claimedAt: serverTimestamp()
+          });
         });
         count++;
       } catch (rowErr) {
-        // One bad row (e.g. a transient write failure) must not silently
-        // stop the rest of the file from importing, and must not be hidden —
-        // note it and keep going, then report exactly what happened.
+        // One bad row (e.g. a transient write failure, or a genuine flat
+        // conflict) must not silently stop the rest of the file from
+        // importing, and must not be hidden — note it and keep going.
         console.error('Import row failed:', row.name, rowErr);
-        failed.push({ name: row.name, code: rowErr?.code || '' });
+        const reason = rowErr?.message === 'FLAT_TAKEN'
+          ? `Tower ${row.tower} Flat ${row.flat} (${row.residentType}) is already registered`
+          : (rowErr?.code || '');
+        failed.push({ name: row.name, code: reason });
       }
     }
     await logAudit(auth.currentUser, 'bulk_import', { count, failed: failed.length });
     if (failed.length) {
-      showToast(`${count} imported, ${failed.length} failed (${failed.map(f => f.name).join(', ')}). Please try those again.`, 'error');
+      showToast(`${count} imported, ${failed.length} failed (${failed.map(f => f.name + (f.code ? ` — ${f.code}` : '')).join('; ')}). Please check and try those again.`, 'error');
     } else {
-      showToast(`${count} residents imported. Note: they'll need to register normally with their email to get portal login access.`, 'success');
+      showToast(`${count} residents imported and fully set up (flat claimed, membership card ready). Note: they'll need to register normally with their email to get portal login access — contact the office to link an existing imported profile rather than creating a duplicate.`, 'success');
     }
     await reloadMembers(); renderMembersTable(); renderOverview(); populateTowerFilter();
     document.getElementById('importPreview').innerHTML = ''; document.getElementById('importFile').value = '';

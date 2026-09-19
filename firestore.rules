@@ -447,24 +447,36 @@ service cloud.firestore {
       // at once with no trace of it happening. If a payment was genuinely
       // recorded against the wrong resident, the correct fix is to void it
       // and create a fresh one for the right person — not repoint this one.
-      allow update: if canVerifyPayments()
+      allow update: if (canVerifyPayments()
                     && unchanged('memberUid')
                     && unchanged('recordedByAdmin')
                     && isValidPaymentStatus(request.resource.data.status)
                     && isValidAmount(request.resource.data.amount)
                     && isValidPaymentMode(request.resource.data.mode)
                     && isValidFY(request.resource.data.financialYear)
-                    // Name/flat must still match the (locked) memberUid's real
-                    // record — not merely be non-empty. Otherwise a correction
-                    // edit could keep memberUid but swap in another resident's
-                    // name/flat, which then prints on the receipt and shows in
-                    // ledger/history. exists() guards a member deleted after
-                    // the payment was recorded.
-                    && exists(/databases/$(database)/documents/members/$(resource.data.memberUid))
-                    && request.resource.data.residentName
-                       == get(/databases/$(database)/documents/members/$(resource.data.memberUid)).data.name
-                    && request.resource.data.flatNumber
-                       == get(/databases/$(database)/documents/members/$(resource.data.memberUid)).data.flatNumber
+                    // Name/flat only need to be re-checked against the
+                    // (locked) memberUid's CURRENT record when this update
+                    // actually CHANGES one of them — otherwise a resident
+                    // who has since moved flats would make every one of
+                    // their OLD payments permanently uncorrectable/unvoidable,
+                    // since the old record's flatNumber would never match
+                    // their current one again. Leaving them exactly as they
+                    // already were is always fine (that's the historical
+                    // snapshot from when the payment was actually made);
+                    // only an ACTUAL change to either field still has to
+                    // match the current member — closing the same identity-
+                    // injection gap this existed for in the first place.
+                    // exists() guards a member deleted after the payment.
+                    && (
+                      (unchanged('residentName') && unchanged('flatNumber'))
+                      || (
+                        exists(/databases/$(database)/documents/members/$(resource.data.memberUid))
+                        && request.resource.data.residentName
+                           == get(/databases/$(database)/documents/members/$(resource.data.memberUid)).data.name
+                        && request.resource.data.flatNumber
+                           == get(/databases/$(database)/documents/members/$(resource.data.memberUid)).data.flatNumber
+                      )
+                    )
                     && isOptionalString(request.resource.data, 'utrOrChequeNo', 40)
                     && isOptionalString(request.resource.data, 'remarks', 500)
                     // A receipt number, once issued, is never rewritten or removed —
@@ -504,7 +516,21 @@ service cloud.firestore {
                     && (resource.data.status != 'verified' || request.resource.data.status in ['verified', 'voided'])
                     // Once voided, always voided — a void is itself a
                     // permanent record, not an editable draft.
-                    && resource.data.status != 'voided';
+                    && resource.data.status != 'voided'
+                    ) || (
+                      // A resident attaching their payment-proof screenshot —
+                      // either right after creating the payment record (the
+                      // proof upload happens AFTER the record exists, so a
+                      // slow/dropped connection during the upload can never
+                      // lose the payment itself), or adding one they forgot
+                      // the first time. Strictly scoped: only their own,
+                      // still-pending payment, and only this one field.
+                      isSignedIn()
+                      && resource.data.memberUid == request.auth.uid
+                      && resource.data.status in ['pending_approval', 'pending_verification']
+                      && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['paymentProofURL', 'updatedAt'])
+                      && isNonEmptyString(request.resource.data.paymentProofURL, 500)
+                    );
 
       // A never-verified entry (duplicate, bad data-entry, abandoned
       // pending row) can be removed outright — it never affected anyone's
@@ -575,7 +601,11 @@ service cloud.firestore {
     // via a reset-password email — unlike guards, staff use their real
     // inbox, so this doesn't need the guard flow's fake-email trick.
     match /staff/{uid} {
-      allow read: if isAdmin() || isOwner(uid);
+      // A Managing Staff needs to see the whole roster to assign complaints
+      // to a supervisor — reading only their own doc (isOwner) was leaving
+      // every other staff member's document unreadable to them, breaking
+      // the assign-dropdown entirely.
+      allow read: if isAdmin() || isOwner(uid) || isManagerStaff();
       allow create, update: if canApproveMembers()
                             && isNonEmptyString(request.resource.data.name, 100)
                             && request.resource.data.role in ['manager', 'supervisor']
@@ -680,14 +710,17 @@ service cloud.firestore {
                       && isOptionalString(request.resource.data, 'resolutionNote', 500)
                     )
                     || (
-                      // --- Staff assigning/routing work: any active staff
-                      // member (a Managing Staff triaging the queue, say) can
-                      // assign a complaint to a supervisor and set its target
-                      // date, without needing to be committee. This branch
-                      // touches ONLY the assignment fields — never status or
-                      // the original complaint text — so it can't be used to
-                      // silently resolve or rewrite a complaint.
-                      isStaff()
+                      // --- Staff assigning/routing work: only a Managing
+                      // Staff triaging the queue may do this — NOT any
+                      // active staff, since a Supervisor's read access is
+                      // already restricted to complaints assigned to them,
+                      // and letting any staff account reassign a complaint
+                      // it merely knows the ID of (even one it can't read)
+                      // would undercut that. This branch touches ONLY the
+                      // assignment fields — never status or the original
+                      // complaint text — so it can't be used to silently
+                      // resolve or rewrite a complaint.
+                      isManagerStaff()
                       && unchanged('raisedByUid') && unchanged('title')
                       && unchanged('description') && unchanged('category') && unchanged('createdAt')
                       && unchanged('status')
@@ -876,7 +909,13 @@ service cloud.firestore {
                     && isNonEmptyString(request.resource.data.receiptNumber, 40)
                     && unchanged('receiptNumber')
                     && unchanged('residentName') && unchanged('flatNumber')
-                    && unchanged('tower') && unchanged('financialYear');
+                    && unchanged('tower')
+                    // financialYear may be corrected in step with the
+                    // payment it belongs to (same reasoning as amount) —
+                    // locking it here would leave a corrected payment and
+                    // its QR-scanned receipt permanently showing two
+                    // different years.
+                    && isValidFY(request.resource.data.financialYear);
       allow delete: if canVerifyPayments();
     }
 
@@ -1387,7 +1426,12 @@ service cloud.firestore {
                     && request.resource.data.purpose in ['guest', 'delivery', 'cab', 'service', 'other']
                     && isNonEmptyString(request.resource.data.tower, 50)
                     && isNonEmptyString(request.resource.data.flatNumber, 30)
-                    && isNonEmptyString(request.resource.data.flatKey, 90)
+                    // flatKey must actually BE tower_flatNumber, not just any
+                    // non-empty string — since the read rule matches on
+                    // flatKey specifically, a mismatched value here would
+                    // silently route the approval request to the wrong
+                    // flat's dashboard while the real flat never sees it.
+                    && request.resource.data.flatKey == request.resource.data.tower + '_' + request.resource.data.flatNumber
                     && request.resource.data.createdByGuardUid == request.auth.uid
                     && request.resource.data.status == 'pending';
 
