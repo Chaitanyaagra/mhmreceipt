@@ -12,7 +12,11 @@
    receipt's own verification QR seal.
    ========================================================================== */
 
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap');
+/* Fraunces / IBM Plex Sans / IBM Plex Mono are loaded via a <link
+   rel="stylesheet"> in each page's <head> (next to the fonts.googleapis.com
+   preconnect hints), not an @import here — @import forces a slow serial
+   chain (this whole file must download and parse before the font CSS is
+   even discovered), where a <link> lets the browser fetch it in parallel. */
 
 :root{
   /* --- Color tokens -------------------------------------------------- */
@@ -522,6 +526,7 @@ tbody tr:hover{ background:#FAFBFD; }
   animation:offline-drop .25s ease;
 }
 .offline-banner svg{ color:var(--gold-500); flex-shrink:0; }
+.offline-banner.slow-connection-banner{ background:#8a5a1f; }
 @keyframes offline-drop{ from{ transform:translateY(-100%); } }
 @media (prefers-reduced-motion: reduce){ .offline-banner{ animation:none; } }
 

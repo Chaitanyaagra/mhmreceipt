@@ -130,6 +130,38 @@ export function isOffline() {
   return typeof navigator !== 'undefined' && navigator.onLine === false;
 }
 
+/* A "slow connection" banner — distinct from fully offline. Uses the Network
+   Information API (navigator.connection.effectiveType), which reports '2g'
+   or 'slow-2g' for a genuinely poor connection — common on Indian mobile
+   networks, where being "online" doesn't mean things load quickly. This API
+   only exists on Chrome/Edge/Android browsers, not Safari/iOS; where it's
+   absent this quietly does nothing rather than erroring, so it's always
+   safe to call. Shows once per slow stretch and clears itself the moment
+   the connection improves — no action needed from the person either way. */
+export function installSlowConnectionBanner() {
+  if (typeof navigator === 'undefined' || !navigator.connection || typeof navigator.connection.effectiveType !== 'string') return;
+  let banner = null;
+  const isSlow = () => ['slow-2g', '2g'].includes(navigator.connection.effectiveType);
+
+  const show = () => {
+    if (banner || !navigator.onLine) return; // the offline banner already covers fully-offline
+    banner = document.createElement('div');
+    banner.className = 'offline-banner slow-connection-banner';
+    banner.setAttribute('role', 'status');
+    banner.innerHTML = `<svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true">
+      <path d="M5 12.5a10 10 0 0114 0M8.5 16a5 5 0 017 0M12 20h.01" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+      <span>Slow connection — pages may take a moment to load.</span>`;
+    document.body.appendChild(banner);
+  };
+  const hide = () => { banner && banner.remove(); banner = null; };
+  const check = () => { isSlow() ? show() : hide(); };
+
+  navigator.connection.addEventListener('change', check);
+  window.addEventListener('online', check);
+  window.addEventListener('offline', hide); // let the offline banner own that state
+  check();
+}
+
 /* ---------------------------------------------------------------------- */
 /*  Password show / hide toggle                                            */
 /*                                                                          */

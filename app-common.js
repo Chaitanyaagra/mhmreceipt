@@ -194,7 +194,15 @@ export function paidSoFar(payments, memberUid, financialYear) {
   return (payments || [])
     .filter(p => p.memberUid === memberUid
               && p.status === 'verified'
-              && p.financialYear === financialYear)
+              && p.financialYear === financialYear
+              // Only a maintenance payment reduces the maintenance due — a
+              // membership fee or event payment was previously counted here
+              // too (no type check at all), silently making a resident look
+              // partially paid on maintenance when they'd paid nothing
+              // toward it. A record with no type at all predates the type
+              // field and is maintenance by the same convention used when
+              // writing new payments elsewhere in the app.
+              && (!p.type || p.type === 'maintenance'))
     .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
 }
 
@@ -328,6 +336,11 @@ export function membershipPaid(payments, memberUid) {
  * @returns {{fee:number, paid:number, outstanding:number, cleared:boolean}}
  */
 export function membershipDue(member, payments, maintenanceSettings) {
+  // Owner-only fee — a tenant never owes this, matching the registration
+  // form (which hides the whole membership-fee section for a tenant). The
+  // dashboard-side check was missing entirely, so an approved tenant could
+  // still see this fee "due" with a Pay option for something not theirs.
+  if (member?.residentType === 'tenant') return { fee: 0, paid: 0, outstanding: 0, cleared: true };
   const fee = membershipFeeAmount(maintenanceSettings);
   const paid = membershipPaid(payments, member?.uid);
   const outstanding = Math.max(0, fee - paid);
@@ -467,9 +480,11 @@ const CASH_MODE = 'cash';
  * outstandingMembers() for that and should combine the two. */
 export function treasurerDashboardStats(payments, expenses) {
   const verified = (payments || []).filter(p => p.status === 'verified');
-  // Same approved-or-legacy filter as expenseSummary() — a pending or
-  // rejected expense request hasn't actually left the account yet.
-  const finalExpenses = (expenses || []).filter(e => e.status !== 'pending_approval' && e.status !== 'rejected');
+  // Same final-money filter as expenseSummary() — pending, rejected, AND
+  // voided must all be excluded, or this balance disagrees with the main
+  // Expense Report (which already excludes voided) while still counting a
+  // reversed expense as money that actually left the account.
+  const finalExpenses = (expenses || []).filter(e => e.status !== 'pending_approval' && e.status !== 'rejected' && e.status !== 'voided');
   const cashIn = verified.filter(p => p.mode === CASH_MODE).reduce((s, p) => s + (Number(p.amount) || 0), 0);
   const bankIn = verified.filter(p => p.mode !== CASH_MODE).reduce((s, p) => s + (Number(p.amount) || 0), 0);
   const cashOut = finalExpenses.filter(e => e.mode === CASH_MODE).reduce((s, e) => s + (Number(e.amount) || 0), 0);
@@ -852,16 +867,20 @@ export async function generateReceiptNumber(financialYear) {
  * transactions require every read to happen before any write, and the
  * counter read here already claims that slot).
  */
-export async function generateReceiptNumberAtomic(financialYear, writeFn) {
+export async function generateReceiptNumberAtomic(financialYear, writeFn, preReadFn) {
   const yearPart = financialYear.split('-')[0];
   const counterRef = doc(db, 'counters', `receipt_${financialYear}`);
   return runTransaction(db, async (tx) => {
+    // Any read the caller needs (e.g. checking a UTR-uniqueness lock) has to
+    // happen before ANY write in this transaction, including the counter's
+    // own write two lines below — so it runs first, not inside writeFn.
+    const preReadResult = preReadFn ? await preReadFn(tx) : undefined;
     const counterSnap = await tx.get(counterRef);
     const current = counterSnap.exists() ? (counterSnap.data().value || 0) : 0;
     const seq = current + 1;
     const receiptNumber = `MHMRWS-${yearPart}-${String(seq).padStart(6, '0')}`;
     tx.set(counterRef, { value: seq, updatedAt: serverTimestamp() }, { merge: true });
-    writeFn(tx, receiptNumber);
+    writeFn(tx, receiptNumber, preReadResult);
     return receiptNumber;
   });
 }
@@ -2016,7 +2035,13 @@ export function parseExcelFile(file) {
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
-        const wb = window.XLSX.read(e.target.result, { type: 'array' });
+        // cellDates: true makes a date-formatted cell come through as a
+        // real JS Date object, not a raw Excel serial number (e.g. 45292).
+        // Without it, a serial number strung through string-based Date
+        // parsing doesn't fail cleanly — new Date(String(45292)) silently
+        // parses as the year 45292, a wrong-but-"valid" date that would
+        // have passed straight through to a saved member record.
+        const wb = window.XLSX.read(e.target.result, { type: 'array', cellDates: true });
         const sheet = wb.Sheets[wb.SheetNames[0]];
         resolve(window.XLSX.utils.sheet_to_json(sheet, { defval: '' }));
       } catch (err) { reject(err); }

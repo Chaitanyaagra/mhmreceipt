@@ -55,6 +55,7 @@
 <meta name="color-scheme" content="light">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
 <link rel="stylesheet" href="styles.css">
 <!-- Third-party libraries — all bundled locally (same-origin), not from a CDN.
      This is the strongest option: same-origin scripts can't be tampered with by
@@ -651,6 +652,7 @@
            Hidden for view-only roles (e.g. President) by renderEvents(). -->
       <div class="card card-pad" id="eventCreateCard" style="margin-bottom:20px;">
         <h3 style="font-size:14.5px; margin-bottom:14px;">Create New Event / Fee</h3>
+        <p id="eventLockNote" class="t-sub" style="font-size:12px; display:none; margin-bottom:8px;">🔒 This event's demand has already gone out to residents — the name and fee are locked (some may have already paid based on these). Note and FY can still be edited.</p>
         <form id="eventForm" class="form-grid">
           <input type="hidden" name="eventId">
           <div class="field"><label for="ev-name">Event Name</label><input id="ev-name" name="name" placeholder="e.g. Diwali Celebration 2026" required></div>
@@ -1174,7 +1176,7 @@
     <div class="view-panel" id="view-importExport">
       <div class="topbar"><h2 class="view-title">Import / Export</h2></div>
       <div class="settings-grid">
-        <div class="card card-pad">
+        <div class="card card-pad" id="bulkImportResidentsCard">
           <h3 style="font-size:15px; margin-bottom:6px;">Bulk Import Residents</h3>
           <p class="t-sub" style="font-size:13px; margin-bottom:14px;">
             Upload an .xlsx/.csv with columns: <b>Name, FatherHusbandName, Tower, FlatNumber, Mobile, Email, ResidentType</b> (all required),
@@ -2223,6 +2225,13 @@ function applyRoleNav() {
     btn.style.display = allowed.includes(btn.dataset.view) ? 'flex' : 'none';
   });
   if (!allowed.includes('overview')) switchView(allowed[0] || 'overview');
+  // Bulk Import creates ALREADY-APPROVED residents — that's an approval
+  // action, reserved for canApproveMembers() roles, not every admin who
+  // happens to have the Import/Export page (Treasurer does, for the
+  // document-export tool next to it). Hiding this specifically keeps
+  // Treasurer from being offered an action the rule (rightly) rejects.
+  const importCard = document.getElementById('bulkImportResidentsCard');
+  if (importCard) importCard.style.display = can('approveMembers') ? '' : 'none';
 }
 
 /* ---- Tower → Flat dropdowns (same floor plan as the resident form) ---- */
@@ -2739,11 +2748,14 @@ async function renderHealthScore() {
     metrics.push({ label: 'Complaint Resolution', pct: Math.round((done / allComplaints.length) * 100), detail: `${done}/${allComplaints.length} resolved` });
   }
 
-  // Bank reconciliation: matched vs every imported bank transaction.
+  // Bank reconciliation: matched OR ignored — same "accounted for"
+  // definition the Reconciliation screen itself uses. Counting only
+  // 'matched' here disagreed with that screen for the same data (8 matched
+  // + 2 legitimately-ignored showed 100% there but only 80% here).
   const bankTxs = window.__bankTxs || [];
   if (bankTxs.length > 0) {
-    const matched = bankTxs.filter(t => t.status === 'matched').length;
-    metrics.push({ label: 'Bank Reconciliation', pct: Math.round((matched / bankTxs.length) * 100), detail: `${matched}/${bankTxs.length} matched` });
+    const accountedFor = bankTxs.filter(t => t.status === 'matched' || t.status === 'ignored').length;
+    metrics.push({ label: 'Bank Reconciliation', pct: Math.round((accountedFor / bankTxs.length) * 100), detail: `${accountedFor}/${bankTxs.length} accounted for` });
   }
 
   // Pet vaccination compliance: "fine" or "due_soon" both count as
@@ -2828,7 +2840,23 @@ function renderTreasurerDashboard() {
    the vendor and category don't; that's the more stable identity for "the
    same recurring bill" across occurrences. */
 function upcomingRecurringBills(expenses) {
-  const INTERVAL_DAYS = { monthly: 30, quarterly: 91, yearly: 365 };
+  // Adds calendar months/years, not a fixed day-count — 31 Jan + "1 month"
+  // must land on 28/29 Feb, not silently roll into March. A naive
+  // setMonth(getMonth()+1) has the same overflow (JS Date rolls Jan 31 +1
+  // month into March 2/3, since February has fewer days) — moving to day 1
+  // of the target month FIRST, then clamping to whichever is smaller (the
+  // original day, or that month's actual last day), is what avoids it.
+  function addCalendar(date, { months = 0, years = 0 }) {
+    const d = new Date(date);
+    const targetMonthIndex = d.getMonth() + months;
+    const targetYear = d.getFullYear() + years;
+    const originalDay = d.getDate();
+    d.setDate(1);
+    d.setFullYear(targetYear, targetMonthIndex, 1);
+    const daysInTargetMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+    d.setDate(Math.min(originalDay, daysInTargetMonth));
+    return d;
+  }
   const real = expenses.filter(e => e.isRecurring && e.recurringFrequency && e.status !== 'pending_approval' && e.status !== 'rejected' && e.status !== 'voided');
   const groups = new Map();
   for (const e of real) {
@@ -2841,7 +2869,9 @@ function upcomingRecurringBills(expenses) {
   return [...groups.values()]
     .map(e => {
       const last = e.date?.toDate ? e.date.toDate() : new Date(e.date);
-      const nextDue = new Date(last.getTime() + (INTERVAL_DAYS[e.recurringFrequency] || 30) * 86400000);
+      const nextDue = e.recurringFrequency === 'yearly' ? addCalendar(last, { years: 1 })
+        : e.recurringFrequency === 'quarterly' ? addCalendar(last, { months: 3 })
+        : addCalendar(last, { months: 1 }); // 'monthly' and any unrecognised value
       nextDue.setHours(0, 0, 0, 0);
       const daysUntil = Math.round((nextDue - today) / 86400000);
       return { ...e, nextDue, daysUntil };
@@ -3580,6 +3610,14 @@ function editEvent(id) {
   f.feeAmount.value = ev.feeAmount || '';
   f.fy.value = ev.fy || currentFinancialYear();
   f.note.value = ev.note || '';
+  // Once a demand has gone out, the fee/name are locked server-side — a
+  // resident may have already paid based on THIS name and amount. Disabling
+  // the fields here (with a clear reason) prevents a confusing rejection on
+  // submit; the admin sees why upfront instead of typing a change that then
+  // silently fails.
+  f.name.disabled = f.feeAmount.disabled = !!ev.demandGenerated;
+  const lockNote = document.getElementById('eventLockNote');
+  if (lockNote) lockNote.style.display = ev.demandGenerated ? 'block' : 'none';
   document.querySelector('[data-view="events"]')?.scrollIntoView({ behavior: 'smooth' });
   f.name.focus();
 }
@@ -3587,6 +3625,10 @@ function editEvent(id) {
 async function deleteEvent(id) {
   const ev = allEvents.find(e => e.id === id);
   if (!ev) return;
+  if (ev.demandGenerated) {
+    showToast('This event\'s demand has already gone out to residents — it can\'t be deleted. Use "Close" instead to retire it without orphaning any payments already made against it.', 'error');
+    return;
+  }
   if (!confirm(`Delete the "${ev.name}" event? (Its past payment records will remain.)`)) return;
   try {
     await deleteDoc(doc(db, 'events', id));
@@ -3651,12 +3693,18 @@ document.getElementById('eventForm')?.addEventListener('submit', async (e) => {
       showToast('Event saved. Now click "Generate Demand".', 'success');
     }
     f.reset(); f.eventId.value = '';
+    f.name.disabled = f.feeAmount.disabled = false;
+    const lockNote = document.getElementById('eventLockNote');
+    if (lockNote) lockNote.style.display = 'none';
     populateEventFY();
     await reloadEvents(); renderEvents();
   } catch (err) { showToast('Could not save.', 'error'); }
 });
 document.getElementById('eventFormReset')?.addEventListener('click', () => {
   const f = document.getElementById('eventForm'); f.reset(); f.eventId.value = ''; populateEventFY();
+  f.name.disabled = f.feeAmount.disabled = false;
+  const lockNote = document.getElementById('eventLockNote');
+  if (lockNote) lockNote.style.display = 'none';
 });
 
 function populateEventFY() {
@@ -4092,7 +4140,7 @@ function renderMemberDetailView(m) {
   const body = document.getElementById('memberModalBody');
   body.innerHTML = `
     <div class="row" style="gap:14px; margin-bottom:16px;">
-      <div class="seal seal-md"><img src="${m.photoURL || window.__MHM_LOGO}" alt=""></div>
+      <div class="seal seal-md"><img src="${escapeHtml(m.photoURL || window.__MHM_LOGO)}" alt=""></div>
       <div><b style="font-size:15.5px;">${escapeHtml(m.name)}</b><div class="t-sub" style="font-size:12.5px;">${escapeHtml(m.fatherHusbandName || '')}</div></div>
       <div style="margin-left:auto;">${statusBadgeHtml[m.status] || ''}</div>
     </div>
@@ -4303,6 +4351,9 @@ async function erasePersonalData(m) {
       try { await deleteObject(storageRef(storage, m.idDocURL)); } catch (e) { console.warn('ID doc delete failed:', e?.code || e); }
     }
     for (const pet of ownedPets) {
+      if (pet.photoURL) {
+        try { await deleteObject(storageRef(storage, pet.photoURL)); } catch (e) { console.warn('Pet photo delete failed:', pet.id, e?.code || e); }
+      }
       try { await deleteDoc(doc(db, 'pets', pet.id)); } catch (e) { console.warn('Pet delete failed:', pet.id, e?.code || e); }
     }
     await updateDoc(doc(db, 'members', m.id), {
@@ -4663,9 +4714,10 @@ async function approveMember(id) {
     const claimRef = doc(db, 'flatClaims', flatClaimId(m.tower, m.flatNumber, m.residentType));
     const otherSide = m.residentType === 'tenant' ? 'owner' : 'tenant';
     const otherClaimRef = doc(db, 'flatClaims', flatClaimId(m.tower, m.flatNumber, otherSide));
-
-    const memberID = await generateMemberId();
     const publicToken = newPublicToken();
+    const memberIdYear = new Date().getFullYear();
+    const memberIdCounterRef = doc(db, 'counters', `member_${memberIdYear}`);
+    let memberID;
 
     await runTransaction(db, async (tx) => {
       const claim = await tx.get(claimRef);
@@ -4688,6 +4740,14 @@ async function approveMember(id) {
       // serialize instead of racing.
       const otherClaim = await tx.get(otherClaimRef);
       const maintenanceResponsible = !otherClaim.exists();
+      // Counter read+write both happen here, inside the same transaction as
+      // everything else — not via a separate generateMemberId() call before
+      // this transaction started, which is what let the sequence number get
+      // burned on a failed approval attempt.
+      const counterSnap = await tx.get(memberIdCounterRef);
+      const seq = (counterSnap.exists() ? (counterSnap.data().value || 0) : 0) + 1;
+      memberID = `MHM-${memberIdYear}-${String(seq).padStart(6, '0')}`;
+      tx.set(memberIdCounterRef, { value: seq, updatedAt: serverTimestamp() }, { merge: true });
       tx.update(doc(db, 'members', id), {
         status: 'approved', memberID, publicToken, maintenanceResponsible,
         approvedBy: currentAdmin.email, approvedAt: serverTimestamp(), updatedAt: serverTimestamp()
@@ -4992,7 +5052,7 @@ function renderPaymentDetailView(p) {
       ${p.remarks ? `<div class="vrow"><span class="t-muted">Remarks</span><span>${escapeHtml(p.remarks)}</span></div>` : ''}
       <div class="vrow"><span class="t-muted">Submitted</span><span>${fmtDateTime(p.submittedAt)}</span></div>
     </div>
-    ${p.paymentProofURL ? `<a href="${p.paymentProofURL}" target="_blank" class="btn btn-outline btn-sm" style="margin:14px 0; display:inline-flex;"><svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#a-clip"/></svg>View Payment Proof</a>` : ''}
+    ${p.paymentProofURL ? `<a href="${escapeHtml(p.paymentProofURL)}" target="_blank" class="btn btn-outline btn-sm" style="margin:14px 0; display:inline-flex;"><svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#a-clip"/></svg>View Payment Proof</a>` : ''}
     <div class="action-row" style="margin-top:8px; flex-wrap:wrap;">
       ${(p.status === 'pending_approval' || p.status === 'pending_verification') && can('verifyPayments') ? `
         <button class="btn btn-primary btn-sm" id="verifyBtn">✓ Verify &amp; Issue Receipt</button>
@@ -5092,7 +5152,16 @@ function renderPaymentDetailEdit(p) {
     </form>
   `;
   const fySel = document.getElementById('pe-fy');
-  fySel.innerHTML = financialYearOptions().map(fy => `<option value="${fy}" ${fy === p.financialYear ? 'selected' : ''}>FY ${fy}</option>`).join('');
+  // Matches isValidFY()'s actual accepted window (2 back, 1 forward) — same
+  // reasoning as the Record Payment form's FY dropdown. The payment's
+  // CURRENT year is always included even if it falls outside that window
+  // (an older historical payment) — otherwise, with no option matching
+  // "selected", the browser would silently default to the first option,
+  // changing the year out from under the admin the moment they open this
+  // form, without them touching anything.
+  const peFyOptions = financialYearOptions(2, 1);
+  if (!peFyOptions.includes(p.financialYear)) peFyOptions.push(p.financialYear);
+  fySel.innerHTML = peFyOptions.map(fy => `<option value="${fy}" ${fy === p.financialYear ? 'selected' : ''}>FY ${fy}</option>`).join('');
   document.getElementById('cancelPayEdit').addEventListener('click', () => renderPaymentDetailView(p));
   document.getElementById('paymentEditForm').addEventListener('submit', (e) => submitPaymentEdit(e, p));
 }
@@ -5236,7 +5305,7 @@ async function rejectPayment(id) {
   const reason = prompt('Reason for rejection:');
   if (reason === null) return;
   try {
-    await updateDoc(doc(db, 'payments', id), { status: 'rejected', remarks: reason });
+    await updateDoc(doc(db, 'payments', id), { status: 'rejected', remarks: reason, updatedAt: serverTimestamp() });
     await logAudit(auth.currentUser, 'reject_payment', { paymentId: id, reason });
     showToast('Payment has been rejected.', 'success');
     document.getElementById('paymentDetailModalBackdrop').classList.remove('open');
@@ -5268,9 +5337,12 @@ function openRecordPaymentModal() {
   document.getElementById('rpChequeWrap').style.display = 'none';
   document.getElementById('rpMemberUid').value = '';
 
-  // FY options for maintenance.
+  // FY options for maintenance — matches isValidFY()'s own accepted window
+  // (2 years back, 1 forward) exactly, not the general-purpose 3-year
+  // default used for VIEWING older history elsewhere. Showing an option the
+  // rule will reject just produces a confusing permission-denied on submit.
   const fySel = document.getElementById('rpFY');
-  fySel.innerHTML = financialYearOptions().map(fy =>
+  fySel.innerHTML = financialYearOptions(2, 1).map(fy =>
     `<option value="${fy}" ${fy === currentFinancialYear() ? 'selected' : ''}>FY ${fy}</option>`).join('');
 
   document.getElementById('recordPaymentModalBackdrop').classList.add('open');
@@ -5386,8 +5458,12 @@ async function submitRecordPayment(e) {
   try {
     const publicToken = newPublicToken();
     const payRef = doc(collection(db, 'payments'));
+    const utrOrChequeNo = (mode === 'cheque' || mode === 'upi' || mode === 'netbanking') ? refNo : '';
+    const utrLockRef = utrOrChequeNo ? doc(db, 'paymentsByUtr', utrOrChequeNo.toUpperCase()) : null;
 
-    const receiptNumber = await generateReceiptNumberAtomic(fy, (tx, receiptNumber) => {
+    const receiptNumber = await generateReceiptNumberAtomic(fy, (tx, receiptNumber, utrAlreadyClaimed) => {
+      if (utrAlreadyClaimed) throw new Error('UTR_TAKEN');
+      if (utrLockRef) tx.set(utrLockRef, { claimedAt: serverTimestamp(), claimedBy: currentAdmin.email });
       tx.set(payRef, {
         memberUid: member.uid,
         memberID: member.memberID || null,
@@ -5398,7 +5474,7 @@ async function submitRecordPayment(e) {
         type,                                  // 'maintenance' | 'membership'
         financialYear: fy,
         mode,                                  // 'cash' | 'cheque'
-        utrOrChequeNo: (mode === 'cheque' || mode === 'upi' || mode === 'netbanking') ? refNo : '',
+        utrOrChequeNo,
         paymentProofURL: '',
         status: 'verified',                    // money already received at the office
         receiptNumber,
@@ -5420,6 +5496,14 @@ async function submitRecordPayment(e) {
         receiptNumber, residentName: member.name, flatNumber: member.flatNumber, tower: member.tower,
         amount, financialYear: fy, verifiedAt: serverTimestamp(), status: 'Verified'
       });
+    }, async (tx) => {
+      // Runs before any write in the transaction — checking the UTR lock
+      // here (not inside writeFn, which runs after the counter's own write)
+      // is what keeps this valid under Firestore's all-reads-before-all-
+      // writes transaction rule.
+      if (!utrLockRef) return false;
+      const lockSnap = await tx.get(utrLockRef);
+      return lockSnap.exists();
     });
 
     await logAudit(auth.currentUser, 'record_offline_payment', {
@@ -5431,7 +5515,9 @@ async function submitRecordPayment(e) {
   } catch (err) {
     console.error('Record payment failed:', err);
     const code = err?.code || '';
-    if (code === 'permission-denied') {
+    if (err?.message === 'UTR_TAKEN') {
+      showToast('This UTR / Cheque number has already been recorded against another payment. Please double-check before recording it again.', 'error');
+    } else if (code === 'permission-denied') {
       // permission-denied can mean the role is wrong OR that a field the rule
       // checks doesn't match (e.g. the login email vs. a stale admin-doc email)
       // — Firestore doesn't say which. Show the raw code so it can be relayed
@@ -5605,9 +5691,21 @@ async function loadContentPanels() {
     </div>`).join('') || '<p class="t-muted" style="font-size:13px;">No notices yet.</p>';
   document.querySelectorAll('[data-del-notice]').forEach(b => b.addEventListener('click', async () => {
     if (!confirm('Delete this notice?')) return;
+    const noticeId = b.dataset.delNotice;
+    const n = notices.find(x => x.id === noticeId);
     try {
-      await deleteDoc(doc(db, 'notices', b.dataset.delNotice));
-      await logAudit(auth.currentUser, 'delete_notice', { id: b.dataset.delNotice });
+      // Same cleanup gap as polls/votes: the reads subcollection (who's
+      // acknowledged this notice) and any Storage attachment both used to
+      // survive the notice itself, permanently orphaned.
+      const readsSnap = await getDocs(collection(db, 'notices', noticeId, 'reads'));
+      const batch = writeBatch(db);
+      readsSnap.docs.slice(0, 499).forEach(d => batch.delete(d.ref));
+      batch.delete(doc(db, 'notices', noticeId));
+      await batch.commit();
+      if (n?.attachmentURL) {
+        try { await deleteObject(storageRef(storage, n.attachmentURL)); } catch (e) { console.warn('Notice attachment delete failed:', e?.code || e); }
+      }
+      await logAudit(auth.currentUser, 'delete_notice', { id: noticeId, readsDeleted: readsSnap.size });
       loadContentPanels();
     } catch (err) {
       console.error('Delete notice failed:', err);
@@ -6057,15 +6155,28 @@ async function approveBooking(id) {
   const b = allBookings.find(x => x.id === id);
   if (!b) return;
   try {
-    const slotRef = doc(db, 'facilitySlots', facilitySlotId(b.facilityId, b.date, b.slot));
+    // A Full Day booking occupies the whole date — it has to be checked
+    // against (and lock) Morning, Evening AND Full Day together, or a
+    // separate Morning/Evening request for the same date could still be
+    // approved on top of it (and vice versa), since each was previously
+    // only checked against its own exact slot ID. A Morning/Evening
+    // approval only additionally needs to check Full Day isn't already
+    // taken — it doesn't lock the OTHER half-day slot, which correctly
+    // stays bookable.
+    const slotsToCheck = b.slot === 'full_day' ? ['morning', 'evening', 'full_day'] : [b.slot, 'full_day'];
+    const slotsToLock = b.slot === 'full_day' ? ['morning', 'evening', 'full_day'] : [b.slot];
+    const slotRefs = slotsToCheck.map(s => doc(db, 'facilitySlots', facilitySlotId(b.facilityId, b.date, s)));
+    const bookingRef = doc(db, 'facilityBookings', id);
     await runTransaction(db, async (tx) => {
-      const slot = await tx.get(slotRef);
+      const bookingSnap = await tx.get(bookingRef);
+      if (!bookingSnap.exists() || bookingSnap.data().status !== 'pending') throw new Error('NOT_PENDING');
+      const snaps = await Promise.all(slotRefs.map(r => tx.get(r)));
       // Same one-doc-either-exists-or-not trick flatClaims uses for
-      // one-flat-one-member: if another booking already grabbed this
-      // facility/date/slot, this fails outright instead of double-booking.
-      if (slot.exists()) throw new Error('SLOT_TAKEN');
-      tx.set(slotRef, { bookingId: id, claimedAt: serverTimestamp() });
-      tx.update(doc(db, 'facilityBookings', id), {
+      // one-flat-one-member: if any conflicting facility/date/slot is
+      // already taken, this fails outright instead of double-booking.
+      if (snaps.some(s => s.exists())) throw new Error('SLOT_TAKEN');
+      slotsToLock.forEach(s => tx.set(doc(db, 'facilitySlots', facilitySlotId(b.facilityId, b.date, s)), { bookingId: id, claimedAt: serverTimestamp() }));
+      tx.update(bookingRef, {
         status: 'approved', decidedBy: currentAdmin.email, decidedAt: serverTimestamp(), updatedAt: serverTimestamp()
       });
     });
@@ -6076,6 +6187,10 @@ async function approveBooking(id) {
   } catch (err) {
     if (err.message === 'SLOT_TAKEN') {
       showToast('That facility/date/slot was just approved for someone else — please reject this request and ask the resident to pick another slot.', 'error');
+    } else if (err.message === 'NOT_PENDING') {
+      showToast('This request is no longer pending — the resident may have just cancelled it. Refreshing the list.', 'error');
+      await loadCommunityData();
+      if (document.getElementById('view-approvals')?.classList.contains('active')) renderApprovalCenter();
     } else {
       showToast(`Could not approve${err?.code ? ` (${err.code})` : ''}.`, 'error');
     }
@@ -6097,9 +6212,13 @@ async function rejectBooking(id, wasApproved = false) {
       // A single batch makes the two writes all-or-nothing. Status is now
       // 'cancelled' (not 'rejected') so the resident sees an accurate
       // reason for what happened to an already-approved request.
-      const slotRef = doc(db, 'facilitySlots', facilitySlotId(b.facilityId, b.date, b.slot));
+      // A Full Day booking locked THREE slots on approval (morning, evening,
+      // full_day) — all three have to be released here, or the other two
+      // stay orphaned locks that permanently block the date even after this
+      // booking is gone.
+      const slotsToRelease = b.slot === 'full_day' ? ['morning', 'evening', 'full_day'] : [b.slot];
       const batch = writeBatch(db);
-      batch.delete(slotRef);
+      slotsToRelease.forEach(s => batch.delete(doc(db, 'facilitySlots', facilitySlotId(b.facilityId, b.date, s))));
       batch.update(bookingRef, {
         status: 'cancelled', decidedBy: currentAdmin.email, decidedAt: serverTimestamp(), decisionNote: reason.trim() || null, updatedAt: serverTimestamp()
       });
@@ -6343,7 +6462,10 @@ document.getElementById('guardForm')?.addEventListener('submit', async (e) => {
   let cred;
   try {
     const loginId = await generateGuardLoginId();
-    const pin = String(Math.floor(100000 + Math.random() * 900000));
+    // crypto.getRandomValues(), not Math.random() — a guard's PIN is a real
+    // login credential, and Math.random() is an ordinary pseudorandom
+    // generator with no guarantee of being unpredictable, unlike this.
+    const pin = String(100000 + (crypto.getRandomValues(new Uint32Array(1))[0] % 900000));
     const guardEmail = `${loginId.toLowerCase()}@mhmrws-portal.local`;
 
     const secondaryAuth = getAuth(secondaryApp);
@@ -6772,7 +6894,10 @@ document.getElementById('staffForm')?.addEventListener('submit', async (e) => {
     const email = document.getElementById('staffEmail').value.trim();
     const role = document.getElementById('staffRole').value;
     const trade = document.getElementById('staffTrade').value;
-    const tempPassword = 'Tmp-' + Math.random().toString(36).slice(2, 10) + 'Aa1!';
+    // crypto.randomUUID(), not Math.random() — same reasoning as the guard
+    // PIN fix: a temporary password is a real credential, however short-
+    // lived, and Math.random() gives no unpredictability guarantee.
+    const tempPassword = 'Tmp-' + crypto.randomUUID().replace(/-/g, '').slice(0, 8) + 'Aa1!';
 
     const secondaryAuth = getAuth(secondaryApp);
     cred = await createUserWithEmailAndPassword(secondaryAuth, email, tempPassword);
@@ -7202,9 +7327,20 @@ async function loadPollsPanel() {
 
   document.querySelectorAll('[data-del-poll]').forEach(b => b.addEventListener('click', async () => {
     if (!confirm('Delete this poll? All its votes will be removed too.')) return;
+    const pollId = b.dataset.delPoll;
     try {
-      await deleteDoc(doc(db, 'polls', b.dataset.delPoll));
-      await logAudit(auth.currentUser, 'delete_poll', { id: b.dataset.delPoll });
+      // Deleting the poll document alone leaves every vote in its votes
+      // subcollection permanently orphaned — real Firestore documents with
+      // a voterUid → option mapping and no poll left to explain them. The
+      // confirm dialog already promises votes are removed too; this is what
+      // actually delivers on that. Capped at 500 (a Firestore batch's own
+      // limit) — comfortably covers this society's whole membership.
+      const votesSnap = await getDocs(collection(db, 'polls', pollId, 'votes'));
+      const batch = writeBatch(db);
+      votesSnap.docs.slice(0, 499).forEach(d => batch.delete(d.ref));
+      batch.delete(doc(db, 'polls', pollId));
+      await batch.commit();
+      await logAudit(auth.currentUser, 'delete_poll', { id: pollId, votesDeleted: votesSnap.size });
       loadPollsPanel();
     } catch (err) {
       console.error('Delete poll failed:', err);
@@ -7262,7 +7398,7 @@ function renderBankReconciliation() {
         ${(!t.status || t.status === 'unmatched')
           ? `<button class="btn btn-outline btn-sm" data-match-tx="${t.id}">Match</button> <button class="btn btn-outline btn-sm" data-ignore-tx="${t.id}">Ignore</button>`
           : `<button class="btn btn-outline btn-sm" data-unmatch-tx="${t.id}">Undo</button>`}
-        <button class="btn btn-danger btn-sm" data-del-tx="${t.id}">Delete</button>
+        ${t.status !== 'matched' ? `<button class="btn btn-danger btn-sm" data-del-tx="${t.id}">Delete</button>` : ''}
       </td>
     </tr>
     <tr id="matchCandidates-${t.id}" style="display:none;"><td colspan="6"></td></tr>
@@ -7297,7 +7433,7 @@ function buildMatchCandidates(tx) {
       .sort((a, b) => Math.abs(a.amount - tx.amount) - Math.abs(b.amount - tx.amount))
       .slice(0, 8);
   }
-  return allExpenses.filter(e => e.status !== 'pending_approval' && e.status !== 'rejected' && !alreadyMatched.has(`expenses/${e.id}`))
+  return allExpenses.filter(e => e.status !== 'pending_approval' && e.status !== 'rejected' && e.status !== 'voided' && !alreadyMatched.has(`expenses/${e.id}`))
     .map(e => ({ col: 'expenses', id: e.id, label: `${e.description} — ${e.category || '—'}`, amount: e.amount }))
     .sort((a, b) => Math.abs(a.amount - tx.amount) - Math.abs(b.amount - tx.amount))
     .slice(0, 8);
@@ -7324,25 +7460,46 @@ function showMatchCandidates(txId) {
 }
 
 async function matchTransaction(txId, candidate) {
+  const lockRef = doc(db, 'bankMatchLocks', `${candidate.col}_${candidate.id}`);
   try {
-    await updateDoc(doc(db, 'bankTransactions', txId), {
-      status: 'matched',
-      matchedRef: { col: candidate.col, id: candidate.id },
-      matchedLabel: candidate.label,
-      matchedBy: currentAdmin.email, matchedAt: serverTimestamp()
+    await runTransaction(db, async (tx) => {
+      const lockSnap = await tx.get(lockRef);
+      if (lockSnap.exists()) throw new Error('ALREADY_MATCHED');
+      tx.set(lockRef, { matchedTxId: txId, matchedAt: serverTimestamp() });
+      tx.update(doc(db, 'bankTransactions', txId), {
+        status: 'matched',
+        matchedRef: { col: candidate.col, id: candidate.id },
+        matchedLabel: candidate.label,
+        matchedBy: currentAdmin.email, matchedAt: serverTimestamp()
+      });
     });
     await logAudit(auth.currentUser, 'match_bank_tx', { txId, matchedTo: `${candidate.col}/${candidate.id}` });
     showToast('Matched.', 'success');
     await loadBankReconciliation();
   } catch (err) {
-    console.error('Match failed:', err);
-    showToast(`Could not match${err?.code ? ` (${err.code})` : ''}.`, 'error');
+    if (err.message === 'ALREADY_MATCHED') {
+      showToast('That payment/expense was just matched to a different bank transaction — refreshing the list.', 'error');
+      await loadBankReconciliation();
+    } else {
+      console.error('Match failed:', err);
+      showToast(`Could not match${err?.code ? ` (${err.code})` : ''}.`, 'error');
+    }
   }
 }
 async function setTxStatus(txId, status, clearMatch = false) {
   try {
     const patch = { status };
-    if (clearMatch) { patch.matchedRef = null; patch.matchedLabel = null; }
+    if (clearMatch) {
+      patch.matchedRef = null; patch.matchedLabel = null;
+      // Release the lock too, or the payment/expense this transaction was
+      // matched to would stay permanently unmatchable by anything else even
+      // after this match is explicitly undone.
+      const current = (window.__bankTxs || []).find(t => t.id === txId);
+      if (current?.matchedRef) {
+        try { await deleteDoc(doc(db, 'bankMatchLocks', `${current.matchedRef.col}_${current.matchedRef.id}`)); }
+        catch (e) { console.warn('Could not release match lock:', e?.code || e); }
+      }
+    }
     await updateDoc(doc(db, 'bankTransactions', txId), patch);
     await logAudit(auth.currentUser, 'update_bank_tx_status', { txId, status });
     await loadBankReconciliation();
@@ -7511,7 +7668,7 @@ async function renderFyLockList() {
 async function lockFY(fy) {
   if (!confirm(`Lock FY ${fy}? Verified payments and approved expenses dated to this year can no longer be voided until it's unlocked.`)) return;
   try {
-    await setDoc(doc(db, 'financialYearLocks', fy), { lockedAt: serverTimestamp() });
+    await setDoc(doc(db, 'financialYearLocks', fy), { lockedAt: serverTimestamp(), lockedBy: currentAdmin.email });
     await logAudit(auth.currentUser, 'lock_financial_year', { fy });
     showToast(`FY ${fy} locked.`, 'success');
     await renderFyLockList();
@@ -7533,7 +7690,7 @@ document.getElementById('closeMonthBtn')?.addEventListener('click', async (e) =>
   if (!confirm(`Close ${ym}?${allOk ? '' : ' Some checklist items are still pending.'} This cannot be undone.`)) return;
   btn.disabled = true;
   try {
-    await setDoc(doc(db, 'monthClosures', ym), { closedAt: serverTimestamp(), allChecksOk: allOk });
+    await setDoc(doc(db, 'monthClosures', ym), { closedAt: serverTimestamp(), allChecksOk: allOk, closedBy: currentAdmin.email });
     await logAudit(auth.currentUser, 'close_month', { yearMonth: ym, allChecksOk: allOk });
     showToast(`${ym} closed.`, 'success');
     await loadClosingPanel();
@@ -8337,12 +8494,20 @@ document.getElementById('encryptPendingBtn').addEventListener('click', async () 
   let done = 0;
   for (const m of targets) {
     try {
-      const blob = await fetch(m.idDocURL).then(r => r.blob());
+      const oldUrl = m.idDocURL;
+      const blob = await fetch(oldUrl).then(r => r.blob());
       const encrypted = await encryptFile(blob, pass);
       const r = storageRef(storage, `documents/${m.uid || m.id}/iddoc_encrypted_${Date.now()}.enc`);
       await uploadBytes(r, encrypted);
       const newUrl = await getDownloadURL(r);
       await updateDoc(doc(db, 'members', m.id), { idDocURL: newUrl, idDocEncrypted: true });
+      // The old PLAINTEXT Aadhaar/PAN file must not just be replaced in the
+      // member record — it has to actually stop existing in Storage, or its
+      // old download URL still resolves to the unencrypted original,
+      // defeating the point of encrypting it at all. Best-effort: the
+      // member record is already safely pointed at the encrypted copy by
+      // this point, so a delete failure here shouldn't undo that progress.
+      try { await deleteObject(storageRef(storage, oldUrl)); } catch (delErr) { console.warn('Old plaintext ID doc delete failed for', m.id, delErr?.code || delErr); }
       done++;
     } catch (e) { console.warn('Encrypt failed for', m.id, e); }
   }
@@ -8372,7 +8537,12 @@ document.getElementById('encryptPendingBtn').addEventListener('click', async () 
 // a record that's already durably stored in Firestore itself.
 async function collectBackupBundle() {
   const [notices, committee, documents, expenses, events, admins, bankTransactions,
-         budgetDocs, calendarEvents, monthClosures, pets, polls] = await Promise.all([
+         budgetDocs, calendarEvents, monthClosures, pets, polls,
+         complaints, inspections, facilities, facilityBookings, facilitySlots,
+         staff, guards, visitors, vendors, assets, parkingSlots, ownershipHistory,
+         moveRequests, suggestions, expectedGuests, financialYearLocks, flatClaims,
+         auditLogs, counters, membersPublic, receiptsPublic, paymentsByUtr,
+         bankMatchLocks, publicFinancialSummary] = await Promise.all([
     getDocs(collection(db, 'notices')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
     getDocs(collection(db, 'committee')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
     getDocs(collection(db, 'documents')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
@@ -8384,7 +8554,31 @@ async function collectBackupBundle() {
     getDocs(collection(db, 'calendarEvents')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
     getDocs(collection(db, 'monthClosures')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
     getDocs(collection(db, 'pets')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
-    getDocs(collection(db, 'polls')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => [])
+    getDocs(collection(db, 'polls')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
+    getDocs(collection(db, 'complaints')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
+    getDocs(collection(db, 'inspections')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
+    getDocs(collection(db, 'facilities')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
+    getDocs(collection(db, 'facilityBookings')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
+    getDocs(collection(db, 'facilitySlots')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
+    getDocs(collection(db, 'staff')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
+    getDocs(collection(db, 'guards')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
+    getDocs(collection(db, 'visitors')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
+    getDocs(collection(db, 'vendors')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
+    getDocs(collection(db, 'assets')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
+    getDocs(collection(db, 'parkingSlots')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
+    getDocs(collection(db, 'ownershipHistory')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
+    getDocs(collection(db, 'moveRequests')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
+    getDocs(collection(db, 'suggestions')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
+    getDocs(collection(db, 'expectedGuests')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
+    getDocs(collection(db, 'financialYearLocks')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
+    getDocs(collection(db, 'flatClaims')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
+    getDocs(collection(db, 'auditLogs')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
+    getDocs(collection(db, 'counters')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
+    getDocs(collection(db, 'membersPublic')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
+    getDocs(collection(db, 'receiptsPublic')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
+    getDocs(collection(db, 'paymentsByUtr')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
+    getDocs(collection(db, 'bankMatchLocks')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
+    getDocs(collection(db, 'publicFinancialSummary')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => [])
   ]);
   let settingsDocs = [];
   try {
@@ -8413,6 +8607,30 @@ async function collectBackupBundle() {
     monthClosures: serializeForExport(monthClosures),
     pets: serializeForExport(pets),
     polls: serializeForExport(polls),
+    complaints: serializeForExport(complaints),
+    inspections: serializeForExport(inspections),
+    facilities: serializeForExport(facilities),
+    facilityBookings: serializeForExport(facilityBookings),
+    facilitySlots: serializeForExport(facilitySlots),
+    staff: serializeForExport(staff),
+    guards: serializeForExport(guards),
+    visitors: serializeForExport(visitors),
+    vendors: serializeForExport(vendors),
+    assets: serializeForExport(assets),
+    parkingSlots: serializeForExport(parkingSlots),
+    ownershipHistory: serializeForExport(ownershipHistory),
+    moveRequests: serializeForExport(moveRequests),
+    suggestions: serializeForExport(suggestions),
+    expectedGuests: serializeForExport(expectedGuests),
+    financialYearLocks: serializeForExport(financialYearLocks),
+    flatClaims: serializeForExport(flatClaims),
+    auditLogs: serializeForExport(auditLogs),
+    counters: serializeForExport(counters),
+    membersPublic: serializeForExport(membersPublic),
+    receiptsPublic: serializeForExport(receiptsPublic),
+    paymentsByUtr: serializeForExport(paymentsByUtr),
+    bankMatchLocks: serializeForExport(bankMatchLocks),
+    publicFinancialSummary: serializeForExport(publicFinancialSummary),
     settings: serializeForExport(settingsDocs)
   };
 }

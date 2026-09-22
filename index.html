@@ -55,6 +55,7 @@
 <meta name="color-scheme" content="light">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
 <link rel="stylesheet" href="styles.css">
 <!-- Third-party libraries — bundled locally (same-origin), not from a CDN.
      Same-origin scripts can't be tampered with by a third party, need no SRI
@@ -1398,7 +1399,7 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
                later (via the normal post-approval payment screen) must stay
                a completely valid path, not something this form blocks. -->
           <div id="regMembershipFeeWrap" style="display:none; margin-top:8px; padding-top:16px; border-top:1px solid var(--line,#E2E6EF);">
-            <label style="display:block; margin-bottom:10px;">Have you already paid the one-time ₹1,100 membership fee?</label>
+            <label style="display:block; margin-bottom:10px;">Have you already paid the one-time <span id="regMembershipFeeAmount">₹1,100</span> membership fee?</label>
             <div class="pet-toggle-row" style="margin-bottom:14px;">
               <label class="checkbox-row"><input type="radio" name="feeAlreadyPaid" value="no" id="reg-feePaid-no" checked> No, I'll pay now</label>
               <label class="checkbox-row"><input type="radio" name="feeAlreadyPaid" value="yes" id="reg-feePaid-yes"> Yes, already paid</label>
@@ -1538,7 +1539,7 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
       <form id="profileEditForm">
         <div class="form-2col">
           <div class="field"><label for="pf-mobile">Mobile Number</label><input name="mobile" id="pf-mobile" type="tel" maxlength="10" required></div>
-          <div class="field"><label for="pf-email">Email</label><input name="email" id="pf-email" type="email" required></div>
+          <div class="field"><label for="pf-email">Contact Email <span class="t-muted" style="font-weight:400;">(for notices, not for login)</span></label><input name="email" id="pf-email" type="email" required><div class="hint">Changing this updates where the office reaches you — it does not change your login email or password.</div></div>
         </div>
         <div class="field"><label for="pf-occupation">Occupation</label><input name="occupation" id="pf-occupation" maxlength="100"></div>
         <div class="form-2col">
@@ -1713,7 +1714,7 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
 import { LOGO_DATA_URI, getLogoDataUri } from './logo-data.js';
 import { initLang, setLang, translateSubtree, setDynamicLabel, HI } from './i18n.js';
 import { TOWER_IDS, flatsForTower } from './tower-plan.js';
-import { installModalA11y, installOfflineBanner, isOffline, installPasswordToggles } from './ui-a11y.js';
+import { installModalA11y, installOfflineBanner, installSlowConnectionBanner, isOffline, installPasswordToggles } from './ui-a11y.js';
 import { hideAppLoader } from './premium.js';
 
 /* Accessibility + offline live in a Firebase-free module and are installed
@@ -1721,6 +1722,7 @@ import { hideAppLoader } from './premium.js';
    the page of focus-trapping, Esc-to-close, or the offline banner. */
 installModalA11y();
 installOfflineBanner();
+installSlowConnectionBanner();
 installPasswordToggles();
 
 // Privacy Policy modal — pure DOM toggle, no Firebase needed, so it can be
@@ -1775,7 +1777,7 @@ window.__renderCommittee = (rows) => {
   const esc = (s) => { const d = document.createElement('div'); d.textContent = String(s ?? ''); return d.innerHTML; };
   const cardHTML = (m) => `
     <div class="committee-card">
-      <img src="${m.photoURL || LOGO_DATA_URI}" alt="">
+      <img src="${esc(m.photoURL || LOGO_DATA_URI)}" alt="">
       <div class="nm" data-no-translate>${esc(m.name)}</div>
       <div class="role">${esc(m.role)}</div>
     </div>`;
@@ -2032,7 +2034,7 @@ import {
   signOut, sendPasswordResetEmail, deleteUser
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
 import {
-  doc, getDoc, setDoc, updateDoc, addDoc, collection, query, where, orderBy, getDocs, serverTimestamp, limit, writeBatch, onSnapshot
+  doc, getDoc, setDoc, updateDoc, addDoc, collection, query, where, orderBy, getDocs, serverTimestamp, limit, writeBatch, onSnapshot, runTransaction
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 import {
   ref as storageRef, uploadBytes, getDownloadURL
@@ -2155,6 +2157,23 @@ const regResidentTypeSelect = registerForm.querySelector('[name=residentType]');
 regResidentTypeSelect?.addEventListener('change', checkFlatAvailability);
 const regMembershipFeeWrap = document.getElementById('regMembershipFeeWrap');
 let feeQrFetched = false;
+let feeAmountFetched = false;
+async function fetchLiveMembershipFeeAmount() {
+  if (feeAmountFetched) return;
+  feeAmountFetched = true;
+  try {
+    const snap = await getDoc(doc(db, 'settings', 'maintenance'));
+    const fee = membershipFeeAmount(snap.exists() ? snap.data() : null);
+    const el = document.getElementById('regMembershipFeeAmount');
+    if (el && fee) el.textContent = formatINR(fee);
+  } catch (e) {
+    // Leave the ₹1,100 placeholder — a failed fetch here shouldn't block
+    // registration, and the amount actually charged (computed the same way,
+    // separately, at submit time) is still correct regardless of what this
+    // label could or couldn't show.
+    console.warn('Could not load live membership fee for the registration label:', e?.code || e);
+  }
+}
 async function fetchFeeQrIfNeeded() {
   if (feeQrFetched) return;
   feeQrFetched = true;
@@ -2183,7 +2202,7 @@ function toggleResidentTypeFields() {
   }
   if (regMembershipFeeWrap) {
     regMembershipFeeWrap.style.display = isOwner ? 'block' : 'none';
-    if (isOwner && document.getElementById('reg-feePaid-no').checked) fetchFeeQrIfNeeded();
+    if (isOwner) { fetchFeeQrIfNeeded(); fetchLiveMembershipFeeAmount(); }
   }
   if (regTenantDetailsWrap) {
     regTenantDetailsWrap.style.display = isTenant ? 'block' : 'none';
@@ -2391,6 +2410,14 @@ document.getElementById('stepSaveExit')?.addEventListener('click', saveDraft);
     if (!raw) return;
     const parsed = JSON.parse(raw);
     if (!parsed?.data) { localStorage.removeItem(DRAFT_KEY); return; }
+    // savedAt was already being stored but never actually checked — an old
+    // draft (name, phone, email, DOB, family members, vehicle numbers...)
+    // could sit on a SHARED device (the RWA office computer, a family
+    // tablet) indefinitely, offered to whoever opens this form next. 48
+    // hours comfortably covers someone genuinely coming back to finish
+    // their own registration, without keeping PII around indefinitely.
+    const DRAFT_TTL_MS = 48 * 60 * 60 * 1000;
+    if (!parsed.savedAt || Date.now() - parsed.savedAt > DRAFT_TTL_MS) { localStorage.removeItem(DRAFT_KEY); return; }
     document.getElementById('regDraftBanner').style.display = 'block';
     document.getElementById('regDraftContinue')?.addEventListener('click', () => {
       restoreDraft(parsed.data);
@@ -2607,7 +2634,7 @@ registerForm.addEventListener('submit', async (e) => {
     const feeUtr = f.feeUtr ? f.feeUtr.value.trim() : '';
     const feeProofFile = f.feeProof ? f.feeProof.files[0] : null;
     let membershipPaymentData = null;
-    if (isOwnerType && !alreadyPaidFee && (feeUtr || feeProofFile)) {
+    if (isOwnerType && alreadyPaidFee && (feeUtr || feeProofFile)) {
       try {
         let feeProofURL = '';
         if (feeProofFile) feeProofURL = await uploadFile(`paymentProofs/${uid}/membership_${Date.now()}`, feeProofFile);
@@ -2623,7 +2650,7 @@ registerForm.addEventListener('submit', async (e) => {
           console.warn('Could not read configured membership fee, using default:', feeSettingErr?.code || feeSettingErr);
         }
         membershipPaymentData = {
-          memberUid: uid, residentName: f.name.value.trim(), flatNumber: f.flatNumber.value.trim(),
+          memberUid: uid, residentName: f.name.value.trim(), tower: f.tower.value.trim(), flatNumber: f.flatNumber.value.trim(),
           amount: feeAmount, type: 'membership', mode: 'upi', financialYear: currentFinancialYear(),
           utrOrChequeNo: feeUtr, paymentProofURL: feeProofURL,
           status: 'pending_verification', submittedAt: serverTimestamp()
@@ -2834,7 +2861,7 @@ async function loadDashboard(uid) {
   content.innerHTML = `
     <div class="card status-card">
       <div class="status-head">
-        <img src="${currentMember.photoURL || LOGO_DATA_URI}" alt="">
+        <img src="${escapeHtml(currentMember.photoURL || LOGO_DATA_URI)}" alt="">
         <div style="min-width:0;">
           <div style="font-weight:600; font-size:16px;">${escapeHtml(currentMember.name)}</div>
           <div class="t-sub" style="font-size:13px;">${escapeHtml(currentMember.tower)} · Flat ${escapeHtml(currentMember.flatNumber)}</div>
@@ -3052,7 +3079,7 @@ async function loadNotificationCenter() {
   });
 
   try {
-    const rows = (await getDocs(query(collection(db, 'notices'), orderBy('postedAt', 'desc'), limit(5)))).docs.map(d => d.data());
+    const rows = (await getDocs(query(collection(db, 'notices'), where('postedAt', '>', new Date(cutoff)), orderBy('postedAt', 'desc'), limit(50)))).docs.map(d => d.data());
     rows.forEach(n => {
       const t = toMs(n.postedAt);
       if (t && t > cutoff) items.push({ icon: '📢', text: `New notice: ${n.titleEn}`, time: t });
@@ -3601,21 +3628,26 @@ function renderMyBookings() {
 async function cancelMyBooking(id) {
   if (!confirm('Cancel this booking request?')) return;
   try {
-    const b = (window.__myBookings || []).find(x => x.id === id);
-    const batch = writeBatch(db);
-    batch.update(doc(db, 'facilityBookings', id), { status: 'cancelled', updatedAt: serverTimestamp() });
-    // Only an APPROVED booking ever holds a facilitySlots doc (approveBooking()
-    // is the only place one is created) — cancelling a still-pending request
-    // has no slot to release. Including the delete unconditionally would try
-    // to delete a document that was never created, which the security rules
-    // correctly deny (nothing to prove ownership of), failing the whole
-    // batch — so this is deliberately conditional on the booking having
-    // actually been approved.
-    if (b && b.status === 'approved') {
-      batch.delete(doc(db, 'facilitySlots', `${b.facilityId}_${b.date}_${b.slot}`));
-    }
-    await batch.commit();
+    const bookingRef = doc(db, 'facilityBookings', id);
+    // Read the booking's CURRENT status inside the transaction — not the
+    // resident's local cached copy. If admin approved it moments earlier
+    // and this browser hasn't caught up yet, trusting the stale local
+    // status would cancel the booking but skip deleting its slot lock,
+    // permanently orphaning that date/slot with no booking left to
+    // account for it. A Full Day booking locks three slots (morning,
+    // evening, full_day) on approval, so all three are released here too.
+    await runTransaction(db, async (tx) => {
+      const snap = await tx.get(bookingRef);
+      if (!snap.exists()) throw new Error('NOT_FOUND');
+      const b = snap.data();
+      if (b.status === 'approved') {
+        const slots = b.slot === 'full_day' ? ['morning', 'evening', 'full_day'] : [b.slot];
+        slots.forEach(s => tx.delete(doc(db, 'facilitySlots', `${b.facilityId}_${b.date}_${s}`)));
+      }
+      tx.update(bookingRef, { status: 'cancelled', updatedAt: serverTimestamp() });
+    });
     showToast('Cancelled.', 'success');
+    const b = (window.__myBookings || []).find(x => x.id === id);
     if (b) b.status = 'cancelled';
     renderMyBookings();
   } catch (e) { showToast('Could not cancel — please try again.', 'error'); }
@@ -4338,14 +4370,18 @@ async function loadPayments(uid) {
 }
 
 async function openPaymentModal() {
-  // Existing-pending-payment check: uses allPaymentRows, already loaded by
-  // loadPayments() when the dashboard rendered, instead of a second Firestore
-  // query. That query needed a composite index (memberUid + status) that is
-  // easy to forget to create in the Firebase Console — this way there's
-  // nothing to forget, and the answer can never disagree with what the
-  // resident's own payment history further down the dashboard already shows.
-  const alreadyPending = allPaymentRows.some(p => p.status === 'pending_approval' || p.status === 'pending_verification');
-  if (alreadyPending) { showToast('You already have a pending payment — no need for a new entry.', 'error'); return; }
+  // Which SPECIFIC types already have a pending submission — not "does any
+  // pending payment exist at all". A pending ₹500 event fee shouldn't block
+  // submitting an unrelated maintenance payment; each is tracked by its own
+  // key ('maintenance', 'membership', or 'event:{eventId}'), matching how
+  // payments are actually typed when written. Untyped legacy pending rows
+  // (from before the type field existed) count as maintenance, same
+  // convention used everywhere else this app reads payment type.
+  const pendingKeys = new Set(
+    allPaymentRows
+      .filter(p => p.status === 'pending_approval' || p.status === 'pending_verification')
+      .map(p => (p.type === 'event' ? `event:${p.eventId}` : (p.type || 'maintenance')))
+  );
 
   let paySettings;
   let eventDues = [];
@@ -4404,7 +4440,9 @@ async function openPaymentModal() {
   // still due, offered as a separate payment type so a new member clears it
   // before (or alongside) their maintenance.
   const membership = currentMembership || membershipDue(currentMember, allPaymentRows, currentMaintenance);
-  const membershipPending = membership.outstanding > 0;
+  const membershipStillOwed = membership.outstanding > 0;
+  const membershipAlreadyPending = pendingKeys.has('membership');
+  const membershipPending = membershipStillOwed && !membershipAlreadyPending;
 
   const membershipHtml = `
     <div class="invoice-card">
@@ -4415,19 +4453,25 @@ async function openPaymentModal() {
              <div class="r"><span class="muted">Paid so far (verified)</span><span class="paid">− ${formatINR(membership.paid)}</span></div>` : ''}
         ${membershipPending
           ? `<div class="r total"><span>Membership fee ${membership.paid > 0 ? 'balance due' : 'due'}</span><span class="owe">${formatINR(membership.outstanding)}</span></div>`
-          : `<div class="invoice-clear"><span class="tick">✓ Membership fee (${formatINR(membership.fee)}) cleared</span></div>`}
+          : membershipAlreadyPending
+            ? `<div class="invoice-clear"><span class="tick">⏳ Membership fee (${formatINR(membership.outstanding)}) submitted — awaiting verification</span></div>`
+            : `<div class="invoice-clear"><span class="tick">✓ Membership fee (${formatINR(membership.fee)}) cleared</span></div>`}
       </div>
     </div>`;
 
+  const maintenanceAlreadyPending = pendingKeys.has('maintenance');
+  const maintenancePayable = dues.outstanding > 0 && !maintenanceAlreadyPending;
   const invoiceHtml = hasRate ? `
     <div class="invoice-card">
       <div class="invoice-head"><span class="lbl">Maintenance Invoice</span><span class="fy">FY ${escapeHtml(fy)}</span></div>
       <div class="invoice-rows">
         <div class="r"><span class="muted">Flat ${escapeHtml(currentMember.flatNumber)} · Tower ${escapeHtml(currentMember.tower)} charge</span><span>${formatINR(dues.expected)}</span></div>
         <div class="r"><span class="muted">Paid so far (verified)</span><span class="paid">− ${formatINR(dues.paid)}</span></div>
-        ${dues.outstanding > 0
+        ${maintenancePayable
           ? `<div class="r total"><span>Outstanding</span><span class="owe">${formatINR(dues.outstanding)}</span></div>`
-          : `<div class="invoice-clear"><span class="tick">✓ FY ${escapeHtml(fy)} maintenance fully cleared</span></div>`}
+          : maintenanceAlreadyPending
+            ? `<div class="invoice-clear"><span class="tick">⏳ Maintenance payment submitted — awaiting verification</span></div>`
+            : `<div class="invoice-clear"><span class="tick">✓ FY ${escapeHtml(fy)} maintenance fully cleared</span></div>`}
       </div>
     </div>` : `
     <div class="invoice-card">
@@ -4437,48 +4481,84 @@ async function openPaymentModal() {
 
   // When membership is still due, let the resident choose which one they are
   // paying now. Membership is pre-selected since it should be cleared first.
-  // Event fee invoice cards (one per outstanding event demand).
-  const eventsHtml = eventDues.map(ed => `
+  // Event fee invoice cards (one per outstanding event demand) — same
+  // awaiting-verification distinction as membership/maintenance above.
+  const eventsHtml = eventDues.map(ed => {
+    const eventAlreadyPending = pendingKeys.has(`event:${ed.eventId}`);
+    return `
     <div class="invoice-card">
       <div class="invoice-head"><span class="lbl">${escapeHtml(ed.name)}</span><span class="fy">Event</span></div>
       <div class="invoice-rows">
         ${ed.paid > 0
           ? `<div class="r"><span class="muted">Event fee</span><span>${formatINR(ed.fee)}</span></div>
              <div class="r"><span class="muted">Paid so far (verified)</span><span class="paid">− ${formatINR(ed.paid)}</span></div>` : ''}
-        <div class="r total"><span>Amount Due</span><span class="owe">${formatINR(ed.outstanding)}</span></div>
+        ${eventAlreadyPending
+          ? `<div class="invoice-clear"><span class="tick">⏳ ${escapeHtml(ed.name)} fee submitted — awaiting verification</span></div>`
+          : `<div class="r total"><span>Amount Due</span><span class="owe">${formatINR(ed.outstanding)}</span></div>`}
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 
-  // Build the toggle: membership (if pending) + maintenance + each event. Shown
-  // only when there's more than one thing to pay, so the resident picks one.
-  const toggleButtons = [];
-  if (membershipPending) toggleButtons.push(`<button type="button" class="paytype selected" data-type="membership" data-amt="${membership.outstanding}"><div class="pt-top">Membership Fee</div><div class="pt-amt">${formatINR(membership.outstanding)}</div></button>`);
-  toggleButtons.push(`<button type="button" class="paytype ${membershipPending ? '' : 'selected'}" data-type="maintenance" data-amt="${dues.outstanding}"><div class="pt-top">Maintenance</div><div class="pt-amt">${dues.outstanding > 0 ? formatINR(dues.outstanding) : (hasRate ? '✓ Clear' : '—')}</div></button>`);
-  eventDues.forEach(ed => toggleButtons.push(`<button type="button" class="paytype" data-type="event" data-event-id="${escapeHtml(ed.eventId)}" data-event-name="${escapeHtml(ed.name)}" data-amt="${ed.outstanding}"><div class="pt-top">${escapeHtml(ed.name)}</div><div class="pt-amt">${formatINR(ed.outstanding)}</div></button>`));
+  // Build the payable-options list as DATA first (not HTML strings) — only
+  // things actually payable right now; something already pending is
+  // informational-only in its own invoice card above (⏳ awaiting
+  // verification), not offered again here as if it could be resubmitted.
+  // Deriving both the toggle buttons AND the default payContext from this
+  // same array (rather than querying the DOM for a 'first button') is what
+  // correctly handles there being exactly one payable option — the toggle
+  // UI itself is only rendered when there's more than one to choose between,
+  // so the DOM would have nothing to query in that case.
+  const payableOptions = [];
+  if (membershipPending) payableOptions.push({ type: 'membership', amount: membership.outstanding, label: 'Membership Fee' });
+  if (!maintenanceAlreadyPending) payableOptions.push({ type: 'maintenance', amount: dues.outstanding, label: 'Maintenance', clearLabel: dues.outstanding > 0 ? null : (hasRate ? '✓ Clear' : '—') });
+  eventDues.filter(ed => !pendingKeys.has(`event:${ed.eventId}`))
+    .forEach(ed => payableOptions.push({ type: 'event', amount: ed.outstanding, label: ed.name, eventId: ed.eventId, eventName: ed.name }));
+
+  const toggleButtons = payableOptions.map((o, i) => {
+    const selected = i === 0 ? ' selected' : '';
+    const amtLabel = o.clearLabel || formatINR(o.amount);
+    const eventAttrs = o.type === 'event' ? ` data-event-id="${escapeHtml(o.eventId)}" data-event-name="${escapeHtml(o.eventName)}"` : '';
+    return `<button type="button" class="paytype${selected}" data-type="${o.type}" data-amt="${o.amount}"${eventAttrs}><div class="pt-top">${escapeHtml(o.label)}</div><div class="pt-amt">${amtLabel}</div></button>`;
+  });
   const typeToggle = (toggleButtons.length > 1) ? `<div class="paytype-toggle">${toggleButtons.join('')}</div>` : '';
+  // Nothing left payable — everything outstanding already has a payment
+  // awaiting verification. Show the invoice cards (so the resident can see
+  // that clearly) without any pay-mode options below them.
+  const nothingPayable = payableOptions.length === 0;
 
   const body = document.getElementById('paymentModalBody');
   body.innerHTML = `
     ${membershipHtml}
     ${invoiceHtml}
     ${eventsHtml}
+    ${nothingPayable ? `<p class="t-sub" style="font-size:13.5px; text-align:center; margin-top:10px;">Everything outstanding already has a payment submitted and awaiting verification.</p>` : `
     ${typeToggle}
     <div class="pay-option" data-mode="cash"><svg viewBox="0 0 24 24"><use href="#i-cash"/></svg><div><b>Cash</b><div class="t-muted" style="font-size:12.5px;">Visit the RWA office</div></div></div>
     <div class="pay-option" data-mode="cheque"><svg viewBox="0 0 24 24"><use href="#i-cheque"/></svg><div><b>Cheque</b><div class="t-muted" style="font-size:12.5px;">Visit the RWA office</div></div></div>
     <div class="pay-option" data-mode="upi"><svg viewBox="0 0 24 24"><use href="#i-qr"/></svg><div><b>UPI / QR Scan</b><div class="t-muted" style="font-size:12.5px;">Pay instantly from your phone</div></div></div>
     <div class="pay-option" data-mode="netbanking"><svg viewBox="0 0 24 24"><use href="#i-bank"/></svg><div><b>Net Banking / Transfer</b><div class="t-muted" style="font-size:12.5px;">NEFT / IMPS to society account</div></div></div>
-    <div id="payDetailForm"></div>
+    <div id="payDetailForm"></div>`}
   `;
   window.__translate(body);
   document.getElementById('paymentModalBackdrop').classList.add('open');
+  if (nothingPayable) return;
 
-  // Tracks what the resident is paying: 'membership' or 'maintenance', and the
-  // outstanding amount for that type. The maintenance modal defaults to
-  // maintenance; when membership is pending it starts on membership.
-  const payContext = {
-    type: membershipPending ? 'membership' : 'maintenance',
-    outstanding: membershipPending ? membership.outstanding : dues.outstanding,
-    hasRate: membershipPending ? true : hasRate,
+  // Tracks what the resident is paying: 'membership', 'maintenance', or
+  // 'event', and the outstanding amount for that type. Defaults to whichever
+  // the toggle list's first (already-selected) button actually is — not a
+  // hardcoded membership-or-maintenance guess, which could point at a type
+  // that turned out to already be pending and got excluded above.
+  const firstOpt = payableOptions[0];
+  const payContext = firstOpt ? {
+    type: firstOpt.type,
+    outstanding: firstOpt.amount,
+    hasRate: firstOpt.type === 'membership' ? true : hasRate,
+    eventId: firstOpt.eventId || null,
+    eventName: firstOpt.eventName || null,
+  } : {
+    type: 'maintenance',
+    outstanding: dues.outstanding,
+    hasRate,
   };
 
   body.querySelectorAll('.paytype').forEach(tbtn => {
@@ -4522,7 +4602,7 @@ function renderPayDetailForm(mode, paySettings, payContext) {
       ` : `
         <div class="qr-box" style="margin-bottom:14px;">
           ${paySettings.qrCodeImageURL ? `
-            <img src="${paySettings.qrCodeImageURL}" alt="Payment QR">
+            <img src="${escapeHtml(paySettings.qrCodeImageURL)}" alt="Payment QR">
             <button type="button" class="qr-download-btn" id="qrDownloadBtn">
               <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 4v11m0 0l-4-4m4 4l4-4M5 19h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
               Download QR
@@ -4647,7 +4727,7 @@ async function submitPayment(mode) {
     // Firestore, and no approval request ever appears. The screenshot is
     // attached afterward with a follow-up update; its failure is reported
     // as non-fatal since the payment is already safely recorded.
-    const paymentRef = await addDoc(collection(db, 'payments'), {
+    const paymentData = {
       memberUid: currentUser.uid,
       memberID: currentMember.memberID,
       flatNumber: currentMember.flatNumber,
@@ -4667,7 +4747,32 @@ async function submitPayment(mode) {
       receiptNumber: null,
       clientToken: crypto.randomUUID(),
       submittedAt: serverTimestamp()
-    });
+    };
+    const paymentRef = doc(collection(db, 'payments'));
+    if (utr) {
+      // A UTR is claimed exactly once, ever, across every resident and
+      // every device — the payment and its claim land together or not at
+      // all, which is what actually stops the same real-world transaction
+      // being recorded as two separate payments (the old paymentInFlight
+      // flag only ever covered a double-tap in the SAME browser tab).
+      const utrLockRef = doc(db, 'paymentsByUtr', utr.toUpperCase());
+      try {
+        await runTransaction(db, async (tx) => {
+          const lockSnap = await tx.get(utrLockRef);
+          if (lockSnap.exists()) throw new Error('UTR_TAKEN');
+          tx.set(utrLockRef, { claimedAt: serverTimestamp(), claimedBy: currentUser.uid });
+          tx.set(paymentRef, paymentData);
+        });
+      } catch (lockErr) {
+        if (lockErr.message === 'UTR_TAKEN') {
+          showToast('This UTR / Transaction ID has already been submitted for a payment. If you believe this is a mistake, please contact the office.', 'error');
+          return;
+        }
+        throw lockErr;
+      }
+    } else {
+      await setDoc(paymentRef, paymentData);
+    }
 
     if (!isOffline) {
       const proofFile = document.getElementById('payProof').files[0];
@@ -4738,7 +4843,7 @@ function renderNotices() {
         <div class="notice-body">
           <h4 data-no-translate>${escapeHtml(lang === 'hi' ? (n.titleHi || n.titleEn) : n.titleEn)}</h4>
           <p data-no-translate>${escapeHtml(lang === 'hi' ? (n.bodyHi || n.bodyEn) : n.bodyEn)}</p>
-          ${n.attachmentURL ? `<a href="${n.attachmentURL}" target="_blank" rel="noopener" style="font-size:12.5px; text-decoration:underline; display:inline-block; margin-top:7px;" class="t-sub">Download attachment</a>` : ''}
+          ${n.attachmentURL ? `<a href="${escapeHtml(n.attachmentURL)}" target="_blank" rel="noopener" style="font-size:12.5px; text-decoration:underline; display:inline-block; margin-top:7px;" class="t-sub">Download attachment</a>` : ''}
           <div class="notice-actions">
             <a class="notice-share" target="_blank" rel="noopener"
                href="${waShareText(noticeShareText(n, lang))}"

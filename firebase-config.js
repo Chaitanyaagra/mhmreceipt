@@ -46,7 +46,7 @@ const SOCIETY = {
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
 import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app-check.js";
 import { getAuth, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
-import { getFirestore } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
+import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 import { getStorage } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-storage.js";
 
 export const app = initializeApp(firebaseConfig);
@@ -99,7 +99,20 @@ if (APP_CHECK_ENABLED) {
   console.warn('App Check is not configured — see the note in firebase-config.js.');
 }
 export const auth = getAuth(app);
-export const db = getFirestore(app);
+export const db = (() => {
+  try {
+    return initializeFirestore(app, {
+      localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+    });
+  } catch (e) {
+    // initializeFirestore() throws if something already touched Firestore
+    // on this app instance first, or in genuinely unsupported environments —
+    // either way, falling back to the plain (memory-only) client keeps the
+    // app fully working online; it just won't have offline persistence.
+    console.warn('Firestore offline persistence could not be enabled; continuing online-only.', e?.code || e);
+    return getFirestore(app);
+  }
+})();
 export const storage = getStorage(app);
 export { GOOGLE_OAUTH_CLIENT_ID, SOCIETY, firebaseConfig };
 

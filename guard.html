@@ -27,6 +27,9 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="MHMRWS Gate">
 <meta name="color-scheme" content="dark">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
 <link rel="stylesheet" href="styles.css">
 <style>
   /* Deliberately its own small stylesheet, not styles.css's public-site
@@ -316,14 +319,12 @@ document.getElementById('entryForm').addEventListener('submit', async (e) => {
 const PURPOSE_LABEL = { guest: 'Guest', delivery: 'Delivery', cab: 'Cab', service: 'Service', other: 'Other' };
 
 function subscribeVisitors() {
-  // The query MUST be at least as narrow as the read rule (Firestore rejects
-  // a query that could return docs the rule forbids, rather than filtering
-  // after). The rule lets a guard read only visitors they created, so the
-  // query filters on createdByGuardUid too — otherwise this whole listener
-  // fails with permission-denied and the queue shows empty.
+  // Any active guard can now read any visitor (shift handover: a visitor
+  // Guard A checked in must still be visible and checkable-out by Guard B),
+  // so the query is no longer scoped to createdByGuardUid — that would
+  // hide another guard's still-active visitors from the shared queue.
   const q = query(
     collection(db, 'visitors'),
-    where('createdByGuardUid', '==', currentGuard.uid),
     where('status', 'in', ['pending', 'approved', 'checked_in'])
   );
   unsubscribeVisitors = onSnapshot(q, (snap) => {

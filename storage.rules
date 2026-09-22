@@ -112,17 +112,23 @@ service firebase.storage {
     // Notice board attachments (circulars, PDFs) — public read, admin write.
     match /noticeAttachments/{fileName} {
       allow read: if true;
-      allow write: if isAdmin()
+      allow create, update: if isAdmin()
                    && request.resource.size < 20 * 1024 * 1024
                    && isImageOrPdf();
+      // Split from create/update — request.resource doesn't exist on a
+      // delete, so folding delete into the same size/type-checked 'write'
+      // meant a delete always failed, blocking exactly the cleanup a
+      // removed notice's attachment needs.
+      allow delete: if isAdmin();
     }
 
     // Committee directory photos — intentionally public.
     match /committeePhotos/{fileName} {
       allow read: if true;
-      allow write: if isAdmin()
+      allow create, update: if isAdmin()
                    && request.resource.size < 5 * 1024 * 1024
                    && request.resource.contentType.matches('image/.*');
+      allow delete: if isAdmin();
     }
 
     // Society documents residents can download — bylaws, AGM minutes,
@@ -136,17 +142,19 @@ service firebase.storage {
     // that turns into a leak the next time someone edits them.
     match /publicDocs/{fileName} {
       allow read: if true;
-      allow write: if isAdmin()
+      allow create, update: if isAdmin()
                    && request.resource.size < 20 * 1024 * 1024
                    && isImageOrPdf();
+      allow delete: if isAdmin();
     }
 
     // Society logo, payment QR code, downloadable forms — public read.
     match /settings/{fileName} {
       allow read: if true;
-      allow write: if isAdmin()
+      allow create, update: if isAdmin()
                    && request.resource.size < 10 * 1024 * 1024
                    && isImageOrPdf();
+      allow delete: if isAdmin();
     }
   }
 }
