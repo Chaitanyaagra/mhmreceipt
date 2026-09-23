@@ -2368,7 +2368,18 @@ export function collectVehicles(container) {
 /* ---------------------------------------------------------------------- */
 function petCardHTML(pet = {}) {
   const sel = (v, want) => (v === want ? ' selected' : '');
-  const chk = (v) => (v ? ' checked' : '');
+  const certField = (label, urlField, inputClass) => {
+    const url = pet[urlField];
+    const isImg = url && /\.(jpe?g|png|webp|gif)$/i.test(url);
+    return `<div class="field">
+      <label>${label} <span class="t-muted" style="font-weight:400;">(optional)</span></label>
+      ${url ? `<div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+        ${isImg ? `<img src="${escapeHtml(url)}" alt="" style="width:40px; height:40px; border-radius:8px; object-fit:cover; border:1px solid var(--line,#E2E6EF);">` : ''}
+        <a href="${escapeHtml(url)}" target="_blank" rel="noopener" class="t-muted" style="font-size:12px; text-decoration:underline;">${isImg ? 'View current file' : 'View current certificate (PDF)'}</a>
+      </div>` : ''}
+      <input type="file" class="${inputClass}" accept="image/*,application/pdf" data-existing-url="${escapeHtml(url || '')}">
+    </div>`;
+  };
   return `
   <div class="pet-card" data-photo-url="${escapeHtml(pet.photoURL || '')}">
     <div class="pet-card-header">
@@ -2378,8 +2389,8 @@ function petCardHTML(pet = {}) {
     <div class="field"><label>Pet Photo <span class="t-muted" style="font-weight:400;">(optional — helps security at the gate identify your pet)</span></label>
       ${pet.photoURL ? `<div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
         <img src="${escapeHtml(pet.photoURL)}" alt="" style="width:56px; height:56px; border-radius:10px; object-fit:cover; border:1px solid var(--line,#E2E6EF);">
-        <span class="t-muted" style="font-size:12px;">Current photo — choose a new file below only if you want to replace it.</span>
-      </div>` : ''}
+        <span class="t-muted" style="font-size:12px;">Current photo. <b>Change Photo:</b> choose a new file below to replace it.</span>
+      </div>` : '<div class="hint" style="margin-bottom:6px;">No photo yet — attach one below.</div>'}
       <input type="file" class="pet-photo" accept="image/*">
     </div>
     <div class="form-2col">
@@ -2425,10 +2436,10 @@ function petCardHTML(pet = {}) {
       <div class="hint">You'll get a reminder around this date to re-vaccinate.</div>
     </div>
     <div class="pet-cert-checks">
-      <label class="checkbox-row"><input type="checkbox" class="pet-cert-rabies"${chk(pet.hasAntiRabiesCert)}> I have the Anti-Rabies Vaccination Certificate</label>
-      <label class="checkbox-row"><input type="checkbox" class="pet-cert-annual"${chk(pet.hasAnnualVaccinationRecord)}> I have the Annual Vaccination Record</label>
-      <label class="checkbox-row"><input type="checkbox" class="pet-cert-health"${chk(pet.hasVetHealthCert)}> I have the Veterinary Health Certificate</label>
-      <label class="checkbox-row"><input type="checkbox" class="pet-cert-sterilization"${chk(pet.hasSterilizationCert)}> I have the Sterilization Certificate (if applicable)</label>
+      ${certField('Anti-Rabies Vaccination Certificate', 'antiRabiesCertURL', 'pet-cert-rabies')}
+      ${certField('Annual Vaccination Record', 'annualVaccinationCertURL', 'pet-cert-annual')}
+      ${certField('Veterinary Health Certificate', 'vetHealthCertURL', 'pet-cert-health')}
+      ${certField('Sterilization Certificate', 'sterilizationCertURL', 'pet-cert-sterilization')}
     </div>
     <div class="field"><label>Sterilization Status <span class="t-muted" style="font-weight:400;">(optional)</span></label>
       <select class="pet-sterilization-status">
@@ -2489,20 +2500,24 @@ export function collectPets(container) {
       vetContactNumber: card.querySelector('.pet-vet-contact').value.trim(),
       lastVaccinationDate: card.querySelector('.pet-last-vax').value || null,
       nextVaccinationDue: card.querySelector('.pet-next-vax').value || null,
-      hasAntiRabiesCert: card.querySelector('.pet-cert-rabies').checked,
-      hasAnnualVaccinationRecord: card.querySelector('.pet-cert-annual').checked,
-      hasVetHealthCert: card.querySelector('.pet-cert-health').checked,
-      hasSterilizationCert: card.querySelector('.pet-cert-sterilization').checked,
       sterilizationStatus: card.querySelector('.pet-sterilization-status').value || null,
       emergencyContactName: card.querySelector('.pet-emg-name').value.trim(),
       emergencyContactRelation: card.querySelector('.pet-emg-relation').value.trim(),
       emergencyContactMobile: card.querySelector('.pet-emg-mobile').value.trim(),
-      // Not a serializable Firestore value — the caller uploads this (if
-      // present) and replaces it with a photoURL string before writing.
-      // Kept inside the same filter step as everything else so an
-      // accidentally-added empty card's photo never gets uploaded either.
+      // Not serializable Firestore values — the caller uploads each file (if
+      // present) and replaces it with a URL string before writing. Carrying
+      // the EXISTING URL forward means leaving a field untouched doesn't
+      // silently lose a certificate that was already attached.
       photoFile: card.querySelector('.pet-photo').files[0] || null,
-      photoURL: card.dataset.photoUrl || null
+      photoURL: card.dataset.photoUrl || null,
+      antiRabiesCertFile: card.querySelector('.pet-cert-rabies').files[0] || null,
+      antiRabiesCertURL: card.querySelector('.pet-cert-rabies').dataset.existingUrl || null,
+      annualVaccinationCertFile: card.querySelector('.pet-cert-annual').files[0] || null,
+      annualVaccinationCertURL: card.querySelector('.pet-cert-annual').dataset.existingUrl || null,
+      vetHealthCertFile: card.querySelector('.pet-cert-health').files[0] || null,
+      vetHealthCertURL: card.querySelector('.pet-cert-health').dataset.existingUrl || null,
+      sterilizationCertFile: card.querySelector('.pet-cert-sterilization').files[0] || null,
+      sterilizationCertURL: card.querySelector('.pet-cert-sterilization').dataset.existingUrl || null
     }))
     .filter((p) => p.name);
 }

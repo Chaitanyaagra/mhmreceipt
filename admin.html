@@ -345,7 +345,7 @@
       <button data-view="polls"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-polls"/></svg></span> Polls</button>
 
       <div class="nav-section-label">Finance</div>
-      <button data-view="payments"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-payments"/></svg></span> Payments<span class="nav-badge" id="navBadgePayments" style="display:none;">0</span></button>
+      <button data-view="payments"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-payments"/></svg></span> Collection<span class="nav-badge" id="navBadgePayments" style="display:none;">0</span></button>
       <button data-view="expenses"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-expenses"/></svg></span> Expenses</button>
       <button data-view="events"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-events"/></svg></span> Events</button>
       <button data-view="financials"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-financials"/></svg></span> Financials</button>
@@ -641,15 +641,15 @@
 
     <!-- ---------------- PAYMENTS ---------------- -->
     <div class="view-panel" id="view-payments">
-      <div class="topbar"><h2 class="view-title">Payments</h2>
+      <div class="topbar"><h2 class="view-title">Collection</h2>
         <div class="action-row">
-          <button class="btn btn-primary btn-sm" id="recordPaymentBtn">+ Record Payment</button>
+          <button class="btn btn-primary btn-sm" id="recordPaymentBtn">+ Record Collection</button>
           <button class="btn btn-outline btn-sm" id="exportPaymentsBtn">⬇ Export Excel</button>
         </div>
       </div>
       <div class="tab-strip">
         <button data-ptab="pending" class="active">Pending Verification</button>
-        <button data-ptab="all">All Payments</button>
+        <button data-ptab="all">All Collection</button>
         <button data-ptab="defaulters">Defaulters</button>
       </div>
       <div id="paymentsPendingPanel">
@@ -1763,10 +1763,17 @@
      already verified and issues a receipt in one step. -->
 <div class="modal-backdrop" id="recordPaymentModalBackdrop">
   <div class="modal">
-    <div class="modal-head"><h3 style="font-size:16.5px;">Record Payment</h3><button class="icon-btn" id="closeRecordPaymentModal">✕</button></div>
+    <div class="modal-head"><h3 style="font-size:16.5px;">Record Collection</h3><button class="icon-btn" id="closeRecordPaymentModal">✕</button></div>
     <div class="modal-body">
       <form id="recordPaymentForm">
-        <div class="field" style="position:relative;">
+        <div class="field" style="padding:10px 12px; background:var(--surface-2,#F6F4EF); border-radius:10px; margin-bottom:2px;">
+          <label class="checkbox-row" style="margin:0;"><input type="checkbox" id="rpSuspenseToggle"> I don't know who this is from — put it in Suspense</label>
+        </div>
+        <div class="field" id="rpSuspenseReasonWrap" style="display:none;">
+          <label for="rpSuspenseReason">Why can't this be matched to a resident right now?</label>
+          <input type="text" id="rpSuspenseReason" placeholder="e.g. cash left at the office with no name, cheque with illegible name" maxlength="500">
+        </div>
+        <div class="field" style="position:relative;" id="rpMemberWrap">
           <label for="rpMember">Member</label>
           <input type="text" id="rpMember" placeholder="Search by name, flat, or Member ID" autocomplete="off" required>
           <input type="hidden" id="rpMemberUid">
@@ -1774,7 +1781,7 @@
           <div class="hint" id="rpMemberHint">Only approved members appear in this list.</div>
         </div>
         <div class="form-2col">
-          <div class="field">
+          <div class="field" id="rpTypeWrap">
             <label for="rpType">Payment type</label>
             <select id="rpType" required>
               <option value="maintenance">Maintenance</option>
@@ -5388,19 +5395,33 @@ document.getElementById('savePetAdminBtn')?.addEventListener('click', async () =
   const container = document.getElementById('petAdminEditorContainer');
   const [petData] = collectPets(container);
   if (!petData) { showToast('Please enter the pet\'s name.', 'error'); return; }
-  delete petData.photoFile; // the file object itself never goes to Firestore
+  // Raw File objects can't go to Firestore — each is uploaded below and
+  // replaced with its resulting URL; the File itself is stripped either way.
+  delete petData.photoFile;
+  delete petData.antiRabiesCertFile;
+  delete petData.annualVaccinationCertFile;
+  delete petData.vetHealthCertFile;
+  delete petData.sterilizationCertFile;
 
   const btn = document.getElementById('savePetAdminBtn');
   btn.disabled = true;
   try {
-    let photoURL = petData.photoURL || null;
-    const fileInput = container.querySelector('.pet-photo');
-    const photoFile = fileInput?.files?.[0];
-    if (photoFile) {
-      const r = storageRef(storage, `petPhotos/${ownerUid}/${safeStorageFilename(photoFile.name)}`);
-      await uploadBytes(r, photoFile);
-      photoURL = await getDownloadURL(r);
+    const uploads = [
+      ['pet-photo', 'photoURL', 'petPhotos'],
+      ['pet-cert-rabies', 'antiRabiesCertURL', 'petCerts'],
+      ['pet-cert-annual', 'annualVaccinationCertURL', 'petCerts'],
+      ['pet-cert-health', 'vetHealthCertURL', 'petCerts'],
+      ['pet-cert-sterilization', 'sterilizationCertURL', 'petCerts'],
+    ];
+    for (const [inputClass, urlKey, folder] of uploads) {
+      const file = container.querySelector(`.${inputClass}`)?.files?.[0];
+      if (file) {
+        const r = storageRef(storage, `${folder}/${ownerUid}/${safeStorageFilename(file.name)}`);
+        await uploadBytes(r, file);
+        petData[urlKey] = await getDownloadURL(r);
+      }
     }
+    const photoURL = petData.photoURL || null;
 
     if (petAdminEditingId) {
       await updateDoc(doc(db, 'pets', petAdminEditingId), { ...petData, photoURL, updatedAt: serverTimestamp() });
@@ -5702,6 +5723,18 @@ function checkMembershipAmountAndDuplicate() {
     alert(`Membership fee already paid for ${member.name} (Flat ${member.tower}-${member.flatNumber}).\n\nPaid so far: ${formatINR(due.paid)} of ${formatINR(due.fee)}.\n\nIf you continue, this will be recorded as an ADDITIONAL membership payment for them. Please double-check before proceeding.`);
   }
 }
+document.getElementById('rpSuspenseToggle')?.addEventListener('change', (e) => {
+  const isSuspense = e.target.checked;
+  document.getElementById('rpMemberWrap').style.display = isSuspense ? 'none' : 'block';
+  document.getElementById('rpMember').required = !isSuspense;
+  document.getElementById('rpTypeWrap').style.display = isSuspense ? 'none' : 'block';
+  document.getElementById('rpType').required = !isSuspense;
+  document.getElementById('rpSuspenseReasonWrap').style.display = isSuspense ? 'block' : 'none';
+  document.getElementById('rpSuspenseReason').required = isSuspense;
+  // Membership's own FY-hide logic only applies when we're actually asking
+  // for a type at all.
+  if (isSuspense) document.getElementById('rpFYWrap').style.display = 'block';
+});
 document.getElementById('rpType')?.addEventListener('change', (e) => {
   // Membership is a one-time fee, not tied to a financial year.
   document.getElementById('rpFYWrap').style.display = e.target.value === 'membership' ? 'none' : 'block';
@@ -5798,6 +5831,14 @@ function openRecordPaymentModal(reassignFromSuspense = null) {
   f.reset();
   document.getElementById('rpChequeWrap').style.display = 'none';
   document.getElementById('rpMemberUid').value = '';
+  // f.reset() unchecks the box but doesn't fire 'change', so the field-
+  // visibility tied to that event needs setting back explicitly here too.
+  document.getElementById('rpMemberWrap').style.display = 'block';
+  document.getElementById('rpMember').required = true;
+  document.getElementById('rpTypeWrap').style.display = 'block';
+  document.getElementById('rpType').required = true;
+  document.getElementById('rpSuspenseReasonWrap').style.display = 'none';
+  document.getElementById('rpSuspenseReason').required = false;
 
   // FY options for maintenance — matches isValidFY()'s own accepted window
   // (2 years back, 1 forward) exactly, not the general-purpose 3-year
@@ -5810,6 +5851,7 @@ function openRecordPaymentModal(reassignFromSuspense = null) {
 
   reassigningSuspenseId = reassignFromSuspense?.id || null;
   const noteEl = document.getElementById('rpSuspenseNote');
+  const suspenseToggleWrap = document.getElementById('rpSuspenseToggle')?.closest('.field');
   if (reassignFromSuspense) {
     document.getElementById('rpAmount').value = reassignFromSuspense.amount;
     document.getElementById('rpAmount').readOnly = true;
@@ -5818,9 +5860,11 @@ function openRecordPaymentModal(reassignFromSuspense = null) {
       noteEl.style.display = 'block';
       noteEl.textContent = `Assigning a ₹${formatINR(reassignFromSuspense.amount)} suspense entry to this resident — the amount is locked to what actually arrived. The suspense entry will be voided once this is saved.`;
     }
+    if (suspenseToggleWrap) suspenseToggleWrap.style.display = 'none';
   } else {
     document.getElementById('rpAmount').readOnly = false;
     if (noteEl) noteEl.style.display = 'none';
+    if (suspenseToggleWrap) suspenseToggleWrap.style.display = 'block';
   }
 
   document.getElementById('recordPaymentModalBackdrop').classList.add('open');
@@ -5909,10 +5953,50 @@ function resolveRecordMember() {
   return allMembers.find(m => (m.id || m.uid) === uid) || null;
 }
 
+async function submitRecordSuspense() {
+  const mode = document.getElementById('rpMode').value;
+  const amount = Number(document.getElementById('rpAmount').value);
+  const fy = document.getElementById('rpFY').value;
+  const transactionDate = document.getElementById('rpTxDate').value;
+  const reason = document.getElementById('rpSuspenseReason').value.trim();
+  const note = document.getElementById('rpNote').value.trim();
+
+  if (!Number.isFinite(amount) || amount <= 0) { showToast('Please enter a valid amount.', 'error'); return; }
+  if (!transactionDate) { showToast('Please enter the transaction date.', 'error'); return; }
+  if (!reason) { showToast('Please say why this can\'t be matched to a resident right now.', 'error'); return; }
+
+  const btn = document.getElementById('rpSubmit');
+  recordPaymentInFlight = true;
+  btn.disabled = true; btn.textContent = 'Recording…';
+  try {
+    const ref = await addDoc(collection(db, 'payments'), {
+      type: 'suspense', amount, mode, financialYear: fy,
+      status: 'verified', recordedByAdmin: true, verifiedBy: auth.currentUser.email,
+      transactionDate, notes: note ? `${reason} — ${note}` : reason,
+      submittedAt: serverTimestamp(), verifiedAt: serverTimestamp()
+    });
+    await logAudit(auth.currentUser, 'create_suspense_payment', { paymentId: ref.id, amount, mode });
+    allPayments.push({ id: ref.id, type: 'suspense', amount, mode, financialYear: fy, status: 'verified', recordedByAdmin: true, verifiedBy: auth.currentUser.email, transactionDate, notes: reason });
+    showToast('Recorded in Suspense — assign it to a resident once you know whose payment this was.', 'success');
+    document.getElementById('recordPaymentModalBackdrop').classList.remove('open');
+    renderSuspenseList();
+    await reloadPayments(); renderPendingPayments(); renderAllPayments(); renderOverview(); renderDefaulters();
+  } catch (err) {
+    console.error('Record suspense failed:', err);
+    const code = err?.code || '';
+    showToast(`Could not record${code ? ` (${code})` : ''}. Please try again.`, 'error');
+  } finally {
+    recordPaymentInFlight = false;
+    btn.disabled = false; btn.textContent = 'Record & Issue Receipt';
+  }
+}
+
 async function submitRecordPayment(e) {
   e.preventDefault();
   if (recordPaymentInFlight) return;
   if (!can('verifyPayments')) { showToast('Permission denied.', 'error'); return; }
+
+  if (document.getElementById('rpSuspenseToggle').checked) { await submitRecordSuspense(); return; }
 
   const member = resolveRecordMember();
   if (!member) { showToast('Please select a valid member from the list.', 'error'); return; }

@@ -2047,7 +2047,7 @@ import { auth, db, storage, SOCIETY } from './firebase-config.js';
 import { TOWER_IDS, flatsForTower } from './tower-plan.js';
 import {
   createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged,
-  signOut, sendPasswordResetEmail, deleteUser, GoogleAuthProvider, signInWithPopup
+  signOut, sendPasswordResetEmail, deleteUser, GoogleAuthProvider, signInWithRedirect, getRedirectResult
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
 import {
   doc, getDoc, setDoc, updateDoc, addDoc, collection, query, where, orderBy, getDocs, serverTimestamp, limit, writeBatch, onSnapshot, runTransaction
@@ -2381,25 +2381,19 @@ document.getElementById('regGoogleBtn')?.addEventListener('click', async () => {
   const btn = document.getElementById('regGoogleBtn');
   setLoading(btn, true);
   try {
-    const cred = await signInWithPopup(auth, googleProvider);
-    googleAuthCred = cred;
-    const f = document.getElementById('registerForm');
-    f.email.value = cred.user.email;
-    f.email.readOnly = true;
-    if (f.name && !f.name.value.trim() && cred.user.displayName) f.name.value = cred.user.displayName;
-    document.getElementById('regGoogleWrap').style.display = 'none';
-    document.getElementById('regPasswordDivider').style.display = 'none';
-    document.getElementById('regPasswordFields').style.display = 'none';
-    document.getElementById('regGoogleConfirmed').style.display = 'block';
-    document.getElementById('regGoogleEmail').textContent = cred.user.email;
-    f.password.required = false;
-    f.confirmPassword.required = false;
+    // Redirect, not popup — popups are documented to be unreliable on
+    // mobile (Safari can silently block them; some mobile Chrome versions
+    // open a disconnected tab instead of a communicating popup). This is a
+    // mobile-first PWA, so a full-page redirect is the robust choice. The
+    // flag is read back once the page reloads after Google sign-in.
+    sessionStorage.setItem('googleAuthIntent', 'register');
+    await signInWithRedirect(auth, googleProvider);
   } catch (err) {
     console.error('Google sign-in failed:', err);
-    if (err?.code !== 'auth/popup-closed-by-user' && err?.code !== 'auth/cancelled-popup-request') {
-      showToast(`Could not sign in with Google${err?.code ? ` (${err.code})` : ''}.`, 'error');
-    }
-  } finally { setLoading(btn, false); }
+    sessionStorage.removeItem('googleAuthIntent');
+    showToast(`Could not sign in with Google${err?.code ? ` (${err.code})` : ''}.`, 'error');
+    setLoading(btn, false);
+  }
 });
 const DRAFT_TEXT_FIELDS = [
   'residentType', 'name', 'fatherHusbandName', 'tower', 'flatNumber', 'mobile', 'email',
@@ -2431,6 +2425,24 @@ function saveDraft() {
     showToast('Could not save the draft on this device.', 'error');
   }
 }
+// Same save, without the toast — this runs automatically and silently as the
+// person fills the form, so any accidental reload (a crash, an accidental
+// back-navigation, or the automatic app-update reload in update-banner.js)
+// has something recent to restore instead of losing everything typed since
+// the last explicit "Save & Exit" click, which the person may never press.
+function silentSaveDraft() {
+  try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ data: collectDraftableFields(), savedAt: Date.now() })); }
+  catch (e) { /* private-browsing / storage-full — silently skip, same as an explicit save would report but without interrupting anything */ }
+}
+let draftAutoSaveTimer = null;
+registerForm?.addEventListener('input', () => {
+  clearTimeout(draftAutoSaveTimer);
+  draftAutoSaveTimer = setTimeout(silentSaveDraft, 1200);
+});
+registerForm?.addEventListener('change', () => {
+  clearTimeout(draftAutoSaveTimer);
+  draftAutoSaveTimer = setTimeout(silentSaveDraft, 1200);
+});
 function restoreDraft(data) {
   const f = registerForm;
   DRAFT_TEXT_FIELDS.forEach((name) => { if (f[name] && data[name] != null) f[name].value = data[name]; });
@@ -2536,6 +2548,29 @@ async function uploadFile(path, file) {
       storageUnavailable = true;
     }
     return null;
+  }
+}
+// Uploads a pet's photo + 4 certificate files (whichever were actually
+// selected), writing each resulting URL back onto the SAME pet object and
+// removing the raw File objects afterward (Firestore can't store a File).
+// uploadFile() already returns null rather than throwing on failure, so one
+// failed certificate upload doesn't lose the rest of the pet's data — it
+// just leaves that one field unset, same graceful degradation already
+// established for the photo field alone.
+async function uploadPetFiles(pet, ownerUid) {
+  const fields = [
+    ['photoFile', 'photoURL', 'petPhotos'],
+    ['antiRabiesCertFile', 'antiRabiesCertURL', 'petCerts'],
+    ['annualVaccinationCertFile', 'annualVaccinationCertURL', 'petCerts'],
+    ['vetHealthCertFile', 'vetHealthCertURL', 'petCerts'],
+    ['sterilizationCertFile', 'sterilizationCertURL', 'petCerts'],
+  ];
+  for (const [fileKey, urlKey, folder] of fields) {
+    if (pet[fileKey]) {
+      const uploaded = await uploadFile(`${folder}/${ownerUid}/${fileKey}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`, pet[fileKey]);
+      if (uploaded) pet[urlKey] = uploaded;
+    }
+    delete pet[fileKey];
   }
 }
 function toDataUrl(url) {
@@ -2662,11 +2697,7 @@ registerForm.addEventListener('submit', async (e) => {
     let petSaveErrorCode = '';
     for (const pet of pets) {
       try {
-        if (pet.photoFile) {
-          try { pet.photoURL = await uploadFile(`petPhotos/${uid}/pet_${Date.now()}_${Math.random().toString(36).slice(2,8)}`, pet.photoFile); }
-          catch (photoErr) { console.warn('Pet photo upload failed (continuing without it):', photoErr?.code || photoErr); }
-        }
-        delete pet.photoFile;
+        await uploadPetFiles(pet, uid);
         const petId = await generatePetId();
         await addDoc(collection(db, 'pets'), {
           ...pet, petId, ownerUid: uid, ownerName: f.name.value.trim(),
@@ -2819,39 +2850,73 @@ document.getElementById('loginGoogleBtn')?.addEventListener('click', async () =>
   const btn = document.getElementById('loginGoogleBtn');
   setLoading(btn, true);
   try {
-    const cred = await signInWithPopup(auth, googleProvider);
-    const memberSnap = await getDoc(doc(db, 'members', cred.user.uid));
-    if (memberSnap.exists()) {
-      // Returning resident — onAuthStateChanged fires from this same
-      // sign-in and loads their dashboard exactly like a password login
-      // would. Nothing further to do here.
-      showToast('Welcome back!', 'success');
-      return;
-    }
-    // No registration yet under this Google account — carry them straight
-    // into the registration form using this same session, rather than
-    // showing a dead-end message or making them sign in again.
-    googleAuthCred = cred;
-    showTab('register');
-    const f = document.getElementById('registerForm');
-    f.email.value = cred.user.email;
-    f.email.readOnly = true;
-    if (f.name && cred.user.displayName) f.name.value = cred.user.displayName;
-    document.getElementById('regGoogleWrap').style.display = 'none';
-    document.getElementById('regPasswordDivider').style.display = 'none';
-    document.getElementById('regPasswordFields').style.display = 'none';
-    document.getElementById('regGoogleConfirmed').style.display = 'block';
-    document.getElementById('regGoogleEmail').textContent = cred.user.email;
-    f.password.required = false;
-    f.confirmPassword.required = false;
-    showToast('No registration found for this Google account yet — let\'s get you set up!', 'info');
+    sessionStorage.setItem('googleAuthIntent', 'login');
+    await signInWithRedirect(auth, googleProvider);
   } catch (err) {
     console.error('Google sign-in failed:', err);
-    if (err?.code !== 'auth/popup-closed-by-user' && err?.code !== 'auth/cancelled-popup-request') {
-      showToast(`Could not sign in with Google${err?.code ? ` (${err.code})` : ''}.`, 'error');
-    }
-  } finally { setLoading(btn, false); }
+    sessionStorage.removeItem('googleAuthIntent');
+    showToast(`Could not sign in with Google${err?.code ? ` (${err.code})` : ''}.`, 'error');
+    setLoading(btn, false);
+  }
 });
+
+// Populates the registration form with an already-established Google
+// identity — shared by both redirect-return paths below (a first-time
+// Google user via either button ends up here the same way).
+function applyGoogleCredToRegistrationForm(cred) {
+  googleAuthCred = cred;
+  const f = document.getElementById('registerForm');
+  f.email.value = cred.user.email;
+  f.email.readOnly = true;
+  if (f.name && !f.name.value.trim() && cred.user.displayName) f.name.value = cred.user.displayName;
+  document.getElementById('regGoogleWrap').style.display = 'none';
+  document.getElementById('regPasswordDivider').style.display = 'none';
+  document.getElementById('regPasswordFields').style.display = 'none';
+  document.getElementById('regGoogleConfirmed').style.display = 'block';
+  document.getElementById('regGoogleEmail').textContent = cred.user.email;
+  f.password.required = false;
+  f.confirmPassword.required = false;
+}
+
+// Runs once, right after the module loads — resolves whichever Google
+// redirect flow (login or register button) just sent the browser away and
+// back. Resolves to null on a completely normal page load (no redirect just
+// happened), in which case this does nothing and the usual
+// onAuthStateChanged-driven flow below takes over as normal.
+(async function handleGoogleRedirectResult() {
+  const intent = sessionStorage.getItem('googleAuthIntent');
+  if (!intent) return;
+  try {
+    const result = await getRedirectResult(auth);
+    if (!result) { sessionStorage.removeItem('googleAuthIntent'); return; }
+    if (intent === 'login') {
+      const memberSnap = await getDoc(doc(db, 'members', result.user.uid));
+      sessionStorage.removeItem('googleAuthIntent');
+      if (memberSnap.exists()) {
+        // Returning resident — loadDashboard() runs directly here rather
+        // than waiting on onAuthStateChanged to fire a second time (it may
+        // already have fired once, earlier, before this async check
+        // finished, and Firebase doesn't re-fire it for the same
+        // already-settled state).
+        showToast('Welcome back!', 'success');
+        await loadDashboard(result.user.uid);
+        return;
+      }
+      // No registration yet under this Google account — carry them
+      // straight into the registration form instead of a dead end.
+      showTab('register');
+      applyGoogleCredToRegistrationForm(result);
+      showToast('No registration found for this Google account yet — let\'s get you set up!', 'info');
+    } else if (intent === 'register') {
+      sessionStorage.removeItem('googleAuthIntent');
+      applyGoogleCredToRegistrationForm(result);
+    }
+  } catch (err) {
+    sessionStorage.removeItem('googleAuthIntent');
+    console.error('Google sign-in failed:', err);
+    showToast(`Could not sign in with Google${err?.code ? ` (${err.code})` : ''}.`, 'error');
+  }
+})();
 document.getElementById('forgotPasswordLink').addEventListener('click', async (e) => {
   e.preventDefault();
   const email = prompt('Send the reset link to which email?');
@@ -2875,6 +2940,13 @@ onAuthStateChanged(auth, async (user) => {
   // this listener would immediately switch to the dashboard's generic
   // "couldn't find your registration" message the moment Google sign-in
   // resolves, overriding the registration form just populated for them.
+  // Mid Google-auth-redirect flow (login or register) — stay put and let
+  // handleGoogleRedirectResult() (which runs independently, also on this
+  // same page load) decide what happens next. Checking sessionStorage
+  // directly (synchronous, set before the redirect ever happened) avoids a
+  // race where this listener could otherwise fire and switch to the
+  // dashboard before that async handler has finished resolving the intent.
+  if (user && sessionStorage.getItem('googleAuthIntent')) return;
   if (user && googleAuthCred && user.uid === googleAuthCred.user.uid) return;
   if (user) {
     window.__loggedIn = true;
@@ -3487,11 +3559,7 @@ document.getElementById('petEditForm')?.addEventListener('submit', async (e) => 
   const pet = pets[0];
   btn.disabled = true;
   try {
-    if (pet.photoFile) {
-      try { pet.photoURL = await uploadFile(`petPhotos/${currentUser.uid}/pet_${Date.now()}_${Math.random().toString(36).slice(2,8)}`, pet.photoFile); }
-      catch (photoErr) { console.warn('Pet photo upload failed (continuing without it):', photoErr?.code || photoErr); }
-    }
-    delete pet.photoFile;
+    await uploadPetFiles(pet, currentUser.uid);
     if (editingId) {
       await updateDoc(doc(db, 'pets', editingId), { ...pet, updatedAt: serverTimestamp() });
       showToast('Pet details updated.', 'success');

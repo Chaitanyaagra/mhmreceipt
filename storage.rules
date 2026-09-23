@@ -72,6 +72,13 @@ service firebase.storage {
                    && isImageOrPdf();
       allow delete: if isAdmin() || request.auth.uid == uid;
     }
+    match /petCerts/{uid}/{fileName} {
+      allow read: if isAdmin() || request.auth.uid == uid;
+      allow create, update: if (isAdmin() || request.auth.uid == uid)
+                   && request.resource.size < 8 * 1024 * 1024
+                   && isImageOrPdf();
+      allow delete: if isAdmin() || request.auth.uid == uid;
+    }
 
     // Complaint attachment — a photo of the actual issue (leak, broken
     // fixture, etc.). Same owner-or-admin shape as petPhotos/ above.
