@@ -517,6 +517,31 @@ tbody tr:hover{ background:#FAFBFD; }
 
 /* --- Maintenance invoice (payment modal) end ---------------------------------- */
 
+/* --- Inspection schedule tower/section dropdowns --------------------------- */
+.insp-tower-group{
+  border:1px solid var(--line); border-radius:12px; padding:8px 12px; margin-bottom:6px; background:var(--paper);
+}
+.insp-tower-group summary{
+  display:flex; align-items:center; gap:6px;
+  cursor:pointer; font-size:13px; font-weight:600; list-style:none;
+}
+.insp-tower-group summary::-webkit-details-marker{ display:none; }
+.insp-tower-group summary::before{ content:'▸'; color:var(--ink-400); flex-shrink:0; }
+.insp-tower-group[open] summary::before{ content:'▾'; }
+.insp-tower-group summary > span:first-of-type{ flex:1; }
+
+/* --- Tower summary grid (Members / All Payments drill-down) --------------- */
+#membersTowerSummary, #paymentsTowerSummary{
+  display:grid; grid-template-columns:repeat(auto-fill, minmax(130px, 1fr)); gap:12px; margin-bottom:16px;
+}
+.tower-summary-card{
+  font:inherit; text-align:left; cursor:pointer; color:inherit;
+}
+.name-link{
+  color:var(--gold-700, #8F7115); font-weight:600; text-decoration:none; cursor:pointer;
+}
+.name-link:hover{ text-decoration:underline; }
+
 /* --- Offline banner ----------------------------------------------------------- */
 .offline-banner{
   position:fixed; left:0; right:0; top:0; z-index:130;

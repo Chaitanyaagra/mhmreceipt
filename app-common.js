@@ -2359,8 +2359,11 @@ function petCardHTML(pet = {}) {
       <button type="button" class="fm-remove pet-remove" aria-label="Remove this pet">✕</button>
     </div>
     <div class="field"><label>Pet Photo <span class="t-muted" style="font-weight:400;">(optional — helps security at the gate identify your pet)</span></label>
+      ${pet.photoURL ? `<div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+        <img src="${escapeHtml(pet.photoURL)}" alt="" style="width:56px; height:56px; border-radius:10px; object-fit:cover; border:1px solid var(--line,#E2E6EF);">
+        <span class="t-muted" style="font-size:12px;">Current photo — choose a new file below only if you want to replace it.</span>
+      </div>` : ''}
       <input type="file" class="pet-photo" accept="image/*">
-      ${pet.photoURL ? `<div class="hint">A photo is already on file — choose a new one only if you want to replace it.</div>` : ''}
     </div>
     <div class="form-2col">
       <div class="field"><label>Pet Name</label><input class="pet-name" maxlength="80" value="${escapeHtml(pet.name || '')}"></div>

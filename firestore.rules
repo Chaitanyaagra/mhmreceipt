@@ -188,6 +188,18 @@ service cloud.firestore {
         + (request.time.month() < 10 ? '0' : '') + string(request.time.month()) + '-'
         + (request.time.day() < 10 ? '0' : '') + string(request.time.day());
     }
+    function isValidTxDate(v) {
+      // Format-only (YYYY-MM-DD), not range-bounded — unlike isValidFY()'s
+      // window, a transaction date genuinely needs to allow backdating (a
+      // cash payment entered days after it was received, a cheque recorded
+      // once it clears) or correcting an old record years later during
+      // reconciliation, without the rule fighting a legitimate entry.
+      return v is string && v.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+    }
+    function isOptionalTxDate(data, field) {
+      return absentOrNull(data, field) || isValidTxDate(data[field]);
+    }
+
     function isValidFY(v) {
       // Format: YYYY-YY, then bound the start-year to a window around now so
       // a raw client can't post into 1990-91 or 2035-36. Indian FY starts in
@@ -434,7 +446,8 @@ service cloud.firestore {
                        == get(/databases/$(database)/documents/members/$(request.auth.uid)).data.tower
                     && request.resource.data.flatNumber
                        == get(/databases/$(database)/documents/members/$(request.auth.uid)).data.flatNumber
-                    && isOptionalString(request.resource.data, 'utrOrChequeNo', 40))
+                    && isOptionalString(request.resource.data, 'utrOrChequeNo', 40)
+                    && isOptionalTxDate(request.resource.data, 'transactionDate'))
                     // Treasurer / Super Admin recording a payment handed in or
                     // confirmed at the office — cash, cheque, or a UPI/bank
                     // transfer the treasurer has independently verified — on
@@ -468,7 +481,8 @@ service cloud.firestore {
                        == get(/databases/$(database)/documents/members/$(request.resource.data.memberUid)).data.tower
                     && request.resource.data.flatNumber
                        == get(/databases/$(database)/documents/members/$(request.resource.data.memberUid)).data.flatNumber
-                    && isOptionalString(request.resource.data, 'utrOrChequeNo', 40));
+                    && isOptionalString(request.resource.data, 'utrOrChequeNo', 40)
+                    && isOptionalTxDate(request.resource.data, 'transactionDate'));
 
       // Verifying a payment issues a receipt number and moves money in the
       // books, so changing anything about a payment is restricted to the
@@ -528,19 +542,22 @@ service cloud.firestore {
                     )
                     && isOptionalString(request.resource.data, 'utrOrChequeNo', 40)
                     && isOptionalString(request.resource.data, 'remarks', 500)
+                    && isOptionalTxDate(request.resource.data, 'transactionDate')
                     // A locked FY's books are closed to correction, not just
                     // to voiding — previously only voiding was blocked here,
                     // so a treasurer could still freely change an already-
-                    // verified payment's amount/mode/type/year after the
-                    // year was locked, which defeated the point of locking
-                    // it at all. A payment not yet verified, or one whose
-                    // recorded year isn't locked, is unaffected.
+                    // verified payment's amount/mode/type/year/transaction-
+                    // date after the year was locked, which defeated the
+                    // point of locking it at all. A payment not yet
+                    // verified, or one whose recorded year isn't locked, is
+                    // unaffected.
                     && (
                       resource.data.status != 'verified'
                       || !exists(/databases/$(database)/documents/financialYearLocks/$(resource.data.financialYear))
                       || (
                         unchanged('amount') && unchanged('mode')
                         && unchanged('type') && unchanged('financialYear')
+                        && unchanged('transactionDate')
                       )
                     )
                     // Once verified, the STATUS itself can only stay

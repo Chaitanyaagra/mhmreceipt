@@ -2606,6 +2606,7 @@ registerForm.addEventListener('submit', async (e) => {
     // registration over it.
     const pets = regPetsEditor ? collectPets(regPetsEditor) : [];
     let petSaveFailed = false;
+    let petSaveErrorCode = '';
     for (const pet of pets) {
       try {
         if (pet.photoFile) {
@@ -2622,6 +2623,7 @@ registerForm.addEventListener('submit', async (e) => {
       } catch (petErr) {
         console.warn('Pet save failed:', petErr?.code || petErr);
         petSaveFailed = true;
+        petSaveErrorCode = petErr?.code || '';
       }
     }
 
@@ -2702,7 +2704,11 @@ registerForm.addEventListener('submit', async (e) => {
     if (f.photo.files[0] && !photoURL) {
       showToast('Registration submitted, but the photo could not be uploaded. Please have the office add it.', 'error');
     } else if (petSaveFailed) {
-      showToast('Registration submitted, but the pet details could not be saved. Log in and add them again from "My Pets".', 'error');
+      showSuccess(
+        'Registration Submitted',
+        `Your registration went through, but your pet's details could not be saved${petSaveErrorCode ? ` (error: ${petSaveErrorCode})` : ''}. Please log in and add them again from "My Pets" — if it happens again, please tell the office this error code.`,
+        { celebrate: false }
+      );
     } else {
       showSuccess('Registration Complete!', 'Your Member ID will be generated once the committee approves your registration. You can log in now.');
     }
@@ -4620,7 +4626,7 @@ function renderPayDetailForm(mode, paySettings, payContext) {
         </div>
       `}
       <div class="amount-block">
-        ${dues.outstanding > 0 ? `
+        ${dues.outstanding > 0 && payContext.type !== 'membership' ? `
           <label style="display:block; font-size:11px; font-family:var(--font-mono); letter-spacing:.06em; text-transform:uppercase; color:var(--ink-400); margin-bottom:8px;">How much would you like to pay?</label>
           <div class="amount-presets">
             <button type="button" class="amount-preset selected" data-preset="full" data-amt="${dues.outstanding}">
@@ -4633,11 +4639,13 @@ function renderPayDetailForm(mode, paySettings, payContext) {
             </button>
           </div>
         ` : ''}
-        <div class="field" id="amountFieldWrap"${dues.outstanding > 0 ? ' style="display:none;"' : ''}>
+        <div class="field" id="amountFieldWrap"${(dues.outstanding > 0 && payContext.type !== 'membership') ? ' style="display:none;"' : ''}>
           <label for="payAmount">Amount (₹)</label>
           <input type="number" id="payAmount" min="1" required inputmode="numeric"
-                 value="${dues.outstanding > 0 ? dues.outstanding : ''}">
-          ${dues.outstanding > 0
+                 value="${dues.outstanding > 0 ? dues.outstanding : ''}"${payContext.type === 'membership' ? ' readonly style="background:var(--surface-2,#F3F4F7); cursor:not-allowed;"' : ''}>
+          ${payContext.type === 'membership'
+            ? `<div class="hint">The membership fee is a fixed one-time amount and can't be changed here.</div>`
+            : dues.outstanding > 0
             ? `<div class="hint">You can pay less than the full amount due — the remainder will stay outstanding.</div>`
             : (hasRate ? `<div class="hint">Maintenance is fully cleared for this year. You can pay in advance or make another payment.</div>` : '')}
         </div>
@@ -4794,9 +4802,9 @@ async function submitPayment(mode) {
     }
 
     document.getElementById('paymentModalBackdrop').classList.remove('open');
-    showSuccess('Payment Recorded!', isOffline
-      ? 'Your payment has been recorded. You will get a receipt once the office confirms it.'
-      : 'Your payment has been submitted. You will get a receipt once it is verified.');
+    showSuccess('Thank You!', isOffline
+      ? 'Thanks for letting us know — your payment now shows as Pending Approval on your dashboard. Once the office confirms it, it will update to Verified with a receipt.'
+      : 'Thanks for your payment — it now shows as Pending Verification on your dashboard. Once it\'s verified, it will update to Verified with a receipt.');
     await loadPayments(currentUser.uid);
   } catch (e) {
     showToast('Something went wrong — please try again.', 'error');

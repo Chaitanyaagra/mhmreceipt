@@ -589,10 +589,14 @@
           <option value="inactive">Inactive</option>
         </select>
       </div>
-      <div class="table-wrap responsive">
+      <div id="membersTowerSummary" style="display:none;"></div>
+      <div id="membersTowerBackWrap" style="display:none; margin-bottom:10px;">
+        <button class="btn btn-outline btn-sm" id="membersTowerBack">← All Towers</button>
+      </div>
+      <div class="table-wrap responsive" id="membersTableWrap">
         <table>
-          <thead><tr><th>Resident</th><th>Flat / Tower</th><th>Mobile</th><th>Status</th><th>Member ID</th><th>Actions</th></tr></thead>
-          <tbody id="membersTableBody"><tr><td colspan="6" class="t-muted">Loading…</td></tr></tbody>
+          <thead><tr><th>Resident</th><th>Flat / Tower</th><th>Mobile</th><th>Status</th><th>Member ID</th></tr></thead>
+          <tbody id="membersTableBody"><tr><td colspan="5" class="t-muted">Loading…</td></tr></tbody>
         </table>
       </div>
       <div class="pager" id="membersPager"></div>
@@ -624,10 +628,15 @@
       <div id="paymentsAllPanel" style="display:none;">
         <div class="toolbar">
           <input class="grow" id="paymentSearch" type="search" placeholder="Search by name, flat, or receipt no.…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+          <select id="filterPaymentTower"><option value="">All Towers</option></select>
         </div>
-        <div class="table-wrap responsive">
-          <table><thead><tr><th>Resident</th><th>Flat</th><th>Amount</th><th>Mode</th><th>Status</th><th>Receipt No.</th><th>Date</th><th>Actions</th></tr></thead>
-          <tbody id="allPaymentsBody"><tr><td colspan="8" class="t-muted">Loading…</td></tr></tbody></table>
+        <div id="paymentsTowerSummary" style="display:none;"></div>
+        <div id="paymentsTowerBackWrap" style="display:none; margin-bottom:10px;">
+          <button class="btn btn-outline btn-sm" id="paymentsTowerBack">← All Towers</button>
+        </div>
+        <div class="table-wrap responsive" id="allPaymentsTableWrap">
+          <table><thead><tr><th>Resident</th><th>Flat</th><th>Amount</th><th>Mode</th><th>Status</th><th>Receipt No.</th><th>Date</th></tr></thead>
+          <tbody id="allPaymentsBody"><tr><td colspan="7" class="t-muted">Loading…</td></tr></tbody></table>
         </div>
         <div class="pager" id="allPaymentsPager"></div>
       </div>
@@ -1749,6 +1758,10 @@
             <label for="rpFY">Financial Year</label>
             <select id="rpFY"></select>
           </div>
+        </div>
+        <div class="field">
+          <label for="rpTxDate">Transaction Date <span class="t-muted" style="font-weight:400;">(when the money actually moved — for bank reconciliation)</span></label>
+          <input type="date" id="rpTxDate" required>
         </div>
         <div class="field" id="rpChequeWrap" style="display:none;">
           <label for="rpCheque" id="rpChequeLabel">Cheque number</label>
@@ -4001,7 +4014,10 @@ document.getElementById('exportExpensesBtn')?.addEventListener('click', () => {
 /* ---------------------------------------------------------------------- */
 function populateTowerFilter() {
   const towers = [...new Set(allMembers.map(m => m.tower).filter(Boolean))].sort();
-  document.getElementById('filterTower').innerHTML = '<option value="">All Towers</option>' + towers.map(t => `<option>${escapeHtml(t)}</option>`).join('');
+  const optionsHtml = '<option value="">All Towers</option>' + towers.map(t => `<option>${escapeHtml(t)}</option>`).join('');
+  document.getElementById('filterTower').innerHTML = optionsHtml;
+  const paymentTowerSel = document.getElementById('filterPaymentTower');
+  if (paymentTowerSel) paymentTowerSel.innerHTML = optionsHtml;
 }
 
 function filteredMembers() {
@@ -4070,12 +4086,49 @@ function renderMembersTable() {
   // also expose "+ Register Resident", which creates a member outright.
   const registerBtn = document.getElementById('registerResidentBtn');
   if (registerBtn) registerBtn.style.display = can('approveMembers') ? 'inline-flex' : 'none';
-  const rows = filteredMembers();
-  const body = document.getElementById('membersTableBody');
+
+  const term = document.getElementById('memberSearch').value.trim();
+  const tower = document.getElementById('filterTower').value;
+  const status = document.getElementById('filterStatus').value;
+  const summaryEl = document.getElementById('membersTowerSummary');
+  const backWrap = document.getElementById('membersTowerBackWrap');
+  const tableWrap = document.getElementById('membersTableWrap');
   const pager = document.getElementById('membersPager');
 
+  // Pure default browse (nothing searched, filtered, or drilled into yet):
+  // show towers first, not a flat list of every resident in the society —
+  // the whole point of this view. Any search or status filter jumps
+  // straight to matching results across all towers instead, since forcing
+  // a tower pick first would only get in the way of "find this one person".
+  if (!term && !status && !tower) {
+    summaryEl.style.display = 'grid';
+    backWrap.style.display = 'none';
+    tableWrap.style.display = 'none';
+    if (pager) pager.innerHTML = '';
+    summaryEl.innerHTML = TOWER_IDS.map(t => {
+      const count = allMembers.filter(m => m.tower === t).length;
+      return `<button type="button" class="card card-pad tower-summary-card" data-tower-pick="${escapeHtml(t)}">
+        <div style="font-size:20px; font-weight:700;">Tower ${escapeHtml(t)}</div>
+        <div class="t-muted" style="font-size:12.5px; margin-top:4px;">${count} resident${count === 1 ? '' : 's'}</div>
+      </button>`;
+    }).join('');
+    summaryEl.querySelectorAll('[data-tower-pick]').forEach(b => b.addEventListener('click', () => {
+      document.getElementById('filterTower').value = b.dataset.towerPick;
+      membersPage = 1;
+      renderMembersTable();
+    }));
+    return;
+  }
+
+  summaryEl.style.display = 'none';
+  backWrap.style.display = tower ? 'flex' : 'none';
+  tableWrap.style.display = '';
+
+  const rows = filteredMembers();
+  const body = document.getElementById('membersTableBody');
+
   if (!rows.length) {
-    body.innerHTML = `<tr><td colspan="6">${emptyState('No members found', 'No residents match these filters.', { compact: true })}</td></tr>`;
+    body.innerHTML = `<tr><td colspan="5">${emptyState('No members found', 'No residents match these filters.', { compact: true })}</td></tr>`;
     if (pager) pager.innerHTML = '';
     return;
   }
@@ -4087,15 +4140,14 @@ function renderMembersTable() {
 
   body.innerHTML = slice.map(m => `
     <tr>
-      <td data-label="Resident">${escapeHtml(m.name)}</td>
+      <td data-label="Resident"><a href="#" class="name-link" data-view-member="${m.id}">${escapeHtml(m.name)}</a></td>
       <td data-label="Flat / Tower">${escapeHtml(m.flatNumber)} / ${escapeHtml(m.tower)}</td>
       <td data-label="Mobile">${escapeHtml(m.mobile)}</td>
       <td data-label="Status">${statusBadgeHtml[m.status] || ''}</td>
       <td data-label="Member ID" class="mono">${escapeHtml(m.memberID || '—')}</td>
-      <td data-label="Actions"><button class="btn btn-outline btn-sm" data-view-member="${m.id}">View Details</button></td>
     </tr>
   `).join('');
-  document.querySelectorAll('[data-view-member]').forEach(b => b.addEventListener('click', () => openMemberModal(b.dataset.viewMember)));
+  document.querySelectorAll('[data-view-member]').forEach(b => b.addEventListener('click', (e) => { e.preventDefault(); openMemberModal(b.dataset.viewMember); }));
 
   renderPager(pager, {
     page: membersPage, pageSize: MEMBERS_PAGE_SIZE, total: rows.length,
@@ -4103,6 +4155,13 @@ function renderMembersTable() {
       document.getElementById('membersTableBody').scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
   });
 }
+document.getElementById('membersTowerBack')?.addEventListener('click', () => {
+  document.getElementById('filterTower').value = '';
+  document.getElementById('memberSearch').value = '';
+  document.getElementById('filterStatus').value = '';
+  membersPage = 1;
+  renderMembersTable();
+});
 // A filter change should always return to page 1, else you can land on an empty page.
 // Some browsers autofill the search box with a saved email/username despite
 // autocomplete="off", which then filters every member out ("No members
@@ -4879,7 +4938,7 @@ function renderPendingPayments() {
     <tr>
       <td data-label=""><input type="checkbox" class="pending-pay-check" value="${p.id}" aria-label="Select ${escapeHtml(p.residentName)}'s payment"></td>
       <td data-label="Resident">${escapeHtml(p.residentName)}</td>
-      <td data-label="Flat">${escapeHtml(p.flatNumber)}</td>
+      <td data-label="Flat">${escapeHtml(p.tower || '')}-${escapeHtml(p.flatNumber)}</td>
       <td data-label="Amount"><b>${formatINR(p.amount)}</b></td>
       <td data-label="Mode">${escapeHtml((p.mode || '').toUpperCase())}</td>
       <td data-label="UTR" class="mono">${escapeHtml(p.utrOrChequeNo || '—')}</td>
@@ -4965,16 +5024,49 @@ let allPaymentsPage = 1;
 document.getElementById('paymentSearch')?.addEventListener('input', () => { allPaymentsPage = 1; renderAllPayments(); });
 function renderAllPayments() {
   const term = document.getElementById('paymentSearch')?.value.trim().toLowerCase() || '';
+  const tower = document.getElementById('filterPaymentTower')?.value || '';
+  const summaryEl = document.getElementById('paymentsTowerSummary');
+  const backWrap = document.getElementById('paymentsTowerBackWrap');
+  const tableWrap = document.getElementById('allPaymentsTableWrap');
+  const pager = document.getElementById('allPaymentsPager');
+
+  // Same reasoning as Members: pure default browse (no search, no tower
+  // picked yet) shows towers first, not every payment in the society at
+  // once. A search jumps straight to matching results across all towers.
+  if (!term && !tower) {
+    summaryEl.style.display = 'grid';
+    backWrap.style.display = 'none';
+    tableWrap.style.display = 'none';
+    if (pager) pager.innerHTML = '';
+    summaryEl.innerHTML = TOWER_IDS.map(t => {
+      const count = allPayments.filter(p => p.tower === t).length;
+      return `<button type="button" class="card card-pad tower-summary-card" data-pay-tower-pick="${escapeHtml(t)}">
+        <div style="font-size:20px; font-weight:700;">Tower ${escapeHtml(t)}</div>
+        <div class="t-muted" style="font-size:12.5px; margin-top:4px;">${count} payment${count === 1 ? '' : 's'}</div>
+      </button>`;
+    }).join('');
+    summaryEl.querySelectorAll('[data-pay-tower-pick]').forEach(b => b.addEventListener('click', () => {
+      document.getElementById('filterPaymentTower').value = b.dataset.payTowerPick;
+      allPaymentsPage = 1;
+      renderAllPayments();
+    }));
+    return;
+  }
+
+  summaryEl.style.display = 'none';
+  backWrap.style.display = tower ? 'flex' : 'none';
+  tableWrap.style.display = '';
+
   let rows = [...allPayments].sort((a, b) => (b.submittedAt?.seconds || 0) - (a.submittedAt?.seconds || 0));
+  if (tower) rows = rows.filter(p => p.tower === tower);
   if (term) {
-    rows = rows.filter(p => `${p.residentName} ${p.flatNumber} ${p.receiptNumber || ''}`.toLowerCase().includes(term));
+    rows = rows.filter(p => `${p.residentName} ${p.tower || ''} ${p.flatNumber} ${p.receiptNumber || ''}`.toLowerCase().includes(term));
   }
   const badge = { pending_approval: 'badge-warning', pending_verification: 'badge-warning', verified: 'badge-success', rejected: 'badge-danger', voided: 'badge-neutral' };
   const body = document.getElementById('allPaymentsBody');
-  const pager = document.getElementById('allPaymentsPager');
 
   if (!rows.length) {
-    body.innerHTML = `<tr><td colspan="8">${emptyState(term ? 'No payments found' : 'No payments yet', term ? 'No payment matches that name/flat/receipt.' : 'Verified and pending payments will all appear here.', { compact: true })}</td></tr>`;
+    body.innerHTML = `<tr><td colspan="7">${emptyState(term ? 'No payments found' : 'No payments yet', term ? 'No payment matches that name/flat/receipt.' : 'Verified and pending payments will all appear here.', { compact: true })}</td></tr>`;
     if (pager) pager.innerHTML = '';
     return;
   }
@@ -4985,14 +5077,13 @@ function renderAllPayments() {
 
   body.innerHTML = slice.map(p => `
     <tr>
-      <td data-label="Resident">${escapeHtml(p.residentName)}</td><td data-label="Flat">${escapeHtml(p.flatNumber)}</td><td data-label="Amount"><b>${formatINR(p.amount)}</b></td>
+      <td data-label="Resident"><a href="#" class="name-link" data-pay-detail="${p.id}">${escapeHtml(p.residentName)}</a></td><td data-label="Flat">${escapeHtml(p.tower || '')}-${escapeHtml(p.flatNumber)}</td><td data-label="Amount"><b>${formatINR(p.amount)}</b></td>
       <td data-label="Mode">${escapeHtml((p.mode || '').toUpperCase())}</td>
       <td data-label="Status"><span class="badge ${badge[p.status] || 'badge-neutral'}">${escapeHtml((p.status || '').replace('_', ' '))}</span></td>
       <td data-label="Receipt No." class="mono">${escapeHtml(p.receiptNumber || '—')}</td><td data-label="Date">${fmtDate(p.submittedAt)}</td>
-      <td data-label="Actions"><button class="btn btn-outline btn-sm" data-pay-detail="${p.id}">View</button></td>
     </tr>
   `).join('');
-  body.querySelectorAll('[data-pay-detail]').forEach(b => b.addEventListener('click', () => openPaymentDetail(b.dataset.payDetail)));
+  body.querySelectorAll('[data-pay-detail]').forEach(b => b.addEventListener('click', (e) => { e.preventDefault(); openPaymentDetail(b.dataset.payDetail); }));
 
   renderPager(pager, {
     page: allPaymentsPage, pageSize: PAYMENTS_PAGE_SIZE, total: rows.length,
@@ -5000,11 +5091,18 @@ function renderAllPayments() {
       document.getElementById('allPaymentsBody').scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
   });
 }
+document.getElementById('paymentsTowerBack')?.addEventListener('click', () => {
+  document.getElementById('filterPaymentTower').value = '';
+  document.getElementById('paymentSearch').value = '';
+  allPaymentsPage = 1;
+  renderAllPayments();
+});
+document.getElementById('filterPaymentTower')?.addEventListener('change', () => { allPaymentsPage = 1; renderAllPayments(); });
 
 document.getElementById('exportPaymentsBtn').addEventListener('click', () => {
   exportToExcel(serializeForExport(allPayments).map(p => ({
     Resident: p.residentName, Flat: p.flatNumber, Tower: p.tower, Amount: p.amount, Mode: p.mode,
-    Status: p.status, ReceiptNo: p.receiptNumber, FY: p.financialYear, Submitted: p.submittedAt
+    Status: p.status, ReceiptNo: p.receiptNumber, FY: p.financialYear, TransactionDate: p.transactionDate || '', Submitted: p.submittedAt
   })), 'payments.xlsx', 'Payments');
 });
 
@@ -5046,6 +5144,7 @@ function renderPaymentDetailView(p) {
       <div class="vrow"><span class="t-muted">Amount</span><span>${formatINR(p.amount)}</span></div>
       <div class="vrow"><span class="t-muted">Mode</span><span>${escapeHtml((p.mode || '').toUpperCase())}</span></div>
       <div class="vrow"><span class="t-muted">UTR / Cheque No.</span><span class="mono">${escapeHtml(p.utrOrChequeNo || '—')}</span></div>
+      ${p.transactionDate ? `<div class="vrow"><span class="t-muted">Transaction Date</span><span>${fmtDate(p.transactionDate)}</span></div>` : ''}
       <div class="vrow"><span class="t-muted">Financial Year</span><span>${escapeHtml(p.financialYear)}</span></div>
       <div class="vrow"><span class="t-muted">Status</span><span>${escapeHtml((p.status || '').replace('_', ' '))}</span></div>
       ${p.receiptNumber ? `<div class="vrow"><span class="t-muted">Receipt No.</span><span class="mono">${escapeHtml(p.receiptNumber)}</span></div>` : ''}
@@ -5143,6 +5242,7 @@ function renderPaymentDetailEdit(p) {
         <div class="field"><label for="pe-type">Type</label><select id="pe-type" name="type">${typeOptions}</select></div>
       </div>
       <div class="field"><label for="pe-fy">Financial Year</label><select id="pe-fy" name="financialYear"></select></div>
+      <div class="field"><label for="pe-txdate">Transaction Date <span class="t-muted" style="font-weight:400;">(when the money actually moved — for bank reconciliation)</span></label><input id="pe-txdate" name="transactionDate" type="date" required></div>
       <div class="field"><label for="pe-utr">UTR / Cheque No. (optional)</label><input id="pe-utr" name="utrOrChequeNo" value="${escapeHtml(p.utrOrChequeNo || '')}" maxlength="40"></div>
       <div class="field"><label for="pe-remarks">Remarks (optional, note why this was changed)</label><input id="pe-remarks" name="remarks" value="${escapeHtml(p.remarks || '')}" maxlength="500" placeholder="e.g. Amount was mistyped"></div>
       <div style="display:flex; gap:10px; margin-top:6px;">
@@ -5162,6 +5262,12 @@ function renderPaymentDetailEdit(p) {
   const peFyOptions = financialYearOptions(2, 1);
   if (!peFyOptions.includes(p.financialYear)) peFyOptions.push(p.financialYear);
   fySel.innerHTML = peFyOptions.map(fy => `<option value="${fy}" ${fy === p.financialYear ? 'selected' : ''}>FY ${fy}</option>`).join('');
+  // Older payments recorded before this field existed have no
+  // transactionDate at all — falling back to submittedAt's date means even
+  // those can still be corrected here, which is exactly the case this whole
+  // field exists to fix.
+  document.getElementById('pe-txdate').value = p.transactionDate
+    || (p.submittedAt?.toDate ? dateToLocalISO(p.submittedAt.toDate()) : todayLocalISO());
   document.getElementById('cancelPayEdit').addEventListener('click', () => renderPaymentDetailView(p));
   document.getElementById('paymentEditForm').addEventListener('submit', (e) => submitPaymentEdit(e, p));
 }
@@ -5172,8 +5278,10 @@ async function submitPaymentEdit(e, original) {
   const btn = f.querySelector('button[type="submit"]');
   const amount = Number(f.amount.value);
   if (!Number.isFinite(amount) || amount <= 0) { showToast('Please enter a valid amount.', 'error'); return; }
+  if (!f.transactionDate.value) { showToast('Please enter the transaction date.', 'error'); return; }
   const patch = {
     amount, mode: f.mode.value, type: f.type.value, financialYear: f.financialYear.value,
+    transactionDate: f.transactionDate.value,
     utrOrChequeNo: f.utrOrChequeNo.value.trim(), remarks: f.remarks.value.trim() || null
   };
   if (btn) btn.disabled = true;
@@ -5187,7 +5295,7 @@ async function submitPaymentEdit(e, original) {
       }
     });
     await logAudit(auth.currentUser, 'edit_payment', {
-      paymentId: original.id, before: { amount: original.amount, mode: original.mode, type: original.type, financialYear: original.financialYear },
+      paymentId: original.id, before: { amount: original.amount, mode: original.mode, type: original.type, financialYear: original.financialYear, transactionDate: original.transactionDate || null },
       after: patch
     });
     showToast('Payment entry updated.', 'success');
@@ -5246,9 +5354,27 @@ document.getElementById('rpMode')?.addEventListener('change', (e) => {
     wrap.style.display = 'none';
   }
 });
+// Runs whenever either the member or the type could have just changed —
+// covers both orders (pick member then type, or type then member). Only
+// acts when type is 'membership': auto-fills the amount to the currently
+// configured fee (still editable, in case a genuinely different amount is
+// needed), and warns if this member has already fully paid it, so a
+// mis-click doesn't silently record a duplicate membership payment.
+function checkMembershipAmountAndDuplicate() {
+  const type = document.getElementById('rpType')?.value;
+  if (type !== 'membership') return;
+  const uid = document.getElementById('rpMemberUid')?.value;
+  const member = uid ? allMembers.find(m => (m.id || m.uid) === uid) : null;
+  const due = membershipDue(member || {}, member ? allPayments.filter(p => p.memberUid === (member.id || member.uid)) : [], maintenanceSettings);
+  document.getElementById('rpAmount').value = due.fee;
+  if (member && due.cleared) {
+    alert(`Membership fee already paid for ${member.name} (Flat ${member.tower}-${member.flatNumber}).\n\nPaid so far: ${formatINR(due.paid)} of ${formatINR(due.fee)}.\n\nIf you continue, this will be recorded as an ADDITIONAL membership payment for them. Please double-check before proceeding.`);
+  }
+}
 document.getElementById('rpType')?.addEventListener('change', (e) => {
   // Membership is a one-time fee, not tied to a financial year.
   document.getElementById('rpFYWrap').style.display = e.target.value === 'membership' ? 'none' : 'block';
+  checkMembershipAmountAndDuplicate();
 });
 
 /* Verification used to be several independent round trips: bump the
@@ -5344,6 +5470,7 @@ function openRecordPaymentModal() {
   const fySel = document.getElementById('rpFY');
   fySel.innerHTML = financialYearOptions(2, 1).map(fy =>
     `<option value="${fy}" ${fy === currentFinancialYear() ? 'selected' : ''}>FY ${fy}</option>`).join('');
+  document.getElementById('rpTxDate').value = todayLocalISO();
 
   document.getElementById('recordPaymentModalBackdrop').classList.add('open');
 }
@@ -5394,6 +5521,7 @@ function openRecordPaymentModal() {
     input.value = `${member.name} — ${member.tower}-${member.flatNumber}`;
     uidField.value = opt.dataset.uid;
     dropdown.classList.remove('open');
+    checkMembershipAmountAndDuplicate();
   });
   document.addEventListener('click', (e) => {
     if (!e.target.closest('#rpMember') && !e.target.closest('#rpMemberDropdown')) dropdown.classList.remove('open');
@@ -5447,8 +5575,10 @@ async function submitRecordPayment(e) {
   // Cheque number for cheque; UTR / transaction ID for UPI and Net Banking.
   const refNo = document.getElementById('rpCheque').value.trim();
   const note = document.getElementById('rpNote').value.trim();
+  const transactionDate = document.getElementById('rpTxDate').value;
 
   if (!Number.isFinite(amount) || amount <= 0) { showToast('Please enter a valid amount.', 'error'); return; }
+  if (!transactionDate) { showToast('Please enter the transaction date.', 'error'); return; }
   if (mode === 'cheque' && !refNo) { showToast('Please enter the cheque number.', 'error'); return; }
   if ((mode === 'upi' || mode === 'netbanking') && !refNo) { showToast('Please enter the UTR / Transaction ID.', 'error'); return; }
 
@@ -5475,6 +5605,7 @@ async function submitRecordPayment(e) {
         financialYear: fy,
         mode,                                  // 'cash' | 'cheque'
         utrOrChequeNo,
+        transactionDate,                       // when the money actually moved — for bank reconciliation
         paymentProofURL: '',
         status: 'verified',                    // money already received at the office
         receiptNumber,
@@ -6675,28 +6806,55 @@ function renderInspectionSchedule() {
   const weekStart = new Date(now); weekStart.setHours(0, 0, 0, 0); weekStart.setDate(now.getDate() - now.getDay());
   const inThisWeek = (r) => r.createdAt?.seconds && (r.createdAt.seconds * 1000) >= weekStart.getTime();
 
-  const filedTodayKeys = new Set(allInspections.filter(isSameDay).map(r => `${r.formType}:${r.tower || ''}`));
-  const filedThisWeekTypes = new Set(allInspections.filter(inThisWeek).map(r => r.formType));
+  const todaysInspections = allInspections.filter(isSameDay);
+  const weeksInspections = allInspections.filter(inThisWeek);
+  const filedTodayKeys = new Set(todaysInspections.map(r => `${r.formType}:${r.tower || ''}`));
 
-  const dueToday = [];
-  const dueThisWeek = [];
+  // Per-tower daily items (daily-tower) group into one dropdown per tower —
+  // the whole point of this view: instead of scrolling a flat list to find
+  // "did Tower C's check happen", Tower C's own dropdown shows it directly.
+  const towerGroups = [];
+  // Non-tower, non-sectioned daily items (gate security, club house) — a
+  // flat list is all these need, since there's nothing to group them BY.
+  const dueTodayFlat = [];
 
   for (const [type, sched] of Object.entries(INSPECTION_SCHEDULE)) {
+    if (sched.frequency !== 'daily') continue;
     const label = INSPECTION_TYPES[type]?.label || type;
-    if (sched.frequency === 'daily') {
-      if (sched.perTower) {
-        TOWER_IDS.forEach(t => dueToday.push({ label: `${label} — Tower ${t}`, done: filedTodayKeys.has(`${type}:${t}`) }));
-      } else {
-        dueToday.push({ label, done: filedTodayKeys.has(`${type}:`) });
-      }
-    } else if (sched.frequency === 'weekly') {
-      dueThisWeek.push({ label, done: filedThisWeekTypes.has(type) });
+    if (sched.perTower) {
+      TOWER_IDS.forEach(t => {
+        const done = filedTodayKeys.has(`${type}:${t}`);
+        const rec = done ? todaysInspections.find(r => r.formType === type && r.tower === t) : null;
+        let group = towerGroups.find(g => g.tower === t);
+        if (!group) { group = { tower: t, items: [] }; towerGroups.push(group); }
+        group.items.push({ label, done, rec });
+      });
+    } else {
+      dueTodayFlat.push({ label, done: filedTodayKeys.has(`${type}:`) });
     }
   }
 
-  const doneToday = dueToday.filter(d => d.done).length;
-  const pendingToday = dueToday.filter(d => !d.done);
-  const pendingWeek = dueThisWeek.filter(d => !d.done);
+  // weekly-mep groups by its own SECTIONS (Water Supply, Electrical, Fire
+  // Fighting, STP, Basement, Gym/Play) instead of "was any report filed this
+  // week" — a section counts as done once some report this week has every
+  // one of that section's items actually marked (not left 'unchecked'),
+  // which is what the old type-level-only check couldn't tell apart from a
+  // half-finished filing.
+  const mepSections = INSPECTION_TYPES['weekly-mep']?.sections
+    ? Object.values(INSPECTION_TYPES['weekly-mep'].sections).map(s => {
+        const filedRec = weeksInspections.find(r => r.formType === 'weekly-mep'
+          && (r.sections || []).some(sec => sec.title === s.title && sec.items.length > 0 && sec.items.every(it => it.status && it.status !== 'unchecked')));
+        return { title: s.title, done: !!filedRec, rec: filedRec };
+      })
+    : [];
+  const dueThisWeekFlat = Object.entries(INSPECTION_SCHEDULE)
+    .filter(([type, sched]) => sched.frequency === 'weekly' && type !== 'weekly-mep')
+    .map(([type]) => ({ label: INSPECTION_TYPES[type]?.label || type, done: weeksInspections.some(r => r.formType === type) }));
+
+  const totalToday = towerGroups.reduce((s, g) => s + g.items.length, 0) + dueTodayFlat.length;
+  const doneToday = towerGroups.reduce((s, g) => s + g.items.filter(i => i.done).length, 0) + dueTodayFlat.filter(d => d.done).length;
+  const pendingTodayCount = totalToday - doneToday;
+  const pendingWeekCount = mepSections.filter(s => !s.done).length + dueThisWeekFlat.filter(d => !d.done).length;
 
   const line = (d) => `
     <div style="display:flex; align-items:center; gap:8px; padding:4px 0; font-size:12.5px;">
@@ -6704,27 +6862,65 @@ function renderInspectionSchedule() {
       <span style="${d.done ? 'color:var(--ink-500); text-decoration:line-through;' : ''}">${escapeHtml(d.label)}</span>
     </div>`;
 
+  const filedWhen = (r) => r?.createdAt?.seconds ? `by ${escapeHtml(r.createdByName || 'staff')}, ${fmtDateTime(r.createdAt)}` : '';
+
+  const towerDropdown = (g) => {
+    const pending = g.items.filter(i => !i.done).length;
+    return `<details class="insp-tower-group">
+      <summary>
+        <span>Tower ${escapeHtml(g.tower)}</span>
+        <span class="badge ${pending ? 'badge-warning' : 'badge-success'}">${pending ? `${pending} pending` : 'All done'}</span>
+      </summary>
+      <div style="padding:8px 4px 2px;">
+        ${g.items.map(i => `
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:4px 0; font-size:12.5px;">
+            <span style="display:flex; align-items:center; gap:8px;">
+              <span style="width:16px; flex-shrink:0;">${i.done ? '✅' : '⬜'}</span>
+              <span style="${i.done ? 'color:var(--ink-500); text-decoration:line-through;' : ''}">${escapeHtml(i.label)}</span>
+            </span>
+            ${i.done ? `<span class="t-muted" style="font-size:11px; white-space:nowrap;">${filedWhen(i.rec)}</span>` : ''}
+          </div>`).join('')}
+      </div>
+    </details>`;
+  };
+
+  const sectionDropdown = (s) => `<details class="insp-tower-group">
+    <summary>
+      <span>${escapeHtml(s.title)}</span>
+      <span class="badge ${s.done ? 'badge-success' : 'badge-warning'}">${s.done ? 'Done this week' : 'Pending'}</span>
+    </summary>
+    ${s.done ? `<div style="padding:8px 4px 2px; font-size:12px;" class="t-muted">${filedWhen(s.rec)}</div>` : ''}
+  </details>`;
+
   el.innerHTML = `
     <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px;">
       <div style="flex:1; min-width:120px; background:var(--paper); border:1px solid var(--line); border-radius:12px; padding:12px 14px;">
-        <div style="font-size:22px; font-weight:800;">${doneToday}/${dueToday.length}</div>
+        <div style="font-size:22px; font-weight:800;">${doneToday}/${totalToday}</div>
         <div class="t-muted" style="font-size:11px;">Daily inspections done today</div>
       </div>
       <div style="flex:1; min-width:120px; background:var(--paper); border:1px solid var(--line); border-radius:12px; padding:12px 14px;">
-        <div style="font-size:22px; font-weight:800; color:${pendingToday.length ? 'var(--danger)' : 'var(--success)'};">${pendingToday.length}</div>
+        <div style="font-size:22px; font-weight:800; color:${pendingTodayCount ? 'var(--danger)' : 'var(--success)'};">${pendingTodayCount}</div>
         <div class="t-muted" style="font-size:11px;">Still pending today</div>
       </div>
     </div>
 
-    ${pendingToday.length ? `
-      <div style="font-size:12px; font-weight:700; color:var(--danger); margin-bottom:6px;">⚠️ Pending today</div>
-      <div style="margin-bottom:14px;">${pendingToday.map(line).join('')}</div>` : `
-      <div style="font-size:12.5px; color:var(--success); font-weight:600; margin-bottom:14px;">✓ All daily inspections done for today.</div>`}
+    ${towerGroups.length ? `
+      <div style="font-size:12px; font-weight:700; margin-bottom:6px;">By Tower — Today</div>
+      <div style="margin-bottom:14px;">${towerGroups.map(towerDropdown).join('')}</div>` : ''}
 
-    ${dueThisWeek.length ? `
-      <div style="font-size:12px; font-weight:700; margin-bottom:6px;">This week</div>
-      <div>${dueThisWeek.map(line).join('')}</div>
-      ${pendingWeek.length ? '' : `<div style="font-size:12px; color:var(--success); margin-top:4px;">✓ Weekly inspections done.</div>`}` : ''}
+    ${dueTodayFlat.length ? `
+      <div style="font-size:12px; font-weight:700; margin-bottom:6px;">Other Daily Checks — Today</div>
+      <div style="margin-bottom:14px;">${dueTodayFlat.map(line).join('')}</div>` : ''}
+
+    ${mepSections.length ? `
+      <div style="font-size:12px; font-weight:700; margin-bottom:6px;">Weekly MEP — By Section</div>
+      <div style="margin-bottom:14px;">${mepSections.map(sectionDropdown).join('')}</div>` : ''}
+
+    ${dueThisWeekFlat.length ? `
+      <div style="font-size:12px; font-weight:700; margin-bottom:6px;">Other This Week</div>
+      <div>${dueThisWeekFlat.map(line).join('')}</div>` : ''}
+
+    ${(!pendingTodayCount && !pendingWeekCount) ? `<div style="font-size:12.5px; color:var(--success); font-weight:600; margin-top:10px;">✓ Everything due is done.</div>` : ''}
   `;
 }
 
@@ -7421,22 +7617,37 @@ function renderBankReconciliation() {
 }
 
 // Candidates are drawn from allPayments (for a credit) or allExpenses (for a
-// debit), sorted by how close their amount is to the bank line — the exact
-// amount is almost always right there at the top. Already-matched records
-// are excluded so the same payment can't be linked to two different bank
-// lines.
+// debit). Sorted by amount-closeness first (an exact match is almost always
+// the right one), then — the actual point of tracking transactionDate — by
+// how close that candidate's own date is to the bank line's date. Without
+// this second pass, several residents paying an identical maintenance
+// amount used to all tie with nothing to break the tie by; now the one that
+// actually happened closest to the bank line's date surfaces first. Falls
+// back to submittedAt's date for older records with no transactionDate set.
+// Already-matched records are excluded so the same payment can't be linked
+// to two different bank lines.
+function daysBetweenDates(a, b) {
+  if (!a || !b) return 9999; // unknown date sorts last among same-amount ties, not first
+  return Math.abs((new Date(a) - new Date(b)) / 86400000);
+}
 function buildMatchCandidates(tx) {
   const alreadyMatched = new Set((window.__bankTxs || []).filter(t => t.status === 'matched' && t.matchedRef).map(t => `${t.matchedRef.col}/${t.matchedRef.id}`));
+  const byRelevance = (list) => list.sort((a, b) => {
+    const amtDiff = Math.abs(a.amount - tx.amount) - Math.abs(b.amount - tx.amount);
+    if (amtDiff !== 0) return amtDiff;
+    return daysBetweenDates(a.txDate, tx.date) - daysBetweenDates(b.txDate, tx.date);
+  }).slice(0, 8);
   if (tx.type === 'credit') {
-    return allPayments.filter(p => p.status === 'verified' && !alreadyMatched.has(`payments/${p.id}`))
-      .map(p => ({ col: 'payments', id: p.id, label: `${p.residentName} — Flat ${p.flatNumber} — ${p.receiptNumber || p.status}`, amount: p.amount }))
-      .sort((a, b) => Math.abs(a.amount - tx.amount) - Math.abs(b.amount - tx.amount))
-      .slice(0, 8);
+    return byRelevance(allPayments.filter(p => p.status === 'verified' && !alreadyMatched.has(`payments/${p.id}`))
+      .map(p => {
+        const txDate = p.transactionDate || (p.submittedAt?.toDate ? dateToLocalISO(p.submittedAt.toDate()) : null);
+        return { col: 'payments', id: p.id, txDate, amount: p.amount,
+          label: `${p.residentName} — Flat ${p.flatNumber} — ${p.receiptNumber || p.status}${txDate ? ` — ${fmtDate(txDate)}` : ''}` };
+      }));
   }
-  return allExpenses.filter(e => e.status !== 'pending_approval' && e.status !== 'rejected' && e.status !== 'voided' && !alreadyMatched.has(`expenses/${e.id}`))
-    .map(e => ({ col: 'expenses', id: e.id, label: `${e.description} — ${e.category || '—'}`, amount: e.amount }))
-    .sort((a, b) => Math.abs(a.amount - tx.amount) - Math.abs(b.amount - tx.amount))
-    .slice(0, 8);
+  return byRelevance(allExpenses.filter(e => e.status !== 'pending_approval' && e.status !== 'rejected' && e.status !== 'voided' && !alreadyMatched.has(`expenses/${e.id}`))
+    .map(e => ({ col: 'expenses', id: e.id, txDate: e.date || null, amount: e.amount,
+      label: `${e.description} — ${e.category || '—'}${e.date ? ` — ${fmtDate(e.date)}` : ''}` })));
 }
 
 function showMatchCandidates(txId) {
