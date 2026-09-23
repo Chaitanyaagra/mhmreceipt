@@ -2047,7 +2047,7 @@ import { auth, db, storage, SOCIETY } from './firebase-config.js';
 import { TOWER_IDS, flatsForTower } from './tower-plan.js';
 import {
   createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged,
-  signOut, sendPasswordResetEmail, deleteUser, GoogleAuthProvider, signInWithRedirect, getRedirectResult
+  signOut, sendPasswordResetEmail, deleteUser, GoogleAuthProvider, signInWithRedirect, getRedirectResult, sendEmailVerification
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
 import {
   doc, getDoc, setDoc, updateDoc, addDoc, collection, query, where, orderBy, getDocs, serverTimestamp, limit, writeBatch, onSnapshot, runTransaction
@@ -2624,6 +2624,10 @@ registerForm.addEventListener('submit', async (e) => {
       // Not needed for the Google path — that sign-in already fully
       // resolved server-side before this handler ever ran.
       try { await cred.user.getIdToken(true); } catch (tokenErr) { console.warn('Token refresh failed, continuing anyway:', tokenErr?.code || tokenErr); }
+      // Best-effort — a resident can always request a fresh link later from
+      // their dashboard if this one fails to send or gets lost/spam-
+      // filtered. Never worth failing the whole registration over.
+      try { await sendEmailVerification(cred.user); } catch (verifyErr) { console.warn('Verification email failed to send (continuing anyway):', verifyErr?.code || verifyErr); }
     }
     const uid = cred.user.uid;
 
@@ -2796,7 +2800,7 @@ registerForm.addEventListener('submit', async (e) => {
     } else if (googleAuthCred) {
       showSuccess('Registration Complete!', 'Your Member ID will be generated once the committee approves your registration. Taking you to your dashboard now.');
     } else {
-      showSuccess('Registration Complete!', 'Your Member ID will be generated once the committee approves your registration. You can log in now.');
+      showSuccess('Registration Complete!', 'Your Member ID will be generated once the committee approves your registration. You can log in now.\n\nWe\'ve also sent a verification link to your email — please check your inbox (and spam folder) and click it when you can.');
     }
     try { localStorage.removeItem(DRAFT_KEY); } catch (e) {}
     if (googleAuthCred) {
@@ -3030,6 +3034,24 @@ async function loadDashboard(uid) {
   currentMember = snap.data();
   document.getElementById('dashGreeting').textContent = `Welcome, ${currentMember.name.split(' ')[0]}`;
 
+  // Syncs Firebase Auth's emailVerified flag (which lives on the auth
+  // token, not in Firestore) into the member record once — so admin can see
+  // it during approval review — instead of it staying invisible outside the
+  // resident's own live session. reload() refreshes the possibly-stale
+  // cached value (from before they clicked the verification link). Runs
+  // without blocking the rest of the dashboard; a failure here is harmless.
+  if (!currentMember.emailVerified) {
+    (async () => {
+      try {
+        await auth.currentUser.reload();
+        if (auth.currentUser.emailVerified) {
+          await updateDoc(doc(db, 'members', uid), { emailVerified: true });
+          currentMember.emailVerified = true;
+        }
+      } catch (e) { console.warn('Email-verification sync failed (will retry next visit):', e?.code || e); }
+    })();
+  }
+
   const statusBadgeMap = {
     pending: '<span class="badge badge-warning"><span class="badge-dot"></span>Pending Approval</span>',
     approved: '<span class="badge badge-success"><span class="badge-dot"></span>Approved</span>',
@@ -3041,6 +3063,13 @@ async function loadDashboard(uid) {
   if (currentMember.status === 'pending') statusExtra = '<p class="t-sub" style="margin-top:12px; font-size:13.5px;">Your registration is under committee review. Your Member ID will appear here once approved.</p>';
   if (currentMember.status === 'rejected') statusExtra = `<p class="t-danger" style="margin-top:12px; font-size:13.5px;">Reason: ${escapeHtml(currentMember.rejectionReason || 'Please contact the office.')}</p>`;
   if (currentMember.status === 'inactive') statusExtra = '<p class="t-sub" style="margin-top:12px; font-size:13.5px;">Your membership has been deactivated. Please contact the office with any questions.</p>';
+
+  // auth.currentUser.emailVerified (not the Firestore field, which exists
+  // specifically for admin visibility and syncs a moment later) is the
+  // live, immediate value for THIS session — correct for deciding what to
+  // show the resident right now. Naturally never true for Google accounts,
+  // which are already verified from the start.
+  const showVerifyReminder = auth.currentUser && !auth.currentUser.emailVerified;
 
   content.className = 'stagger';
   content.innerHTML = `
@@ -3059,6 +3088,11 @@ async function loadDashboard(uid) {
           <button class="btn btn-outline btn-sm" id="downloadCardBtn">Download Membership Card</button>
         </div>` : ''}
       ${statusExtra}
+      ${showVerifyReminder ? `
+        <div style="margin-top:12px; padding:10px 12px; background:rgba(245,166,35,.1); border:1px solid rgba(245,166,35,.3); border-radius:10px; font-size:12.5px;">
+          <span>Please verify your email (${escapeHtml(currentMember.email || '')}) — check your inbox for the link.</span>
+          <button type="button" class="link-btn" id="resendVerifyBtn" style="margin-left:4px;">Resend email</button>
+        </div>` : ''}
     </div>
     ${currentMember.status === 'approved' ? `<div id="gateCard"></div>` : ''}
     ${currentMember.status === 'approved' ? `<div id="inspectionsCard"></div>` : ''}
@@ -3183,6 +3217,18 @@ async function loadDashboard(uid) {
   if (currentMember.status === 'approved') {
     document.getElementById('openPaymentBtn').addEventListener('click', openPaymentModal);
     document.getElementById('downloadCardBtn')?.addEventListener('click', downloadCard);
+    document.getElementById('resendVerifyBtn')?.addEventListener('click', async (e) => {
+      const btn = e.target;
+      btn.disabled = true;
+      try {
+        await sendEmailVerification(auth.currentUser);
+        showToast('Verification email sent — please check your inbox (and spam folder).', 'success');
+      } catch (err) {
+        showToast(err?.code === 'auth/too-many-requests'
+          ? 'Please wait a few minutes before requesting another verification email.'
+          : 'Could not send the email right now — please try again shortly.', 'error');
+      } finally { btn.disabled = false; }
+    });
     document.getElementById('downloadStatementBtn')?.addEventListener('click', downloadStatement);
     document.getElementById('editProfileBtn')?.addEventListener('click', openProfileModal);
     document.getElementById('fillProfileNudgeBtn')?.addEventListener('click', openProfileModal);

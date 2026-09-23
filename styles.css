@@ -992,6 +992,9 @@ body.logged-in #dashboard{ min-height:calc(100vh - 66px); padding-top:26px; }
    place rather than one figure per card. */
 .td-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
 .td-tile{ background:var(--paper,#FAF8F3); border-radius:10px; padding:12px 14px; }
+.td-tile[role="button"], .health-metric[role="button"], .ms-item[role="button"]{ transition:transform .15s ease, box-shadow .15s ease; }
+.td-tile[role="button"]:hover, .health-metric[role="button"]:hover, .ms-item[role="button"]:hover{ transform:translateY(-2px); box-shadow:0 4px 14px rgba(0,0,0,.1); }
+.td-tile[role="button"]:focus-visible, .health-metric[role="button"]:focus-visible, .ms-item[role="button"]:focus-visible{ outline:2px solid var(--gold-500,#C9A227); outline-offset:2px; }
 .td-tile .td-label{ font-size:11px; color:var(--ink-500,#6B7385); text-transform:uppercase; letter-spacing:.03em; margin-bottom:4px; }
 .td-tile .td-value{ font-size:17px; font-weight:700; color:var(--ink-900,#101B2B); }
 .td-tile .td-note{ font-size:11px; color:var(--ink-500,#6B7385); margin-top:2px; }

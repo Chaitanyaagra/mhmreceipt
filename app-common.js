@@ -586,11 +586,68 @@ const HTML_ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'
    "first name + flat number", "last name + mobile", etc. all work as a
    search, not just an exact copy-pasted phrase. Each word is still a plain
    substring match, so partial words ("chait") still work too. */
+/* Levenshtein edit distance — how many single-character insertions,
+   deletions or substitutions turn one word into the other. Used only as a
+   fuzzy-match fallback (see wordFuzzyMatches below), never as the primary
+   check. */
+function levenshteinDistance(a, b) {
+  const m = a.length, n = b.length;
+  if (m === 0) return n;
+  if (n === 0) return m;
+  const dp = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      dp[i][j] = a[i - 1] === b[j - 1] ? dp[i - 1][j - 1] : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+    }
+  }
+  return dp[m][n];
+}
+// How many edits count as "close enough" scales with word length — 1 for a
+// short word (4 letters or fewer), up to 3 for a long one. A fixed
+// threshold would be too loose on short words and too strict on long ones.
+function fuzzyThreshold(len) {
+  if (len <= 4) return 1;
+  if (len <= 8) return 2;
+  return 3;
+}
+// Fuzzy-matches ONLY between two purely-alphabetic words — a flat number,
+// mobile number, or Member ID containing digits must never fuzzy-match a
+// DIFFERENT one just because they're a character apart (searching "A402"
+// matching "B402" would be actively wrong, not helpfully fuzzy). Below 3
+// characters, edit-distance-1 is too loose to be meaningful (almost
+// anything is "close" to a 2-letter word) so those are skipped too.
+function wordFuzzyMatches(needle, hayWord) {
+  if (/[0-9]/.test(needle) || /[0-9]/.test(hayWord) || needle.length < 3 || hayWord.length < 3) return false;
+  return levenshteinDistance(needle, hayWord) <= fuzzyThreshold(Math.max(needle.length, hayWord.length));
+}
+
+/* Smart multi-word search: every word in the term must appear SOMEWHERE in
+   the combined searchable text, not necessarily adjacent or in the same
+   order. A single substring check on the whole phrase ("chaitanya b004")
+   would never match text like "Chaitanya Agrawal B 004" — splitting into
+   words and requiring each one to be found independently is what makes
+   "first name + flat number", "last name + mobile", etc. all work as a
+   search, not just an exact copy-pasted phrase. Each word is still a plain
+   substring match first (so partial words like "chait" still work); only
+   if that fails does this fall back to (a) ignoring punctuation, so
+   "B004"/"B-004" match each other regardless of which one was typed, and
+   then (b) fuzzy spelling-variation matching for names, so "Chetanya"
+   finds "Chaitanya" and "Agarwal" finds "Agrawal". */
 export function smartMatch(searchableText, term) {
   const words = String(term || '').toLowerCase().trim().split(/\s+/).filter(Boolean);
   if (!words.length) return true;
   const haystack = String(searchableText || '').toLowerCase();
-  return words.every(w => haystack.includes(w));
+  const haystackWords = haystack.split(/\s+/).filter(Boolean);
+  const strip = (s) => s.replace(/[^a-z0-9]/g, '');
+  const haystackStripped = strip(haystack);
+
+  return words.every((w) => {
+    if (haystack.includes(w)) return true;
+    if (strip(w) && haystackStripped.includes(strip(w))) return true;
+    return haystackWords.some((hw) => wordFuzzyMatches(w, strip(hw)));
+  });
 }
 
 export function escapeHtml(str) {

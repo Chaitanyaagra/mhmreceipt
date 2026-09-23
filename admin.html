@@ -459,11 +459,11 @@
           <button class="btn btn-outline btn-sm" id="msWhatsAppBtn" title="Send summary via WhatsApp">Share</button>
         </div>
         <div class="ms-grid">
-          <div class="ms-item"><div class="ms-num" id="msCollected">—</div><div class="ms-lbl">Collected</div></div>
-          <div class="ms-item"><div class="ms-num" id="msPayments">—</div><div class="ms-lbl">Payments</div></div>
-          <div class="ms-item"><div class="ms-num ms-warn" id="msPending">—</div><div class="ms-lbl">Pending Verify</div></div>
-          <div class="ms-item"><div class="ms-num ms-danger" id="msDefaulters">—</div><div class="ms-lbl">Defaulters (FY)</div></div>
-          <div class="ms-item"><div class="ms-num" id="msNewMembers">—</div><div class="ms-lbl">New Members</div></div>
+          <div class="ms-item" role="button" tabindex="0" data-goto-view="payments" data-goto-tab="all" style="cursor:pointer;"><div class="ms-num" id="msCollected">—</div><div class="ms-lbl">Collected</div></div>
+          <div class="ms-item" role="button" tabindex="0" data-goto-view="payments" data-goto-tab="all" style="cursor:pointer;"><div class="ms-num" id="msPayments">—</div><div class="ms-lbl">Payments</div></div>
+          <div class="ms-item" role="button" tabindex="0" data-goto-view="payments" data-goto-tab="pending" style="cursor:pointer;"><div class="ms-num ms-warn" id="msPending">—</div><div class="ms-lbl">Pending Verify</div></div>
+          <div class="ms-item" role="button" tabindex="0" data-goto-view="payments" data-goto-tab="defaulters" style="cursor:pointer;"><div class="ms-num ms-danger" id="msDefaulters">—</div><div class="ms-lbl">Defaulters (FY)</div></div>
+          <div class="ms-item" role="button" tabindex="0" data-goto-view="members" style="cursor:pointer;"><div class="ms-num" id="msNewMembers">—</div><div class="ms-lbl">New Members</div></div>
         </div>
       </div>
 
@@ -2403,6 +2403,35 @@ async function checkStorageAvailable() {
 /*  Nav / view switching                                                  */
 /* ---------------------------------------------------------------------- */
 let currentAdminView = 'overview';
+// Every clickable Overview tile carries data-goto-view (and optionally
+// data-goto-tab, for a section with its own sub-tabs like Collection's
+// Pending/All/Defaulters or Financials' Recon/Budget/Closing). One
+// delegated listener on document — rather than wiring each tile
+// individually — is what makes this keep working after Treasurer
+// Dashboard/Health Score re-render their innerHTML wholesale on every
+// refresh; individually-attached listeners would be destroyed each time.
+function goToSection(view, tab) {
+  switchView(view);
+  if (tab) {
+    // The tab buttons are static HTML (already in the DOM regardless of
+    // which view is currently showing) — clicking the real button reuses
+    // its own already-correct show/hide logic instead of duplicating it.
+    document.querySelector(`[data-ptab="${tab}"], [data-ftab="${tab}"]`)?.click();
+  }
+}
+document.addEventListener('click', (e) => {
+  const el = e.target.closest('[data-goto-view]');
+  if (!el) return;
+  goToSection(el.dataset.gotoView, el.dataset.gotoTab);
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const el = e.target.closest('[data-goto-view]');
+  if (!el) return;
+  e.preventDefault();
+  goToSection(el.dataset.gotoView, el.dataset.gotoTab);
+});
+
 function switchView(view) {
   currentAdminView = view;
   document.body.setAttribute('data-admin-view', view);
@@ -2827,14 +2856,14 @@ async function renderHealthScore() {
   });
   if (anyRate && expectedTotal > 0) {
     const pct = Math.min(100, Math.round((paidTotal / expectedTotal) * 100));
-    metrics.push({ label: 'Financial Health', pct, detail: `${formatINR(paidTotal)} of ${formatINR(expectedTotal)} collected` });
+    metrics.push({ label: 'Financial Health', pct, detail: `${formatINR(paidTotal)} of ${formatINR(expectedTotal)} collected`, gotoView: 'payments', gotoTab: 'defaulters' });
   }
 
   // Complaints: resolved+closed as a share of every complaint ever raised —
   // all-time, not FY-scoped, since a complaint isn't a financial record.
   if (allComplaints.length > 0) {
     const done = allComplaints.filter(c => c.status === 'resolved' || c.status === 'closed').length;
-    metrics.push({ label: 'Complaint Resolution', pct: Math.round((done / allComplaints.length) * 100), detail: `${done}/${allComplaints.length} resolved` });
+    metrics.push({ label: 'Complaint Resolution', pct: Math.round((done / allComplaints.length) * 100), detail: `${done}/${allComplaints.length} resolved`, gotoView: 'complaints' });
   }
 
   // Bank reconciliation: matched OR ignored — same "accounted for"
@@ -2844,7 +2873,7 @@ async function renderHealthScore() {
   const bankTxs = window.__bankTxs || [];
   if (bankTxs.length > 0) {
     const accountedFor = bankTxs.filter(t => t.status === 'matched' || t.status === 'ignored').length;
-    metrics.push({ label: 'Bank Reconciliation', pct: Math.round((accountedFor / bankTxs.length) * 100), detail: `${accountedFor}/${bankTxs.length} accounted for` });
+    metrics.push({ label: 'Bank Reconciliation', pct: Math.round((accountedFor / bankTxs.length) * 100), detail: `${accountedFor}/${bankTxs.length} accounted for`, gotoView: 'financials', gotoTab: 'recon' });
   }
 
   // Pet vaccination compliance: "fine" or "due_soon" both count as
@@ -2852,7 +2881,7 @@ async function renderHealthScore() {
   // is a normal, not-yet-a-problem state.
   if (allPets.length > 0) {
     const ok = allPets.filter(p => petVaccinationStatus(p).status !== 'overdue').length;
-    metrics.push({ label: 'Pet Vaccination', pct: Math.round((ok / allPets.length) * 100), detail: `${ok}/${allPets.length} up to date` });
+    metrics.push({ label: 'Pet Vaccination', pct: Math.round((ok / allPets.length) * 100), detail: `${ok}/${allPets.length} up to date`, gotoView: 'pets' });
   }
 
   // Backup health: this is the one metric that's ALWAYS computable — even
@@ -2862,7 +2891,7 @@ async function renderHealthScore() {
     const last = snap.exists() && snap.data().lastAt?.toDate ? snap.data().lastAt.toDate() : null;
     const hoursAgo = last ? (Date.now() - last.getTime()) / 3600000 : Infinity;
     const pct = hoursAgo < 24 ? 100 : hoursAgo < 72 ? 60 : (last ? 20 : 0);
-    metrics.push({ label: 'Backup Health', pct, detail: last ? `Last backup ${Math.round(hoursAgo)}h ago` : 'Never backed up' });
+    metrics.push({ label: 'Backup Health', pct, detail: last ? `Last backup ${Math.round(hoursAgo)}h ago` : 'Never backed up', gotoView: 'settings' });
   } catch (e) { /* if this read itself fails, just omit the metric rather than guessing */ }
 
   if (!metrics.length) { card.innerHTML = ''; return; }  // nothing measurable yet — stay out of the way rather than show an empty shell
@@ -2877,7 +2906,7 @@ async function renderHealthScore() {
     </div>
     <div class="health-metric-grid">
       ${metrics.map(m => `
-        <div class="health-metric">
+        <div class="health-metric"${m.gotoView ? ` role="button" tabindex="0" data-goto-view="${escapeHtml(m.gotoView)}"${m.gotoTab ? ` data-goto-tab="${escapeHtml(m.gotoTab)}"` : ''} style="cursor:pointer;"` : ''}>
           <div class="hm-pct" style="color:${colorFor(m.pct)};">${m.pct}%</div>
           <div class="hm-lbl">${escapeHtml(m.label)}</div>
           <div class="hm-detail">${escapeHtml(m.detail)}</div>
@@ -2895,8 +2924,8 @@ function renderTreasurerDashboard() {
   const outstanding = outstandingMembers();
   const outstandingTotal = outstanding.reduce((s, x) => s + x.d.outstanding, 0);
 
-  const tile = (label, value, note) => `
-    <div class="td-tile">
+  const tile = (label, value, note, gotoView, gotoTab) => `
+    <div class="td-tile"${gotoView ? ` role="button" tabindex="0" data-goto-view="${escapeHtml(gotoView)}"${gotoTab ? ` data-goto-tab="${escapeHtml(gotoTab)}"` : ''} style="cursor:pointer;"` : ''}>
       <div class="td-label">${escapeHtml(label)}</div>
       <div class="td-value">${value}</div>
       ${note ? `<div class="td-note">${escapeHtml(note)}</div>` : ''}
@@ -2904,19 +2933,20 @@ function renderTreasurerDashboard() {
 
   const upcomingRecurring = upcomingRecurringBills(allExpenses);
   document.getElementById('treasurerDashGrid').innerHTML = [
-    tile('Bank Balance', formatINR(stats.bankBalance), 'Cheque + UPI + Netbanking'),
-    tile('Cash Balance', formatINR(stats.cashBalance), 'Cash on hand'),
-    tile('Collection (Is Month)', formatINR(stats.thisMonthCollection)),
-    tile('Expenses (Is Month)', formatINR(stats.thisMonthExpenses)),
-    tile('Outstanding Maintenance', formatINR(outstandingTotal), `${outstanding.length} member${outstanding.length === 1 ? '' : 's'} — FY ${selectedFY}`),
+    tile('Bank Balance', formatINR(stats.bankBalance), 'Cheque + UPI + Netbanking', 'financials'),
+    tile('Cash Balance', formatINR(stats.cashBalance), 'Cash on hand', 'financials'),
+    tile('Collection (Is Month)', formatINR(stats.thisMonthCollection), null, 'payments', 'all'),
+    tile('Expenses (Is Month)', formatINR(stats.thisMonthExpenses), null, 'expenses'),
+    tile('Outstanding Maintenance', formatINR(outstandingTotal), `${outstanding.length} member${outstanding.length === 1 ? '' : 's'} — FY ${selectedFY}`, 'payments', 'defaulters'),
     tile(
       stats.monthSurplus >= 0 ? 'Is Month Surplus' : 'Is Month Deficit',
-      `<span style="color:${stats.monthSurplus >= 0 ? 'var(--success,#1E7D4B)' : 'var(--danger,#C0392B)'}">${formatINR(Math.abs(stats.monthSurplus))}</span>`
+      `<span style="color:${stats.monthSurplus >= 0 ? 'var(--success,#1E7D4B)' : 'var(--danger,#C0392B)'}">${formatINR(Math.abs(stats.monthSurplus))}</span>`,
+      null, 'financials'
     ),
-    tile('Bank Reconciliation', reconTileValue(), reconTileNote()),
+    tile('Bank Reconciliation', reconTileValue(), reconTileNote(), 'financials', 'recon'),
     upcomingRecurring.length
-      ? tile('Upcoming Bills', String(upcomingRecurring.length), `${upcomingRecurring.filter(b => b.daysUntil < 0).length} overdue · next: ${escapeHtml(upcomingRecurring[0].paidTo || upcomingRecurring[0].category)}`)
-      : tile('Upcoming Bills', '—', allExpenses.some(e => e.isRecurring) ? 'None due in the next 30 days' : 'Mark an expense "recurring" to track this')
+      ? tile('Upcoming Bills', String(upcomingRecurring.length), `${upcomingRecurring.filter(b => b.daysUntil < 0).length} overdue · next: ${escapeHtml(upcomingRecurring[0].paidTo || upcomingRecurring[0].category)}`, 'expenses')
+      : tile('Upcoming Bills', '—', allExpenses.some(e => e.isRecurring) ? 'None due in the next 30 days' : 'Mark an expense "recurring" to track this', 'expenses')
   ].join('');
 }
 
@@ -4188,7 +4218,13 @@ function renderMembersTable() {
     backWrap.style.display = 'none';
     tableWrap.style.display = 'none';
     if (pager) pager.innerHTML = '';
-    summaryEl.innerHTML = TOWER_IDS.map(t => {
+    const totalMembers = allMembers.length;
+    summaryEl.innerHTML = `
+      <div style="grid-column:1/-1; text-align:center; padding:4px 0 10px;">
+        <div style="font-size:26px; font-weight:800;">${totalMembers}</div>
+        <div class="t-muted" style="font-size:12px;">Total Member${totalMembers === 1 ? '' : 's'}</div>
+      </div>` +
+      TOWER_IDS.map(t => {
       const count = allMembers.filter(m => m.tower === t).length;
       return `<button type="button" class="card card-pad tower-summary-card" data-tower-pick="${escapeHtml(t)}">
         <div style="font-size:20px; font-weight:700;">Tower ${escapeHtml(t)}</div>
@@ -4289,7 +4325,7 @@ function renderMemberDetailView(m) {
     <div class="vrow-list" style="font-size:13.5px;">
       <div class="vrow"><span class="t-muted">Flat / Tower</span><span>${escapeHtml(m.flatNumber)} / ${escapeHtml(m.tower)}</span></div>
       <div class="vrow"><span class="t-muted">Mobile</span><span>${escapeHtml(m.mobile)}</span></div>
-      <div class="vrow"><span class="t-muted">Email</span><span>${escapeHtml(m.email)}</span></div>
+      <div class="vrow"><span class="t-muted">Email</span><span>${escapeHtml(m.email)} ${m.emailVerified ? '<span class="badge badge-success" style="font-size:10.5px; padding:1px 6px;">✓ Verified</span>' : '<span class="badge badge-warning" style="font-size:10.5px; padding:1px 6px;">Not verified</span>'}</span></div>
       <div class="vrow"><span class="t-muted">Occupation</span><span>${escapeHtml(m.occupation || '—')}</span></div>
       <div class="vrow"><span class="t-muted">Type</span><span>${{ owner: 'Owner', jointowner: 'Joint Owner', tenant: 'Tenant' }[m.residentType] || escapeHtml(m.residentType || '—')}</span></div>
       ${m.coOwnerName ? `<div class="vrow"><span class="t-muted">Co-Owner</span><span>${escapeHtml(m.coOwnerName)}${m.coOwnerMobile ? ` · ${escapeHtml(m.coOwnerMobile)}` : ''}</span></div>` : ''}
@@ -5121,7 +5157,13 @@ function renderAllPayments() {
     backWrap.style.display = 'none';
     tableWrap.style.display = 'none';
     if (pager) pager.innerHTML = '';
-    summaryEl.innerHTML = TOWER_IDS.map(t => {
+    const totalCollection = allPayments.filter(p => p.status === 'verified').reduce((s, p) => s + (Number(p.amount) || 0), 0);
+    summaryEl.innerHTML = `
+      <div style="grid-column:1/-1; text-align:center; padding:4px 0 10px;">
+        <div style="font-size:26px; font-weight:800;">${formatINR(totalCollection)}</div>
+        <div class="t-muted" style="font-size:12px;">Total Collection (verified)</div>
+      </div>` +
+      TOWER_IDS.map(t => {
       const count = allPayments.filter(p => p.tower === t).length;
       return `<button type="button" class="card card-pad tower-summary-card" data-pay-tower-pick="${escapeHtml(t)}">
         <div style="font-size:20px; font-weight:700;">Tower ${escapeHtml(t)}</div>
@@ -6526,6 +6568,7 @@ function renderApprovalCenter() {
       <div class="list-edit-item" style="align-items:flex-start;">
         <div>
           <b style="font-size:13.5px;">${escapeHtml(m.name)}</b>
+          ${m.emailVerified ? '<span class="badge badge-success" style="font-size:10px; padding:1px 5px; margin-left:6px;">✓ Email verified</span>' : '<span class="badge badge-warning" style="font-size:10px; padding:1px 5px; margin-left:6px;">Email not verified</span>'}
           <div class="t-muted" style="font-size:11.5px; margin-top:2px;">
             ${escapeHtml(m.tower || '—')}-${escapeHtml(m.flatNumber || '—')} · ${escapeHtml(m.residentType || '—')} · ${escapeHtml(m.mobile || '—')}
           </div>

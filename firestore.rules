@@ -355,6 +355,17 @@ service cloud.firestore {
                       && unchanged('rejectionReason')
                       && unchanged('deactivatedReason')
                       && unchanged('deactivatedAt')
+                      // A resident can only set this to whatever their OWN
+                      // auth token's email_verified claim actually says — a
+                      // fact Firebase itself sets server-side when the
+                      // verification link is really clicked, not something
+                      // the client can influence. Without this, a resident
+                      // could just write emailVerified:true directly,
+                      // completely defeating the point of tracking it.
+                      && (
+                        unchanged('emailVerified')
+                        || request.resource.data.emailVerified == request.auth.token.email_verified
+                      )
                     );
 
       allow delete: if false; // soft-delete only (status: 'inactive')
