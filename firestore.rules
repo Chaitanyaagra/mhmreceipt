@@ -482,7 +482,33 @@ service cloud.firestore {
                     && request.resource.data.flatNumber
                        == get(/databases/$(database)/documents/members/$(request.resource.data.memberUid)).data.flatNumber
                     && isOptionalString(request.resource.data, 'utrOrChequeNo', 40)
-                    && isOptionalTxDate(request.resource.data, 'transactionDate'));
+                    && isOptionalTxDate(request.resource.data, 'transactionDate'))
+                    || (
+                      // Suspense: a bank credit that's genuinely arrived but
+                      // can't yet be matched to any specific resident.
+                      // memberUid, receiptNumber and publicToken must all be
+                      // absent — this isn't anyone's payment yet, so there's
+                      // no one to issue a receipt to. Identifying it later
+                      // means voiding this entry and creating a proper
+                      // payment for the right resident (the same "void and
+                      // create fresh" principle already used below for
+                      // correcting a wrongly-attributed payment), not
+                      // silently repointing this one.
+                      canVerifyPayments()
+                      && request.resource.data.type == 'suspense'
+                      && absentOrNull(request.resource.data, 'memberUid')
+                      && absentOrNull(request.resource.data, 'receiptNumber')
+                      && absentOrNull(request.resource.data, 'publicToken')
+                      && isValidAmount(request.resource.data.amount)
+                      && request.resource.data.mode in ['cash', 'cheque', 'upi', 'netbanking']
+                      && isValidFY(request.resource.data.financialYear)
+                      && !exists(/databases/$(database)/documents/financialYearLocks/$(request.resource.data.financialYear))
+                      && request.resource.data.status == 'verified'
+                      && request.resource.data.recordedByAdmin == true
+                      && request.resource.data.verifiedBy == request.auth.token.email
+                      && isNonEmptyString(request.resource.data.notes, 500)
+                      && isOptionalTxDate(request.resource.data, 'transactionDate')
+                    );
 
       // Verifying a payment issues a receipt number and moves money in the
       // books, so changing anything about a payment is restricted to the
@@ -775,9 +801,13 @@ service cloud.firestore {
                       // was always under the ADMIN's uid, which the
                       // resident-only branch above could never satisfy,
                       // guaranteeing every pet silently failed to save.
-                      // Scoped to an actual approval-authority admin
-                      // creating a pet for a genuinely approved member.
-                      canApproveMembers()
+                      // isAdmin(), not the narrower canApproveMembers() —
+                      // the dedicated Pets admin section is open to every
+                      // committee role (Treasurer included), and Treasurer
+                      // already has full update/delete on pets elsewhere in
+                      // this block, so create is scoped the same way for
+                      // consistency, not narrowed to approval authority.
+                      isAdmin()
                       && exists(/databases/$(database)/documents/members/$(request.resource.data.ownerUid))
                       && get(/databases/$(database)/documents/members/$(request.resource.data.ownerUid)).data.status == 'approved'
                       && isNonEmptyString(request.resource.data.name, 100)

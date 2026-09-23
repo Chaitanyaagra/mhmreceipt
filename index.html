@@ -1214,6 +1214,11 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
         <div class="field"><label for="fld-email-1">Email</label><input type="email" name="email" required autocomplete="email" id="fld-email-1"></div>
         <div class="field"><label for="fld-password-2">Password</label><input type="password" name="password" required autocomplete="current-password" id="fld-password-2"></div>
         <button class="btn btn-primary btn-block" type="submit">Log In</button>
+        <div style="text-align:center; color:var(--ink-400,#9A9488); font-size:11.5px; margin:14px 0;">— or —</div>
+        <button type="button" class="btn btn-outline btn-block" id="loginGoogleBtn">
+          <svg width="16" height="16" viewBox="0 0 48 48" style="vertical-align:-3px; margin-right:6px;"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 3l5.7-5.7C34.7 6 29.6 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.7-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.9 18.9 13 24 13c3.1 0 5.8 1.1 8 3l5.7-5.7C34.7 6 29.6 4 24 4c-7.7 0-14.4 4.4-17.7 10.7z"/><path fill="#4CAF50" d="M24 44c5.5 0 10.5-2.1 14.3-5.6l-6.6-5.6C29.6 34.7 27 35.5 24 35.5c-5.3 0-9.7-3.3-11.3-7.9l-6.6 5.1C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.3-4.2 5.7l6.6 5.6C41.1 36.4 44 30.7 44 24c0-1.3-.1-2.7-.4-3.5z"/></svg>
+          Continue with Google
+        </button>
         <p style="text-align:center; margin-top:14px; font-size:13px;"><a href="#" id="forgotPasswordLink" class="t-sub" style="text-decoration:underline;">Forgot password?</a></p>
         <div class="staff-gate-links" style="margin-top:18px; padding-top:16px; border-top:1px solid var(--line,#EAE6DC); text-align:center;">
           <p class="t-sub" style="font-size:12px; margin-bottom:10px;">Society staff? Sign in to your own app:</p>
@@ -1390,9 +1395,20 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
 
         <fieldset>
           <legend>Account</legend>
-          <div class="form-2col">
-            <div class="field"><label for="fld-password-14">Set Password</label><input type="password" name="password" required minlength="6" id="fld-password-14"></div>
-            <div class="field"><label for="fld-confirmPassword-15">Confirm Password</label><input type="password" name="confirmPassword" required minlength="6" id="fld-confirmPassword-15"></div>
+          <div id="regGoogleWrap" style="margin-bottom:14px;">
+            <button type="button" class="btn btn-outline btn-block" id="regGoogleBtn">
+              <svg width="16" height="16" viewBox="0 0 48 48" style="vertical-align:-3px; margin-right:6px;"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 3l5.7-5.7C34.7 6 29.6 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.7-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.9 18.9 13 24 13c3.1 0 5.8 1.1 8 3l5.7-5.7C34.7 6 29.6 4 24 4c-7.7 0-14.4 4.4-17.7 10.7z"/><path fill="#4CAF50" d="M24 44c5.5 0 10.5-2.1 14.3-5.6l-6.6-5.6C29.6 34.7 27 35.5 24 35.5c-5.3 0-9.7-3.3-11.3-7.9l-6.6 5.1C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.3-4.2 5.7l6.6 5.6C41.1 36.4 44 30.7 44 24c0-1.3-.1-2.7-.4-3.5z"/></svg>
+              Continue with Google
+            </button>
+            <div class="hint" style="text-align:center; margin-top:4px;">Skips setting a password — you'll log in with Google next time.</div>
+          </div>
+          <div id="regGoogleConfirmed" style="display:none; margin-bottom:14px; padding:10px 12px; border-radius:10px; background:rgba(52,168,83,.08); border:1px solid rgba(52,168,83,.25); font-size:13px;">
+            ✓ Signed in as <b id="regGoogleEmail"></b> — no password needed.
+          </div>
+          <div style="text-align:center; color:var(--ink-400,#9A9488); font-size:11.5px; margin:6px 0 14px;" id="regPasswordDivider">— or set a password —</div>
+          <div class="form-2col" id="regPasswordFields">
+            <div class="field"><label for="fld-password-14">Set Password</label><input type="password" name="password" minlength="6" id="fld-password-14"></div>
+            <div class="field"><label for="fld-confirmPassword-15">Confirm Password</label><input type="password" name="confirmPassword" minlength="6" id="fld-confirmPassword-15"></div>
           </div>
 
           <!-- Owner-only, and never required — registering today and paying
@@ -2031,7 +2047,7 @@ import { auth, db, storage, SOCIETY } from './firebase-config.js';
 import { TOWER_IDS, flatsForTower } from './tower-plan.js';
 import {
   createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged,
-  signOut, sendPasswordResetEmail, deleteUser
+  signOut, sendPasswordResetEmail, deleteUser, GoogleAuthProvider, signInWithPopup
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
 import {
   doc, getDoc, setDoc, updateDoc, addDoc, collection, query, where, orderBy, getDocs, serverTimestamp, limit, writeBatch, onSnapshot, runTransaction
@@ -2354,6 +2370,37 @@ if (regPetsEditor && regPetsWrap) {
    the same functions that already render them from real Firestore data, so
    restoring a draft uses no separate rendering path of its own. */
 const DRAFT_KEY = 'mhmrws_reg_draft';
+// Set once "Continue with Google" succeeds during registration — the submit
+// handler then reuses this credential instead of calling
+// createUserWithEmailAndPassword(), and password fields are skipped
+// entirely (there's no password to set for a Google-authenticated account).
+let googleAuthCred = null;
+const googleProvider = new GoogleAuthProvider();
+
+document.getElementById('regGoogleBtn')?.addEventListener('click', async () => {
+  const btn = document.getElementById('regGoogleBtn');
+  setLoading(btn, true);
+  try {
+    const cred = await signInWithPopup(auth, googleProvider);
+    googleAuthCred = cred;
+    const f = document.getElementById('registerForm');
+    f.email.value = cred.user.email;
+    f.email.readOnly = true;
+    if (f.name && !f.name.value.trim() && cred.user.displayName) f.name.value = cred.user.displayName;
+    document.getElementById('regGoogleWrap').style.display = 'none';
+    document.getElementById('regPasswordDivider').style.display = 'none';
+    document.getElementById('regPasswordFields').style.display = 'none';
+    document.getElementById('regGoogleConfirmed').style.display = 'block';
+    document.getElementById('regGoogleEmail').textContent = cred.user.email;
+    f.password.required = false;
+    f.confirmPassword.required = false;
+  } catch (err) {
+    console.error('Google sign-in failed:', err);
+    if (err?.code !== 'auth/popup-closed-by-user' && err?.code !== 'auth/cancelled-popup-request') {
+      showToast(`Could not sign in with Google${err?.code ? ` (${err.code})` : ''}.`, 'error');
+    }
+  } finally { setLoading(btn, false); }
+});
 const DRAFT_TEXT_FIELDS = [
   'residentType', 'name', 'fatherHusbandName', 'tower', 'flatNumber', 'mobile', 'email',
   'occupation', 'bloodGroup', 'coOwnerName', 'coOwnerMobile', 'coOwnerEmail',
@@ -2506,7 +2553,7 @@ registerForm.addEventListener('submit', async (e) => {
   const f = e.target;
   const btn = f.querySelector('button[type="submit"]');
   clearFieldErrors(f);
-  const regError = validateRegistration(f);
+  const regError = validateRegistration(f, !!googleAuthCred);
   if (regError) {
     // Show the message directly under the field that caused it, scroll it into
     // view, and focus it — so the resident sees exactly what to fix instead of
@@ -2527,17 +2574,23 @@ registerForm.addEventListener('submit', async (e) => {
   let cred = null;
   try {
     const email = f.email.value.trim();
-    cred = await createUserWithEmailAndPassword(auth, email, f.password.value);
+    if (googleAuthCred) {
+      cred = googleAuthCred;
+    } else {
+      cred = await createUserWithEmailAndPassword(auth, email, f.password.value);
+      // A brand-new account's auth token can take a moment to actually
+      // propagate server-side, even though createUserWithEmailAndPassword()
+      // has already resolved client-side. Calling Storage/Firestore in that
+      // narrow window intermittently fails with permission-denied — a known,
+      // documented Firebase quirk (not specific to this app) — which leaves
+      // exactly the failure mode this rollback below exists for: an Auth
+      // account with no member record behind it. Forcing a token refresh
+      // here closes that window before the first real write is attempted.
+      // Not needed for the Google path — that sign-in already fully
+      // resolved server-side before this handler ever ran.
+      try { await cred.user.getIdToken(true); } catch (tokenErr) { console.warn('Token refresh failed, continuing anyway:', tokenErr?.code || tokenErr); }
+    }
     const uid = cred.user.uid;
-    // A brand-new account's auth token can take a moment to actually
-    // propagate server-side, even though createUserWithEmailAndPassword()
-    // has already resolved client-side. Calling Storage/Firestore in that
-    // narrow window intermittently fails with permission-denied — a known,
-    // documented Firebase quirk (not specific to this app) — which leaves
-    // exactly the failure mode this rollback below exists for: an Auth
-    // account with no member record behind it. Forcing a token refresh
-    // here closes that window before the first real write is attempted.
-    try { await cred.user.getIdToken(true); } catch (tokenErr) { console.warn('Token refresh failed, continuing anyway:', tokenErr?.code || tokenErr); }
 
     // The member document is created FIRST, right after the Auth account —
     // deliberately BEFORE the (slower, network-heavier) photo upload. If the
@@ -2709,12 +2762,22 @@ registerForm.addEventListener('submit', async (e) => {
         `Your registration went through, but your pet's details could not be saved${petSaveErrorCode ? ` (error: ${petSaveErrorCode})` : ''}. Please log in and add them again from "My Pets" — if it happens again, please tell the office this error code.`,
         { celebrate: false }
       );
+    } else if (googleAuthCred) {
+      showSuccess('Registration Complete!', 'Your Member ID will be generated once the committee approves your registration. Taking you to your dashboard now.');
     } else {
       showSuccess('Registration Complete!', 'Your Member ID will be generated once the committee approves your registration. You can log in now.');
     }
     try { localStorage.removeItem(DRAFT_KEY); } catch (e) {}
-    f.reset();
-    showTab('login');
+    if (googleAuthCred) {
+      // Already signed in via Google — reload rather than showTab('login'),
+      // so the normal onAuthStateChanged path picks this account up fresh
+      // (googleAuthCred resets to null on load) and shows the dashboard,
+      // instead of sending an already-authenticated person to a login form.
+      setTimeout(() => location.reload(), 1500);
+    } else {
+      f.reset();
+      showTab('login');
+    }
   } catch (err) {
     // If the member record never got written, the Auth account left behind is
     // worse than no account at all: the resident cannot register again
@@ -2731,6 +2794,7 @@ registerForm.addEventListener('submit', async (e) => {
       }
     }
     showToast(friendlyAuthError(err), 'error');
+    googleAuthCred = null;
   } finally {
     setLoading(btn, false);
   }
@@ -2751,6 +2815,43 @@ loginForm.addEventListener('submit', async (e) => {
     setLoading(btn, false);
   }
 });
+document.getElementById('loginGoogleBtn')?.addEventListener('click', async () => {
+  const btn = document.getElementById('loginGoogleBtn');
+  setLoading(btn, true);
+  try {
+    const cred = await signInWithPopup(auth, googleProvider);
+    const memberSnap = await getDoc(doc(db, 'members', cred.user.uid));
+    if (memberSnap.exists()) {
+      // Returning resident — onAuthStateChanged fires from this same
+      // sign-in and loads their dashboard exactly like a password login
+      // would. Nothing further to do here.
+      showToast('Welcome back!', 'success');
+      return;
+    }
+    // No registration yet under this Google account — carry them straight
+    // into the registration form using this same session, rather than
+    // showing a dead-end message or making them sign in again.
+    googleAuthCred = cred;
+    showTab('register');
+    const f = document.getElementById('registerForm');
+    f.email.value = cred.user.email;
+    f.email.readOnly = true;
+    if (f.name && cred.user.displayName) f.name.value = cred.user.displayName;
+    document.getElementById('regGoogleWrap').style.display = 'none';
+    document.getElementById('regPasswordDivider').style.display = 'none';
+    document.getElementById('regPasswordFields').style.display = 'none';
+    document.getElementById('regGoogleConfirmed').style.display = 'block';
+    document.getElementById('regGoogleEmail').textContent = cred.user.email;
+    f.password.required = false;
+    f.confirmPassword.required = false;
+    showToast('No registration found for this Google account yet — let\'s get you set up!', 'info');
+  } catch (err) {
+    console.error('Google sign-in failed:', err);
+    if (err?.code !== 'auth/popup-closed-by-user' && err?.code !== 'auth/cancelled-popup-request') {
+      showToast(`Could not sign in with Google${err?.code ? ` (${err.code})` : ''}.`, 'error');
+    }
+  } finally { setLoading(btn, false); }
+});
 document.getElementById('forgotPasswordLink').addEventListener('click', async (e) => {
   e.preventDefault();
   const email = prompt('Send the reset link to which email?');
@@ -2769,6 +2870,12 @@ onAuthStateChanged(auth, async (user) => {
   const dash = document.getElementById('dashboard');
   const portal = document.getElementById('portal');
   const navBtn = document.getElementById('navAuthBtn');
+  // Mid-registration via Google (no member record yet, actively filling in
+  // the rest of the form) — stay on the registration screen. Without this,
+  // this listener would immediately switch to the dashboard's generic
+  // "couldn't find your registration" message the moment Google sign-in
+  // resolves, overriding the registration form just populated for them.
+  if (user && googleAuthCred && user.uid === googleAuthCred.user.uid) return;
   if (user) {
     window.__loggedIn = true;
     document.body.classList.add('logged-in');   // focus mode: hide marketing sections

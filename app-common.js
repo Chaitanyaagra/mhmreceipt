@@ -117,7 +117,7 @@ export function validatePayment({ amount, mode, utr, isOffline }) {
  * people for details after the fact.
  * @returns {string|null} an error message, or null when the form is valid.
  */
-export function validateRegistration(f) {
+export function validateRegistration(f, skipPassword = false) {
   const val = (k) => String(f[k]?.value ?? '').trim();
   const name = val('name');
   const father = val('fatherHusbandName');
@@ -160,8 +160,10 @@ export function validateRegistration(f) {
   // member's edit screen, same as before.
   if (!f.photo || !f.photo.files || f.photo.files.length === 0) return { field: 'photo', message: 'Please upload a photo.' };
 
-  if (f.password.value.length < 6) return { field: 'password', message: 'Password must be at least 6 characters.' };
-  if (f.password.value !== f.confirmPassword.value) return { field: 'confirmPassword', message: 'Passwords do not match.' };
+  if (!skipPassword) {
+    if (f.password.value.length < 6) return { field: 'password', message: 'Password must be at least 6 characters.' };
+    if (f.password.value !== f.confirmPassword.value) return { field: 'confirmPassword', message: 'Passwords do not match.' };
+  }
   if (!f.declaration.checked) return { field: 'declaration', message: 'Please check the declaration to continue.' };
   return null;
 }
@@ -576,6 +578,21 @@ export function tsMillis(ts) {
    must not allocate a DOM node each time — the old createElement version was
    measurably the slowest thing in renderMembersTable(). */
 const HTML_ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+/* Smart multi-word search: every word in the term must appear SOMEWHERE in
+   the combined searchable text, not necessarily adjacent or in the same
+   order. A single substring check on the whole phrase ("chaitanya b004")
+   would never match text like "Chaitanya Agrawal B 004" — splitting into
+   words and requiring each one to be found independently is what makes
+   "first name + flat number", "last name + mobile", etc. all work as a
+   search, not just an exact copy-pasted phrase. Each word is still a plain
+   substring match, so partial words ("chait") still work too. */
+export function smartMatch(searchableText, term) {
+  const words = String(term || '').toLowerCase().trim().split(/\s+/).filter(Boolean);
+  if (!words.length) return true;
+  const haystack = String(searchableText || '').toLowerCase();
+  return words.every(w => haystack.includes(w));
+}
+
 export function escapeHtml(str) {
   return String(str ?? '').replace(/[&<>"']/g, (c) => HTML_ESCAPES[c]);
 }

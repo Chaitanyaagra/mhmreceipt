@@ -8,7 +8,7 @@
    Bump CACHE_NAME on any future structural change to force a clean cache.
    ========================================================================== */
 
-const CACHE_NAME = 'mhmrws-shell-v72';
+const CACHE_NAME = 'mhmrws-shell-v75';
 const SHELL_FILES = [
   './',
   './index.html',

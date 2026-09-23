@@ -337,6 +337,7 @@
 
       <div class="nav-section-label">Community</div>
       <button data-view="members"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-members"/></svg></span> Members<span class="nav-badge" id="navBadgeMembers" style="display:none;">0</span></button>
+      <button data-view="pets"><span class="icon" style="font-size:16px; display:flex; align-items:center; justify-content:center;">🐾</span> Pets</button>
       <button data-view="complaints"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-complaints"/></svg></span> Complaints</button>
       <button data-view="community"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-community"/></svg></span> Community<span class="nav-badge" id="navBadgeCommunity" style="display:none;">0</span></button>
       <button data-view="content"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-content"/></svg></span> Notices &amp; Committee</button>
@@ -553,6 +554,11 @@
         <div id="apMembersList"></div>
       </div>
 
+      <div class="card card-pad" id="apPaymentsCard" style="margin-bottom:16px; display:none;">
+        <h3 style="font-size:14.5px; margin-bottom:10px;">Payments</h3>
+        <div id="apPaymentsList"></div>
+      </div>
+
       <div class="card card-pad" id="apBookingsCard" style="margin-bottom:16px; display:none;">
         <h3 style="font-size:14.5px; margin-bottom:10px;">Facility Bookings</h3>
         <div id="apBookingsList"></div>
@@ -600,6 +606,37 @@
         </table>
       </div>
       <div class="pager" id="membersPager"></div>
+    </div>
+
+    <!-- ---------------- PETS ---------------- -->
+    <div class="view-panel" id="view-pets">
+      <div class="topbar"><h2 class="view-title">Pets</h2>
+        <div class="action-row">
+          <button class="btn btn-primary btn-sm" id="addPetAdminBtn">+ Add Pet</button>
+        </div>
+      </div>
+      <div class="toolbar card card-pad">
+        <input class="grow" id="petSearch" type="search" placeholder="Search pet name, owner, flat or mobile…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+        <select id="filterPetTower"><option value="">All Towers</option></select>
+        <select id="filterPetSpecies">
+          <option value="">All Species</option>
+          <option value="dog">Dog</option>
+          <option value="cat">Cat</option>
+          <option value="bird">Bird</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+      <div id="petsTowerSummary" style="display:none;"></div>
+      <div id="petsTowerBackWrap" style="display:none; margin-bottom:10px;">
+        <button class="btn btn-outline btn-sm" id="petsTowerBack">← All Towers</button>
+      </div>
+      <div class="table-wrap responsive" id="petsTableWrap">
+        <table>
+          <thead><tr><th></th><th>Pet</th><th>Species</th><th>Owner</th><th>Flat / Tower</th><th>Vaccination</th><th></th></tr></thead>
+          <tbody id="petsTableBody"><tr><td colspan="7" class="t-muted">Loading…</td></tr></tbody>
+        </table>
+      </div>
+      <div class="pager" id="petsPager"></div>
     </div>
 
     <!-- ---------------- PAYMENTS ---------------- -->
@@ -1115,6 +1152,11 @@
           <div class="card card-pad stat-card"><div class="num" id="reconMatchedPct">—</div><div class="lbl">Reconciled</div></div>
           <div class="card card-pad stat-card"><div class="num" id="reconMatchedCount">—</div><div class="lbl">Matched</div></div>
           <div class="card card-pad stat-card"><div class="num" id="reconUnmatchedCount">—</div><div class="lbl">Unmatched</div></div>
+        </div>
+        <div class="card card-pad" id="suspenseCard" style="margin-bottom:20px; display:none;">
+          <h3 style="font-size:14.5px; margin-bottom:4px;">🗂 Suspense Account</h3>
+          <p class="t-muted" style="font-size:12px; margin-bottom:12px;">Money that's genuinely arrived but isn't attributed to a resident yet. Assign each one once you've identified whose payment it was.</p>
+          <div id="suspenseList"></div>
         </div>
         <div class="card card-pad" style="margin-bottom:20px;">
           <h3 style="font-size:14.5px; margin-bottom:12px;">Add Bank Transaction</h3>
@@ -1763,6 +1805,7 @@
           <label for="rpTxDate">Transaction Date <span class="t-muted" style="font-weight:400;">(when the money actually moved — for bank reconciliation)</span></label>
           <input type="date" id="rpTxDate" required>
         </div>
+        <div id="rpSuspenseNote" class="callout callout-info" style="display:none; font-size:12.5px; margin-bottom:12px;"></div>
         <div class="field" id="rpChequeWrap" style="display:none;">
           <label for="rpCheque" id="rpChequeLabel">Cheque number</label>
           <input type="text" id="rpCheque" placeholder="Cheque no." maxlength="40">
@@ -1776,6 +1819,27 @@
         </div>
         <button class="btn btn-primary btn-block" type="submit" id="rpSubmit">Record &amp; Issue Receipt</button>
       </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="petAdminModalBackdrop">
+  <div class="modal">
+    <div class="modal-head"><h3 style="font-size:16.5px;" id="petAdminModalTitle">Add Pet</h3><button class="icon-btn" id="closePetAdminModal">✕</button></div>
+    <div id="petAdminOwnerPicker" class="field">
+      <label for="paOwner">Owner (Resident)</label>
+      <input type="text" id="paOwner" placeholder="Search by name, flat, or mobile" autocomplete="off">
+      <input type="hidden" id="paOwnerUid">
+      <div id="paOwnerDropdown" class="rp-member-dropdown"></div>
+    </div>
+    <div id="petAdminOwnerDisplay" class="field" style="display:none;">
+      <label>Owner</label>
+      <div id="petAdminOwnerText" style="font-weight:600; font-size:14px;"></div>
+    </div>
+    <div id="petAdminEditorContainer"></div>
+    <div style="display:flex; gap:10px; margin-top:14px;">
+      <button class="btn btn-primary btn-sm" id="savePetAdminBtn">Save</button>
+      <button class="btn btn-outline btn-sm" id="cancelPetAdminBtn">Cancel</button>
     </div>
   </div>
 </div>
@@ -1960,7 +2024,7 @@ import {
   ref as storageRef, uploadBytes, getDownloadURL, getStorage, deleteObject
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-storage.js";
 import {
-  showToast, escapeHtml, fmtDate, fmtDateTime, formatINR, currentFinancialYear, financialYearOptions,
+  showToast, escapeHtml, smartMatch, fmtDate, fmtDateTime, formatINR, currentFinancialYear, financialYearOptions,
   generateMemberId, generateReceiptNumber, generateReceiptNumberAtomic, logAudit, generateReceiptPDF, generateIncomeExpenditurePDF, exportToExcel, parseExcelFile, PAYMENT_DEFAULTS, sanitizeUrl, safeStorageFilename, flatClaimId, findBlockingFlatClaim, generatePetId,
   encryptFile, decryptToBlob, backupToDrive, waLink, waShareText, serializeForExport,
   newPublicToken, publicKeyForMember,
@@ -2047,13 +2111,13 @@ const ROLE_LABELS = {
   secretary: 'Secretary', jointsecretary: 'Joint Secretary', treasurer: 'Treasurer'
 };
 const ROLE_NAV = {
-  superadmin: ['overview','approvals','members','payments','events','expenses','content','calendar','complaints','community','vendors','gateSecurity','facilityStaff','operations','polls','financials','importExport','settings','adminUsers','auditLog'],
+  superadmin: ['overview','approvals','members','pets','payments','events','expenses','content','calendar','complaints','community','vendors','gateSecurity','facilityStaff','operations','polls','financials','importExport','settings','adminUsers','auditLog'],
   // Office-bearers can see where the money went even though only the
   // Treasurer may record it — that visibility is the point of the ledger.
-  president: ['overview','approvals','members','events','expenses','content','calendar','complaints','community','gateSecurity','facilityStaff','operations','polls','auditLog'],
-  secretary: ['overview','approvals','members','events','expenses','content','calendar','complaints','community','gateSecurity','facilityStaff','operations','polls','auditLog'],
-  jointsecretary: ['overview','approvals','members','events','expenses','content','calendar','complaints','community','gateSecurity','facilityStaff','operations','polls','auditLog'],
-  treasurer: ['overview','approvals','members','payments','events','expenses','calendar','community','vendors','financials','importExport','auditLog']
+  president: ['overview','approvals','members','pets','events','expenses','content','calendar','complaints','community','gateSecurity','facilityStaff','operations','polls','auditLog'],
+  secretary: ['overview','approvals','members','pets','events','expenses','content','calendar','complaints','community','gateSecurity','facilityStaff','operations','polls','auditLog'],
+  jointsecretary: ['overview','approvals','members','pets','events','expenses','content','calendar','complaints','community','gateSecurity','facilityStaff','operations','polls','auditLog'],
+  treasurer: ['overview','approvals','members','pets','payments','events','expenses','calendar','community','vendors','financials','importExport','auditLog']
 };
 const ACTION_PERMS = {
   approveMembers: ['superadmin','president','secretary','jointsecretary'],
@@ -2353,6 +2417,10 @@ function switchView(view) {
     renderMembersTable();
     populateTowerFilter();
   }
+  if (view === 'pets' && typeof renderPetsSection === 'function') {
+    renderPetsSection();
+    populateTowerFilter();
+  }
   if (view === 'approvals' && typeof renderApprovalCenter === 'function') renderApprovalCenter();
   if (view === 'community' && !window.__communityLoaded) { window.__communityLoaded = true; loadCommunityData(); }
   if (view === 'vendors' && !window.__vendorsLoaded) { window.__vendorsLoaded = true; loadVendorsPanel(); }
@@ -2415,15 +2483,16 @@ function performUniversalSearch(term) {
   const t = term.trim().toLowerCase();
   if (t.length < 2) { results.classList.remove('open'); results.innerHTML = ''; usearchActions = []; return; }
 
-  const memberMatches = (allMembers || []).filter(m =>
-    `${m.name} ${m.flatNumber} ${m.tower} ${m.mobile} ${m.memberID || ''}`.toLowerCase().includes(t)
-  ).slice(0, 6);
+  const memberMatches = (allMembers || []).filter(m => {
+    const familyNames = (m.familyMembers || []).map(fm => fm.name).join(' ');
+    return smartMatch(`${m.name} ${m.tower} ${m.flatNumber} ${m.mobile} ${m.memberID || ''} ${familyNames}`, t);
+  }).slice(0, 6);
   const paymentMatches = (allPayments || []).filter(p =>
-    `${p.residentName} ${p.flatNumber} ${p.receiptNumber || ''}`.toLowerCase().includes(t)
+    smartMatch(`${p.residentName} ${p.tower || ''} ${p.flatNumber} ${p.receiptNumber || ''} ${p.utrOrChequeNo || ''}`, t)
   ).slice(0, 6);
-  const eventMatches = (allEvents || []).filter(ev => `${ev.name || ''}`.toLowerCase().includes(t)).slice(0, 6);
+  const eventMatches = (allEvents || []).filter(ev => smartMatch(`${ev.name || ''}`, t)).slice(0, 6);
   const expenseMatches = (allExpenses || []).filter(e =>
-    `${e.description || ''} ${e.paidTo || ''}`.toLowerCase().includes(t)
+    smartMatch(`${e.description || ''} ${e.paidTo || ''}`, t)
   ).slice(0, 6);
 
   const groups = [
@@ -4018,16 +4087,22 @@ function populateTowerFilter() {
   document.getElementById('filterTower').innerHTML = optionsHtml;
   const paymentTowerSel = document.getElementById('filterPaymentTower');
   if (paymentTowerSel) paymentTowerSel.innerHTML = optionsHtml;
+  const petTowerSel = document.getElementById('filterPetTower');
+  if (petTowerSel) petTowerSel.innerHTML = optionsHtml;
 }
 
 function filteredMembers() {
-  const term = document.getElementById('memberSearch').value.toLowerCase();
+  const term = document.getElementById('memberSearch').value;
   const tower = document.getElementById('filterTower').value;
   const status = document.getElementById('filterStatus').value;
   return allMembers.filter(m => {
     if (status && m.status !== status) return false;
     if (tower && m.tower !== tower) return false;
-    if (term && !`${m.name} ${m.flatNumber} ${m.mobile} ${m.memberID || ''}`.toLowerCase().includes(term)) return false;
+    if (term) {
+      const familyNames = (m.familyMembers || []).map(fm => fm.name).join(' ');
+      const searchable = `${m.name} ${m.tower} ${m.flatNumber} ${m.mobile} ${m.memberID || ''} ${m.email || ''} ${familyNames}`;
+      if (!smartMatch(searchable, term)) return false;
+    }
     return true;
   });
 }
@@ -4060,6 +4135,7 @@ function updateNavBadges() {
   const apBadge = document.getElementById('navBadgeApprovals');
   if (apBadge) {
     const n = allMembers.filter(m => m.status === 'pending').length
+            + (can('verifyPayments') ? allPayments.filter(p => p.status === 'pending_approval' || p.status === 'pending_verification').length : 0)
             + (typeof allBookings !== 'undefined' ? allBookings : []).filter(b => b.status === 'pending').length
             + (typeof allExpenses !== 'undefined' ? allExpenses : []).filter(e => e.status === 'pending_approval').length;
     apBadge.textContent = n > 99 ? '99+' : String(n);
@@ -5023,7 +5099,7 @@ const PAYMENTS_PAGE_SIZE = 25;
 let allPaymentsPage = 1;
 document.getElementById('paymentSearch')?.addEventListener('input', () => { allPaymentsPage = 1; renderAllPayments(); });
 function renderAllPayments() {
-  const term = document.getElementById('paymentSearch')?.value.trim().toLowerCase() || '';
+  const term = document.getElementById('paymentSearch')?.value.trim() || '';
   const tower = document.getElementById('filterPaymentTower')?.value || '';
   const summaryEl = document.getElementById('paymentsTowerSummary');
   const backWrap = document.getElementById('paymentsTowerBackWrap');
@@ -5060,7 +5136,7 @@ function renderAllPayments() {
   let rows = [...allPayments].sort((a, b) => (b.submittedAt?.seconds || 0) - (a.submittedAt?.seconds || 0));
   if (tower) rows = rows.filter(p => p.tower === tower);
   if (term) {
-    rows = rows.filter(p => `${p.residentName} ${p.tower || ''} ${p.flatNumber} ${p.receiptNumber || ''}`.toLowerCase().includes(term));
+    rows = rows.filter(p => smartMatch(`${p.residentName} ${p.tower || ''} ${p.flatNumber} ${p.receiptNumber || ''} ${p.utrOrChequeNo || ''}`, term));
   }
   const badge = { pending_approval: 'badge-warning', pending_verification: 'badge-warning', verified: 'badge-success', rejected: 'badge-danger', voided: 'badge-neutral' };
   const body = document.getElementById('allPaymentsBody');
@@ -5098,6 +5174,257 @@ document.getElementById('paymentsTowerBack')?.addEventListener('click', () => {
   renderAllPayments();
 });
 document.getElementById('filterPaymentTower')?.addEventListener('change', () => { allPaymentsPage = 1; renderAllPayments(); });
+
+/* ---------------------------------------------------------------------- */
+/*  Pets                                                                   */
+/* ---------------------------------------------------------------------- */
+let petsPage = 1;
+const PETS_PAGE_SIZE = 25;
+
+function renderPetsSection() {
+  const term = document.getElementById('petSearch')?.value.trim() || '';
+  const tower = document.getElementById('filterPetTower')?.value || '';
+  const species = document.getElementById('filterPetSpecies')?.value || '';
+  const summaryEl = document.getElementById('petsTowerSummary');
+  const backWrap = document.getElementById('petsTowerBackWrap');
+  const tableWrap = document.getElementById('petsTableWrap');
+  const pager = document.getElementById('petsPager');
+
+  // Same reasoning as Members/Payments: pure default browse (nothing
+  // searched, filtered, or drilled into) shows towers first. A search or
+  // species filter jumps straight to matching results across all towers.
+  if (!term && !tower && !species) {
+    summaryEl.style.display = 'grid';
+    backWrap.style.display = 'none';
+    tableWrap.style.display = 'none';
+    if (pager) pager.innerHTML = '';
+    summaryEl.innerHTML = TOWER_IDS.map(t => {
+      const count = allPets.filter(p => p.tower === t).length;
+      return `<button type="button" class="card card-pad tower-summary-card" data-pet-tower-pick="${escapeHtml(t)}">
+        <div style="font-size:20px; font-weight:700;">Tower ${escapeHtml(t)}</div>
+        <div class="t-muted" style="font-size:12.5px; margin-top:4px;">${count} pet${count === 1 ? '' : 's'}</div>
+      </button>`;
+    }).join('');
+    summaryEl.querySelectorAll('[data-pet-tower-pick]').forEach(b => b.addEventListener('click', () => {
+      document.getElementById('filterPetTower').value = b.dataset.petTowerPick;
+      petsPage = 1;
+      renderPetsSection();
+    }));
+    return;
+  }
+
+  summaryEl.style.display = 'none';
+  backWrap.style.display = tower ? 'flex' : 'none';
+  tableWrap.style.display = '';
+
+  const owners = new Map(allMembers.map(m => [m.uid || m.id, m]));
+  let rows = [...allPets];
+  if (tower) rows = rows.filter(p => p.tower === tower);
+  if (species) rows = rows.filter(p => p.species === species);
+  if (term) {
+    rows = rows.filter(p => {
+      const owner = owners.get(p.ownerUid);
+      return smartMatch(`${p.name} ${p.ownerName || ''} ${p.tower || ''} ${p.flatNumber || ''} ${owner?.mobile || ''} ${p.breed || ''}`, term);
+    });
+  }
+  rows.sort((a, b) => (a.tower || '').localeCompare(b.tower || '') || (a.flatNumber || '').localeCompare(b.flatNumber || ''));
+
+  const body = document.getElementById('petsTableBody');
+  if (!rows.length) {
+    body.innerHTML = `<tr><td colspan="7">${emptyState('No pets found', 'No pets match these filters.', { compact: true })}</td></tr>`;
+    if (pager) pager.innerHTML = '';
+    return;
+  }
+
+  const pages = Math.max(1, Math.ceil(rows.length / PETS_PAGE_SIZE));
+  if (petsPage > pages) petsPage = pages;
+  const slice = rows.slice((petsPage - 1) * PETS_PAGE_SIZE, petsPage * PETS_PAGE_SIZE);
+
+  const vaxBadge = { overdue: 'badge-danger', due_soon: 'badge-warning', fine: 'badge-success', unknown: 'badge-neutral' };
+  const vaxLabel = { overdue: 'Overdue', due_soon: 'Due soon', fine: 'Up to date', unknown: '—' };
+
+  body.innerHTML = slice.map(p => {
+    const st = petVaccinationStatus(p);
+    const owner = owners.get(p.ownerUid);
+    return `<tr>
+      <td data-label="">${p.photoURL ? `<img src="${escapeHtml(p.photoURL)}" alt="" style="width:36px; height:36px; border-radius:8px; object-fit:cover;">` : `<span style="font-size:22px;">${PET_ICON[p.species] || '🐾'}</span>`}</td>
+      <td data-label="Pet"><a href="#" class="name-link" data-edit-pet="${p.id}">${escapeHtml(p.name)}</a></td>
+      <td data-label="Species">${escapeHtml((p.species || '').charAt(0).toUpperCase() + (p.species || '').slice(1))}</td>
+      <td data-label="Owner">${owner ? `<a href="#" class="name-link" data-view-owner="${owner.id || owner.uid}">${escapeHtml(p.ownerName || owner.name)}</a>` : escapeHtml(p.ownerName || '—')}</td>
+      <td data-label="Flat / Tower">${escapeHtml(p.flatNumber || '')} / ${escapeHtml(p.tower || '')}</td>
+      <td data-label="Vaccination"><span class="badge ${vaxBadge[st.status]}">${vaxLabel[st.status]}</span></td>
+      <td data-label=""><button class="btn btn-outline btn-sm" data-delete-pet="${p.id}" title="Delete pet" aria-label="Delete pet">🗑</button></td>
+    </tr>`;
+  }).join('');
+
+  body.querySelectorAll('[data-edit-pet]').forEach(a => a.addEventListener('click', (e) => { e.preventDefault(); openPetAdminModal(a.dataset.editPet); }));
+  body.querySelectorAll('[data-view-owner]').forEach(a => a.addEventListener('click', (e) => { e.preventDefault(); switchView('members'); openMemberModal(a.dataset.viewOwner); }));
+  body.querySelectorAll('[data-delete-pet]').forEach(b => b.addEventListener('click', () => deletePetAdmin(b.dataset.deletePet)));
+
+  renderPager(pager, {
+    page: petsPage, pageSize: PETS_PAGE_SIZE, total: rows.length,
+    onPage: (p) => { petsPage = p; renderPetsSection();
+      document.getElementById('petsTableBody').scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
+  });
+}
+document.getElementById('petsTowerBack')?.addEventListener('click', () => {
+  document.getElementById('filterPetTower').value = '';
+  document.getElementById('petSearch').value = '';
+  document.getElementById('filterPetSpecies').value = '';
+  petsPage = 1;
+  renderPetsSection();
+});
+document.getElementById('filterPetTower')?.addEventListener('change', () => { petsPage = 1; renderPetsSection(); });
+document.getElementById('filterPetSpecies')?.addEventListener('change', () => { petsPage = 1; renderPetsSection(); });
+document.getElementById('petSearch')?.addEventListener('input', () => { petsPage = 1; renderPetsSection(); });
+
+async function deletePetAdmin(petId) {
+  const pet = allPets.find(p => p.id === petId);
+  if (!pet) return;
+  if (!confirm(`Delete "${pet.name}" (${pet.ownerName || 'owner'}, ${pet.tower}-${pet.flatNumber})? This cannot be undone.`)) return;
+  try {
+    if (pet.photoURL) {
+      try { await deleteObject(storageRef(storage, pet.photoURL)); } catch (e) { console.warn('Pet photo delete failed:', e?.code || e); }
+    }
+    await deleteDoc(doc(db, 'pets', petId));
+    await logAudit(auth.currentUser, 'delete_pet', { petId, name: pet.name, owner: pet.ownerName, flat: `${pet.tower}-${pet.flatNumber}` });
+    allPets = allPets.filter(p => p.id !== petId);
+    showToast('Pet deleted.', 'success');
+    renderPetsSection();
+  } catch (err) {
+    console.error('Delete pet failed:', err);
+    showToast(`Could not delete${err?.code ? ` (${err.code})` : ''}.`, 'error');
+  }
+}
+
+let petAdminEditingId = null;
+function openPetAdminModal(petId = null) {
+  petAdminEditingId = petId;
+  const pet = petId ? allPets.find(p => p.id === petId) : null;
+  document.getElementById('petAdminModalTitle').textContent = pet ? 'Edit Pet' : 'Add Pet';
+  const pickerWrap = document.getElementById('petAdminOwnerPicker');
+  const displayWrap = document.getElementById('petAdminOwnerDisplay');
+  const ownerUidField = document.getElementById('paOwnerUid');
+
+  if (pet) {
+    // ownerUid is locked once set (the rule enforces unchanged('ownerUid')
+    // on update) — showing it read-only here matches what's actually
+    // possible, rather than offering a picker that would silently fail.
+    pickerWrap.style.display = 'none';
+    displayWrap.style.display = 'block';
+    const owner = allMembers.find(m => (m.uid || m.id) === pet.ownerUid);
+    document.getElementById('petAdminOwnerText').textContent = `${pet.ownerName || owner?.name || '—'} — ${pet.tower}-${pet.flatNumber}`;
+    ownerUidField.value = pet.ownerUid;
+  } else {
+    pickerWrap.style.display = 'block';
+    displayWrap.style.display = 'none';
+    document.getElementById('paOwner').value = '';
+    ownerUidField.value = '';
+  }
+
+  const container = document.getElementById('petAdminEditorContainer');
+  initPetsEditor(container, pet ? [pet] : []);
+  if (!pet) addPetCard(container); // start with one blank card to fill in, matching the registration flow's own UX
+
+  document.getElementById('petAdminModalBackdrop').classList.add('open');
+}
+document.getElementById('addPetAdminBtn')?.addEventListener('click', () => openPetAdminModal());
+document.getElementById('closePetAdminModal')?.addEventListener('click', () => document.getElementById('petAdminModalBackdrop').classList.remove('open'));
+document.getElementById('cancelPetAdminBtn')?.addEventListener('click', () => document.getElementById('petAdminModalBackdrop').classList.remove('open'));
+
+// Owner search-select for Add mode — same pattern as Record Payment's member
+// picker (rpMember), duplicated with its own element IDs rather than
+// factored into a shared function, to keep this addition self-contained
+// and not risk touching the already-working rpMember wiring.
+(function initPetOwnerPicker() {
+  const input = document.getElementById('paOwner');
+  const uidField = document.getElementById('paOwnerUid');
+  const dropdown = document.getElementById('paOwnerDropdown');
+  if (!input || !dropdown) return;
+
+  function renderOwnerOptions(term) {
+    const approved = allMembers.filter(m => m.status === 'approved');
+    const matches = (term.trim()
+      ? approved.filter(m => {
+          const familyNames = (m.familyMembers || []).map(fm => fm.name).join(' ');
+          return smartMatch(`${m.name || ''} ${m.tower || ''} ${m.flatNumber || ''} ${m.memberID || ''} ${m.mobile || ''} ${familyNames}`, term);
+        })
+      : approved
+    ).slice(0, 50);
+
+    if (!matches.length) {
+      dropdown.innerHTML = '<div class="rp-member-empty">No approved member matches.</div>';
+    } else {
+      dropdown.innerHTML = matches.map(m => `
+        <button type="button" class="rp-member-option" data-uid="${escapeHtml(m.id || m.uid)}">
+          ${escapeHtml(m.name)}<span class="rp-flat">${escapeHtml(m.tower)}-${escapeHtml(m.flatNumber)}${m.memberID ? ' · ' + escapeHtml(m.memberID) : ''}</span>
+        </button>`).join('');
+    }
+    dropdown.classList.add('open');
+  }
+
+  input.addEventListener('input', () => { uidField.value = ''; renderOwnerOptions(input.value); });
+  input.addEventListener('focus', () => renderOwnerOptions(input.value));
+  dropdown.addEventListener('click', (e) => {
+    const opt = e.target.closest('.rp-member-option');
+    if (!opt) return;
+    const member = allMembers.find(m => (m.id || m.uid) === opt.dataset.uid);
+    if (!member) return;
+    input.value = `${member.name} — ${member.tower}-${member.flatNumber}`;
+    uidField.value = opt.dataset.uid;
+    dropdown.classList.remove('open');
+  });
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('#paOwner') && !e.target.closest('#paOwnerDropdown')) dropdown.classList.remove('open');
+  });
+})();
+
+document.getElementById('savePetAdminBtn')?.addEventListener('click', async () => {
+  const ownerUid = document.getElementById('paOwnerUid').value;
+  if (!ownerUid) { showToast('Please select the pet\'s owner (resident).', 'error'); return; }
+  const owner = allMembers.find(m => (m.uid || m.id) === ownerUid);
+  if (!owner) { showToast('Selected owner not found — please pick again.', 'error'); return; }
+
+  const container = document.getElementById('petAdminEditorContainer');
+  const [petData] = collectPets(container);
+  if (!petData) { showToast('Please enter the pet\'s name.', 'error'); return; }
+  delete petData.photoFile; // the file object itself never goes to Firestore
+
+  const btn = document.getElementById('savePetAdminBtn');
+  btn.disabled = true;
+  try {
+    let photoURL = petData.photoURL || null;
+    const fileInput = container.querySelector('.pet-photo');
+    const photoFile = fileInput?.files?.[0];
+    if (photoFile) {
+      const r = storageRef(storage, `petPhotos/${ownerUid}/${safeStorageFilename(photoFile.name)}`);
+      await uploadBytes(r, photoFile);
+      photoURL = await getDownloadURL(r);
+    }
+
+    if (petAdminEditingId) {
+      await updateDoc(doc(db, 'pets', petAdminEditingId), { ...petData, photoURL, updatedAt: serverTimestamp() });
+      await logAudit(auth.currentUser, 'edit_pet', { petId: petAdminEditingId, name: petData.name });
+      const idx = allPets.findIndex(p => p.id === petAdminEditingId);
+      if (idx > -1) allPets[idx] = { ...allPets[idx], ...petData, photoURL };
+      showToast('Pet updated.', 'success');
+    } else {
+      const petId = await generatePetId();
+      const ref = await addDoc(collection(db, 'pets'), {
+        ...petData, petId, ownerUid, ownerName: owner.name, tower: owner.tower, flatNumber: owner.flatNumber,
+        photoURL, createdAt: serverTimestamp(), updatedAt: serverTimestamp()
+      });
+      await logAudit(auth.currentUser, 'add_pet', { petId: ref.id, name: petData.name, owner: owner.name });
+      allPets.push({ id: ref.id, ...petData, petId, ownerUid, ownerName: owner.name, tower: owner.tower, flatNumber: owner.flatNumber, photoURL });
+      showToast('Pet added.', 'success');
+    }
+    document.getElementById('petAdminModalBackdrop').classList.remove('open');
+    renderPetsSection();
+  } catch (err) {
+    console.error('Save pet failed:', err);
+    showToast(`Could not save pet${err?.code ? ` (${err.code})` : ''}.`, 'error');
+  } finally { btn.disabled = false; }
+});
 
 document.getElementById('exportPaymentsBtn').addEventListener('click', () => {
   exportToExcel(serializeForExport(allPayments).map(p => ({
@@ -5366,7 +5693,11 @@ function checkMembershipAmountAndDuplicate() {
   const uid = document.getElementById('rpMemberUid')?.value;
   const member = uid ? allMembers.find(m => (m.id || m.uid) === uid) : null;
   const due = membershipDue(member || {}, member ? allPayments.filter(p => p.memberUid === (member.id || member.uid)) : [], maintenanceSettings);
-  document.getElementById('rpAmount').value = due.fee;
+  // readOnly only blocks typing, not a JS assignment — reassigning a
+  // suspense entry locks the amount to the real bank-credit amount, and
+  // this auto-fill must not silently overwrite that just because the admin
+  // picked "Membership" as the type.
+  if (!reassigningSuspenseId) document.getElementById('rpAmount').value = due.fee;
   if (member && due.cleared) {
     alert(`Membership fee already paid for ${member.name} (Flat ${member.tower}-${member.flatNumber}).\n\nPaid so far: ${formatINR(due.paid)} of ${formatINR(due.fee)}.\n\nIf you continue, this will be recorded as an ADDITIONAL membership payment for them. Please double-check before proceeding.`);
   }
@@ -5414,6 +5745,8 @@ async function verifyPayment(id) {
     showToast(`Verified! Receipt: ${receiptNumber}`, 'success');
     document.getElementById('paymentDetailModalBackdrop').classList.remove('open');
     await reloadPayments(); renderPendingPayments(); renderAllPayments(); renderOverview(); renderDefaulters();
+    updateNavBadges();
+    if (document.getElementById('view-approvals')?.classList.contains('active')) renderApprovalCenter();
     const payingMember = allMembers.find(x => x.uid === p.memberUid || x.id === p.memberUid);
     promptSendWhatsApp(
       payingMember?.mobile,
@@ -5436,6 +5769,8 @@ async function rejectPayment(id) {
     showToast('Payment has been rejected.', 'success');
     document.getElementById('paymentDetailModalBackdrop').classList.remove('open');
     await reloadPayments(); renderPendingPayments(); renderAllPayments();
+    updateNavBadges();
+    if (document.getElementById('view-approvals')?.classList.contains('active')) renderApprovalCenter();
   } catch (err) {
     console.error('Reject payment failed:', err);
     const code = err?.code || '';
@@ -5456,7 +5791,8 @@ async function rejectPayment(id) {
 /* ---------------------------------------------------------------------- */
 let recordPaymentInFlight = false;
 
-function openRecordPaymentModal() {
+let reassigningSuspenseId = null;
+function openRecordPaymentModal(reassignFromSuspense = null) {
   if (!can('verifyPayments')) { showToast('You do not have permission for this.', 'error'); return; }
   const f = document.getElementById('recordPaymentForm');
   f.reset();
@@ -5471,6 +5807,21 @@ function openRecordPaymentModal() {
   fySel.innerHTML = financialYearOptions(2, 1).map(fy =>
     `<option value="${fy}" ${fy === currentFinancialYear() ? 'selected' : ''}>FY ${fy}</option>`).join('');
   document.getElementById('rpTxDate').value = todayLocalISO();
+
+  reassigningSuspenseId = reassignFromSuspense?.id || null;
+  const noteEl = document.getElementById('rpSuspenseNote');
+  if (reassignFromSuspense) {
+    document.getElementById('rpAmount').value = reassignFromSuspense.amount;
+    document.getElementById('rpAmount').readOnly = true;
+    if (reassignFromSuspense.transactionDate) document.getElementById('rpTxDate').value = reassignFromSuspense.transactionDate;
+    if (noteEl) {
+      noteEl.style.display = 'block';
+      noteEl.textContent = `Assigning a ₹${formatINR(reassignFromSuspense.amount)} suspense entry to this resident — the amount is locked to what actually arrived. The suspense entry will be voided once this is saved.`;
+    }
+  } else {
+    document.getElementById('rpAmount').readOnly = false;
+    if (noteEl) noteEl.style.display = 'none';
+  }
 
   document.getElementById('recordPaymentModalBackdrop').classList.add('open');
 }
@@ -5487,13 +5838,11 @@ function openRecordPaymentModal() {
 
   function renderOptions(term) {
     const approved = allMembers.filter(m => m.status === 'approved');
-    const q = term.trim().toLowerCase();
-    const matches = (q
-      ? approved.filter(m =>
-          (m.name || '').toLowerCase().includes(q) ||
-          (m.flatNumber || '').toLowerCase().includes(q) ||
-          (m.tower || '').toLowerCase().includes(q) ||
-          (m.memberID || '').toLowerCase().includes(q))
+    const matches = (term.trim()
+      ? approved.filter(m => {
+          const familyNames = (m.familyMembers || []).map(fm => fm.name).join(' ');
+          return smartMatch(`${m.name || ''} ${m.tower || ''} ${m.flatNumber || ''} ${m.memberID || ''} ${m.mobile || ''} ${familyNames}`, term);
+        })
       : approved
     ).slice(0, 50); // enough to scroll through without rendering the whole society at once
 
@@ -5614,6 +5963,7 @@ async function submitRecordPayment(e) {
         remarks: note || null,
         submittedAt: serverTimestamp(),
         verifiedAt: serverTimestamp(),
+        ...(reassigningSuspenseId ? { reassignedFromSuspenseId: reassigningSuspenseId } : {}),
         // MUST equal request.auth.token.email exactly — the security rule for
         // this create path checks that. currentAdmin.email comes from the
         // admins/{uid} Firestore doc, which can silently drift from the actual
@@ -5642,6 +5992,21 @@ async function submitRecordPayment(e) {
     });
     showToast(`Payment recorded! Receipt: ${receiptNumber}`, 'success');
     document.getElementById('recordPaymentModalBackdrop').classList.remove('open');
+    if (reassigningSuspenseId) {
+      try {
+        await updateDoc(doc(db, 'payments', reassigningSuspenseId), {
+          status: 'voided', voidReason: `Reassigned to ${member.name} (Flat ${member.tower}-${member.flatNumber}) — receipt ${receiptNumber}`,
+          voidedBy: auth.currentUser.email, voidedAt: serverTimestamp()
+        });
+        await logAudit(auth.currentUser, 'reassign_suspense', { suspenseId: reassigningSuspenseId, newPaymentId: payRef.id, memberUid: member.uid, receiptNumber });
+      } catch (voidErr) {
+        console.error('Voiding the suspense entry failed (new payment is already recorded):', voidErr);
+        showToast('The new payment was recorded, but the old suspense entry could not be automatically voided — please void it manually from the Suspense Account list.', 'error');
+      }
+      reassigningSuspenseId = null;
+      document.getElementById('rpAmount').readOnly = false;
+      await loadBankReconciliation();
+    }
     await reloadPayments(); renderPendingPayments(); renderAllPayments(); renderOverview(); renderDefaulters();
   } catch (err) {
     console.error('Record payment failed:', err);
@@ -6088,6 +6453,30 @@ function renderApprovalCenter() {
     membersCard.querySelectorAll('[data-ap-review-member]').forEach(b => b.onclick = () => openMemberModal(b.dataset.apReviewMember));
   } else {
     membersCard.style.display = 'none';
+  }
+
+  const paymentsCard = document.getElementById('apPaymentsCard');
+  const pendingPaymentsForApproval = can('verifyPayments') ? allPayments.filter(p => p.status === 'pending_approval' || p.status === 'pending_verification') : [];
+  if (pendingPaymentsForApproval.length) {
+    anyShown = true;
+    paymentsCard.style.display = 'block';
+    document.getElementById('apPaymentsList').innerHTML = pendingPaymentsForApproval.map(p => `
+      <div class="list-edit-item" style="align-items:flex-start;">
+        <div>
+          <b style="font-size:13.5px;">${escapeHtml(p.residentName)}</b> — <span class="mono">${formatINR(p.amount)}</span>
+          <div class="t-muted" style="font-size:11.5px; margin-top:2px;">
+            ${escapeHtml(p.tower || '—')}-${escapeHtml(p.flatNumber || '—')} · ${escapeHtml((p.type || 'maintenance'))} · ${escapeHtml((p.mode || '').toUpperCase())}${p.utrOrChequeNo ? ' · ' + escapeHtml(p.utrOrChequeNo) : ''}
+          </div>
+        </div>
+        <div style="display:flex; gap:14px; flex-shrink:0; align-items:center;">
+          <button class="btn btn-primary btn-sm" data-ap-approve-pay="${p.id}">Verify</button>
+          <button class="btn btn-outline btn-sm" data-ap-reject-pay="${p.id}">Reject</button>
+        </div>
+      </div>`).join('');
+    paymentsCard.querySelectorAll('[data-ap-approve-pay]').forEach(b => b.onclick = () => withButtonLoading(b, 'Verifying…', () => verifyPayment(b.dataset.apApprovePay)));
+    paymentsCard.querySelectorAll('[data-ap-reject-pay]').forEach(b => b.onclick = () => withButtonLoading(b, 'Rejecting…', () => rejectPayment(b.dataset.apRejectPay)));
+  } else {
+    paymentsCard.style.display = 'none';
   }
 
   const bookingsCard = document.getElementById('apBookingsCard');
@@ -7580,6 +7969,7 @@ function renderBankReconciliation() {
   document.getElementById('reconMatchedPct').textContent = total ? `${Math.round((accountedFor / total) * 100)}%` : '—';
   document.getElementById('reconMatchedCount').textContent = accountedFor;
   document.getElementById('reconUnmatchedCount').textContent = total - accountedFor;
+  renderSuspenseList();
 
   document.getElementById('bankTxBody').innerHTML = txs.map(t => `
     <tr>
@@ -7592,13 +7982,15 @@ function renderBankReconciliation() {
       </td>
       <td data-label="Actions" style="white-space:nowrap;">
         ${(!t.status || t.status === 'unmatched')
-          ? `<button class="btn btn-outline btn-sm" data-match-tx="${t.id}">Match</button> <button class="btn btn-outline btn-sm" data-ignore-tx="${t.id}">Ignore</button>`
+          ? `<button class="btn btn-outline btn-sm" data-match-tx="${t.id}">Match</button> <button class="btn btn-outline btn-sm" data-ignore-tx="${t.id}">Ignore</button>${t.type === 'credit' ? ` <button class="btn btn-outline btn-sm" data-suspense-tx="${t.id}">Move to Suspense</button>` : ''}`
           : `<button class="btn btn-outline btn-sm" data-unmatch-tx="${t.id}">Undo</button>`}
         ${t.status !== 'matched' ? `<button class="btn btn-danger btn-sm" data-del-tx="${t.id}">Delete</button>` : ''}
       </td>
     </tr>
     <tr id="matchCandidates-${t.id}" style="display:none;"><td colspan="6"></td></tr>
   `).join('') || '<tr><td colspan="6" class="t-muted">No bank transactions added yet.</td></tr>';
+
+  document.querySelectorAll('[data-suspense-tx]').forEach(b => b.addEventListener('click', () => moveTxToSuspense(b.dataset.suspenseTx)));
 
   document.querySelectorAll('[data-match-tx]').forEach(b => b.addEventListener('click', () => showMatchCandidates(b.dataset.matchTx)));
   document.querySelectorAll('[data-ignore-tx]').forEach(b => b.addEventListener('click', () => setTxStatus(b.dataset.ignoreTx, 'ignored')));
@@ -7696,6 +8088,64 @@ async function matchTransaction(txId, candidate) {
       showToast(`Could not match${err?.code ? ` (${err.code})` : ''}.`, 'error');
     }
   }
+}
+
+// Suspense: a bank credit that's genuinely arrived but can't be matched to
+// any specific resident right now — money too real to ignore, but not yet
+// safe to attribute to anyone's dues. Creating this payment and matching it
+// to the bank line (reusing the same matchTransaction() every other match
+// goes through) closes the reconciliation loop immediately; identifying it
+// later happens separately, from the Suspense Account list.
+async function moveTxToSuspense(txId) {
+  const tx = (window.__bankTxs || []).find(t => t.id === txId);
+  if (!tx) return;
+  const notes = prompt(`Why can't this ₹${tx.amount} credit be matched to a resident right now? (e.g. "UTR doesn't match any resident's submission")`);
+  if (!notes || !notes.trim()) return;
+  try {
+    const ref = await addDoc(collection(db, 'payments'), {
+      type: 'suspense', amount: tx.amount, mode: 'netbanking', financialYear: currentFinancialYear(),
+      status: 'verified', recordedByAdmin: true, verifiedBy: auth.currentUser.email,
+      transactionDate: tx.date || null, notes: notes.trim(), submittedAt: serverTimestamp(), verifiedAt: serverTimestamp()
+    });
+    await logAudit(auth.currentUser, 'create_suspense_payment', { paymentId: ref.id, amount: tx.amount, txId });
+    allPayments.push({
+      id: ref.id, type: 'suspense', amount: tx.amount, mode: 'netbanking', financialYear: currentFinancialYear(),
+      status: 'verified', recordedByAdmin: true, verifiedBy: auth.currentUser.email,
+      transactionDate: tx.date || null, notes: notes.trim()
+    });
+    await matchTransaction(txId, { col: 'payments', id: ref.id, label: `Suspense — ${notes.trim().slice(0, 60)}` });
+  } catch (err) {
+    console.error('Move to suspense failed:', err);
+    showToast(`Could not move to suspense${err?.code ? ` (${err.code})` : ''}.`, 'error');
+  }
+}
+
+// Voided suspense entries have already been reassigned — status === 'verified'
+// is exactly "still unidentified, still waiting", so it needs no separate
+// tracking flag for whether an entry has been resolved yet.
+function renderSuspenseList() {
+  const card = document.getElementById('suspenseCard');
+  const list = document.getElementById('suspenseList');
+  if (!card || !list) return;
+  const entries = (allPayments || []).filter(p => p.type === 'suspense' && p.status === 'verified')
+    .sort((a, b) => (a.transactionDate || '').localeCompare(b.transactionDate || ''));
+
+  if (!entries.length) { card.style.display = 'none'; list.innerHTML = ''; return; }
+  card.style.display = 'block';
+  list.innerHTML = entries.map(p => `
+    <div class="list-edit-item" style="align-items:flex-start;">
+      <div>
+        <b style="font-size:13.5px;">${formatINR(p.amount)}</b>
+        <div class="t-muted" style="font-size:11.5px; margin-top:2px;">
+          ${p.transactionDate ? fmtDate(p.transactionDate) + ' · ' : ''}${escapeHtml(p.notes || '')}
+        </div>
+      </div>
+      <button class="btn btn-primary btn-sm" data-assign-suspense="${p.id}" style="flex-shrink:0;">Assign to Resident</button>
+    </div>`).join('');
+  list.querySelectorAll('[data-assign-suspense]').forEach(b => b.addEventListener('click', () => {
+    const entry = entries.find(p => p.id === b.dataset.assignSuspense);
+    if (entry) openRecordPaymentModal(entry);
+  }));
 }
 async function setTxStatus(txId, status, clearMatch = false) {
   try {

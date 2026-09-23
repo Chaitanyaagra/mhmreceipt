@@ -67,7 +67,7 @@ service firebase.storage {
     // a photo).
     match /petPhotos/{uid}/{fileName} {
       allow read: if isAdmin() || request.auth.uid == uid;
-      allow create, update: if request.auth.uid == uid
+      allow create, update: if (isAdmin() || request.auth.uid == uid)
                    && request.resource.size < 8 * 1024 * 1024
                    && isImageOrPdf();
       allow delete: if isAdmin() || request.auth.uid == uid;
