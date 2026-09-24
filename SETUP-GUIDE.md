@@ -243,8 +243,11 @@ Yeh feature society ke paid facility staff (Managing Staff, Supervisor) ke liye 
 8. Staff apni **Complaints** tab se koi bhi complaint (resident ka ho ya inspection se aaya ho) dekh sakte hain aur status "In Progress" → "Resolved" tak le ja sakte hain
 9. **Managing Staff** ko ek extra **Team** tab dikhta hai — yahan se woh decide kar sakte hain ki 7 towers ka daily checklist, Daily Security, Club House, aur Weekly MEP — in 10 slots mein se har ek **kis Supervisor (ya khud) ke zimme hai**. Jab tak koi slot "Unassigned" hai, koi bhi Supervisor use pick kar sakta hai — assign karne se woh sirf usी Supervisor (aur Managing Staff) ko dikhta hai, taaki kuch chhoot na jaaye
 10. Admin ko **Facility Staff** tab mein ek **Staff Performance** card dikhta hai — har staff member ke Inspections Filed, Checklist Quality (OK vs Issue %), Complaints Handled/Resolved, aur average resolution time se bana ek combined **Score**, saath mein ek chart. Ye poora automatically compute hota hai, kahin manually rating dalne ki zaroorat nahi
+11. Inspection checklist mein koi bhi item "Issue" mark hone par staff **photo aur tag** attach kar sakta hai — **critical items (fire safety, emergency exit, etc.) ke liye photo zaroori hai**, uske bina submit nahi hoga
+12. Complaint resolve karte waqt admin/staff ek **Resolution Photo** bhi attach kar sakte hain (evidence ki fix ho gaya), text-note ke saath
+13. Agar same jagah 30 din mein 2+ baar same issue aaye, to complaint list aur detail dono jagah **"🔁 Recurring"** badge apne aap dikhta hai — kahin manually track nahi karna padta
 
-⚠️ **Access hataana ho toh:** Facility Staff tab mein us staff member ko **Deactivate** karein — unka login turant band ho jayega, lekin unka naam purane inspections/complaints mein record ke liye reh jayega.
+⚠️ **Access hataana ho toh:** Facility Staff tab mein us staff member ko **Deactivate** karein — unka login turant band ho jayega, unke assigned inspection-slots automatically "Unassigned" ho jaate hain (taaki koi tower/checklist silently kisi aise ke naam na reh jaaye jo login hi nahi kar sakta), lekin unka naam purane inspections/complaints mein record ke liye reh jayega.
 
 ---
 

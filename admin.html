@@ -3203,6 +3203,20 @@ function complaintSlaStatus(c) {
   return 'on_track';
 }
 
+// Prior occurrences of the same title (a checklist item like "Fire System
+// OK" recurring, or a resident's own repeated wording) within the last 30
+// days — 2+ prior ones is the same recurring-issue signal the source
+// inspection app used (RECURRING_THRESHOLD=2, RECURRING_WINDOW_DAYS=30).
+function recurringCount(c) {
+  if (!c.title) return 0;
+  const ms = (ts) => ts?.seconds ? ts.seconds * 1000 : 0;
+  const created = ms(c.createdAt) || Date.now();
+  const cutoff = created - 30 * 24 * 3600000;
+  return (allComplaints || []).filter(c2 => c2.id !== c.id && c2.title === c.title
+    && ms(c2.createdAt) >= cutoff && ms(c2.createdAt) <= created
+  ).length;
+}
+
 async function loadComplaints() {
   try {
     allComplaints = (await getDocs(collection(db, 'complaints'))).docs.map(d => ({ id: d.id, ...d.data() }));
@@ -3242,7 +3256,7 @@ function renderComplaints() {
       <td data-label="Flat">${escapeHtml(c.tower || '—')}-${escapeHtml(c.flatNumber || '—')}</td>
       <td data-label="Category">${escapeHtml(COMPLAINT_CATEGORY_LABEL[c.category] || c.category || '—')}</td>
       <td data-label="Title">${escapeHtml(c.title)}</td>
-      <td data-label="Status"><span class="badge ${COMPLAINT_STATUS_BADGE[c.status] || 'badge-neutral'}">${escapeHtml(COMPLAINT_STATUS_LABEL[c.status] || c.status)}</span>${sla && SLA_BADGE[sla] ? SLA_BADGE[sla] : ''}</td>
+      <td data-label="Status"><span class="badge ${COMPLAINT_STATUS_BADGE[c.status] || 'badge-neutral'}">${escapeHtml(COMPLAINT_STATUS_LABEL[c.status] || c.status)}</span>${sla && SLA_BADGE[sla] ? SLA_BADGE[sla] : ''}${recurringCount(c) >= 2 ? '<span class="badge badge-warning" style="margin-left:6px;" title="Recurring — same issue reported before within 30 days">🔁 Recurring</span>' : ''}</td>
       <td data-label="Raised On">${fmtDate(c.createdAt)}</td>
     </tr>`;
   }).join('') || `<tr><td colspan="6" class="t-muted">No complaints.</td></tr>`;
@@ -3334,12 +3348,18 @@ function openComplaintDetail(id) {
   const escalationLine = (sla === 'breached' && escalateRole)
     ? `<div class="detail-line" style="background:#FDEDED; margin:0 -4px 8px; padding:8px 4px; border-radius:6px;"><span>⚠️ Escalate to</span><span><b>${escapeHtml(ESCALATION_ROLE_LABEL[escalateRole] || escalateRole)}</b></span></div>`
     : '';
+  const priorCount = recurringCount(c);
+  const ordinal = (n) => (n % 10 === 1 && n % 100 !== 11) ? n + 'st' : (n % 10 === 2 && n % 100 !== 12) ? n + 'nd' : (n % 10 === 3 && n % 100 !== 13) ? n + 'rd' : n + 'th';
+  const recurringLine = priorCount >= 2
+    ? `<div class="detail-line" style="background:#FDF3E2; margin:0 -4px 8px; padding:8px 4px; border-radius:6px;"><span>🔁 Recurring</span><span>${ordinal(priorCount + 1)} time in 30 days</span></div>`
+    : '';
   body.innerHTML = `
     <div class="spread" style="margin-bottom:10px;">
       <b style="font-size:15px;">${escapeHtml(c.title)}</b>
       <span><span class="badge ${COMPLAINT_STATUS_BADGE[c.status] || 'badge-neutral'}">${escapeHtml(COMPLAINT_STATUS_LABEL[c.status] || c.status)}</span>${slaLine}</span>
     </div>
     ${escalationLine}
+    ${recurringLine}
     <div class="detail-line"><span>Resident</span><span>${escapeHtml(c.raisedByName || '—')}</span></div>
     <div class="detail-line"><span>Flat</span><span>${escapeHtml(c.tower || '—')}-${escapeHtml(c.flatNumber || '—')}</span></div>
     ${c.location ? `<div class="detail-line"><span>Location</span><span>${c.location === 'common' ? 'Common Area' : 'Inside Flat'}</span></div>` : ''}
@@ -3348,6 +3368,7 @@ function openComplaintDetail(id) {
     <div style="margin:12px 0;"><div class="t-muted" style="font-size:12px; margin-bottom:4px;">Description</div><p style="font-size:13.5px; white-space:pre-wrap;">${escapeHtml(c.description)}</p></div>
     ${c.photoURL ? `<img src="${escapeHtml(c.photoURL)}" alt="" style="max-width:100%; border-radius:8px; margin-bottom:12px;">` : ''}
     ${c.resolutionNote ? `<div style="margin-bottom:12px;"><div class="t-muted" style="font-size:12px; margin-bottom:4px;">Resolution Note</div><p style="font-size:13.5px;">${escapeHtml(c.resolutionNote)}</p></div>` : ''}
+    ${c.resolutionPhotoURL ? `<div style="margin-bottom:12px;"><div class="t-muted" style="font-size:12px; margin-bottom:4px;">Resolution Photo</div><img src="${escapeHtml(c.resolutionPhotoURL)}" alt="" style="max-width:100%; border-radius:8px;"></div>` : ''}
     ${c.satisfactionRating ? `<div class="t-muted" style="font-size:12.5px; margin-bottom:12px;">Resident Rating: ${'⭐'.repeat(c.satisfactionRating)}</div>` : ''}
     ${c.assignedToName ? `<div class="detail-line"><span>Assigned To</span><span><b>${escapeHtml(c.assignedToName)}</b></span></div>` : ''}
     ${c.targetDate ? `<div class="detail-line"><span>Target Date</span><span>${escapeHtml(c.targetDate)}</span></div>` : ''}
@@ -3372,6 +3393,7 @@ function openComplaintDetail(id) {
         </select>
       </div>
       <div class="field"><label for="complaintNote">Note <span class="t-muted" style="font-weight:400;">(optional, shown to the resident)</span></label><textarea id="complaintNote" rows="2" maxlength="500"></textarea></div>
+      <div class="field"><label for="complaintResolutionPhoto">Resolution Photo <span class="t-muted" style="font-weight:400;">(optional — evidence it's fixed)</span></label><input type="file" id="complaintResolutionPhoto" accept="image/*"></div>
       <button class="btn btn-primary btn-block" id="complaintStatusSaveBtn">Save</button>
     ` : ''}
   `;
@@ -3384,17 +3406,23 @@ function openComplaintDetail(id) {
   document.getElementById('complaintStatusSaveBtn')?.addEventListener('click', () => {
     const newStatus = document.getElementById('complaintStatusSelect').value;
     const note = document.getElementById('complaintNote').value.trim();
-    updateComplaintStatus(id, newStatus, note);
+    const photoFile = document.getElementById('complaintResolutionPhoto')?.files?.[0] || null;
+    updateComplaintStatus(id, newStatus, note, photoFile);
   });
   document.getElementById('complaintDetailModalBackdrop').classList.add('open');
 }
 document.getElementById('closeComplaintDetailModal')?.addEventListener('click', () =>
   document.getElementById('complaintDetailModalBackdrop').classList.remove('open'));
 
-async function updateComplaintStatus(id, newStatus, note) {
+async function updateComplaintStatus(id, newStatus, note, photoFile) {
   try {
     const patch = { status: newStatus, updatedAt: serverTimestamp() };
     if (note) patch.resolutionNote = note;
+    if (photoFile) {
+      const r = storageRef(storage, `complaintPhotos/${auth.currentUser.uid}/resolution_${Date.now()}`);
+      await uploadBytes(r, photoFile);
+      patch.resolutionPhotoURL = await getDownloadURL(r);
+    }
     if (['resolved', 'closed'].includes(newStatus)) patch.resolvedAt = serverTimestamp();
     await updateDoc(doc(db, 'complaints', id), patch);
     await logAudit(auth.currentUser, 'update_complaint_status', { complaintId: id, newStatus });
@@ -4248,7 +4276,7 @@ function renderMembersTable() {
         <div class="t-muted" style="font-size:12px;">Total Member${totalMembers === 1 ? '' : 's'}</div>
       </div>` +
       TOWER_IDS.map(t => {
-      const count = allMembers.filter(m => m.tower === t).length;
+      const count = allMembers.filter(m => m.tower === t && m.status === 'approved').length;
       return `<button type="button" class="card card-pad tower-summary-card" data-tower-pick="${escapeHtml(t)}">
         <div style="font-size:20px; font-weight:700;">Tower ${escapeHtml(t)}</div>
         <div class="t-muted" style="font-size:12.5px; margin-top:4px;">${count} resident${count === 1 ? '' : 's'}</div>
@@ -4256,6 +4284,10 @@ function renderMembersTable() {
     }).join('');
     summaryEl.querySelectorAll('[data-tower-pick]').forEach(b => b.addEventListener('click', () => {
       document.getElementById('filterTower').value = b.dataset.towerPick;
+      // "Tower A residents" should mean its actual approved residents, not
+      // every pending/rejected registration attempt for a flat there too —
+      // clear this (back to "All Statuses") to see everyone in the tower.
+      document.getElementById('filterStatus').value = 'approved';
       membersPage = 1;
       renderMembersTable();
     }));
@@ -6511,10 +6543,15 @@ document.getElementById('pollForm')?.addEventListener('submit', async (e) => {
 
   btn.disabled = true;
   try {
-    await addDoc(collection(db, 'polls'), {
+    const pollRef = await addDoc(collection(db, 'polls'), {
       question, options, startTime: startDate, endTime: endDate,
       createdAt: serverTimestamp()
     });
+    // Best-effort: if this partially fails, the vote transaction itself
+    // (index.html) still creates whichever tally doc is missing on that
+    // option's first vote — same reasoning as the "no admin seed yet" path
+    // in the rules comment.
+    await Promise.all(options.map((_, i) => setDoc(doc(db, 'polls', pollRef.id, 'tally', String(i)), { count: 0 }).catch(() => {})));
     await logAudit(auth.currentUser, 'create_poll', { question, optionCount: options.length });
     showToast('Poll started.', 'success');
     f.reset();
@@ -7721,6 +7758,8 @@ function openInspectionDetail(id) {
           <div style="padding:6px 0; border-bottom:1px solid var(--line);">
             <div style="display:flex; justify-content:space-between; gap:8px;"><span style="font-size:12.5px;">${escapeHtml(it.label)}</span><span class="badge badge-danger">Issue</span></div>
             ${it.note ? `<div class="t-muted" style="font-size:11.5px; margin-top:2px;">${escapeHtml(it.note)}</div>` : ''}
+            ${it.tags?.length ? `<div style="margin-top:4px;">${it.tags.map(t => `<span class="badge badge-warning" style="margin-right:4px; font-size:10.5px;">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
+            ${it.photoURL ? `<img src="${escapeHtml(it.photoURL)}" alt="" style="max-width:160px; border-radius:6px; margin-top:6px; display:block;">` : ''}
           </div>`).join('') + `</div>` : ''}
         ${oks.length ? `<div class="t-muted" style="font-size:11.5px; margin-top:8px;">${oks.length} item${oks.length > 1 ? 's' : ''} OK: ${oks.map(it => escapeHtml(it.label)).join(', ')}</div>` : ''}
         ${unchecked.length ? `<div style="font-size:11.5px; margin-top:4px; color:var(--warning);">${unchecked.length} item${unchecked.length > 1 ? 's' : ''} left unchecked</div>` : ''}
@@ -8205,8 +8244,10 @@ async function loadPollsPanel() {
       // actually delivers on that. Capped at 500 (a Firestore batch's own
       // limit) — comfortably covers this society's whole membership.
       const votesSnap = await getDocs(collection(db, 'polls', pollId, 'votes'));
+      const tallySnap = await getDocs(collection(db, 'polls', pollId, 'tally'));
       const batch = writeBatch(db);
-      votesSnap.docs.slice(0, 499).forEach(d => batch.delete(d.ref));
+      votesSnap.docs.slice(0, 489).forEach(d => batch.delete(d.ref));
+      tallySnap.docs.forEach(d => batch.delete(d.ref));
       batch.delete(doc(db, 'polls', pollId));
       await batch.commit();
       await logAudit(auth.currentUser, 'delete_poll', { id: pollId, votesDeleted: votesSnap.size });

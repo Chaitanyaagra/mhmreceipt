@@ -917,9 +917,48 @@ service cloud.firestore {
                          ['security', 'housekeeping', 'maintenance', 'electrical', 'plumbing', 'noise', 'parking', 'other']
                       && request.resource.data.status == 'open'
                       && request.resource.data.source == 'inspection'
+                      && request.resource.data.priority in ['low', 'medium', 'high']
+                      // Same reasoning as the manual-log branch below: a
+                      // critical item marked "Issue" needs photographic
+                      // evidence, not just a text note, and this is a real
+                      // requirement rather than a UI-only suggestion.
+                      && (request.resource.data.priority == 'high'
+                          ? isNonEmptyString(request.resource.data.photoURL, 500)
+                          : isOptionalString(request.resource.data, 'photoURL', 500))
+                      && (absentOrNull(request.resource.data, 'tags')
+                          || (request.resource.data.tags is list && request.resource.data.tags.size() <= 7))
                       && request.resource.data.keys().hasOnly(
                            ['raisedByUid', 'title', 'description', 'category', 'status', 'source',
-                            'sourceInspectionId', 'priority', 'createdAt', 'updatedAt'])
+                            'sourceInspectionId', 'priority', 'photoURL', 'tags', 'createdAt', 'updatedAt'])
+                    ) || (
+                      isStaff()
+                      && request.resource.data.raisedByUid == request.auth.uid
+                      && isNonEmptyString(request.resource.data.title, 200)
+                      && isNonEmptyString(request.resource.data.description, 2000)
+                      && request.resource.data.category in
+                         ['security', 'housekeeping', 'maintenance', 'electrical', 'plumbing', 'noise', 'parking', 'other']
+                      && request.resource.data.status == 'open'
+                      && request.resource.data.source == 'staff-manual'
+                      && request.resource.data.priority in ['low', 'medium', 'high']
+                      // High priority needs photographic evidence — the
+                      // source app enforced this client-side only, which a
+                      // modified client could just skip; this makes it a
+                      // real requirement, not a UI suggestion.
+                      && (request.resource.data.priority == 'high'
+                          ? isNonEmptyString(request.resource.data.photoURL, 500)
+                          : isOptionalString(request.resource.data, 'photoURL', 500))
+                      && isOptionalString(request.resource.data, 'tower', 10)
+                      && isOptionalString(request.resource.data, 'location', 200)
+                      // Same free-text tag pool as the inspection branch
+                      // above (Fire Hazard, Slip Risk, etc.) — informational
+                      // categorization, not security-relevant, so this only
+                      // checks shape/size, not each tag against an exact
+                      // enum.
+                      && (absentOrNull(request.resource.data, 'tags')
+                          || (request.resource.data.tags is list && request.resource.data.tags.size() <= 7))
+                      && request.resource.data.keys().hasOnly(
+                           ['raisedByUid', 'title', 'description', 'category', 'status', 'source',
+                            'priority', 'photoURL', 'tags', 'tower', 'location', 'createdAt', 'updatedAt'])
                     );
       allow update: if (
                       // --- Committee: full control incl. assigning to staff
@@ -929,9 +968,10 @@ service cloud.firestore {
                       && unchanged('raisedByUid') && unchanged('title')
                       && unchanged('description') && unchanged('category') && unchanged('createdAt')
                       && request.resource.data.diff(resource.data).affectedKeys()
-                           .hasOnly(['status', 'resolutionNote', 'resolvedAt', 'updatedAt', 'assignedToUid', 'assignedToName', 'targetDate', 'assignedAt'])
+                           .hasOnly(['status', 'resolutionNote', 'resolutionPhotoURL', 'resolvedAt', 'updatedAt', 'assignedToUid', 'assignedToName', 'targetDate', 'assignedAt'])
                       && isValidComplaintStatus(request.resource.data.status)
                       && isOptionalString(request.resource.data, 'resolutionNote', 500)
+                      && isOptionalString(request.resource.data, 'resolutionPhotoURL', 500)
                     )
                     || (
                       // --- Staff assigning/routing work: only a Managing
@@ -963,9 +1003,10 @@ service cloud.firestore {
                       && unchanged('description') && unchanged('category') && unchanged('createdAt')
                       && unchanged('assignedToUid') && unchanged('targetDate')
                       && request.resource.data.diff(resource.data).affectedKeys()
-                           .hasOnly(['status', 'resolutionNote', 'resolvedAt', 'updatedAt'])
+                           .hasOnly(['status', 'resolutionNote', 'resolutionPhotoURL', 'resolvedAt', 'updatedAt'])
                       && request.resource.data.status in ['in_progress', 'resolved']
                       && isOptionalString(request.resource.data, 'resolutionNote', 500)
+                      && isOptionalString(request.resource.data, 'resolutionPhotoURL', 500)
                     )
                     || (
                       // --- Resident, rating a closed/resolved complaint (unchanged from before)
@@ -1044,6 +1085,38 @@ service cloud.firestore {
                     && request.resource.data.endTime is timestamp
                     && request.resource.data.endTime > request.resource.data.startTime;
       allow delete: if canApproveMembers();
+
+      // A public per-option tally, kept in step with votes/ by the same
+      // transaction that casts a vote (see index.html) — NOT a query over
+      // votes/ itself. That query would need to read every voter's document
+      // to sum them, and Firestore denies any query it can't prove is safe
+      // for every document it could touch: an owner-only rule (below) can
+      // never be proven safe for an unfiltered read of everyone ELSE's
+      // ballots, so the whole request is rejected outright for anyone who
+      // isn't isAdmin() — not silently filtered down to an empty result.
+      // That's what made results invisible to every resident: admin's own
+      // "read all votes" tally worked fine (isAdmin() makes the rule true
+      // regardless of which document it's evaluating), which is exactly why
+      // this stayed hidden — nothing in the admin-side testing path could
+      // have surfaced a resident-only failure.
+      match /tally/{optionIndex} {
+        allow read: if true;
+        // Two legal ways a document here comes to exist: the poll's own
+        // creator seeding every option at 0 when the poll is made, or a
+        // resident's vote transaction being the very first vote for that
+        // option (no admin seed to build on yet — same effect, just later).
+        // Never an arbitrary count.
+        allow create: if (canApproveMembers() && request.resource.data.count == 0 && request.resource.data.keys().hasOnly(['count']))
+                      || (isApprovedMember() && pollIsOpen(pollId) && request.resource.data.count == 1 && request.resource.data.keys().hasOnly(['count']));
+        // The ONLY legal update, ever: exactly +1, nothing else on the
+        // document changes. A resident cannot set this to any number of
+        // their choosing, decrement it, or touch any other field.
+        allow update: if isApprovedMember()
+                      && pollIsOpen(pollId)
+                      && request.resource.data.count == resource.data.count + 1
+                      && request.resource.data.keys().hasOnly(['count']);
+        allow delete: if isAdmin();
+      }
 
       match /votes/{voterUid} {
         // Only the voter's own read and admin tallying are allowed — any

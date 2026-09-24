@@ -121,14 +121,17 @@ if ('serviceWorker' in navigator) {
 </script>
 
 <script type="module">
-import { auth, db } from './firebase-config.js';
+import { auth, db, storage } from './firebase-config.js';
 import {
   signInWithEmailAndPassword, onAuthStateChanged, signOut, sendPasswordResetEmail
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
 import {
   doc, getDoc, addDoc, setDoc, updateDoc, collection, query, where, getDocs, orderBy, serverTimestamp, writeBatch
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { showToast, escapeHtml, fmtDate, fmtDateTime, TOWER_IDS, INSPECTION_TYPES, INSPECTION_SCHEDULE, INSPECTION_CRITICAL_ITEMS, inspectionSectionToComplaintCategory, STAFF_TRADES, dateToLocalISO } from './app-common.js';
+import {
+  ref as storageRef, uploadBytes, getDownloadURL
+} from "https://www.gstatic.com/firebasejs/12.18.0/firebase-storage.js";
+import { showToast, escapeHtml, fmtDate, fmtDateTime, TOWER_IDS, INSPECTION_TYPES, INSPECTION_SCHEDULE, INSPECTION_CRITICAL_ITEMS, DEFECT_TAG_OPTIONS, inspectionSectionToComplaintCategory, STAFF_TRADES, dateToLocalISO } from './app-common.js';
 import { installOfflineBanner } from './ui-a11y.js';
 import { installAppInstallPrompt } from './install-prompt.js';
 installOfflineBanner();
@@ -349,7 +352,9 @@ async function saveAssignment(sel) {
 /* ---------------------------------------------------------------------- */
 /*  Home tab                                                               */
 /* ---------------------------------------------------------------------- */
+let homeView = 'main';
 function renderHome() {
+  if (homeView === 'logIssue') { renderLogIssueForm(); return; }
   const openComplaints = myComplaints.filter(c => c.status === 'open' || c.status === 'in_progress').length;
   const complaintLabel = currentStaff.role === 'manager' ? 'Open complaints' : 'Assigned to me';
   const el = document.getElementById('tab-home');
@@ -366,9 +371,91 @@ function renderHome() {
       </div>
     </div>
     <button class="btn btn-primary" style="width:100%; margin-bottom:8px;" data-goto="inspect">+ Start an Inspection</button>
+    <button class="btn btn-outline" style="width:100%; margin-bottom:8px;" id="logIssueBtn">+ Log an Issue</button>
     <button class="btn btn-outline" style="width:100%;" data-goto="complaints">View Complaints</button>
   `;
   el.querySelectorAll('[data-goto]').forEach(b => b.onclick = () => showTab(b.dataset.goto));
+  document.getElementById('logIssueBtn').onclick = () => { homeView = 'logIssue'; renderHome(); };
+}
+
+/* ---------------------------------------------------------------------- */
+/*  Log an Issue — a standalone complaint a staff member raises directly, */
+/*  not tied to any inspection (something noticed while walking around).  */
+/* ---------------------------------------------------------------------- */
+function renderLogIssueForm() {
+  const el = document.getElementById('tab-home');
+  el.innerHTML = `
+    <div class="card card-pad" style="margin-bottom:12px;">
+      <b style="font-size:14.5px;">Log an Issue</b>
+      <p class="t-muted" style="font-size:12px; margin-top:4px;">For anything you noticed that isn't part of a checklist right now.</p>
+    </div>
+    <div class="field"><label for="liTitle">What's the issue?</label><input type="text" id="liTitle" placeholder="e.g. Broken tile near Gate 2"></div>
+    <div class="field"><label for="liDesc">Details</label><textarea id="liDesc" rows="3" placeholder="Describe what you saw…"></textarea></div>
+    <div class="field"><label for="liCategory">Category</label>
+      <select id="liCategory">
+        ${['security', 'housekeeping', 'maintenance', 'electrical', 'plumbing', 'noise', 'parking', 'other'].map(c => `<option value="${c}">${c[0].toUpperCase() + c.slice(1)}</option>`).join('')}
+      </select>
+    </div>
+    <div class="field"><label for="liPriority">Priority</label>
+      <select id="liPriority">
+        <option value="low">Low</option>
+        <option value="medium" selected>Medium</option>
+        <option value="high">High — needs a photo</option>
+      </select>
+    </div>
+    <div class="field"><label for="liTower">Tower (optional)</label>
+      <select id="liTower"><option value="">— Not tower-specific —</option>${TOWER_IDS.map(t => `<option value="${t}">${t}</option>`).join('')}</select>
+    </div>
+    <div class="field"><label for="liLocation">Location (optional)</label><input type="text" id="liLocation" placeholder="e.g. Basement parking, near lift"></div>
+    <div class="field"><label for="liPhoto">Photo <span id="liPhotoReq" class="t-muted" style="font-weight:400; display:none;">(required for High priority)</span></label><input type="file" id="liPhoto" accept="image/*"></div>
+    <button class="btn btn-primary" style="width:100%; margin-top:6px;" id="liSubmitBtn">Submit</button>
+    <button class="btn btn-outline" style="width:100%; margin-top:8px;" id="liCancelBtn">Cancel</button>
+  `;
+  const priSel = document.getElementById('liPriority');
+  const photoReqNote = document.getElementById('liPhotoReq');
+  priSel.addEventListener('change', () => { photoReqNote.style.display = priSel.value === 'high' ? '' : 'none'; });
+  document.getElementById('liCancelBtn').onclick = () => { homeView = 'main'; renderHome(); };
+  document.getElementById('liSubmitBtn').onclick = submitLogIssue;
+}
+
+async function submitLogIssue() {
+  const title = document.getElementById('liTitle').value.trim();
+  const description = document.getElementById('liDesc').value.trim();
+  const category = document.getElementById('liCategory').value;
+  const priority = document.getElementById('liPriority').value;
+  const tower = document.getElementById('liTower').value || null;
+  const location = document.getElementById('liLocation').value.trim() || null;
+  const photoFile = document.getElementById('liPhoto').files?.[0];
+  if (!title) { showToast('Please describe the issue.', 'error'); return; }
+  if (!description) { showToast('Please add some details.', 'error'); return; }
+  if (priority === 'high' && !photoFile) { showToast('High priority issues need a photo.', 'error'); return; }
+
+  const btn = document.getElementById('liSubmitBtn');
+  btn.disabled = true; btn.textContent = 'Submitting…';
+  try {
+    let photoURL = null;
+    if (photoFile) {
+      const r = storageRef(storage, `complaintPhotos/${currentStaff.uid}/issue_${Date.now()}`);
+      await uploadBytes(r, photoFile);
+      photoURL = await getDownloadURL(r);
+    }
+    const payload = {
+      raisedByUid: currentStaff.uid, title, description, category, status: 'open', source: 'staff-manual', priority,
+      createdAt: serverTimestamp(), updatedAt: serverTimestamp()
+    };
+    if (photoURL) payload.photoURL = photoURL;
+    if (tower) payload.tower = tower;
+    if (location) payload.location = location;
+    await addDoc(collection(db, 'complaints'), payload);
+    showToast('Issue logged.', 'success');
+    homeView = 'main';
+    await loadComplaints();
+    renderHome();
+  } catch (err) {
+    console.error('Log issue failed:', err);
+    showToast(`Could not submit${err?.code ? ` (${err.code})` : ''} — please try again.`, 'error');
+    btn.disabled = false; btn.textContent = 'Submit';
+  }
 }
 
 /* ---------------------------------------------------------------------- */
@@ -409,16 +496,29 @@ function startInspection(formType) {
   if (formType === 'daily-tower') {
     sections = tpl.floors.map(floor => ({
       title: floor + ' Floor',
-      items: tpl.floorItems.map(label => ({ label: floor + ' — ' + label, status: null, note: '', priority: 'medium' }))
+      items: tpl.floorItems.map(label => ({ label: floor + ' — ' + label, status: null, note: '', priority: INSPECTION_CRITICAL_ITEMS.has(label) ? 'high' : 'medium' }))
     }));
-    sections.push({ title: 'Additional Areas', items: tpl.additional.map(label => ({ label, status: null, note: '', priority: 'medium' })) });
+    sections.push({ title: 'Additional Areas', items: tpl.additional.map(label => ({ label, status: null, note: '', priority: INSPECTION_CRITICAL_ITEMS.has(label) ? 'high' : 'medium' })) });
   } else {
     sections = Object.values(tpl.sections).map(sec => ({
       title: sec.title,
       items: sec.items.map(label => ({ label, status: null, note: '', priority: INSPECTION_CRITICAL_ITEMS.has(label) ? 'high' : 'medium' }))
     }));
   }
-  draft = { formType, tower: null, sections, needsTower: formType === 'daily-tower' };
+  draft = { formType, tower: null, sections, needsTower: formType === 'daily-tower', verifiedBy: '', signatureDataUrl: null };
+  if (formType === 'weekly-mep') {
+    draft.tankData = {};
+    tpl.towers.forEach(t => { draft.tankData[t] = tpl.tankChecks.map(() => null); });
+    draft.readingsData = tpl.readings.map(() => '');
+    draft.maintenanceNotes = '';
+  }
+  if (formType === 'club-house') {
+    draft.complaintsNotes = '';
+    draft.incidentNotes = '';
+    draft.consentForms = '';
+    draft.gymAttendance = '';
+    draft.swimAttendance = '';
+  }
   renderChecklist();
 }
 
@@ -454,34 +554,201 @@ function renderChecklist() {
             ${it.status === 'issue' ? `
               <div class="chk-note">
                 <input type="text" placeholder="What's wrong? (optional note)" value="${escapeHtml(it.note)}" data-note="${si}:${ii}">
+              </div>
+              <div class="chk-note" style="margin-top:6px;">
+                <label style="font-size:11.5px; display:block; margin-bottom:3px;">Photo${it.priority === 'high' ? ' <span class="t-muted">(required — critical item)</span>' : ' <span class="t-muted">(optional)</span>'}</label>
+                <input type="file" accept="image/*" data-photo="${si}:${ii}">
+                ${it.photoFile ? `<div class="t-muted" style="font-size:11px; margin-top:3px;">📎 ${escapeHtml(it.photoFile.name)} attached</div>` : ''}
+              </div>
+              <div class="chk-note tag-row" style="margin-top:6px; display:flex; flex-wrap:wrap; gap:6px;">
+                ${DEFECT_TAG_OPTIONS.map((tag) => `<button type="button" class="btn btn-sm ${((it.tags || []).includes(tag)) ? 'btn-primary' : 'btn-outline'}" style="font-size:11px; padding:4px 8px;" data-tag="${si}:${ii}:${escapeHtml(tag)}">${escapeHtml(tag)}</button>`).join('')}
               </div>` : ''}
           </div>`).join('')}
       </div>`).join('')}
+    ${draft.formType === 'weekly-mep' ? `
+      <div class="chk-section">
+        <div class="chk-section-head">Terrace Water Tanks (Tower A–G)</div>
+        <div style="padding:10px 12px;">
+          ${INSPECTION_TYPES['weekly-mep'].towers.map(t => `
+            <div style="margin-bottom:12px;">
+              <div style="font-weight:700; font-size:13px; margin-bottom:6px;">Tower ${escapeHtml(t)}</div>
+              ${INSPECTION_TYPES['weekly-mep'].tankChecks.map((label, ci) => `
+                <div class="chk-row">
+                  <span class="chk-label">${escapeHtml(label)}</span>
+                  <span class="chk-toggle">
+                    <button type="button" class="chk-btn ${draft.tankData[t][ci] === true ? 'ok-on' : ''}" data-tank="${t}:${ci}:true">OK</button>
+                    <button type="button" class="chk-btn ${draft.tankData[t][ci] === false ? 'issue-on' : ''}" data-tank="${t}:${ci}:false">Issue</button>
+                  </span>
+                </div>`).join('')}
+            </div>`).join('')}
+        </div>
+      </div>
+      <div class="chk-section">
+        <div class="chk-section-head">Weekly Readings</div>
+        <div style="padding:10px 12px;">
+          ${INSPECTION_TYPES['weekly-mep'].readings.map((label, ri) => `
+            <div class="field"><label>${escapeHtml(label)}</label><input type="text" inputmode="decimal" value="${escapeHtml(draft.readingsData[ri])}" data-reading="${ri}"></div>`).join('')}
+        </div>
+      </div>
+      <div class="chk-section">
+        <div class="chk-section-head">Preventive Maintenance Carried Out This Week</div>
+        <div style="padding:10px 12px;"><textarea placeholder="Describe any preventive maintenance performed…" data-field="maintenanceNotes" rows="3" style="width:100%;">${escapeHtml(draft.maintenanceNotes)}</textarea></div>
+      </div>` : ''}
+    ${draft.formType === 'club-house' ? `
+      <div class="chk-section">
+        <div class="chk-section-head">Complaints Received Today</div>
+        <div style="padding:10px 12px;"><textarea placeholder="List any complaints received…" data-field="complaintsNotes" rows="2" style="width:100%;">${escapeHtml(draft.complaintsNotes)}</textarea></div>
+      </div>
+      <div class="chk-section">
+        <div class="chk-section-head">Daily Incident Report</div>
+        <div style="padding:10px 12px;"><textarea placeholder="Any incident / damage / emergency…" data-field="incidentNotes" rows="2" style="width:100%;">${escapeHtml(draft.incidentNotes)}</textarea></div>
+      </div>
+      <div class="chk-section">
+        <div class="chk-section-head">Attendance</div>
+        <div style="padding:10px 12px;">
+          <div class="field"><label>Consent Forms Attached (nos)</label><input type="text" inputmode="numeric" value="${escapeHtml(draft.consentForms)}" data-field="consentForms"></div>
+          <div class="field"><label>Gym Attendance (nos)</label><input type="text" inputmode="numeric" value="${escapeHtml(draft.gymAttendance)}" data-field="gymAttendance"></div>
+          <div class="field"><label>Swim Attendance (nos)</label><input type="text" inputmode="numeric" value="${escapeHtml(draft.swimAttendance)}" data-field="swimAttendance"></div>
+        </div>
+      </div>` : ''}
+    <div class="chk-section">
+      <div class="chk-section-head">Verification</div>
+      <div style="padding:10px 12px;">
+        <div class="field"><label for="inspVerifiedBy">Verified By (name)</label><input type="text" id="inspVerifiedBy" placeholder="Your name" value="${escapeHtml(draft.verifiedBy)}"></div>
+        <label style="display:block; font-size:12.5px; font-weight:600; margin:8px 0 4px;">Signature</label>
+        <canvas id="sigPad" style="width:100%; height:130px; border:1px solid var(--line, #E2E6EF); border-radius:8px; touch-action:none; background:#fff;"></canvas>
+        <button type="button" class="btn btn-outline btn-sm" id="sigClearBtn" style="margin-top:6px;">Clear Signature</button>
+      </div>
+    </div>
     <button class="btn btn-primary" style="width:100%; margin-top:8px;" id="submitInspBtn">Submit Inspection${issueCount ? ' (' + issueCount + ' issue' + (issueCount > 1 ? 's' : '') + ' will be logged as complaints)' : ''}</button>
   `;
   const towerSel = document.getElementById('inspTower');
   if (towerSel) { draft.tower = draft.tower || towerSel.value; towerSel.addEventListener('change', () => { draft.tower = towerSel.value; }); }
   el.querySelectorAll('[data-mark]').forEach(b => b.onclick = () => {
     const [si, ii, status] = b.dataset.mark.split(':');
-    draft.sections[si].items[ii].status = status;
+    const it = draft.sections[si].items[ii];
+    it.status = status;
+    if (status !== 'issue') { it.photoFile = null; it.photoURL = null; it.tags = []; }
     renderChecklist();
   });
   el.querySelectorAll('[data-note]').forEach(inp => inp.addEventListener('input', () => {
     const [si, ii] = inp.dataset.note.split(':');
     draft.sections[si].items[ii].note = inp.value;
   }));
+  el.querySelectorAll('[data-tank]').forEach(b => b.onclick = () => {
+    const [t, ci, val] = b.dataset.tank.split(':');
+    draft.tankData[t][ci] = draft.tankData[t][ci] === (val === 'true') ? null : (val === 'true');
+    renderChecklist();
+  });
+  el.querySelectorAll('[data-reading]').forEach(inp => inp.addEventListener('input', () => { draft.readingsData[inp.dataset.reading] = inp.value; }));
+  el.querySelectorAll('[data-tag]').forEach(b => b.onclick = () => {
+    const [si, ii, tag] = b.dataset.tag.split(':');
+    const it = draft.sections[si].items[ii];
+    it.tags = it.tags || [];
+    const idx = it.tags.indexOf(tag);
+    if (idx >= 0) it.tags.splice(idx, 1); else it.tags.push(tag);
+    renderChecklist();
+  });
+  el.querySelectorAll('[data-photo]').forEach(inp => inp.addEventListener('change', () => {
+    const [si, ii] = inp.dataset.photo.split(':');
+    draft.sections[si].items[ii].photoFile = inp.files?.[0] || null;
+    renderChecklist();
+  }));
+  el.querySelectorAll('[data-field]').forEach(inp => inp.addEventListener('input', () => { draft[inp.dataset.field] = inp.value; }));
+  document.getElementById('inspVerifiedBy')?.addEventListener('input', (e) => { draft.verifiedBy = e.target.value; });
+  initSignaturePad();
+  document.getElementById('sigClearBtn')?.addEventListener('click', clearSignaturePad);
   document.getElementById('submitInspBtn').onclick = submitInspection;
+}
+
+/* ---- signature pad: plain pointer-events drawing on a canvas, exported
+   as a PNG data URL at submit time. Uses Pointer Events (not separate
+   mouse/touch handlers) so the same code handles a mouse, a finger, or a
+   stylus identically. ---- */
+let sigCtx = null;
+let sigDrawing = false;
+let sigHasContent = false;
+function initSignaturePad() {
+  const canvas = document.getElementById('sigPad');
+  if (!canvas) { sigCtx = null; return; }
+  const rect = canvas.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = Math.max(1, rect.width * dpr);
+  canvas.height = Math.max(1, rect.height * dpr);
+  sigCtx = canvas.getContext('2d');
+  sigCtx.scale(dpr, dpr);
+  sigCtx.strokeStyle = '#0A1B33';
+  sigCtx.lineWidth = 2;
+  sigCtx.lineCap = 'round';
+  sigCtx.lineJoin = 'round';
+  sigHasContent = !!draft.signatureDataUrl;
+  // renderChecklist() replaces this canvas on every single re-render
+  // (marking any item, editing a reading, anything) — without restoring
+  // from the draft, a signature drawn before that would silently vanish
+  // the moment the user touched anything else on the form afterward.
+  if (draft.signatureDataUrl) {
+    const img = new Image();
+    img.onload = () => sigCtx.drawImage(img, 0, 0, rect.width, rect.height);
+    img.src = draft.signatureDataUrl;
+  }
+  const posFromEvent = (e) => {
+    const r = canvas.getBoundingClientRect();
+    return { x: e.clientX - r.left, y: e.clientY - r.top };
+  };
+  canvas.onpointerdown = (e) => {
+    sigDrawing = true;
+    sigHasContent = true;
+    const p = posFromEvent(e);
+    sigCtx.beginPath();
+    sigCtx.moveTo(p.x, p.y);
+    canvas.setPointerCapture(e.pointerId);
+  };
+  canvas.onpointermove = (e) => {
+    if (!sigDrawing) return;
+    const p = posFromEvent(e);
+    sigCtx.lineTo(p.x, p.y);
+    sigCtx.stroke();
+  };
+  const endStroke = () => {
+    if (!sigDrawing) return;
+    sigDrawing = false;
+    // Capture into the draft right away — this is what actually survives
+    // the next re-render, not the canvas pixels themselves.
+    draft.signatureDataUrl = canvas.toDataURL('image/png');
+  };
+  canvas.onpointerup = endStroke;
+  canvas.onpointerleave = endStroke;
+}
+function clearSignaturePad() {
+  const canvas = document.getElementById('sigPad');
+  if (!canvas || !sigCtx) return;
+  sigCtx.clearRect(0, 0, canvas.width, canvas.height);
+  sigHasContent = false;
+  draft.signatureDataUrl = null;
 }
 
 async function submitInspection() {
   if (draft.needsTower && !draft.tower) { showToast('Please select a tower.', 'error'); return; }
+  if (!draft.verifiedBy || !draft.verifiedBy.trim()) { showToast('Please enter who verified this inspection.', 'error'); return; }
   const allItems = draft.sections.flatMap(sec => sec.items.map(it => ({ ...it, section: sec.title })));
   const unchecked = allItems.filter(it => !it.status).length;
   if (unchecked > 0 && !confirm(unchecked + ' item(s) not marked yet. Submit anyway?')) return;
+  const missingRequiredPhoto = allItems.find(it => it.status === 'issue' && it.priority === 'high' && !it.photoFile);
+  if (missingRequiredPhoto) { showToast(`"${missingRequiredPhoto.label}" is a critical item marked Issue — please attach a photo before submitting.`, 'error'); return; }
 
   const btn = document.getElementById('submitInspBtn');
   btn.disabled = true; btn.textContent = 'Submitting…';
   try {
+    for (const sec of draft.sections) {
+      for (const it of sec.items) {
+        if (it.status === 'issue' && it.photoFile) {
+          const r = storageRef(storage, `complaintPhotos/${currentStaff.uid}/issue_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`);
+          await uploadBytes(r, it.photoFile);
+          it.photoURL = await getDownloadURL(r);
+        }
+      }
+    }
+    const freshItems = draft.sections.flatMap(sec => sec.items.map(it => ({ ...it, section: sec.title })));
     // One batch for the inspection AND every auto-created complaint — either
     // all of it lands, or none of it does. Previously each write was a
     // separate addDoc(): a network failure partway through the complaints
@@ -490,21 +757,41 @@ async function submitInspection() {
     // whole thing on top of that partial state.
     const batch = writeBatch(db);
     const inspRef = doc(collection(db, 'inspections'));
-    batch.set(inspRef, {
+    // PNG at the canvas's own (device-pixel-ratio-scaled) resolution is
+    // already small for a plain line drawing — a signature is a handful of
+    // KB at most, well inside the 900KB document-size rule even alongside a
+    // daily-tower inspection's ~170 checklist items.
+    const signatureDataUrl = draft.signatureDataUrl || null;
+    const payload = {
       formType: draft.formType,
       tower: draft.tower || null,
-      sections: draft.sections.map(sec => ({ title: sec.title, items: sec.items.map(it => ({ label: it.label, status: it.status || 'unchecked', note: it.note || null })) })),
-      issueCount: allItems.filter(it => it.status === 'issue').length,
+      sections: draft.sections.map(sec => ({ title: sec.title, items: sec.items.map(it => ({ label: it.label, status: it.status || 'unchecked', note: it.note || null, tags: it.tags?.length ? it.tags : null, photoURL: it.photoURL || null })) })),
+      issueCount: freshItems.filter(it => it.status === 'issue').length,
       createdByUid: currentStaff.uid,
       createdByName: currentStaff.name,
       status: 'submitted',
-      createdAt: serverTimestamp()
-    });
+      createdAt: serverTimestamp(),
+      verifiedBy: draft.verifiedBy.trim(),
+      signatureDataUrl
+    };
+    if (draft.formType === 'weekly-mep') {
+      payload.tankData = draft.tankData;
+      payload.readingsData = draft.readingsData;
+      payload.maintenanceNotes = draft.maintenanceNotes || null;
+    }
+    if (draft.formType === 'club-house') {
+      payload.complaintsNotes = draft.complaintsNotes || null;
+      payload.incidentNotes = draft.incidentNotes || null;
+      payload.consentForms = draft.consentForms || null;
+      payload.gymAttendance = draft.gymAttendance || null;
+      payload.swimAttendance = draft.swimAttendance || null;
+    }
+    batch.set(inspRef, payload);
 
     // Every flagged item becomes an ordinary complaint — same SLA/escalation
     // system a resident's complaint already goes through, tagged so it's
     // visually distinguishable in that list.
-    const issues = allItems.filter(it => it.status === 'issue');
+    const issues = freshItems.filter(it => it.status === 'issue');
     for (const it of issues) {
       const complaintRef = doc(collection(db, 'complaints'));
       batch.set(complaintRef, {
@@ -516,6 +803,8 @@ async function submitInspection() {
         source: 'inspection',
         sourceInspectionId: inspRef.id,
         priority: it.priority,
+        ...(it.photoURL ? { photoURL: it.photoURL } : {}),
+        ...(it.tags?.length ? { tags: it.tags } : {}),
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       });
@@ -579,6 +868,21 @@ function complaintSla(c) {
   return null;
 }
 
+// Same recurring-issue signal as admin.html's version (2+ prior occurrences
+// of the same title within 30 days) — only meaningful for a Managing Staff,
+// who has the full complaint queue in myComplaints; a Supervisor's
+// myComplaints is already filtered to just what's assigned to them, so this
+// naturally undercounts for that role rather than needing to be hidden.
+function recurringCount(c) {
+  if (!c.title) return 0;
+  const ms = (ts) => ts?.seconds ? ts.seconds * 1000 : 0;
+  const created = ms(c.createdAt) || Date.now();
+  const cutoff = created - 30 * 24 * 3600000;
+  return (myComplaints || []).filter(c2 => c2.id !== c.id && c2.title === c.title
+    && ms(c2.createdAt) >= cutoff && ms(c2.createdAt) <= created
+  ).length;
+}
+
 function renderComplaints() {
   const el = document.getElementById('tab-complaints');
   const isManager = currentStaff.role === 'manager';
@@ -604,7 +908,7 @@ function renderComplaints() {
           ${c.targetDate ? `<div class="t-muted" style="font-size:11px; margin-top:1px;">Target: ${escapeHtml(c.targetDate)}</div>` : ''}
           ${c.reopenNote ? `<div style="font-size:11px; margin-top:3px; color:var(--danger);">Reopened by resident: ${escapeHtml(c.reopenNote)}</div>` : ''}
         </div>
-        <span style="flex-shrink:0; text-align:right;"><span class="badge badge-${COMPLAINT_STATUS_BADGE[c.status] || 'neutral'}">${COMPLAINT_STATUS_LABEL[c.status] || c.status}</span>${slaBadge}</span>
+        <span style="flex-shrink:0; text-align:right;"><span class="badge badge-${COMPLAINT_STATUS_BADGE[c.status] || 'neutral'}">${COMPLAINT_STATUS_LABEL[c.status] || c.status}</span>${slaBadge}${isManager && recurringCount(c) >= 2 ? '<span class="badge badge-warning" style="margin-left:4px;">🔁</span>' : ''}</span>
       </div>
       ${isManager ? `
         <div style="display:flex; gap:6px; margin-top:8px; flex-wrap:wrap; align-items:center;">
@@ -615,11 +919,21 @@ function renderComplaints() {
           <input type="date" data-target-sel="${c.id}" value="${escapeHtml(c.targetDate || staffSuggestedTarget(c.category))}" style="font-size:12px; padding:5px 8px; border-radius:7px; border:1px solid var(--line);">
           <button class="btn btn-outline btn-sm" data-assign-save="${c.id}">Save</button>
         </div>` : ''}
-      ${canAct ? `<button class="btn btn-primary btn-sm" style="margin-top:8px;" data-advance="${c.id}" data-next="${COMPLAINT_STATUS_NEXT[c.status]}">Mark ${COMPLAINT_STATUS_LABEL[COMPLAINT_STATUS_NEXT[c.status]]}</button>` : ''}
+      ${canAct ? `
+        ${COMPLAINT_STATUS_NEXT[c.status] === 'resolved' ? `
+          <div style="margin-top:8px;">
+            <input type="text" data-resolve-note="${c.id}" placeholder="Resolution note (optional)" style="width:100%; font-size:12.5px; padding:6px 8px; border-radius:7px; border:1px solid var(--line); margin-bottom:6px;">
+            <input type="file" accept="image/*" data-resolve-photo="${c.id}" style="font-size:12px;">
+          </div>` : ''}
+        <button class="btn btn-primary btn-sm" style="margin-top:8px;" data-advance="${c.id}" data-next="${COMPLAINT_STATUS_NEXT[c.status]}">Mark ${COMPLAINT_STATUS_LABEL[COMPLAINT_STATUS_NEXT[c.status]]}</button>` : ''}
     </div>`;
   }).join('');
 
-  el.querySelectorAll('[data-advance]').forEach(b => b.onclick = () => advanceComplaint(b.dataset.advance, b.dataset.next));
+  el.querySelectorAll('[data-advance]').forEach(b => b.onclick = () => {
+    const note = el.querySelector(`[data-resolve-note="${b.dataset.advance}"]`)?.value?.trim() || '';
+    const photoFile = el.querySelector(`[data-resolve-photo="${b.dataset.advance}"]`)?.files?.[0] || null;
+    advanceComplaint(b.dataset.advance, b.dataset.next, note, photoFile);
+  });
   el.querySelectorAll('[data-assign-save]').forEach(b => b.onclick = () => {
     const id = b.dataset.assignSave;
     const staffId = el.querySelector(`[data-assign-sel="${id}"]`).value;
@@ -647,9 +961,15 @@ async function assignComplaintFromStaff(id, staff, targetDate) {
   }
 }
 
-async function advanceComplaint(id, nextStatus) {
+async function advanceComplaint(id, nextStatus, note, photoFile) {
   try {
     const payload = { status: nextStatus, updatedAt: serverTimestamp() };
+    if (note) payload.resolutionNote = note;
+    if (photoFile) {
+      const r = storageRef(storage, `complaintPhotos/${currentStaff.uid}/resolution_${Date.now()}`);
+      await uploadBytes(r, photoFile);
+      payload.resolutionPhotoURL = await getDownloadURL(r);
+    }
     if (nextStatus === 'resolved') payload.resolvedAt = serverTimestamp();
     await updateDoc(doc(db, 'complaints', id), payload);
     showToast(nextStatus === 'resolved' ? 'Marked resolved — the resident will be asked to confirm.' : 'Updated.', 'success');

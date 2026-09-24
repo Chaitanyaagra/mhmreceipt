@@ -6,7 +6,7 @@
    ========================================================================== */
 
 import { db } from './firebase-config.js';
-import { TOWER_PLAN, isValidFlat } from './tower-plan.js';
+import { TOWER_PLAN, TOWER_IDS, isValidFlat } from './tower-plan.js';
 import { AVATAR_PLACEHOLDER } from './avatar-placeholder.js';
 import {
   doc, getDoc, setDoc, addDoc, collection, runTransaction, serverTimestamp
@@ -753,7 +753,15 @@ export const INSPECTION_TYPES = {
       F: { title: 'Basement & Service Areas', items: ['Pump Room Housekeeping', 'Electrical Room', 'STP Room', 'DG Room', 'Lift Machine Room Checked', 'Parking Drainage', 'Water Leakage', 'Seepage', 'Ventilation'] },
       G: { title: 'Open Gym & Kids Play Area', items: ['Open Gym - All equipment structurally stable (no wobble / loose parts)', 'Open Gym - Moving parts operate smoothly (no jamming / grinding)', 'Open Gym - All bolts, nuts & fasteners tight, none missing', 'Open Gym - No sharp edges, broken welds or cracked metal', 'Open Gym - Paint / coating intact, no rust patches exposed', 'Open Gym - Rubber / foam grips in good condition', 'Open Gym - Flooring / rubber mat clean and intact', 'Open Gym - Area clean, no litter or hazard', 'Open Gym - Signage / usage instructions visible', 'Kids Play - All equipment structurally stable (no tilting / sinking)', 'Kids Play - Swing chains, ropes & hooks intact, no fraying', 'Kids Play - Slide surface smooth, no cracks or sharp edges', 'Kids Play - See-saw pivot balanced and secure', 'Kids Play - All bolts & fasteners tight, none protruding', 'Kids Play - No broken or missing components on any equipment', 'Kids Play - Rubber / soft fall-zone flooring intact', 'Kids Play - Area fencing / boundary secure', 'Kids Play - Area clean and litter-free'] },
       H: { title: 'Gardening & Landscaping', items: ['Podium Garden - Plants Watered & Healthy', 'Podium Garden - Dry/Dead Plants Removed', 'Podium Garden - Mulching Done', 'Podium Garden - Lawn Mowed & Edged', 'Podium Garden - Weeds Removed', 'Podium Garden - Fertilizer / Manure Applied', 'Open Parking - Planters Clean & Watered', 'Open Parking - Boundary Shrubs Trimmed', 'Open Parking - No Overgrowth on Walls', 'Open Parking - Lawn Patches Maintained', 'Club House - Garden Area Clean', 'Club House - Plants Healthy & Watered', 'Club House - Potted Plants Condition', 'Club House - Flower Beds Maintained', 'Entry Gate - Planters Watered & Clean', 'Entry Gate - Shrubs Trimmed', 'Exit Gate - Planters Watered & Clean', 'Exit Gate - Shrubs Trimmed', 'Open Gym Area - Ground Cover Plants OK', 'Open Gym Area - Surrounding Shrubs Trimmed'] }
-    }
+    },
+    // Section B: one small OK/Issue checklist PER TOWER for the terrace
+    // water tank (not folded into the sections above, since it repeats per
+    // tower rather than being a single society-wide checklist), plus a
+    // once-a-week set of water-quality readings and a free-text note on
+    // preventive maintenance actually carried out.
+    towers: TOWER_IDS,
+    tankChecks: ['Tank Clean', 'Lid Closed', 'Overflow OK', 'Float Valve OK', 'No Leakage'],
+    readings: ['pH', 'TDS', 'Turbidity', 'Residual Chlorine', 'Inlet Flow', 'Outlet Flow']
   },
   'daily-security': {
     label: 'Daily Security & Common Area',
@@ -791,6 +799,12 @@ export const INSPECTION_CRITICAL_ITEMS = new Set([
   'Emergency Lights', 'Emergency Lights Working', 'Fire Exit Accessible', 'Exit Sign Boards',
   'Boom Barrier Working', 'Emergency Exit Clear', 'Intercom / Emergency Panel Working'
 ]);
+
+// A defect/complaint's hazard type, independent of its category (a
+// "plumbing" complaint could be a Slip/Spill Risk or just Equipment
+// Damage) — lets admin filter/scan for anything safety-critical
+// regardless of which category it was filed under.
+export const DEFECT_TAG_OPTIONS = ['Fire Hazard', 'Slip/Spill Risk', 'Electrical Hazard', 'Structural/Safety', 'Equipment Damage', 'Cleanliness', 'Other'];
 
 // Maps an inspection section/context to one of the 8 complaint categories
 // this app already has (see firestore.rules' complaints.create) — a flagged

@@ -30,6 +30,18 @@ service firebase.storage {
         firestore.exists(/databases/(default)/documents/admins/$(request.auth.uid)) &&
         adminRole() in ['superadmin', 'president', 'secretary', 'jointsecretary', 'treasurer'];
     }
+    // Mirrors Firestore's isManagerStaff() — storage and Firestore rules
+    // have entirely separate function scopes, so this can't just be
+    // imported from firestore.rules.
+    function staffDoc() {
+      return firestore.get(/databases/(default)/documents/staff/$(request.auth.uid)).data;
+    }
+    function isManagerStaff() {
+      return isSignedIn() &&
+        firestore.exists(/databases/(default)/documents/staff/$(request.auth.uid)) &&
+        staffDoc().active == true &&
+        staffDoc().role == 'manager';
+    }
 
     // An upload path that accepts "any bytes" is a hosting service for whoever
     // finds it: an .html file dropped into the bucket is served from the
@@ -83,7 +95,7 @@ service firebase.storage {
     // Complaint attachment — a photo of the actual issue (leak, broken
     // fixture, etc.). Same owner-or-admin shape as petPhotos/ above.
     match /complaintPhotos/{uid}/{fileName} {
-      allow read: if isAdmin() || request.auth.uid == uid;
+      allow read: if isAdmin() || isManagerStaff() || request.auth.uid == uid;
       allow create, update: if request.auth.uid == uid
                    && request.resource.size < 8 * 1024 * 1024
                    && isImageOrPdf();
