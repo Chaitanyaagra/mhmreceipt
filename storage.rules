@@ -95,7 +95,13 @@ service firebase.storage {
     // before upload (see app-common.js encryptFile()) for defense in depth.
     match /documents/{uid}/{fileName} {
       allow read: if isAdmin() || request.auth.uid == uid;
-      allow create, update: if request.auth.uid == uid
+      // isAdmin() is required here (not just request.auth.uid == uid) because
+      // the "Encrypt All Pending Aadhaar/PAN Uploads" admin action re-uploads
+      // the re-encrypted file under the MEMBER's uid folder while running
+      // under the ADMIN's own session — request.auth.uid == uid alone can
+      // never satisfy that for someone else's folder, same as the reasoning
+      // already applied to petPhotos/ and petCerts/ below.
+      allow create, update: if (isAdmin() || request.auth.uid == uid)
                    && request.resource.size < 8 * 1024 * 1024
                    && isImagePdfOrEncrypted();
       // See the note on /photos/ above — admin-initiated delete is what the

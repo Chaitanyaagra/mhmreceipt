@@ -998,6 +998,12 @@
         </table>
       </div>
 
+      <div class="card card-pad" style="margin-bottom:24px;">
+        <h3 style="font-size:15.5px; margin-bottom:4px;">Staff Performance</h3>
+        <p class="t-muted" style="font-size:12px; margin-bottom:14px;">Inspections filed, checklist quality, and complaint resolution — one place to see what's actually going on with the team.</p>
+        <div id="staffPerformance"><p class="t-muted" style="font-size:12.5px;">Loading…</p></div>
+      </div>
+
       <div class="card" style="margin-bottom:12px;">
         <h3 style="font-size:15.5px; margin-bottom:4px;">Today's Inspection Schedule</h3>
         <p class="t-muted" style="font-size:12px;">What's expected today and this week, and what's still pending.</p>
@@ -1322,18 +1328,30 @@
           <h3 style="font-size:15px; margin-bottom:6px;">Document Security</h3>
           <p class="t-sub" style="font-size:12.8px; margin-bottom:14px;">Access to Aadhaar/PAN uploads is always restricted to Admins by Storage rules. This adds an optional AES-256 encryption layer on top — see SETUP-GUIDE.md for the key-management trade-off before relying on this.</p>
           <div class="field"><label for="vaultPassphrase">Vault Passphrase (session only — never stored)</label><input type="password" id="vaultPassphrase" autocomplete="off"></div>
+          <div class="field" id="vaultPassphraseConfirmWrap"><label for="vaultPassphraseConfirm">Confirm Passphrase <span class="t-muted" style="font-weight:400;">(only checked when encrypting — a typo here is a typo you'd need forever)</span></label><input type="password" id="vaultPassphraseConfirm" autocomplete="off"></div>
           <button class="btn btn-outline btn-block" id="encryptPendingBtn"><svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#a-lock"/></svg>Encrypt All Pending Aadhaar/PAN Uploads</button>
         </div>
         <div class="card card-pad" id="backupCard">
           <h3 style="font-size:15px; margin-bottom:6px;">Backup</h3>
           <div id="backupAge" style="margin-bottom:14px;"></div>
-          <div class="action-row" style="margin-bottom:12px;">
+          <div class="action-row" style="margin-bottom:8px;">
             <button class="btn btn-outline btn-sm" id="downloadBackupBtn">Download backup file</button>
           </div>
+          <label class="checkbox-row" style="margin-bottom:12px;"><input type="checkbox" id="encryptBackupToggle"> Encrypt with Vault Passphrase (Document Security, above)</label>
           <p class="t-sub" style="font-size:12.4px; margin-bottom:16px;">
             This downloads a JSON file to your computer — no Drive setup needed.
-            Take one once a month and keep it somewhere safe.
+            Take one once a month and keep it somewhere safe. Encrypting it
+            means the file is unreadable without the passphrase — including to
+            you, if the passphrase is ever lost, so keep it written down
+            somewhere separate from the backup file itself.
           </p>
+          <details style="margin-bottom:16px;">
+            <summary style="cursor:pointer; font-size:13px; font-weight:600; color:var(--navy-800);">Decrypt a backup file</summary>
+            <div style="margin-top:12px;">
+              <div class="field"><label for="decryptBackupFile">Encrypted backup (.json.enc)</label><input type="file" id="decryptBackupFile" accept=".enc"></div>
+              <button class="btn btn-outline btn-block" type="button" id="decryptBackupBtn">Decrypt &amp; Download as JSON</button>
+            </div>
+          </details>
           <hr style="border:none; border-top:1px solid var(--line); margin:0 0 16px;">
           <h3 style="font-size:15px; margin-bottom:6px;">Google Drive Backup</h3>
           <p class="t-sub" style="font-size:12.8px; margin-bottom:14px;">Exports Members, Payments, Notices &amp; Committee as JSON to <span class="mono">MHMRWS/Database</span> in your Google Drive. Requires one-time OAuth setup — see SETUP-GUIDE.md Step 5.</p>
@@ -4119,8 +4137,13 @@ document.getElementById('exportExpensesBtn')?.addEventListener('click', () => {
 /*  Members                                                                */
 /* ---------------------------------------------------------------------- */
 function populateTowerFilter() {
-  const towers = [...new Set(allMembers.map(m => m.tower).filter(Boolean))].sort();
-  const optionsHtml = '<option value="">All Towers</option>' + towers.map(t => `<option>${escapeHtml(t)}</option>`).join('');
+  // TOWER_IDS (tower-plan.js) is the source of truth for which towers
+  // exist — not allMembers. Deriving this list from allMembers instead
+  // meant a tower with no registered member YET (or none currently
+  // approved) silently never appeared in the filter at all, unlike the
+  // tower-card grids elsewhere (Members/Collection/Pets summary views),
+  // which already correctly use TOWER_IDS and always show every tower.
+  const optionsHtml = '<option value="">All Towers</option>' + TOWER_IDS.map(t => `<option>${escapeHtml(t)}</option>`).join('');
   document.getElementById('filterTower').innerHTML = optionsHtml;
   const paymentTowerSel = document.getElementById('filterPaymentTower');
   if (paymentTowerSel) paymentTowerSel.innerHTML = optionsHtml;
@@ -5167,7 +5190,7 @@ function renderAllPayments() {
       const count = allPayments.filter(p => p.tower === t).length;
       return `<button type="button" class="card card-pad tower-summary-card" data-pay-tower-pick="${escapeHtml(t)}">
         <div style="font-size:20px; font-weight:700;">Tower ${escapeHtml(t)}</div>
-        <div class="t-muted" style="font-size:12.5px; margin-top:4px;">${count} payment${count === 1 ? '' : 's'}</div>
+        <div class="t-muted" style="font-size:12.5px; margin-top:4px;">${count} collection${count === 1 ? '' : 's'}</div>
       </button>`;
     }).join('');
     summaryEl.querySelectorAll('[data-pay-tower-pick]').forEach(b => b.addEventListener('click', () => {
@@ -5722,7 +5745,7 @@ async function deletePaymentEntry(p) {
 document.getElementById('closePaymentDetailModal').addEventListener('click', () => document.getElementById('paymentDetailModalBackdrop').classList.remove('open'));
 
 // Record payment wiring (cash, cheque, UPI, or net banking).
-document.getElementById('recordPaymentBtn')?.addEventListener('click', openRecordPaymentModal);
+document.getElementById('recordPaymentBtn')?.addEventListener('click', () => openRecordPaymentModal());
 document.getElementById('closeRecordPaymentModal')?.addEventListener('click', () => document.getElementById('recordPaymentModalBackdrop').classList.remove('open'));
 document.getElementById('recordPaymentForm')?.addEventListener('submit', submitRecordPayment);
 // A reference number is asked for cheque (cheque no.) and for UPI / Net
@@ -7169,21 +7192,34 @@ async function toggleGuardActive(id) {
 /* ======================= FACILITY STAFF: Managing Staff / Supervisor ======================= */
 let allStaff = [];
 let allInspections = [];
+let allInspectionAssignments = [];
 async function loadFacilityStaffData() {
   document.getElementById('addStaffBtn').style.display = can('approveMembers') ? 'inline-flex' : 'none';
   try {
-    const [staffSnap, inspSnap] = await Promise.all([
+    const [staffSnap, inspSnap, assignSnap] = await Promise.all([
       getDocs(collection(db, 'staff')),
-      getDocs(collection(db, 'inspections'))
+      getDocs(collection(db, 'inspections')),
+      getDocs(collection(db, 'inspectionAssignments'))
     ]);
     allStaff = staffSnap.docs.map(d => ({ id: d.id, ...d.data() }));
     allInspections = inspSnap.docs.map(d => ({ id: d.id, ...d.data() }))
       .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+    allInspectionAssignments = assignSnap.docs.map(d => ({ id: d.id, ...d.data() }));
   } catch (e) { console.warn('Facility staff load failed:', e?.code || e); }
+  // Staff Performance needs complaint-assignment data too — a committee
+  // member may open Facility Staff before ever visiting Complaints, so
+  // ensure it's here (same backfill pattern loadComplaints() already uses
+  // for allStaff, just the other way round).
+  if (!allComplaints || !allComplaints.length) {
+    try {
+      allComplaints = (await getDocs(collection(db, 'complaints'))).docs.map(d => ({ id: d.id, ...d.data() }));
+    } catch (e) { console.warn('Complaints load (for staff performance) failed:', e?.code || e); }
+  }
   renderStaffTable();
   renderInspectionSchedule();
   renderInspectionAnalytics();
   renderInspectionLogTable();
+  renderStaffPerformance();
 }
 
 // Analytics computed entirely from allInspections (already loaded above) —
@@ -7338,15 +7374,31 @@ function renderInspectionSchedule() {
     if (sched.frequency !== 'daily') continue;
     const label = INSPECTION_TYPES[type]?.label || type;
     if (sched.perTower) {
+      const def = INSPECTION_TYPES[type];
       TOWER_IDS.forEach(t => {
         const done = filedTodayKeys.has(`${type}:${t}`);
         const rec = done ? todaysInspections.find(r => r.formType === type && r.tower === t) : null;
         let group = towerGroups.find(g => g.tower === t);
         if (!group) { group = { tower: t, items: [] }; towerGroups.push(group); }
-        group.items.push({ label, done, rec });
+        // Floor-by-floor breakdown, for types (like daily-tower) that file
+        // one section per floor plus an Additional Areas section — matches
+        // startInspection()'s own section titles in staff.html exactly, so
+        // this always reflects what a filed record can actually contain.
+        let subItems = null;
+        if (def?.floors && def?.floorItems) {
+          const sectionDone = (title) => rec && (rec.sections || []).some(
+            sec => sec.title === title && sec.items.length > 0 && sec.items.every(it => it.status && it.status !== 'unchecked')
+          );
+          subItems = [
+            ...def.floors.map(floor => ({ label: floor + ' Floor', done: sectionDone(floor + ' Floor') })),
+            { label: 'Additional Areas', done: sectionDone('Additional Areas') }
+          ];
+        }
+        group.items.push({ label, done, rec, subItems });
       });
     } else {
-      dueTodayFlat.push({ label, done: filedTodayKeys.has(`${type}:`) });
+      const assignee = allInspectionAssignments.find(a => a.id === type)?.assignedToName || null;
+      dueTodayFlat.push({ label, done: filedTodayKeys.has(`${type}:`), assignee });
     }
   }
 
@@ -7376,15 +7428,18 @@ function renderInspectionSchedule() {
     <div style="display:flex; align-items:center; gap:8px; padding:4px 0; font-size:12.5px;">
       <span style="width:16px; flex-shrink:0;">${d.done ? '✅' : '⬜'}</span>
       <span style="${d.done ? 'color:var(--ink-500); text-decoration:line-through;' : ''}">${escapeHtml(d.label)}</span>
+      <span class="t-muted" style="font-size:11px;">— ${d.assignee ? escapeHtml(d.assignee) : 'unassigned'}</span>
     </div>`;
 
   const filedWhen = (r) => r?.createdAt?.seconds ? `by ${escapeHtml(r.createdByName || 'staff')}, ${fmtDateTime(r.createdAt)}` : '';
+  const assigneeFor = (slotId) => allInspectionAssignments.find(a => a.id === slotId)?.assignedToName || null;
 
   const towerDropdown = (g) => {
     const pending = g.items.filter(i => !i.done).length;
+    const assignee = assigneeFor(`daily-tower_${g.tower}`);
     return `<details class="insp-tower-group">
       <summary>
-        <span>Tower ${escapeHtml(g.tower)}</span>
+        <span>Tower ${escapeHtml(g.tower)}${assignee ? ` <span class="t-muted" style="font-weight:400; font-size:11px;">— ${escapeHtml(assignee)}</span>` : ' <span class="t-muted" style="font-weight:400; font-size:11px;">— unassigned</span>'}</span>
         <span class="badge ${pending ? 'badge-warning' : 'badge-success'}">${pending ? `${pending} pending` : 'All done'}</span>
       </summary>
       <div style="padding:8px 4px 2px;">
@@ -7395,7 +7450,15 @@ function renderInspectionSchedule() {
               <span style="${i.done ? 'color:var(--ink-500); text-decoration:line-through;' : ''}">${escapeHtml(i.label)}</span>
             </span>
             ${i.done ? `<span class="t-muted" style="font-size:11px; white-space:nowrap;">${filedWhen(i.rec)}</span>` : ''}
-          </div>`).join('')}
+          </div>
+          ${i.subItems ? `
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:2px 10px; margin:2px 0 8px 24px; padding:6px 0 6px 10px; border-left:2px solid var(--line);">
+            ${i.subItems.map(s => `
+              <div style="display:flex; align-items:center; gap:6px; font-size:11.5px; ${s.done ? 'color:var(--ink-400);' : 'color:var(--ink-600);'}">
+                <span style="width:13px; flex-shrink:0;">${s.done ? '✅' : '⬜'}</span>
+                <span style="${s.done ? 'text-decoration:line-through;' : ''}">${escapeHtml(s.label)}</span>
+              </div>`).join('')}
+          </div>` : ''}`).join('')}
       </div>
     </details>`;
   };
@@ -7535,6 +7598,89 @@ function renderStaffTable() {
     </tr>`).join('');
   body.querySelectorAll('[data-toggle-staff]').forEach(b => b.onclick = () => toggleStaffActive(b.dataset.toggleStaff));
 }
+
+// Combines three independent signals per staff member — none of which
+// alone tells the whole story: how much inspection work they're actually
+// doing, how carefully (OK vs Issue ratio, not just "filed or not"), and
+// how well they're clearing what's assigned to them on the complaints
+// side. A supervisor with zero complaints assigned isn't penalized for it
+// and vice versa — the score only averages whichever of the two a person
+// actually has data for, so a new hire with 3 inspections and no
+// complaints yet isn't shown as failing at something they were never
+// given.
+function renderStaffPerformance() {
+  const el = document.getElementById('staffPerformance');
+  if (!el) return;
+  const active = allStaff.filter(s => s.active !== false);
+  if (!active.length) { el.innerHTML = '<p class="t-muted" style="font-size:12.5px;">No staff added yet.</p>'; return; }
+
+  const rows = active.map(s => {
+    const myInsp = allInspections.filter(r => r.createdByUid === s.id);
+    let ok = 0, issue = 0;
+    myInsp.forEach(r => (r.sections || []).forEach(sec => (sec.items || []).forEach(it => {
+      if (it.status === 'ok') ok++; else if (it.status === 'issue') issue++;
+    })));
+    const qualityPct = (ok + issue) ? Math.round((ok / (ok + issue)) * 100) : null;
+
+    const myComplaints = allComplaints.filter(c => c.assignedToUid === s.id);
+    const resolved = myComplaints.filter(c => ['resolved', 'closed'].includes(c.status));
+    const openCount = myComplaints.filter(c => !['resolved', 'closed', 'rejected'].includes(c.status)).length;
+    const resHours = resolved
+      .filter(c => c.createdAt?.seconds && c.resolvedAt?.seconds)
+      .map(c => (c.resolvedAt.seconds - c.createdAt.seconds) / 3600);
+    const avgResHours = resHours.length ? resHours.reduce((a, b) => a + b, 0) / resHours.length : null;
+    const resolutionPct = myComplaints.length ? Math.round((resolved.length / myComplaints.length) * 100) : null;
+
+    const parts = [qualityPct, resolutionPct].filter(v => v !== null);
+    const score = parts.length ? Math.round(parts.reduce((a, b) => a + b, 0) / parts.length) : null;
+    const slotCount = allInspectionAssignments.filter(a => a.assignedToUid === s.id).length;
+
+    return { staff: s, inspCount: myInsp.length, qualityPct, issueCount: issue, complaintCount: myComplaints.length,
+             resolvedCount: resolved.length, openCount, avgResHours, score, slotCount };
+  }).sort((a, b) => (b.score ?? -1) - (a.score ?? -1));
+
+  const scoreColor = (v) => v === null ? 'var(--ink-400)' : v >= 85 ? 'var(--success)' : v >= 60 ? 'var(--warning)' : 'var(--danger)';
+  const fmtHrs = (h) => h === null ? '—' : h >= 24 ? `${(h / 24).toFixed(1)}d` : `${Math.round(h)}h`;
+
+  el.innerHTML = `
+    <div class="table-wrap responsive">
+      <table>
+        <thead><tr>
+          <th>Staff</th><th>Role</th><th>Assigned Slots</th><th>Inspections Filed</th>
+          <th>Checklist Quality</th><th>Complaints Handled</th><th>Resolved</th><th>Avg Resolution</th><th>Score</th>
+        </tr></thead>
+        <tbody>
+          ${rows.map(r => `
+            <tr>
+              <td data-label="Staff">${escapeHtml(r.staff.name)}</td>
+              <td data-label="Role">${r.staff.role === 'manager' ? 'Managing Staff' : 'Supervisor'}</td>
+              <td data-label="Assigned Slots">${r.slotCount || '—'}</td>
+              <td data-label="Inspections Filed">${r.inspCount}</td>
+              <td data-label="Checklist Quality">${r.qualityPct === null ? '—' : `${r.qualityPct}% OK${r.issueCount ? ` (${r.issueCount} issues)` : ''}`}</td>
+              <td data-label="Complaints Handled">${r.complaintCount}</td>
+              <td data-label="Resolved">${r.complaintCount ? `${r.resolvedCount}/${r.complaintCount}${r.openCount ? ` (${r.openCount} open)` : ''}` : '—'}</td>
+              <td data-label="Avg Resolution">${fmtHrs(r.avgResHours)}</td>
+              <td data-label="Score"><b style="color:${scoreColor(r.score)};">${r.score === null ? '—' : r.score}</b></td>
+            </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+    <p class="t-muted" style="font-size:11.5px; margin-top:10px;">Score = average of checklist quality (% items marked OK vs Issue) and complaint resolution rate, over whichever of the two a person has data for. A low score on very few filings/complaints is a small sample, not a verdict.</p>
+    <canvas id="chartStaffPerf" height="${Math.max(120, rows.length * 34)}" style="margin-top:14px;"></canvas>
+  `;
+  renderStaffPerfChart(rows);
+}
+
+function renderStaffPerfChart(rows) {
+  const ctx = document.getElementById('chartStaffPerf');
+  if (!ctx || !window.Chart) return;
+  charts.chartStaffPerf?.destroy();
+  charts.chartStaffPerf = new Chart(ctx, {
+    type: 'bar',
+    data: { labels: rows.map(r => r.staff.name), datasets: [{ label: 'Inspections filed', data: rows.map(r => r.inspCount), backgroundColor: '#0A1B33', borderRadius: 4 }] },
+    options: { indexAxis: 'y', animation: false, plugins: { legend: { display: false } }, maintainAspectRatio: false, scales: { x: { beginAtZero: true, ticks: { precision: 0 } } } }
+  });
+}
 const INSPECTION_TYPE_LABEL_ADMIN = { 'daily-tower': 'Daily Tower', 'weekly-mep': 'Weekly MEP', 'daily-security': 'Daily Security', 'club-house': 'Club House' };
 function renderInspectionLogTable() {
   const body = document.getElementById('inspectionLogBody');
@@ -7649,10 +7795,21 @@ async function toggleStaffActive(id) {
   const s = allStaff.find(x => x.id === id);
   if (!s) return;
   const nextActive = !(s.active !== false);
-  if (!confirm(`${nextActive ? 'Reactivate' : 'Deactivate'} "${s.name}"?${nextActive ? '' : ' They will not be able to sign in again until reactivated.'}`)) return;
+  const orphanedSlots = nextActive ? [] : allInspectionAssignments.filter(a => a.assignedToUid === id);
+  const warnOrphaned = orphanedSlots.length
+    ? ` They currently have ${orphanedSlots.length} inspection slot(s) assigned — deactivating will clear those assignments back to Unassigned so the towers/checklists don't silently sit with someone who can no longer log in.`
+    : '';
+  if (!confirm(`${nextActive ? 'Reactivate' : 'Deactivate'} "${s.name}"?${nextActive ? '' : ' They will not be able to sign in again until reactivated.' + warnOrphaned}`)) return;
   try {
     await updateDoc(doc(db, 'staff', id), { active: nextActive, updatedAt: serverTimestamp() });
-    await logAudit(auth.currentUser, nextActive ? 'reactivate_staff' : 'deactivate_staff', { id, name: s.name });
+    if (orphanedSlots.length) {
+      const batch = writeBatch(db);
+      orphanedSlots.forEach(slot => batch.update(doc(db, 'inspectionAssignments', slot.id), {
+        assignedToUid: null, assignedToName: null, assignedByUid: auth.currentUser.uid, assignedByName: currentAdmin?.name || 'Admin', updatedAt: serverTimestamp()
+      }));
+      await batch.commit();
+    }
+    await logAudit(auth.currentUser, nextActive ? 'reactivate_staff' : 'deactivate_staff', { id, name: s.name, clearedSlots: orphanedSlots.length });
     showToast('Updated.', 'success');
     await loadFacilityStaffData();
   } catch (err) { showToast(`Could not update${err?.code ? ` (${err.code})` : ''}.`, 'error'); }
@@ -9276,8 +9433,10 @@ document.getElementById('paymentSettingsForm').addEventListener('submit', async 
 
 document.getElementById('encryptPendingBtn').addEventListener('click', async () => {
   const pass = document.getElementById('vaultPassphrase').value;
+  const passConfirm = document.getElementById('vaultPassphraseConfirm').value;
   if (!pass) return showToast('Please enter a passphrase first.', 'error');
-  if (!confirm('This will encrypt all pending Aadhaar/PAN uploads with this passphrase. Remember the passphrase — documents cannot be accessed if it is forgotten. Continue?')) return;
+  if (pass !== passConfirm) return showToast('Passphrase and Confirm Passphrase do not match.', 'error');
+  if (!confirm('This will encrypt all pending Aadhaar/PAN uploads with this passphrase. Write the passphrase down somewhere safe and separate from these documents — it cannot be recovered, and a document encrypted with a forgotten passphrase is gone for good. Continue?')) return;
   const targets = allMembers.filter(m => m.idDocURL && !m.idDocEncrypted);
   let done = 0;
   for (const m of targets) {
@@ -9567,22 +9726,57 @@ async function renderBackupAge() {
 
 document.getElementById('downloadBackupBtn')?.addEventListener('click', async () => {
   const btn = document.getElementById('downloadBackupBtn');
+  const wantsEncryption = document.getElementById('encryptBackupToggle')?.checked;
+  const pass = document.getElementById('vaultPassphrase')?.value;
+  const passConfirm = document.getElementById('vaultPassphraseConfirm')?.value;
+  if (wantsEncryption && !pass) { showToast('Enter the Vault Passphrase (Document Security, above) first.', 'error'); return; }
+  if (wantsEncryption && pass !== passConfirm) { showToast('Passphrase and Confirm Passphrase do not match.', 'error'); return; }
   btn.disabled = true;
   try {
     const bundle = await collectBackupBundle();
     const stamp = todayLocalISO();
-    const blob = new Blob([JSON.stringify({ takenAt: new Date().toISOString(), society: 'MHMRWS', ...bundle }, null, 2)],
+    let blob = new Blob([JSON.stringify({ takenAt: new Date().toISOString(), society: 'MHMRWS', ...bundle }, null, 2)],
                           { type: 'application/json' });
+    let filename = `MHMRWS-backup-${stamp}.json`;
+    if (wantsEncryption) {
+      // Same AES-256-GCM helper the Aadhaar/PAN vault uses — the backup
+      // blob is just another file to it. .json.enc (not .json) so a
+      // double-click doesn't open what looks like garbled JSON in a text
+      // editor with no clue why.
+      blob = await encryptFile(blob, pass);
+      filename += '.enc';
+    }
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
-    link.href = url; link.download = `MHMRWS-backup-${stamp}.json`; link.click();
+    link.href = url; link.download = filename; link.click();
     URL.revokeObjectURL(url);
     const counts = Object.entries(bundle).map(([k, v]) => `${k}:${v.length}`).join(', ');
-    await logAudit(auth.currentUser, 'backup_download', { counts });
+    await logAudit(auth.currentUser, 'backup_download', { counts, encrypted: !!wantsEncryption });
     await recordBackup('download', counts);
-    showToast('Backup file downloaded. Please keep it somewhere safe.', 'success');
+    showToast(wantsEncryption ? 'Encrypted backup downloaded. Keep the passphrase written down somewhere separate from this file.' : 'Backup file downloaded. Please keep it somewhere safe.', 'success');
   } catch (e) {
     showToast('Could not create backup.', 'error');
+  } finally { btn.disabled = false; }
+});
+
+document.getElementById('decryptBackupBtn')?.addEventListener('click', async () => {
+  const file = document.getElementById('decryptBackupFile')?.files?.[0];
+  const pass = document.getElementById('vaultPassphrase')?.value;
+  if (!file) { showToast('Choose an encrypted backup file first.', 'error'); return; }
+  if (!pass) { showToast('Enter the Vault Passphrase (Document Security, above) first.', 'error'); return; }
+  const btn = document.getElementById('decryptBackupBtn');
+  btn.disabled = true;
+  try {
+    const decrypted = await decryptToBlob(file, pass, 'application/json');
+    const url = URL.createObjectURL(decrypted);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = file.name.endsWith('.enc') ? file.name.slice(0, -4) : `${file.name}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+    showToast('Decrypted. Downloaded as a plain JSON file.', 'success');
+  } catch (e) {
+    showToast('Decryption failed — the passphrase may be wrong, or the file was not an encrypted MHMRWS backup.', 'error');
   } finally { btn.disabled = false; }
 });
 

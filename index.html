@@ -1553,6 +1553,14 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
     <div class="modal-head"><h3 style="font-size:16.5px;">Edit Your Profile</h3><button class="icon-btn" id="closeProfileModal">✕</button></div>
     <div class="modal-body">
       <form id="profileEditForm">
+        <div class="field" id="pfPhotoWrap">
+          <label>Your Photo</label>
+          <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+            <img id="pfPhotoPreview" src="" alt="" style="width:56px; height:56px; border-radius:10px; object-fit:cover; border:1px solid var(--line,#E2E6EF);">
+            <span class="t-muted" style="font-size:12px;">Current photo. <b>Change Photo:</b> choose a new file below to replace it.</span>
+          </div>
+          <input type="file" name="photo" id="pf-photo" accept="image/*">
+        </div>
         <div class="form-2col">
           <div class="field"><label for="pf-mobile">Mobile Number</label><input name="mobile" id="pf-mobile" type="tel" maxlength="10" required></div>
           <div class="field"><label for="pf-email">Contact Email <span class="t-muted" style="font-weight:400;">(for notices, not for login)</span></label><input name="email" id="pf-email" type="email" required><div class="hint">Changing this updates where the office reaches you — it does not change your login email or password.</div></div>
@@ -1571,6 +1579,12 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
           <label for="pf-rentAgreement">Rent Agreement <span class="t-muted" style="font-weight:400;">(optional — PDF or photo)</span></label>
           <input type="file" name="rentAgreement" id="pf-rentAgreement" accept=".pdf,image/*">
           <a id="pfRentAgreementCurrentLink" href="#" target="_blank" rel="noopener" style="display:none; font-size:12px; margin-top:4px;">View current agreement</a>
+        </div>
+        <div class="field">
+          <label for="pf-idDoc">ID Document — Aadhaar / PAN <span class="t-muted" style="font-weight:400;">(optional, private — visible only to you and the office)</span></label>
+          <input type="file" name="idDoc" id="pf-idDoc" accept=".pdf,image/*">
+          <a id="pfIdDocCurrentLink" href="#" target="_blank" rel="noopener" style="display:none; font-size:12px; margin-top:4px;">View current document</a>
+          <div class="t-muted" id="pfIdDocEncryptedNote" style="display:none; font-size:12px; margin-top:4px;">A document is on file (encrypted by the office — uploading a new one replaces it).</div>
         </div>
         <button class="btn btn-primary btn-block" type="submit">Save</button>
         <button type="button" class="link-btn" id="changePasswordBtn" style="display:block; text-align:center; margin-top:14px; width:100%;">Change Password</button>
@@ -3045,6 +3059,16 @@ async function loadDashboard(uid) {
       try {
         await auth.currentUser.reload();
         if (auth.currentUser.emailVerified) {
+          // reload() refreshes auth.currentUser.emailVerified (the local
+          // profile flag) but NOT the cached ID token's email_verified
+          // claim — that claim is baked into the JWT at the moment it was
+          // issued and the Firestore rule checks request.auth.token
+          // .email_verified specifically, not the live profile flag. Without
+          // forcing a fresh token here, this write fails until the SDK
+          // happens to refresh the token on its own (up to ~1hr, or next
+          // login) — same reasoning already applied right after account
+          // creation above.
+          await auth.currentUser.getIdToken(true);
           await updateDoc(doc(db, 'members', uid), { emailVerified: true });
           currentMember.emailVerified = true;
         }
@@ -4163,6 +4187,8 @@ document.getElementById('complaintForm')?.addEventListener('submit', async (e) =
    need to self-serve. */
 function openProfileModal() {
   const f = document.getElementById('profileEditForm');
+  const preview = document.getElementById('pfPhotoPreview');
+  if (preview) preview.src = currentMember.photoURL || LOGO_DATA_URI;
   f.mobile.value = currentMember.mobile || '';
   f.email.value = currentMember.email || '';
   f.occupation.value = currentMember.occupation || '';
@@ -4180,6 +4206,23 @@ function openProfileModal() {
     const link = document.getElementById('pfRentAgreementCurrentLink');
     if (currentMember.rentAgreementURL) { link.href = currentMember.rentAgreementURL; link.style.display = ''; }
     else if (link) link.style.display = 'none';
+  }
+  // ID document: a still-plaintext upload can be linked straight to (same as
+  // Rent Agreement above). Once the office has encrypted it, the stored URL
+  // no longer points at a directly-viewable file (no passphrase lives on the
+  // resident's side to decrypt it) — show a status note instead of a link
+  // that would just download gibberish.
+  const idLink = document.getElementById('pfIdDocCurrentLink');
+  const idEncNote = document.getElementById('pfIdDocEncryptedNote');
+  if (currentMember.idDocURL && !currentMember.idDocEncrypted) {
+    if (idLink) { idLink.href = currentMember.idDocURL; idLink.style.display = ''; }
+    if (idEncNote) idEncNote.style.display = 'none';
+  } else if (currentMember.idDocURL && currentMember.idDocEncrypted) {
+    if (idLink) idLink.style.display = 'none';
+    if (idEncNote) idEncNote.style.display = '';
+  } else {
+    if (idLink) idLink.style.display = 'none';
+    if (idEncNote) idEncNote.style.display = 'none';
   }
   document.getElementById('profileModalBackdrop').classList.add('open');
 }
@@ -4205,6 +4248,20 @@ document.getElementById('profileEditForm')?.addEventListener('submit', async (e)
     const raFile = f.rentAgreement?.files?.[0];
     if (raFile) {
       patch.rentAgreementURL = await uploadFile(`documents/${currentUser.uid}/rentAgreement_${Date.now()}`, raFile);
+    }
+    const idDocFile = f.idDoc?.files?.[0];
+    if (idDocFile) {
+      patch.idDocURL = await uploadFile(`documents/${currentUser.uid}/iddoc_${Date.now()}`, idDocFile);
+      // A fresh upload is always plaintext, whatever the previous file's
+      // state was — this is what makes the office's "Encrypt Pending
+      // Uploads" tool pick it up again after a resident replaces an
+      // already-encrypted document.
+      patch.idDocEncrypted = false;
+    }
+    const photoFile = f.photo?.files?.[0];
+    if (photoFile) {
+      const newPhotoURL = await uploadFile(`photos/${currentUser.uid}/photo_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`, photoFile);
+      if (newPhotoURL) patch.photoURL = newPhotoURL;
     }
     await updateDoc(doc(db, 'members', currentUser.uid), patch);
     Object.assign(currentMember, patch);

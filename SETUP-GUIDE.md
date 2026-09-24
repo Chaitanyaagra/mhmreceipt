@@ -241,6 +241,8 @@ Yeh feature society ke paid facility staff (Managing Staff, Supervisor) ke liye 
 6. Submit karte hi jo bhi items "Issue" mark hue the, wo automatically ek **Complaint** ban jaate hain — same SLA/escalation system jo resident complaints ke liye already hai
 7. Residents apne dashboard par **"🔍 Recent Facility Inspections"** card mein latest inspections dekh sakte hain (pass/issue summary)
 8. Staff apni **Complaints** tab se koi bhi complaint (resident ka ho ya inspection se aaya ho) dekh sakte hain aur status "In Progress" → "Resolved" tak le ja sakte hain
+9. **Managing Staff** ko ek extra **Team** tab dikhta hai — yahan se woh decide kar sakte hain ki 7 towers ka daily checklist, Daily Security, Club House, aur Weekly MEP — in 10 slots mein se har ek **kis Supervisor (ya khud) ke zimme hai**. Jab tak koi slot "Unassigned" hai, koi bhi Supervisor use pick kar sakta hai — assign karne se woh sirf usी Supervisor (aur Managing Staff) ko dikhta hai, taaki kuch chhoot na jaaye
+10. Admin ko **Facility Staff** tab mein ek **Staff Performance** card dikhta hai — har staff member ke Inspections Filed, Checklist Quality (OK vs Issue %), Complaints Handled/Resolved, aur average resolution time se bana ek combined **Score**, saath mein ek chart. Ye poora automatically compute hota hai, kahin manually rating dalne ki zaroorat nahi
 
 ⚠️ **Access hataana ho toh:** Facility Staff tab mein us staff member ko **Deactivate** karein — unka login turant band ho jayega, lekin unka naam purane inspections/complaints mein record ke liye reh jayega.
 
@@ -290,7 +292,7 @@ Is setup mein **sach mein apne aap chalne wala backup nahi ho sakta** — uske l
 
 
 - **Aadhaar/PAN documents** hamesha Storage Rules se protected hain (sirf resident khud + Admins access kar sakte hain) — yeh chahe aap encryption use karein ya nahi, hamesha ON hai.
-- **Optional encryption layer** (Settings → Document Security): ek extra AES-256 layer hai. Iska passphrase kabhi bhi database/code mein store nahi hota — sirf aapke committee ko yaad rakhna hai. Passphrase bhool gaye toh woh specific documents access nahi ho sakte, isliye ise password manager ya locked register mein likh kar rakhein.
+- **Optional encryption layer** (Settings → Document Security): ek extra AES-256 layer hai. Iska passphrase kabhi bhi database/code mein store nahi hota — sirf aapke committee ko yaad rakhna hai. Encrypt karte waqt ab **Confirm Passphrase** bhi maangi jaati hai (typo pakadne ke liye — encrypt karte waqt galti sabse costly hoti hai, kyunki wahi exact string forever chahiye hogi). Passphrase bhool gaye toh woh specific documents access nahi ho sakte, isliye ise password manager ya locked register mein likh kar rakhein. Yehi passphrase **Backup → Encrypt with Vault Passphrase** checkbox se backup file ko bhi encrypt kar sakti hai (Settings → Backup → "Decrypt a backup file" se wapas plain JSON mil jaata hai).
 - **Har admin action** — approve, reject, verify, delete, settings change — Audit Log mein permanently record hota hai, IP address ke saath.
 
 ## 🎨 Customization
@@ -352,6 +354,29 @@ access (koi restricted/corporate network nahi). Ye sirf Gate Security
 (`guards`/`visitors`) aur facility-booking rules ko cover karta hai — 42
 scenarios (kaun approve kar sakta hai, kaun nahi, wrong flat/wrong guard block
 hota hai ya nahi, waghera).
+
+### Browser smoke test (optional, real click-through bugs pakadta hai)
+
+Upar wale dono tests JavaScript logic aur rules ko check karte hain, lekin
+kabhi ek **real browser** nahi kholte. Kuch bugs sirf tabhi dikhte hain jab
+koi actually page load karke button click kare — jaise ek function seedha
+`addEventListener` ko pass ho jaana aur click ka Event object galat argument
+ban jaana, ya ek dropdown galat data-source se ban jaana. Yeh test asli
+Chromium browser mein `admin.html`/`index.html` khol kar (Firebase ko
+`tests/smoke-stubs/` se fake kar ke — koi real Firebase project ya internet
+nahi chahiye) key buttons click karta hai aur console errors + expected UI
+state check karta hai:
+
+```bash
+npm install --include=dev
+npx playwright install chromium    # pehli baar, ~150 MB download
+npm run test:smoke
+```
+
+Abhi sirf 2 real bugs (jo yahi session mein mile the) regression-test hote
+hain — Record Collection ka Suspense checkbox, aur tower filters mein saare
+towers dikhna. Naya interactive flow add karte waqt, isi pattern se
+`tests/smoke.mjs` mein ek aur check jodna sasta insurance hai.
 
 ## 🆘 Common Errors
 

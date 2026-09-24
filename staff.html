@@ -92,12 +92,14 @@
       <button class="st-tab" data-tab="inspect">New Inspection</button>
       <button class="st-tab" data-tab="history">History</button>
       <button class="st-tab" data-tab="complaints">Complaints</button>
+      <button class="st-tab" data-tab="team" id="teamTabBtn" style="display:none;">Team</button>
     </div>
     <div class="st-body">
       <div class="tab-panel" id="tab-home"></div>
       <div class="tab-panel" id="tab-inspect" style="display:none;"></div>
       <div class="tab-panel" id="tab-history" style="display:none;"></div>
       <div class="tab-panel" id="tab-complaints" style="display:none;"></div>
+      <div class="tab-panel" id="tab-team" style="display:none;"></div>
     </div>
   </div>
 </div>
@@ -124,9 +126,9 @@ import {
   signInWithEmailAndPassword, onAuthStateChanged, signOut, sendPasswordResetEmail
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
 import {
-  doc, getDoc, addDoc, updateDoc, collection, query, where, getDocs, orderBy, serverTimestamp, writeBatch
+  doc, getDoc, addDoc, setDoc, updateDoc, collection, query, where, getDocs, orderBy, serverTimestamp, writeBatch
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { showToast, escapeHtml, fmtDate, fmtDateTime, TOWER_IDS, INSPECTION_TYPES, INSPECTION_CRITICAL_ITEMS, inspectionSectionToComplaintCategory, STAFF_TRADES, dateToLocalISO } from './app-common.js';
+import { showToast, escapeHtml, fmtDate, fmtDateTime, TOWER_IDS, INSPECTION_TYPES, INSPECTION_SCHEDULE, INSPECTION_CRITICAL_ITEMS, inspectionSectionToComplaintCategory, STAFF_TRADES, dateToLocalISO } from './app-common.js';
 import { installOfflineBanner } from './ui-a11y.js';
 import { installAppInstallPrompt } from './install-prompt.js';
 installOfflineBanner();
@@ -151,6 +153,7 @@ function showTab(name) {
   if (name === 'inspect') renderInspectPicker();
   if (name === 'history') renderHistory();
   if (name === 'complaints') renderComplaints();
+  if (name === 'team') renderTeam();
 }
 document.querySelectorAll('.st-tab').forEach(b => b.addEventListener('click', () => showTab(b.dataset.tab)));
 // Back button: from any tab other than Home, back returns to Home rather
@@ -212,8 +215,9 @@ onAuthStateChanged(auth, async (user) => {
     currentStaff = { uid: user.uid, ...snap.data() };
     document.getElementById('staffNameLabel').textContent = currentStaff.name || 'Staff';
     document.getElementById('staffRoleLabel').textContent = currentStaff.role === 'manager' ? 'Managing Staff' : 'Supervisor';
+    document.getElementById('teamTabBtn').style.display = currentStaff.role === 'manager' ? '' : 'none';
     showScreen('screen-main');
-    await Promise.all([loadMyInspections(), loadComplaints()]);
+    await Promise.all([loadMyInspections(), loadComplaints(), loadInspectionAssignments()]);
     showTab('home');
   } catch (err) {
     console.error('Staff profile load failed:', err);
@@ -261,6 +265,87 @@ async function loadComplaints() {
   }
 }
 
+let allInspectionAssignments = [];
+async function loadInspectionAssignments() {
+  try {
+    allInspectionAssignments = (await getDocs(collection(db, 'inspectionAssignments'))).docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch (e) { console.warn('Inspection assignments load failed:', e?.code || e); allInspectionAssignments = []; }
+}
+
+// One row per schedulable slot: each of the 7 towers' Daily Tower Common
+// Area checklist, plus one each for the society-wide daily/weekly types.
+// Mirrors admin.html's renderInspectionSchedule() grouping so a slot here
+// means the same thing there.
+function allAssignableSlots() {
+  const slots = [];
+  for (const [type, sched] of Object.entries(INSPECTION_SCHEDULE)) {
+    const label = INSPECTION_TYPES[type]?.label || type;
+    if (sched.perTower) {
+      TOWER_IDS.forEach(t => slots.push({ slotId: `${type}_${t}`, formType: type, tower: t, label: `${label} — Tower ${t}` }));
+    } else {
+      slots.push({ slotId: type, formType: type, tower: null, label });
+    }
+  }
+  return slots;
+}
+
+/* ---------------------------------------------------------------------- */
+/*  Team tab (Managing Staff only) — who's responsible for what           */
+/* ---------------------------------------------------------------------- */
+function renderTeam() {
+  const el = document.getElementById('tab-team');
+  const supervisors = allStaffList.filter(s => s.active !== false && s.role === 'supervisor');
+  const slots = allAssignableSlots();
+  el.innerHTML = `
+    <div class="card card-pad" style="margin-bottom:12px;">
+      <h3 style="font-size:15px; margin-bottom:4px;">Assign Inspections</h3>
+      <p class="t-muted" style="font-size:12px;">Decide who's responsible for each daily and weekly check. Leave "Unassigned" and any supervisor (and you) can still pick it up from New Inspection.</p>
+    </div>
+    ${!supervisors.length ? `<p class="t-muted" style="font-size:12.5px;">No supervisors added yet — add one from the admin panel's Facility Staff section first.</p>` : ''}
+    ${slots.map(slot => {
+      const current = allInspectionAssignments.find(a => a.id === slot.slotId);
+      const curUid = current?.assignedToUid || '';
+      return `
+      <div class="card card-pad" style="margin-bottom:10px;">
+        <div style="font-weight:700; font-size:13.5px; margin-bottom:8px;">${escapeHtml(slot.label)}</div>
+        <select data-slot="${slot.slotId}" data-form-type="${slot.formType}" data-tower="${slot.tower || ''}">
+          <option value="">Unassigned</option>
+          <option value="${escapeHtml(currentStaff.uid)}" ${curUid === currentStaff.uid ? 'selected' : ''}>Myself (${escapeHtml(currentStaff.name)})</option>
+          ${supervisors.map(s => `<option value="${escapeHtml(s.id)}" ${curUid === s.id ? 'selected' : ''}>${escapeHtml(s.name)}${STAFF_TRADES[s.trade] ? ' — ' + STAFF_TRADES[s.trade].label : ''}</option>`).join('')}
+        </select>
+      </div>`;
+    }).join('')}
+  `;
+  el.querySelectorAll('select[data-slot]').forEach(sel => sel.addEventListener('change', () => saveAssignment(sel)));
+}
+
+async function saveAssignment(sel) {
+  const slotId = sel.dataset.slot;
+  const formType = sel.dataset.formType;
+  const tower = sel.dataset.tower || null;
+  const uid = sel.value || null;
+  const supervisors = allStaffList.filter(s => s.role === 'supervisor');
+  const name = !uid ? null : (uid === currentStaff.uid ? currentStaff.name : (supervisors.find(s => s.id === uid)?.name || null));
+  sel.disabled = true;
+  try {
+    const payload = {
+      formType,
+      assignedToUid: uid, assignedToName: name,
+      assignedByUid: currentStaff.uid, assignedByName: currentStaff.name,
+      updatedAt: serverTimestamp()
+    };
+    if (tower) payload.tower = tower;
+    await setDoc(doc(db, 'inspectionAssignments', slotId), payload);
+    const idx = allInspectionAssignments.findIndex(a => a.id === slotId);
+    const updated = { id: slotId, ...payload };
+    if (idx >= 0) allInspectionAssignments[idx] = updated; else allInspectionAssignments.push(updated);
+    showToast('Assignment saved.', 'success');
+  } catch (e) {
+    console.error('Save assignment failed:', e);
+    showToast('Could not save — please try again.', 'error');
+  } finally { sel.disabled = false; }
+}
+
 /* ---------------------------------------------------------------------- */
 /*  Home tab                                                               */
 /* ---------------------------------------------------------------------- */
@@ -268,7 +353,12 @@ function renderHome() {
   const openComplaints = myComplaints.filter(c => c.status === 'open' || c.status === 'in_progress').length;
   const complaintLabel = currentStaff.role === 'manager' ? 'Open complaints' : 'Assigned to me';
   const el = document.getElementById('tab-home');
+  const hasNoAssignments = currentStaff.role === 'supervisor' && !allInspectionAssignments.some(a => a.assignedToUid === currentStaff.uid);
   el.innerHTML = `
+    ${hasNoAssignments ? `<div class="card card-pad" style="margin-bottom:12px; background:var(--warning-bg); border-color:var(--warning-line);">
+      <b style="font-size:13px;">Nothing assigned to you yet</b>
+      <p class="t-muted" style="font-size:12px; margin-top:4px;">Your Managing Staff hasn't assigned you a tower or checklist yet — ask them to set it up from their Team tab.</p>
+    </div>` : ''}
     <div class="card card-pad" style="margin-bottom:12px;">
       <div style="display:flex; justify-content:space-between; align-items:center;">
         <div><div class="t-muted" style="font-size:11.5px;">Inspections filed</div><div style="font-size:22px; font-weight:800;">${inspectionsLoadFailed ? '—' : myInspections.length}</div>${inspectionsLoadFailed ? '<div style="font-size:10px; color:var(--danger);">couldn\'t load</div>' : ''}</div>
@@ -286,13 +376,24 @@ function renderHome() {
 /* ---------------------------------------------------------------------- */
 const TYPE_ICON = { 'daily-tower': '🏢', 'weekly-mep': '⚙️', 'daily-security': '🛡️', 'club-house': '🏊' };
 
+function isSlotAvailableToMe(formType, tower) {
+  if (currentStaff.role === 'manager') return true;
+  const slotId = tower ? `${formType}_${tower}` : formType;
+  const a = allInspectionAssignments.find(x => x.id === slotId);
+  return !!a && a.assignedToUid === currentStaff.uid;
+}
+
 function renderInspectPicker() {
   draft = null;
   const el = document.getElementById('tab-inspect');
+  const visibleTypes = Object.entries(INSPECTION_TYPES).filter(([key]) =>
+    key === 'daily-tower' ? TOWER_IDS.some(t => isSlotAvailableToMe(key, t)) : isSlotAvailableToMe(key, null)
+  );
   el.innerHTML = `
     <p class="t-muted" style="font-size:12.5px; margin-bottom:12px;">Pick a checklist to start.</p>
+    ${!visibleTypes.length ? `<p class="t-muted" style="font-size:12.5px;">Nothing is assigned to you right now — ask your Managing Staff to assign an inspection from the Team tab.</p>` : ''}
     <div class="type-grid">
-      ${Object.entries(INSPECTION_TYPES).map(([key, t]) => `
+      ${visibleTypes.map(([key, t]) => `
         <button class="type-card" data-type="${key}">
           <span style="font-size:22px;">${TYPE_ICON[key] || '📋'}</span>
           <b>${escapeHtml(t.label)}</b>
@@ -334,7 +435,7 @@ function renderChecklist() {
       ${draft.needsTower ? `
         <div class="field" style="margin-top:10px;">
           <label for="inspTower">Tower</label>
-          <select id="inspTower">${TOWER_IDS.map(t => `<option value="${escapeHtml(t)}" ${draft.tower === t ? 'selected' : ''}>${escapeHtml(t)}</option>`).join('')}</select>
+          <select id="inspTower">${TOWER_IDS.filter(t => isSlotAvailableToMe('daily-tower', t)).map(t => `<option value="${escapeHtml(t)}" ${draft.tower === t ? 'selected' : ''}>${escapeHtml(t)}</option>`).join('')}</select>
         </div>` : ''}
       <div class="t-muted" style="font-size:11.5px; margin-top:8px;">${doneItems}/${totalItems} checked${issueCount ? ' · ' + issueCount + ' issue' + (issueCount > 1 ? 's' : '') + ' flagged' : ''}</div>
     </div>

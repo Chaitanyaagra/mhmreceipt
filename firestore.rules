@@ -551,7 +551,16 @@ service cloud.firestore {
                     && isValidPaymentStatus(request.resource.data.status)
                     && isValidAmount(request.resource.data.amount)
                     && isValidPaymentMode(request.resource.data.mode)
-                    && isValidFY(request.resource.data.financialYear)
+                    // isValidFY()'s valid range is relative to TODAY
+                    // (currentFyStart() - 2 .. + 1), so checking it
+                    // unconditionally here — even when financialYear isn't
+                    // being touched — meant a payment's year, once it aged
+                    // past that rolling window, could never be voided or
+                    // corrected again purely because time had passed, not
+                    // because anything about the record was wrong. Only
+                    // an ACTUAL change to the year needs to pass today's
+                    // window; leaving it exactly as it was is always fine.
+                    && (unchanged('financialYear') || isValidFY(request.resource.data.financialYear))
                     // Name/flat only need to be re-checked against the
                     // (locked) memberUid's CURRENT record when this update
                     // actually CHANGES one of them — otherwise a resident
@@ -787,6 +796,30 @@ service cloud.firestore {
                     && request.resource.size() < 900000;
       allow update: if false;
       allow delete: if canApproveMembers();
+    }
+
+    // A standing "who is responsible for this" pointer, one per schedulable
+    // inspection slot: daily-tower_A .. daily-tower_G (one per tower), plus
+    // daily-security / club-house / weekly-mep (society-wide, one slot
+    // each). This does NOT gate who is ALLOWED to file an inspection — the
+    // inspections.create rule above still only checks isStaff() — it only
+    // records who's expected to, so a Supervisor's own picker can default
+    // to their slots and a Managing Staff can see who's covering what.
+    // Deliberately a flat "current assignee" per slot rather than a
+    // per-day/per-week schedule: simpler to reason about, and matches how
+    // this is actually used (an ongoing responsibility, reassigned only
+    // when it changes, not re-picked every single day).
+    match /inspectionAssignments/{slotId} {
+      allow read: if isAdmin() || isStaff();
+      allow create, update: if (isManagerStaff() || isAdmin())
+                    && request.resource.data.formType in ['daily-tower', 'weekly-mep', 'daily-security', 'club-house']
+                    && (request.resource.data.formType == 'daily-tower'
+                        ? request.resource.data.tower in ['A', 'B', 'C', 'D', 'E', 'F', 'G']
+                        : absentOrNull(request.resource.data, 'tower'))
+                    && (absentOrNull(request.resource.data, 'assignedToUid') || isNonEmptyString(request.resource.data.assignedToUid, 200))
+                    && isOptionalString(request.resource.data, 'assignedToName', 100)
+                    && request.resource.data.assignedByUid == request.auth.uid;
+      allow delete: if isManagerStaff() || isAdmin();
     }
 
     match /pets/{petId} {
@@ -1144,8 +1177,13 @@ service cloud.firestore {
                     // payment it belongs to (same reasoning as amount) —
                     // locking it here would leave a corrected payment and
                     // its QR-scanned receipt permanently showing two
-                    // different years.
-                    && isValidFY(request.resource.data.financialYear);
+                    // different years. But isValidFY()'s window is relative
+                    // to TODAY, so requiring it even when financialYear is
+                    // untouched (e.g. a plain void, or the far more common
+                    // status-only update) would make an old-but-correct
+                    // receipt un-voidable purely because time passed — same
+                    // fix as payments' update rule above.
+                    && (unchanged('financialYear') || isValidFY(request.resource.data.financialYear));
       allow delete: if canVerifyPayments();
     }
 
