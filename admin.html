@@ -5219,7 +5219,7 @@ function renderAllPayments() {
         <div class="t-muted" style="font-size:12px;">Total Collection (verified)</div>
       </div>` +
       TOWER_IDS.map(t => {
-      const count = allPayments.filter(p => p.tower === t).length;
+      const count = allPayments.filter(p => p.tower === t && p.status !== 'voided').length;
       return `<button type="button" class="card card-pad tower-summary-card" data-pay-tower-pick="${escapeHtml(t)}">
         <div style="font-size:20px; font-weight:700;">Tower ${escapeHtml(t)}</div>
         <div class="t-muted" style="font-size:12.5px; margin-top:4px;">${count} collection${count === 1 ? '' : 's'}</div>
@@ -5238,6 +5238,12 @@ function renderAllPayments() {
   tableWrap.style.display = '';
 
   let rows = [...allPayments].sort((a, b) => (b.submittedAt?.seconds || 0) - (a.submittedAt?.seconds || 0));
+  // A voided entry is a corrected mistake, not a real collection — it stays
+  // out of ordinary browsing (this mirrors excluding it from the total
+  // above and from every dues calculation elsewhere), but a search still
+  // finds it: an admin looking a specific person/receipt up is tracing
+  // something on purpose, not just scrolling the list.
+  if (!term) rows = rows.filter(p => p.status !== 'voided');
   if (tower) rows = rows.filter(p => p.tower === tower);
   if (term) {
     rows = rows.filter(p => smartMatch(`${p.residentName} ${p.tower || ''} ${p.flatNumber} ${p.receiptNumber || ''} ${p.utrOrChequeNo || ''}`, term));
@@ -7742,29 +7748,87 @@ function openInspectionDetail(id) {
   const r = allInspections.find(x => x.id === id);
   if (!r) return;
   const body = document.getElementById('inspectionDetailBody');
-  const sections = r.sections || [];
+  const tpl = INSPECTION_TYPES[r.formType];
   document.getElementById('inspectionDetailTitle').textContent =
     (INSPECTION_TYPE_LABEL_ADMIN[r.formType] || r.formType) + (r.tower ? ' — Tower ' + r.tower : '');
   document.getElementById('inspectionDetailMeta').textContent =
     'Filed by ' + (r.createdByName || '—') + (r.createdAt ? ' · ' + fmtDateTime(r.createdAt) : '');
-  body.innerHTML = sections.map(sec => {
-    const issues = sec.items.filter(it => it.status === 'issue');
-    const oks = sec.items.filter(it => it.status === 'ok');
-    const unchecked = sec.items.filter(it => !it.status || it.status === 'unchecked');
-    return `
-      <div class="card" style="margin-bottom:10px; padding:14px;">
-        <b style="font-size:13.5px;">${escapeHtml(sec.title)}</b>
-        ${issues.length ? `<div style="margin-top:8px;">` + issues.map(it => `
-          <div style="padding:6px 0; border-bottom:1px solid var(--line);">
-            <div style="display:flex; justify-content:space-between; gap:8px;"><span style="font-size:12.5px;">${escapeHtml(it.label)}</span><span class="badge badge-danger">Issue</span></div>
-            ${it.note ? `<div class="t-muted" style="font-size:11.5px; margin-top:2px;">${escapeHtml(it.note)}</div>` : ''}
-            ${it.tags?.length ? `<div style="margin-top:4px;">${it.tags.map(t => `<span class="badge badge-warning" style="margin-right:4px; font-size:10.5px;">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
-            ${it.photoURL ? `<img src="${escapeHtml(it.photoURL)}" alt="" style="max-width:160px; border-radius:6px; margin-top:6px; display:block;">` : ''}
-          </div>`).join('') + `</div>` : ''}
-        ${oks.length ? `<div class="t-muted" style="font-size:11.5px; margin-top:8px;">${oks.length} item${oks.length > 1 ? 's' : ''} OK: ${oks.map(it => escapeHtml(it.label)).join(', ')}</div>` : ''}
-        ${unchecked.length ? `<div style="font-size:11.5px; margin-top:4px; color:var(--warning);">${unchecked.length} item${unchecked.length > 1 ? 's' : ''} left unchecked</div>` : ''}
-      </div>`;
-  }).join('');
+
+  // Tank checks store true/false/null (OK/Issue/unchecked); every other
+  // checklist item stores the 'ok'/'issue'/'unchecked' strings staff.html
+  // itself uses — normalize both into the same badge here.
+  const statusPill = (status) => {
+    if (status === 'ok' || status === true) return '<span class="badge badge-success" style="font-size:10.5px;">OK</span>';
+    if (status === 'issue' || status === false) return '<span class="badge badge-danger" style="font-size:10.5px;">Issue</span>';
+    return '<span class="badge badge-neutral" style="font-size:10.5px;">—</span>';
+  };
+  // Every item gets its own row — not just a rolled-up count of what was
+  // OK — so "what was actually checked on this floor / in this section"
+  // is fully visible, matching the level of detail staff.html itself
+  // shows while filing, not a summary of it.
+  const itemRow = (it) => `
+    <div style="padding:5px 0; border-bottom:1px solid var(--line);">
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+        <span style="font-size:12px;">${escapeHtml(it.label)}</span>
+        ${statusPill(it.status)}
+      </div>
+      ${it.status === 'issue' && it.note ? `<div class="t-muted" style="font-size:11px; margin-top:2px;">${escapeHtml(it.note)}</div>` : ''}
+      ${it.status === 'issue' && it.tags?.length ? `<div style="margin-top:3px;">${it.tags.map(t => `<span class="badge badge-warning" style="margin-right:3px; font-size:10px;">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
+      ${it.status === 'issue' && it.photoURL ? `<img src="${escapeHtml(it.photoURL)}" alt="" style="max-width:140px; border-radius:6px; margin-top:5px; display:block;">` : ''}
+    </div>`;
+  const sectionCard = (title, itemsHtml) => `
+    <div class="card" style="margin-bottom:10px; padding:14px;">
+      <b style="font-size:13.5px;">${escapeHtml(title)}</b>
+      <div style="margin-top:6px;">${itemsHtml}</div>
+    </div>`;
+
+  let html = (r.sections || []).map(sec => sectionCard(sec.title, sec.items.map(itemRow).join(''))).join('');
+
+  // Saved on the record by staff.html but, until now, never shown anywhere
+  // in the admin view — an admin reviewing a Weekly MEP or Club House
+  // inspection had no way to see this without asking staff directly.
+  if (r.formType === 'weekly-mep' && tpl) {
+    if (r.tankData) {
+      html += sectionCard('Terrace Water Tanks', tpl.towers.map(t => `
+        <div style="margin-top:${t === tpl.towers[0] ? '0' : '10px'};">
+          <div class="t-muted" style="font-size:12px; font-weight:700; margin-bottom:4px;">Tower ${escapeHtml(t)}</div>
+          ${tpl.tankChecks.map((label, ci) => itemRow({ label, status: (r.tankData[t] || [])[ci] })).join('')}
+        </div>`).join(''));
+    }
+    if (r.readingsData) {
+      html += sectionCard('Readings', tpl.readings.map(label => `
+        <div style="display:flex; justify-content:space-between; padding:5px 0; border-bottom:1px solid var(--line); font-size:12px;">
+          <span>${escapeHtml(label)}</span><b>${escapeHtml(r.readingsData[label] || '—')}</b>
+        </div>`).join(''));
+    }
+    if (r.maintenanceNotes) html += `<div class="card" style="margin-bottom:10px; padding:14px;"><b style="font-size:13.5px;">Preventive Maintenance</b><p style="font-size:12.5px; margin-top:6px;">${escapeHtml(r.maintenanceNotes)}</p></div>`;
+  }
+  if (r.formType === 'club-house') {
+    if (r.complaintsNotes) html += `<div class="card" style="margin-bottom:10px; padding:14px;"><b style="font-size:13.5px;">Complaints Received Today</b><p style="font-size:12.5px; margin-top:6px;">${escapeHtml(r.complaintsNotes)}</p></div>`;
+    if (r.incidentNotes) html += `<div class="card" style="margin-bottom:10px; padding:14px;"><b style="font-size:13.5px;">Daily Incident Report</b><p style="font-size:12.5px; margin-top:6px;">${escapeHtml(r.incidentNotes)}</p></div>`;
+    if (r.consentForms || r.gymAttendance || r.swimAttendance) {
+      html += sectionCard('Attendance & Attachments', [['Consent Forms Attached', r.consentForms], ['Gym Attendance', r.gymAttendance], ['Swim Attendance', r.swimAttendance]]
+        .map(([label, val]) => `<div style="display:flex; justify-content:space-between; padding:5px 0; border-bottom:1px solid var(--line); font-size:12px;"><span>${escapeHtml(label)}</span><b>${escapeHtml(val || '—')}</b></div>`).join(''));
+    }
+  }
+
+  // Complaints this inspection actually generated (a flagged item becomes
+  // a normal complaint — see the note on the complaints rule) — one click
+  // through from the inspection they came from, instead of hunting for
+  // them separately in the Complaints tab.
+  const relatedComplaints = (allComplaints || []).filter(c => c.sourceInspectionId === r.id);
+  if (relatedComplaints.length) {
+    html += sectionCard('Complaints logged from this inspection', relatedComplaints.map(c => `
+      <div style="padding:6px 0; border-bottom:1px solid var(--line); cursor:pointer;" data-insp-related-complaint="${escapeHtml(c.id)}">
+        <div style="display:flex; justify-content:space-between; gap:8px;"><span style="font-size:12.5px;">${escapeHtml(c.title)}</span><span class="badge ${COMPLAINT_STATUS_BADGE[c.status] || 'badge-neutral'}">${escapeHtml(COMPLAINT_STATUS_LABEL[c.status] || c.status)}</span></div>
+      </div>`).join(''));
+  }
+
+  body.innerHTML = html || '<p class="t-muted" style="font-size:12.5px;">No checklist data on this record.</p>';
+  body.querySelectorAll('[data-insp-related-complaint]').forEach(el => el.addEventListener('click', () => {
+    document.getElementById('inspectionDetailModalBackdrop').classList.remove('open');
+    openComplaintDetail(el.dataset.inspRelatedComplaint);
+  }));
   document.getElementById('inspectionDetailModalBackdrop').classList.add('open');
 }
 document.getElementById('closeInspectionDetailModal')?.addEventListener('click', () => document.getElementById('inspectionDetailModalBackdrop').classList.remove('open'));
