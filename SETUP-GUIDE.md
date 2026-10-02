@@ -231,18 +231,19 @@ Yeh feature security guard ke liye ek alag, chhota app hai (`guard.html`) — re
 
 ## Step 9 — Facility Staff (Managing Staff / Supervisor) Setup Karein
 
-Yeh feature society ke paid facility staff (Managing Staff, Supervisor) ke liye hai — inspection checklists bharne ke liye aur complaints dekhne/update karne ke liye. Ye committee admins se **alag** login hai (`staff.html`), aur guards se bhi alag — yahan **real email + password** use hota hai, PIN nahi.
+Yeh feature society ke paid facility staff (Managing Staff, Supervisor) ke liye hai — inspection checklists bharne ke liye aur complaints dekhne/update karne ke liye. Ye committee admins se **alag** login hai (`staff.html`) — aur guards ki tarah hi, **Login ID + PIN** se login hota hai, koi real email/password nahi chahiye.
 
 1. `admin.html` mein Super Admin/President/Secretary se login karein → **Facility Staff** tab kholein
-2. **+ Add Staff** par click karein → Naam, unka **real email**, aur Role (Managing Staff / Supervisor) bharein
-3. Save karte hi unhe apne email par ek **password-set link** milega (Firebase ka standard reset-password email) — koi PIN ya temporary password kahin dikhta/likha nahi jaata
-4. Staff `staff.html` par jaakar apna email + wahi set kiya hua password se login karein (URL: `https://aapki-site.com/staff.html`)
-5. Home tab se **"+ Start an Inspection"** — 4 checklists available hain: Daily Tower, Weekly MEP, Daily Security, Club House. Har item OK/Issue mark karein, Issue wale item ka short note bhi likh sakte hain
-6. Submit karte hi jo bhi items "Issue" mark hue the, wo automatically ek **Complaint** ban jaate hain — same SLA/escalation system jo resident complaints ke liye already hai
-7. Residents apne dashboard par **"🔍 Recent Facility Inspections"** card mein latest inspections dekh sakte hain (pass/issue summary)
-8. Staff apni **Complaints** tab se koi bhi complaint (resident ka ho ya inspection se aaya ho) dekh sakte hain aur status "In Progress" → "Resolved" tak le ja sakte hain
-9. **Managing Staff** ko ek extra **Team** tab dikhta hai — yahan se woh decide kar sakte hain ki 7 towers ka daily checklist, Daily Security, Club House, aur Weekly MEP — in 10 slots mein se har ek **kis Supervisor (ya khud) ke zimme hai**. Jab tak koi slot "Unassigned" hai, koi bhi Supervisor use pick kar sakta hai — assign karne se woh sirf usी Supervisor (aur Managing Staff) ko dikhta hai, taaki kuch chhoot na jaaye
-10. Admin ko **Facility Staff** tab mein ek **Staff Performance** card dikhta hai — har staff member ke Inspections Filed, Checklist Quality (OK vs Issue %), Complaints Handled/Resolved, aur average resolution time se bana ek combined **Score**, saath mein ek chart. Ye poora automatically compute hota hai, kahin manually rating dalne ki zaroorat nahi
+2. **+ Add Staff** par click karein → sirf Naam, Role (Managing Staff / Supervisor), aur Trade/Department bharein — email ki zaroorat nahi
+3. Save karte hi ek **Login ID** (jaise `S001`) aur **6-digit PIN** ek baar dikhega — ise turant kahin likh lein ya staff ko de dein; ye dobara kabhi dikhega nahi
+4. Staff `staff.html` par jaakar apna Login ID + PIN se login karein (URL: `https://aapki-site.com/staff.html`)
+5. PIN bhool jaane par: koi reset nahi hai — us staff member ko **Deactivate** karke naya account banayein (guard ki tarah hi)
+6. Home tab se **"+ Start an Inspection"** — 4 checklists available hain: Daily Tower, Weekly MEP, Daily Security, Club House. Har item OK/Issue mark karein, Issue wale item ka short note bhi likh sakte hain
+7. Submit karte hi jo bhi items "Issue" mark hue the, wo automatically ek **Complaint** ban jaate hain — same SLA/escalation system jo resident complaints ke liye already hai
+8. Residents apne dashboard par **"🔍 Recent Facility Inspections"** card mein latest inspections dekh sakte hain (pass/issue summary)
+9. Staff apni **Complaints** tab se koi bhi complaint (resident ka ho ya inspection se aaya ho) dekh sakte hain aur status "In Progress" → "Resolved" tak le ja sakte hain
+10. **Managing Staff** ko ek extra **Team** tab dikhta hai — yahan se woh decide kar sakte hain ki 7 towers ka daily checklist, Daily Security, Club House, aur Weekly MEP — in 10 slots mein se har ek **kis Supervisor (ya khud) ke zimme hai**. Jab tak koi slot "Unassigned" hai, koi bhi Supervisor use pick kar sakta hai — assign karne se woh sirf usी Supervisor (aur Managing Staff) ko dikhta hai, taaki kuch chhoot na jaaye
+11. Admin ko **Facility Staff** tab mein ek **Staff Performance** card dikhta hai — har staff member ke Inspections Filed, Checklist Quality (OK vs Issue %), Complaints Handled/Resolved, aur average resolution time se bana ek combined **Score**, saath mein ek chart. Ye poora automatically compute hota hai, kahin manually rating dalne ki zaroorat nahi
 11. Inspection checklist mein koi bhi item "Issue" mark hone par staff **photo aur tag** attach kar sakta hai — **critical items (fire safety, emergency exit, etc.) ke liye photo zaroori hai**, uske bina submit nahi hoga
 12. Complaint resolve karte waqt admin/staff ek **Resolution Photo** bhi attach kar sakte hain (evidence ki fix ho gaya), text-note ke saath
 13. Agar same jagah 30 din mein 2+ baar same issue aaye, to complaint list aur detail dono jagah **"🔁 Recurring"** badge apne aap dikhta hai — kahin manually track nahi karna padta
@@ -389,5 +390,7 @@ towers dikhna. Naya interactive flow add karte waqt, isi pattern se
 | "Missing or insufficient permissions" | Firestore rules deploy nahi hui, ya admin doc ka field/role galat hai |
 | "The query requires an index" | Firestore khud ek link dega console mein — usko click karke index auto-create ho jaata hai |
 | Drive Backup button error | `GOOGLE_OAUTH_CLIENT_ID` placeholder hi reh gaya hai, ya current URL Authorized Origins mein add nahi hai |
+| Backup "INCOMPLETE" / kuch collections load nahi hue ka warning | Pehle ye silently "success" dikha deta tha chahe kuch fail ho jaaye — ab genuinely fail hua hai to clearly batata hai. Connection check karke backup dobara lein |
+| Resident ki email Firebase Authentication mein dikh rahi hai, par Approval Center mein koi pending request nahi aayi | Registration submit karte waqt connection beech mein drop ho gaya tha (account ban gaya, profile save hone se pehle). Firebase Console → Authentication mein jaakar us email ka account delete kar dein, resident ko dobara register karne ko bolein — ab retry-logic lagi hai jo isko kaafi kam kar degi, lekin genuinely connection-drop ke liye koi automatic fix nahi hai |
 
 Kisi bhi step mein stuck ho jaayein toh yeh guide + error message dono share karke wapas pooch sakte hain.

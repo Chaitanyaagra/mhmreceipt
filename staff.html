@@ -31,7 +31,7 @@
 <style>
   body{ background:var(--paper); }
   .st-shell{ max-width:560px; margin:0 auto; min-height:100vh; display:flex; flex-direction:column; }
-  #screen-login{ min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
+  #screen-login.active{ min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
   .login-card{ width:100%; max-width:360px; background:#fff; border:1px solid var(--line); border-radius:18px; padding:28px 24px; }
   .login-card h1{ font-size:18px; margin:0 0 4px; text-align:center; }
   .login-card p{ font-size:12.5px; color:var(--ink-500); margin:0 0 20px; text-align:center; }
@@ -55,7 +55,7 @@
   .chk-row:last-child{ border-bottom:none; }
   .chk-label{ font-size:12.5px; flex:1; }
   .chk-toggle{ display:flex; gap:4px; flex-shrink:0; }
-  .chk-btn{ padding:5px 10px; border-radius:7px; font-size:11px; font-weight:700; border:1px solid var(--line); background:#fff; color:var(--ink-500); }
+  .chk-btn{ padding:9px 14px; min-height:38px; border-radius:7px; font-size:13px; font-weight:700; border:1px solid var(--line); background:#fff; color:var(--ink-500); }
   .chk-btn.ok-on{ background:var(--success-bg); color:var(--success); border-color:var(--success-line); }
   .chk-btn.issue-on{ background:var(--danger-bg); color:var(--danger); border-color:var(--danger-line); }
   .chk-note{ padding:0 14px 10px; }
@@ -71,11 +71,11 @@
     <h1>Staff App</h1>
     <p>Max Heights Majestic RWS — Facility Team</p>
     <form id="loginForm">
-      <div class="field"><label for="loginEmail">Email</label><input type="email" id="loginEmail" autocomplete="username" required></div>
-      <div class="field"><label for="loginPass">Password</label><input type="password" id="loginPass" autocomplete="current-password" required></div>
+      <div class="field"><label for="loginId">Login ID</label><input type="text" id="loginId" autocomplete="off" autocapitalize="characters" placeholder="e.g. S001" required></div>
+      <div class="field"><label for="loginPin">PIN</label><input type="password" id="loginPin" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="off" placeholder="6-digit PIN" required></div>
       <div id="loginError"></div>
       <button class="btn btn-primary" type="submit" style="width:100%;">Sign In</button>
-      <button class="btn btn-outline" type="button" id="forgotBtn" style="width:100%; margin-top:8px;">Forgot password</button>
+      <p class="t-muted" style="font-size:12px; text-align:center; margin-top:10px;">Forgotten your PIN? Ask your Managing Staff or the admin to set up a new login.</p>
     </form>
   </div>
 </div>
@@ -123,7 +123,7 @@ if ('serviceWorker' in navigator) {
 <script type="module">
 import { auth, db, storage } from './firebase-config.js';
 import {
-  signInWithEmailAndPassword, onAuthStateChanged, signOut, sendPasswordResetEmail
+  signInWithEmailAndPassword, onAuthStateChanged, signOut
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
 import {
   doc, getDoc, addDoc, setDoc, updateDoc, collection, query, where, getDocs, orderBy, serverTimestamp, writeBatch
@@ -153,7 +153,7 @@ function showTab(name) {
   document.querySelectorAll('.tab-panel').forEach(p => p.style.display = 'none');
   document.getElementById('tab-' + name).style.display = 'block';
   if (name === 'home') renderHome();
-  if (name === 'inspect') renderInspectPicker();
+  if (name === 'inspect') { if (draft) renderChecklist(); else loadInspectionAssignments().then(renderInspectPicker); }
   if (name === 'history') renderHistory();
   if (name === 'complaints') renderComplaints();
   if (name === 'team') renderTeam();
@@ -173,29 +173,20 @@ if (window.__registerBackStep) {
 /* ---------------------------------------------------------------------- */
 document.getElementById('loginForm').addEventListener('submit', async (e) => {
   e.preventDefault();
-  const email = document.getElementById('loginEmail').value.trim();
-  const pass = document.getElementById('loginPass').value;
+  const loginId = document.getElementById('loginId').value.trim().toUpperCase();
+  const pin = document.getElementById('loginPin').value.trim();
   const errEl = document.getElementById('loginError');
   errEl.style.display = 'none';
+  if (!loginId || !pin) return;
   const btn = e.target.querySelector('button[type="submit"]');
   btn.disabled = true;
   try {
-    await signInWithEmailAndPassword(auth, email, pass);
+    await signInWithEmailAndPassword(auth, `${loginId.toLowerCase()}@mhmrws-portal.local`, pin);
   } catch (err) {
-    errEl.textContent = 'Incorrect email or password.';
+    errEl.textContent = 'Incorrect Login ID or PIN.';
     errEl.style.display = 'block';
   } finally {
     btn.disabled = false;
-  }
-});
-document.getElementById('forgotBtn').addEventListener('click', async () => {
-  const email = document.getElementById('loginEmail').value.trim();
-  if (!email) { showToast('Enter your email first, then tap Forgot password.', 'error'); return; }
-  try {
-    await sendPasswordResetEmail(auth, email);
-    showToast('Password reset email sent.', 'success');
-  } catch (err) {
-    showToast('Could not send reset email — check the address and try again.', 'error');
   }
 });
 document.getElementById('logoutBtn').addEventListener('click', () => signOut(auth));
@@ -269,10 +260,16 @@ async function loadComplaints() {
 }
 
 let allInspectionAssignments = [];
+let inspectionAssignmentsLoadFailed = false;
 async function loadInspectionAssignments() {
   try {
     allInspectionAssignments = (await getDocs(collection(db, 'inspectionAssignments'))).docs.map(d => ({ id: d.id, ...d.data() }));
-  } catch (e) { console.warn('Inspection assignments load failed:', e?.code || e); allInspectionAssignments = []; }
+    inspectionAssignmentsLoadFailed = false;
+  } catch (e) {
+    console.warn('Inspection assignments load failed:', e?.code || e);
+    allInspectionAssignments = [];
+    inspectionAssignmentsLoadFailed = true;
+  }
 }
 
 // One row per schedulable slot: each of the 7 towers' Daily Tower Common
@@ -327,6 +324,7 @@ async function saveAssignment(sel) {
   const formType = sel.dataset.formType;
   const tower = sel.dataset.tower || null;
   const uid = sel.value || null;
+  const previousUid = allInspectionAssignments.find(a => a.id === slotId)?.assignedToUid || '';
   const supervisors = allStaffList.filter(s => s.role === 'supervisor');
   const name = !uid ? null : (uid === currentStaff.uid ? currentStaff.name : (supervisors.find(s => s.id === uid)?.name || null));
   sel.disabled = true;
@@ -346,6 +344,7 @@ async function saveAssignment(sel) {
   } catch (e) {
     console.error('Save assignment failed:', e);
     showToast('Could not save — please try again.', 'error');
+    sel.value = previousUid;
   } finally { sel.disabled = false; }
 }
 
@@ -370,7 +369,13 @@ function renderHome() {
         <div><div class="t-muted" style="font-size:11.5px;">${complaintLabel}</div><div style="font-size:22px; font-weight:800; color:${openComplaints ? 'var(--danger)' : 'var(--success)'};">${openComplaints}</div></div>
       </div>
     </div>
-    <button class="btn btn-primary" style="width:100%; margin-bottom:8px;" data-goto="inspect">+ Start an Inspection</button>
+    ${(() => {
+      const hasAnyAssignment = currentStaff.role === 'manager'
+        || Object.keys(INSPECTION_TYPES).some((key) => key === 'daily-tower' ? TOWER_IDS.some((t) => isSlotAvailableToMe(key, t)) : isSlotAvailableToMe(key, null));
+      return hasAnyAssignment
+        ? `<button class="btn btn-primary" style="width:100%; margin-bottom:8px;" data-goto="inspect">+ Start an Inspection</button>`
+        : `<div style="background:#FDF3E2; border-radius:10px; padding:12px; margin-bottom:8px; font-size:12.5px;">Assignment pending — ask your Managing Staff to assign you a tower/checklist from the Team tab before you can file an inspection.</div>`;
+    })()}
     <button class="btn btn-outline" style="width:100%; margin-bottom:8px;" id="logIssueBtn">+ Log an Issue</button>
     <button class="btn btn-outline" style="width:100%;" data-goto="complaints">View Complaints</button>
   `;
@@ -478,7 +483,9 @@ function renderInspectPicker() {
   );
   el.innerHTML = `
     <p class="t-muted" style="font-size:12.5px; margin-bottom:12px;">Pick a checklist to start.</p>
-    ${!visibleTypes.length ? `<p class="t-muted" style="font-size:12.5px;">Nothing is assigned to you right now — ask your Managing Staff to assign an inspection from the Team tab.</p>` : ''}
+    ${inspectionAssignmentsLoadFailed
+      ? `<div style="padding:10px 12px; background:#FDEDED; border-radius:8px; font-size:12.5px; margin-bottom:12px;">Could not check your assignments — please check your connection. <button type="button" class="link-btn" id="retryAssignmentsBtn">Retry</button></div>`
+      : (!visibleTypes.length ? `<p class="t-muted" style="font-size:12.5px;">Nothing is assigned to you right now — ask your Managing Staff to assign an inspection from the Team tab.</p>` : '')}
     <div class="type-grid">
       ${visibleTypes.map(([key, t]) => `
         <button class="type-card" data-type="${key}">
@@ -488,6 +495,7 @@ function renderInspectPicker() {
     </div>
   `;
   el.querySelectorAll('[data-type]').forEach(b => b.onclick = () => startInspection(b.dataset.type));
+  document.getElementById('retryAssignmentsBtn')?.addEventListener('click', () => loadInspectionAssignments().then(renderInspectPicker));
 }
 
 function startInspection(formType) {
@@ -509,7 +517,8 @@ function startInspection(formType) {
   if (formType === 'weekly-mep') {
     draft.tankData = {};
     tpl.towers.forEach(t => { draft.tankData[t] = tpl.tankChecks.map(() => null); });
-    draft.readingsData = tpl.readings.map(() => '');
+    draft.readingsData = {};
+    tpl.readings.forEach((label) => { draft.readingsData[label] = ''; });
     draft.maintenanceNotes = '';
   }
   if (formType === 'club-house') {
@@ -531,6 +540,7 @@ function renderChecklist() {
 
   el.innerHTML = `
     <div class="card card-pad" style="margin-bottom:12px;">
+      <button type="button" class="link-btn" id="inspChangeTypeBtn" style="font-size:11.5px; margin-bottom:6px;">← Change inspection type</button>
       <b style="font-size:14.5px;">${escapeHtml(tpl.label)}</b>
       ${draft.needsTower ? `
         <div class="field" style="margin-top:10px;">
@@ -553,7 +563,7 @@ function renderChecklist() {
             </div>
             ${it.status === 'issue' ? `
               <div class="chk-note">
-                <input type="text" placeholder="What's wrong? (optional note)" value="${escapeHtml(it.note)}" data-note="${si}:${ii}">
+                <input type="text" placeholder="What's wrong? (optional note)" value="${escapeHtml(it.note)}" data-note="${si}:${ii}" maxlength="2000">
               </div>
               <div class="chk-note" style="margin-top:6px;">
                 <label style="font-size:11.5px; display:block; margin-bottom:3px;">Photo${it.priority === 'high' ? ' <span class="t-muted">(required — critical item)</span>' : ' <span class="t-muted">(optional)</span>'}</label>
@@ -586,8 +596,8 @@ function renderChecklist() {
       <div class="chk-section">
         <div class="chk-section-head">Weekly Readings</div>
         <div style="padding:10px 12px;">
-          ${INSPECTION_TYPES['weekly-mep'].readings.map((label, ri) => `
-            <div class="field"><label>${escapeHtml(label)}</label><input type="text" inputmode="decimal" value="${escapeHtml(draft.readingsData[ri])}" data-reading="${ri}"></div>`).join('')}
+          ${INSPECTION_TYPES['weekly-mep'].readings.map((label) => `
+            <div class="field"><label>${escapeHtml(label)} <span class="t-muted" style="font-weight:400; font-size:11px;">(${escapeHtml(INSPECTION_TYPES['weekly-mep'].READING_HINTS?.[label] || '')})</span></label><input type="text" inputmode="decimal" value="${escapeHtml(draft.readingsData[label] || '')}" data-reading="${escapeHtml(label)}"></div>`).join('')}
         </div>
       </div>
       <div class="chk-section">
@@ -641,6 +651,11 @@ function renderChecklist() {
     renderChecklist();
   });
   el.querySelectorAll('[data-reading]').forEach(inp => inp.addEventListener('input', () => { draft.readingsData[inp.dataset.reading] = inp.value; }));
+  document.getElementById('inspChangeTypeBtn')?.addEventListener('click', () => {
+    if (!confirm('Discard this in-progress checklist and pick a different inspection type?')) return;
+    draft = null;
+    renderInspectPicker();
+  });
   el.querySelectorAll('[data-tag]').forEach(b => b.onclick = () => {
     const [si, ii, tag] = b.dataset.tag.split(':');
     const it = draft.sections[si].items[ii];
@@ -651,7 +666,15 @@ function renderChecklist() {
   });
   el.querySelectorAll('[data-photo]').forEach(inp => inp.addEventListener('change', () => {
     const [si, ii] = inp.dataset.photo.split(':');
-    draft.sections[si].items[ii].photoFile = inp.files?.[0] || null;
+    const file = inp.files?.[0] || null;
+    if (file && file.size > 8 * 1024 * 1024) {
+      showToast(`That photo is ${(file.size / 1024 / 1024).toFixed(1)} MB — please choose one under 8 MB.`, 'error');
+      inp.value = '';
+      draft.sections[si].items[ii].photoFile = null;
+      renderChecklist();
+      return;
+    }
+    draft.sections[si].items[ii].photoFile = file;
     renderChecklist();
   }));
   el.querySelectorAll('[data-field]').forEach(inp => inp.addEventListener('input', () => { draft[inp.dataset.field] = inp.value; }));
@@ -766,7 +789,9 @@ async function submitInspection() {
       formType: draft.formType,
       tower: draft.tower || null,
       sections: draft.sections.map(sec => ({ title: sec.title, items: sec.items.map(it => ({ label: it.label, status: it.status || 'unchecked', note: it.note || null, tags: it.tags?.length ? it.tags : null, photoURL: it.photoURL || null })) })),
-      issueCount: freshItems.filter(it => it.status === 'issue').length,
+      issueCount: freshItems.filter(it => it.status === 'issue').length
+        + (draft.tankData ? Object.values(draft.tankData).reduce((sum, checks) => sum + checks.filter((v) => v === false).length, 0) : 0),
+      uncheckedCount: freshItems.filter(it => !it.status).length,
       createdByUid: currentStaff.uid,
       createdByName: currentStaff.name,
       status: 'submitted',
@@ -798,7 +823,7 @@ async function submitInspection() {
         raisedByUid: currentStaff.uid,
         title: it.label,
         description: (it.note || 'Flagged during ' + INSPECTION_TYPES[draft.formType].label + (draft.tower ? ' — Tower ' + draft.tower : '') + '.'),
-        category: inspectionSectionToComplaintCategory(it.section),
+        category: inspectionSectionToComplaintCategory(it.label + ' ' + it.section),
         status: 'open',
         source: 'inspection',
         sourceInspectionId: inspRef.id,
@@ -812,6 +837,7 @@ async function submitInspection() {
 
     await batch.commit();
     showToast('Inspection submitted' + (issues.length ? ' — ' + issues.length + ' issue(s) logged.' : '.'), 'success');
+    draft = null;
     await Promise.all([loadMyInspections(), loadComplaints()]);
     showTab('history');
   } catch (err) {
@@ -834,7 +860,9 @@ function renderHistory() {
           <b style="font-size:13.5px;">${escapeHtml(INSPECTION_TYPES[r.formType]?.label || r.formType)}</b>
           <div class="t-muted" style="font-size:11.5px; margin-top:2px;">${r.tower ? 'Tower ' + escapeHtml(r.tower) + ' · ' : ''}${r.createdAt ? fmtDateTime(r.createdAt) : ''}</div>
         </div>
-        ${r.issueCount ? `<span class="badge badge-danger">${r.issueCount} issue${r.issueCount > 1 ? 's' : ''}</span>` : `<span class="badge badge-success">All clear</span>`}
+        ${Number(r.issueCount) ? `<span class="badge badge-danger">${Number(r.issueCount)} issue${Number(r.issueCount) > 1 ? 's' : ''}</span>`
+          : Number(r.uncheckedCount) ? `<span class="badge badge-warning">${Number(r.uncheckedCount)} unchecked</span>`
+          : `<span class="badge badge-success">All clear</span>`}
       </div>
     </div>`).join('');
 }
@@ -861,7 +889,7 @@ const COMPLAINT_STATUS_BADGE = { open: 'warning', in_progress: 'warning', resolv
 // if within 24h. Mirrors the admin panel's complaintSlaStatus intent.
 function complaintSla(c) {
   if (!c.targetDate || ['resolved', 'closed', 'rejected'].includes(c.status)) return null;
-  const target = new Date(c.targetDate + 'T23:59:59').getTime();
+  const target = new Date(c.targetDate + 'T23:59:59.999').getTime();
   const now = Date.now();
   if (now > target) return 'overdue';
   if (target - now < 24 * 60 * 60 * 1000) return 'due_soon';

@@ -1579,6 +1579,11 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
           <label for="pf-rentAgreement">Rent Agreement <span class="t-muted" style="font-weight:400;">(optional — PDF or photo)</span></label>
           <input type="file" name="rentAgreement" id="pf-rentAgreement" accept=".pdf,image/*">
           <a id="pfRentAgreementCurrentLink" href="#" target="_blank" rel="noopener" style="display:none; font-size:12px; margin-top:4px;">View current agreement</a>
+          <div class="form-2col" style="margin-top:8px;">
+            <div class="field"><label for="pf-rentAgreementStart">Agreement start</label><input type="date" name="rentAgreementStart" id="pf-rentAgreementStart"></div>
+            <div class="field"><label for="pf-rentAgreementEnd">Agreement end</label><input type="date" name="rentAgreementEnd" id="pf-rentAgreementEnd"></div>
+          </div>
+          <p class="t-muted" style="font-size:11.5px; margin-top:4px;">Renewed your agreement? Update these dates too, or the "Expired" warning will keep showing against the old ones.</p>
         </div>
         <div class="field">
           <label for="pf-idDoc">ID Document — Aadhaar / PAN <span class="t-muted" style="font-weight:400;">(optional, private — visible only to you and the office)</span></label>
@@ -2061,7 +2066,7 @@ import { auth, db, storage, SOCIETY } from './firebase-config.js';
 import { TOWER_IDS, flatsForTower } from './tower-plan.js';
 import {
   createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged,
-  signOut, sendPasswordResetEmail, deleteUser, GoogleAuthProvider, signInWithRedirect, getRedirectResult, sendEmailVerification
+  signOut, sendPasswordResetEmail, deleteUser, GoogleAuthProvider, signInWithRedirect, getRedirectResult, sendEmailVerification, updateEmail
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
 import {
   doc, getDoc, setDoc, updateDoc, addDoc, collection, query, where, orderBy, getDocs, serverTimestamp, limit, writeBatch, onSnapshot, runTransaction
@@ -2070,7 +2075,7 @@ import {
   ref as storageRef, uploadBytes, getDownloadURL
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-storage.js";
 import {
-  showToast, escapeHtml, fmtDate, formatINR, currentFinancialYear,
+  showToast, escapeHtml, fmtDate, formatINR, currentFinancialYear, financialYearOptions,
   generateReceiptPDF, printReceipt, validatePayment, validateRegistration,
   generateMembershipCard, duesFor, DUES_LABEL, DUES_BADGE,
   generateRegistrationConfirmationPDF,
@@ -2654,7 +2659,15 @@ registerForm.addEventListener('submit', async (e) => {
     // register again with the same email. The photo is attached afterward
     // with a follow-up update; if THAT fails, the registration has already
     // gone through, so it's reported as a non-fatal, separate problem.
-    await setDoc(doc(db, 'members', uid), {
+    //
+    // This write is retried specifically on permission-denied — the exact
+    // signature of a still-propagating brand-new Auth account, which the
+    // getIdToken(true) refresh above narrows but does not reliably close
+    // (that refreshes the LOCAL token; Firestore's own backend recognizing
+    // the account server-side is a separate delay). Without this retry,
+    // this single write failing was the entire "shows up in Firebase
+    // Authentication but never as a pending approval" failure mode.
+    const memberDocPayload = {
       uid,
       name: f.name.value.trim(),
       fatherHusbandName: f.fatherHusbandName.value.trim(),
@@ -2687,7 +2700,20 @@ registerForm.addEventListener('submit', async (e) => {
       role: 'resident',
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
-    });
+    };
+    let memberWriteAttempt = 0;
+    while (true) {
+      try {
+        await setDoc(doc(db, 'members', uid), memberDocPayload);
+        break;
+      } catch (writeErr) {
+        memberWriteAttempt++;
+        if (writeErr?.code !== 'permission-denied' || memberWriteAttempt >= 4) throw writeErr;
+        console.warn(`Member document write hit permission-denied (likely a still-propagating new account) — retrying, attempt ${memberWriteAttempt}`);
+        await new Promise((resolve) => setTimeout(resolve, memberWriteAttempt * 600));
+        try { await cred.user.getIdToken(true); } catch (_) {}
+      }
+    }
 
     // Now that the registration itself is safely recorded, attempt the photo
     // upload. A failure here is reported as non-fatal (see the toast logic
@@ -2739,9 +2765,17 @@ registerForm.addEventListener('submit', async (e) => {
     const feeProofFile = f.feeProof ? f.feeProof.files[0] : null;
     let membershipPaymentData = null;
     if (isOwnerType && alreadyPaidFee && (feeUtr || feeProofFile)) {
+      // The screenshot is supporting evidence, not the thing that makes the
+      // payment real — a UTR alone is already enough for the office to
+      // check against a bank statement. A failed upload must not throw
+      // away a perfectly good UTR the resident already typed in.
+      let feeProofURL = '';
+      let proofUploadFailed = false;
+      if (feeProofFile) {
+        try { feeProofURL = await uploadFile(`paymentProofs/${uid}/membership_${Date.now()}`, feeProofFile); }
+        catch (proofErr) { console.warn('Membership fee screenshot upload failed (continuing with UTR alone):', proofErr); proofUploadFailed = true; }
+      }
       try {
-        let feeProofURL = '';
-        if (feeProofFile) feeProofURL = await uploadFile(`paymentProofs/${uid}/membership_${Date.now()}`, feeProofFile);
         // Same source of truth the resident's own dashboard reads dues from
         // (settings/maintenance) — a hardcoded figure here would silently
         // stop matching whatever the committee has actually configured the
@@ -2759,7 +2793,35 @@ registerForm.addEventListener('submit', async (e) => {
           utrOrChequeNo: feeUtr, paymentProofURL: feeProofURL,
           status: 'pending_verification', submittedAt: serverTimestamp()
         };
-        await addDoc(collection(db, 'payments'), membershipPaymentData);
+        const membershipPayRef = doc(collection(db, 'payments'));
+        if (feeUtr) {
+          // Same UTR-claimed-once-ever lock the dashboard's "pay online"
+          // flow uses — without this, the same real-world transaction
+          // reference could be recorded against two different
+          // registrations (or a registration and a later dashboard
+          // payment) with nothing catching the duplicate.
+          const utrLockRef = doc(db, 'paymentsByUtr', feeUtr.toUpperCase());
+          try {
+            await runTransaction(db, async (tx) => {
+              const lockSnap = await tx.get(utrLockRef);
+              if (lockSnap.exists()) throw new Error('UTR_TAKEN');
+              tx.set(utrLockRef, { claimedAt: serverTimestamp(), claimedBy: uid });
+              tx.set(membershipPayRef, membershipPaymentData);
+            });
+          } catch (lockErr) {
+            if (lockErr.message === 'UTR_TAKEN') {
+              membershipPaymentData = null;
+              showToast('Registration submitted, but that UTR / Transaction ID has already been used for a payment. Please pay from your dashboard once approved, with the correct reference.', 'error');
+            } else {
+              throw lockErr;
+            }
+          }
+        } else {
+          await setDoc(membershipPayRef, membershipPaymentData);
+        }
+        if (membershipPaymentData && proofUploadFailed) {
+          showToast('Registration and payment submitted — the screenshot could not be uploaded, but your UTR was recorded for the office to verify.', 'error');
+        }
       } catch (feeErr) {
         // Same principle as the pet-save failure just above: the
         // registration itself already succeeded, so this must not look
@@ -3119,6 +3181,7 @@ async function loadDashboard(uid) {
         </div>` : ''}
     </div>
     ${currentMember.status === 'approved' ? `<div id="gateCard"></div>` : ''}
+    ${currentMember.status === 'approved' ? `<div id="financialSummaryCard"></div>` : ''}
     ${currentMember.status === 'approved' ? `<div id="inspectionsCard"></div>` : ''}
     ${currentMember.status === 'approved' ? `<div id="expiryCenterCard" style="display:none;"></div>` : ''}
     ${currentMember.status === 'approved' ? `
@@ -3127,8 +3190,9 @@ async function loadDashboard(uid) {
         <div id="duesPanel"><div class="skeleton" style="height:186px; margin-bottom:18px;"></div></div>
         <div class="spread" style="margin:18px 0 16px; gap:10px; flex-wrap:wrap;">
           <h3 style="font-size:16px;">Payment History</h3>
-          <div style="display:flex; gap:8px; flex-wrap:wrap;">
-            <button class="btn btn-outline btn-sm" id="downloadStatementBtn" title="All receipts for the full financial year in one PDF">FY Statement</button>
+          <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+            <select id="statementFYSelect" style="width:auto; padding:6px 10px; font-size:12.5px;" title="Financial year for the statement"></select>
+            <button class="btn btn-outline btn-sm" id="downloadStatementBtn" title="All receipts for the selected financial year in one PDF">FY Statement</button>
             <button class="btn btn-primary btn-sm" id="openPaymentBtn">Make a Payment</button>
           </div>
         </div>
@@ -3253,6 +3317,11 @@ async function loadDashboard(uid) {
           : 'Could not send the email right now — please try again shortly.', 'error');
       } finally { btn.disabled = false; }
     });
+    const fySelect = document.getElementById('statementFYSelect');
+    if (fySelect && !fySelect.options.length) {
+      const curFY = currentFinancialYear();
+      fySelect.innerHTML = financialYearOptions(5, 0).map((fy) => `<option value="${fy}" ${fy === curFY ? 'selected' : ''}>${fy}</option>`).join('');
+    }
     document.getElementById('downloadStatementBtn')?.addEventListener('click', downloadStatement);
     document.getElementById('editProfileBtn')?.addEventListener('click', openProfileModal);
     document.getElementById('fillProfileNudgeBtn')?.addEventListener('click', openProfileModal);
@@ -3290,6 +3359,7 @@ async function loadDashboard(uid) {
     await Promise.allSettled([loadPayments(uid), loadMyPets(uid), loadMyComplaints(uid), loadMyBookings(uid), loadMyGuests(uid), loadMySuggestions(uid)]);
     subscribeGateVisitors(currentMember);
     loadInspectionsCard();
+    loadFinancialSummaryCard();
   }
 }
 
@@ -3324,7 +3394,7 @@ async function loadNotificationCenter() {
     const t = toMs(p.verifiedAt) || toMs(p.updatedAt);
     if (!t || t <= cutoff) return;
     if (p.status === 'verified') items.push({ icon: '✅', text: `Payment of ${formatINR(p.amount)} was verified.`, time: t });
-    else if (p.status === 'rejected') items.push({ icon: '❌', text: `Payment of ${formatINR(p.amount)} was rejected${p.remarks ? `: ${p.remarks}` : '.'}`, time: t });
+    else if (p.status === 'rejected') items.push({ icon: '❌', text: `Payment of ${formatINR(p.amount)} was rejected${p.rejectionReason ? `: ${p.rejectionReason}` : '.'}`, time: t });
   });
 
   (window.__myComplaints || []).forEach(c => {
@@ -3760,11 +3830,37 @@ async function decideGateVisitor(id, status) {
 /*  way a guest waiting at the gate is, so a plain fetch on dashboard load */
 /*  is enough — same pattern as loadMyBookings, not onSnapshot.            */
 /* ---------------------------------------------------------------------- */
+// Society accounts, at a glance — the admin side already publishes this
+// (publicFinancialSummary/{fy}, publicly readable) every time expenses or
+// payments change, but nothing on the resident side ever read it back.
+async function loadFinancialSummaryCard() {
+  const el = document.getElementById('financialSummaryCard');
+  if (!el) return;
+  try {
+    const fy = currentFinancialYear();
+    const snap = await getDoc(doc(db, 'publicFinancialSummary', fy));
+    if (!snap.exists()) { el.innerHTML = ''; return; }
+    const s = snap.data();
+    const cats = Object.entries(s.categories || {}).sort((a, b) => b[1] - a[1]).slice(0, 4);
+    el.innerHTML = `
+      <div class="card card-pad">
+        <div class="t-muted" style="font-size:12px; margin-bottom:10px;">Society Accounts &middot; FY ${escapeHtml(fy)}</div>
+        <div style="display:flex; gap:16px; flex-wrap:wrap; margin-bottom:${cats.length ? '12px' : '0'};">
+          <div><div class="t-muted" style="font-size:11.5px;">Collected</div><b style="font-size:16px;">${formatINR(s.collected || 0)}</b></div>
+          <div><div class="t-muted" style="font-size:11.5px;">Spent</div><b style="font-size:16px;">${formatINR(s.spent || 0)}</b></div>
+          <div><div class="t-muted" style="font-size:11.5px;">Balance</div><b style="font-size:16px;">${formatINR(s.balance || 0)}</b></div>
+        </div>
+        ${cats.length ? `<div style="font-size:12px;">${cats.map(([k, v]) => `<span style="margin-right:12px;">${escapeHtml(k)}: ${formatINR(v)}</span>`).join('')}</div>` : ''}
+      </div>`;
+  } catch (e) { console.warn('Financial summary load failed:', e?.code || e); el.innerHTML = ''; }
+}
+
 async function loadInspectionsCard() {
   const el = document.getElementById('inspectionsCard');
   if (!el) return;
   try {
-    const snap = await getDocs(collection(db, 'inspections'));
+    const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    const snap = await getDocs(query(collection(db, 'inspections'), where('createdAt', '>=', startOfMonth)));
     const all = snap.docs.map(d => ({ id: d.id, ...d.data() }))
       .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
     renderInspectionsCard(all);
@@ -3817,7 +3913,9 @@ function renderInspectionsCard(all) {
             <b style="font-size:13.5px;">${escapeHtml(INSPECTION_TYPES[r.formType]?.label || r.formType)}</b>
             <span class="t-muted" style="font-size:11.5px; display:block; margin-top:1px;">${r.tower ? 'Tower ' + escapeHtml(r.tower) + ' · ' : ''}${r.createdAt ? fmtDate(r.createdAt) : ''} · view ›</span>
           </span>
-          ${r.issueCount ? `<span class="badge badge-warning">${r.issueCount} issue${r.issueCount > 1 ? 's' : ''}</span>` : `<span class="badge badge-success">All clear</span>`}
+          ${Number(r.issueCount) ? `<span class="badge badge-warning">${Number(r.issueCount)} issue${Number(r.issueCount) > 1 ? 's' : ''}</span>`
+            : Number(r.uncheckedCount) ? `<span class="badge badge-neutral">partially checked</span>`
+            : `<span class="badge badge-success">All clear</span>`}
         </button>`).join('')}
     </div>`;
   el.querySelectorAll('[data-insp-detail]').forEach(b =>
@@ -3834,6 +3932,7 @@ function openResidentInspectionDetail(idx) {
   const body = sections.map(sec => {
     const issues = sec.items.filter(it => it.status === 'issue');
     const oks = sec.items.filter(it => it.status === 'ok');
+    const unchecked = sec.items.filter(it => !it.status || it.status === 'unchecked');
     return `
       <div style="margin-bottom:12px; border:1px solid var(--line,#EAE6DC); border-radius:10px; padding:12px;">
         <b style="font-size:13.5px;">${escapeHtml(sec.title)}</b>
@@ -3843,6 +3942,7 @@ function openResidentInspectionDetail(idx) {
             ${it.note ? `<div class="t-muted" style="font-size:11.5px; margin-top:2px;">${escapeHtml(it.note)}</div>` : ''}
           </div>`).join('') : ''}
         ${oks.length ? `<div class="t-muted" style="font-size:11.5px; margin-top:8px;">${oks.length} item${oks.length > 1 ? 's' : ''} OK</div>` : ''}
+        ${unchecked.length ? `<div style="font-size:11.5px; margin-top:4px; color:var(--warning,#B87A1F);">${unchecked.length} item${unchecked.length > 1 ? 's' : ''} not checked</div>` : ''}
       </div>`;
   }).join('');
 
@@ -4081,6 +4181,7 @@ function renderMyComplaints() {
         <span class="t-muted" style="font-size:12px;">${escapeHtml(COMPLAINT_STATUS_LABEL_R[c.status] || c.status)}</span>
       </div>
       ${c.resolutionNote ? `<p class="t-muted" style="font-size:12px; margin:0;">${escapeHtml(c.resolutionNote)}</p>` : ''}
+      ${c.resolutionPhotoURL ? `<img src="${escapeHtml(c.resolutionPhotoURL)}" alt="" style="max-width:220px; border-radius:8px; margin-top:4px;">` : ''}
       ${canVerify ? `
         <div style="width:100%; background:var(--paper,#FAF7F0); border:1px solid var(--line,#EAE6DC); border-radius:8px; padding:8px 10px; margin-top:4px;">
           <div style="font-size:12px; font-weight:600; margin-bottom:6px;">Staff marked this fixed. Is it actually resolved?</div>
@@ -4160,14 +4261,20 @@ document.getElementById('complaintForm')?.addEventListener('submit', async (e) =
   btn.disabled = true;
   try {
     let photoURL = '';
-    if (f.photo.files[0]) photoURL = await uploadFile(`complaintPhotos/${currentUser.uid}/complaint_${Date.now()}_${Math.random().toString(36).slice(2,8)}`, f.photo.files[0]);
+    let photoUploadFailed = false;
+    if (f.photo.files[0]) {
+      photoURL = await uploadFile(`complaintPhotos/${currentUser.uid}/complaint_${Date.now()}_${Math.random().toString(36).slice(2,8)}`, f.photo.files[0]);
+      if (!photoURL) { photoURL = ''; photoUploadFailed = true; }
+    }
     await addDoc(collection(db, 'complaints'), {
       raisedByUid: currentUser.uid, raisedByName: currentMember.name,
       tower: currentMember.tower, flatNumber: currentMember.flatNumber,
       category: f.category.value, location: f.location.value || null, title, description, photoURL,
       status: 'open', createdAt: serverTimestamp(), updatedAt: serverTimestamp()
     });
-    showToast('Complaint submitted. The committee will review it shortly.', 'success');
+    showToast(photoUploadFailed
+      ? 'Complaint submitted, but your photo could not be uploaded — please check your connection and try adding it again later if needed.'
+      : 'Complaint submitted. The committee will review it shortly.', photoUploadFailed ? 'error' : 'success');
     document.getElementById('complaintModalBackdrop').classList.remove('open');
     await loadMyComplaints(currentUser.uid);
   } catch (err) {
@@ -4206,6 +4313,8 @@ function openProfileModal() {
     const link = document.getElementById('pfRentAgreementCurrentLink');
     if (currentMember.rentAgreementURL) { link.href = currentMember.rentAgreementURL; link.style.display = ''; }
     else if (link) link.style.display = 'none';
+    f.rentAgreementStart.value = currentMember.rentAgreementStart || '';
+    f.rentAgreementEnd.value = currentMember.rentAgreementEnd || '';
   }
   // ID document: a still-plaintext upload can be linked straight to (same as
   // Rent Agreement above). Once the office has encrypted it, the stored URL
@@ -4233,39 +4342,107 @@ document.getElementById('profileEditForm')?.addEventListener('submit', async (e)
   e.preventDefault();
   const f = e.target;
   const btn = f.querySelector('button[type="submit"]');
+  const newEmail = f.email.value.trim();
   const patch = {
-    mobile: f.mobile.value.trim(), email: f.email.value.trim(),
+    mobile: f.mobile.value.trim(), email: newEmail,
     occupation: f.occupation.value.trim(),
     dob: f.dob.value || null, anniversary: f.anniversary.value || null,
     familyMembers: collectFamilyMembers(document.getElementById('pfFamilyEditor')),
     updatedAt: serverTimestamp()
   };
+  if (currentMember.residentType === 'tenant') {
+    patch.rentAgreementStart = f.rentAgreementStart.value || null;
+    patch.rentAgreementEnd = f.rentAgreementEnd.value || null;
+  }
   btn.disabled = true;
+  let emailChangeBlocked = false;
+  let authEmailChangedThisSubmit = false;
   try {
+    // The actual login credential lives on the Auth account, not Firestore
+    // — updating only the Firestore field would let the two silently drift
+    // apart, with the resident still needing their OLD email to sign in
+    // and "Profile updated" giving no hint that anything is wrong.
+    if (newEmail && newEmail !== currentUser.email) {
+      try {
+        await updateEmail(auth.currentUser, newEmail);
+        authEmailChangedThisSubmit = true;
+        await auth.currentUser.getIdToken(true);   // refresh the cached email_verified claim before writing it
+        patch.emailVerified = false;
+        try { await sendEmailVerification(auth.currentUser); } catch (verifyErr) { console.warn('Verification email failed to send (continuing anyway):', verifyErr?.code || verifyErr); }
+      } catch (emailErr) {
+        emailChangeBlocked = true;
+        patch.email = currentMember.email || '';   // keep Firestore in sync with the Auth account that didn't change
+        if (emailErr?.code === 'auth/requires-recent-login') {
+          showToast('For security, changing your email needs a recent sign-in. Please sign out and sign back in, then try again — your other changes below were still saved.', 'error');
+        } else if (emailErr?.code === 'auth/email-already-in-use') {
+          showToast('That email is already in use by another account — your other changes below were still saved.', 'error');
+        } else {
+          console.error('Email update failed:', emailErr);
+          showToast(`Could not change your email${emailErr?.code ? ` (${emailErr.code})` : ''} — your other changes below were still saved.`, 'error');
+        }
+      }
+    }
     // Same private documents/{uid}/ storage-path Aadhaar/PAN already use —
     // owner + admin only, never public. Only uploads if the tenant actually
     // picked a new file; leaves rentAgreementURL untouched otherwise.
+    // uploadFile() never throws — it returns null on failure — so each of
+    // these three only applies its result to the patch on actual success,
+    // never wiping an existing file with null just because a replacement
+    // attempt failed, and each failure is named below instead of silently
+    // dropped.
+    const failedUploads = [];
     const raFile = f.rentAgreement?.files?.[0];
     if (raFile) {
-      patch.rentAgreementURL = await uploadFile(`documents/${currentUser.uid}/rentAgreement_${Date.now()}`, raFile);
+      const url = await uploadFile(`documents/${currentUser.uid}/rentAgreement_${Date.now()}`, raFile);
+      if (url) patch.rentAgreementURL = url; else failedUploads.push('rent agreement');
     }
     const idDocFile = f.idDoc?.files?.[0];
     if (idDocFile) {
-      patch.idDocURL = await uploadFile(`documents/${currentUser.uid}/iddoc_${Date.now()}`, idDocFile);
-      // A fresh upload is always plaintext, whatever the previous file's
-      // state was — this is what makes the office's "Encrypt Pending
-      // Uploads" tool pick it up again after a resident replaces an
-      // already-encrypted document.
-      patch.idDocEncrypted = false;
+      const url = await uploadFile(`documents/${currentUser.uid}/iddoc_${Date.now()}`, idDocFile);
+      if (url) {
+        patch.idDocURL = url;
+        // A fresh upload is always plaintext, whatever the previous file's
+        // state was — this is what makes the office's "Encrypt Pending
+        // Uploads" tool pick it up again after a resident replaces an
+        // already-encrypted document.
+        patch.idDocEncrypted = false;
+      } else {
+        failedUploads.push('ID document');
+      }
     }
     const photoFile = f.photo?.files?.[0];
     if (photoFile) {
       const newPhotoURL = await uploadFile(`photos/${currentUser.uid}/photo_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`, photoFile);
-      if (newPhotoURL) patch.photoURL = newPhotoURL;
+      if (newPhotoURL) patch.photoURL = newPhotoURL; else failedUploads.push('photo');
     }
-    await updateDoc(doc(db, 'members', currentUser.uid), patch);
+    if (authEmailChangedThisSubmit) {
+      // The login email has already changed — this save absolutely must
+      // land, or the resident's Auth account and their society record end
+      // up disagreeing about their own email with nothing to explain why.
+      let profileSaveAttempt = 0;
+      while (true) {
+        try { await updateDoc(doc(db, 'members', currentUser.uid), patch); break; }
+        catch (saveErr) {
+          profileSaveAttempt++;
+          if (profileSaveAttempt >= 3) {
+            console.error('Profile save failed after email change — Auth and Firestore are now out of sync:', saveErr);
+            showToast(`Your login email changed to ${newEmail}, but we could not save that to your profile after several tries. Please try saving your profile again now, or contact the office if this keeps happening — your login and your records may show different emails until this is fixed.`, 'error');
+            document.getElementById('profileModalBackdrop').classList.remove('open');
+            btn.disabled = false;
+            return;
+          }
+          await new Promise((resolve) => setTimeout(resolve, profileSaveAttempt * 500));
+        }
+      }
+    } else {
+      await updateDoc(doc(db, 'members', currentUser.uid), patch);
+    }
     Object.assign(currentMember, patch);
-    showToast('Profile updated.', 'success');
+    if (failedUploads.length) {
+      showToast(`Profile updated, but your ${failedUploads.join(' and ')} could not be uploaded — please check your connection and try selecting ${failedUploads.length > 1 ? 'them' : 'it'} again.`, 'error');
+    } else if (!emailChangeBlocked) {
+      showToast('Profile updated.', 'success');
+    }
     document.getElementById('profileModalBackdrop').classList.remove('open');
     await loadDashboard(currentUser.uid);
   } catch (err) {
@@ -4304,7 +4481,7 @@ document.getElementById('changePasswordBtn')?.addEventListener('click', async (e
    older year can be given it from the admin side. */
 async function downloadStatement(e) {
   const btn = e.currentTarget;
-  const fy = currentFinancialYear();
+  const fy = document.getElementById('statementFYSelect')?.value || currentFinancialYear();
   const verified = allPaymentRows.filter(p => p.status === 'verified' && p.financialYear === fy);
   if (!verified.length) {
     showToast(`No verified payments found for FY ${fy} — at least one is needed to generate a statement.`, 'error');
@@ -4437,12 +4614,13 @@ let currentDues = null;   // recomputed whenever payments are loaded
 let currentMembership = null;   // one-time membership fee status for this member
 let currentMaintenance = null;  // cached maintenance settings for the payment modal
 let allPaymentRows = [];  // full payment history for the signed-in member
+let paymentListShowCount = 10;  // how many of allPaymentRows the list currently shows
 
 async function loadMaintenanceSettings() {
   try {
     const snap = await getDoc(doc(db, 'settings', 'maintenance'));
-    return snap.exists() ? snap.data() : {};
-  } catch (e) { return {}; }
+    return { ok: true, data: snap.exists() ? snap.data() : {} };
+  } catch (e) { console.error('Maintenance settings read failed:', e?.code || e); return { ok: false, data: {} }; }
 }
 
 function renderDues(dues, financialYear) {
@@ -4514,7 +4692,7 @@ function renderDues(dues, financialYear) {
   window.__translate?.(el);
 }
 
-async function loadPayments(uid) {
+async function loadPayments(uid, preserveShowCount) {
   const list = document.getElementById('paymentList');
   list.innerHTML = skeletonList(3);          // shaped placeholder, no "Loading…" jump
   // Pull the whole history for this member: the dues panel and the FY statement
@@ -4535,22 +4713,38 @@ async function loadPayments(uid) {
   // Independent of each other — maintenance-settings doesn't read anything
   // from the payments-rows, only duesFor() below needs both together —
   // so there's no reason for one to wait behind the other finishing.
-  const [paymentsResult, maintenance] = await Promise.all([
+  const [paymentsResult, maintenanceResult] = await Promise.all([
     getDocs(q).then(snap => ({ ok: true, rows: snap.docs.map(d => ({ id: d.id, ...d.data() })) })).catch(e => ({ ok: false, error: e })),
     loadMaintenanceSettings()
   ]);
-  let rows;
-  if (paymentsResult.ok) {
-    rows = paymentsResult.rows;
-    rows.sort((a, b) => (b.submittedAt?.seconds || 0) - (a.submittedAt?.seconds || 0));
-  } else {
+  if (!paymentsResult.ok || !maintenanceResult.ok) {
     const e = paymentsResult.error;
-    console.error('Loading payment history failed:', e?.code || e);
-    rows = [];
-    // This is the resident's own money — if we can't load it, say so rather
-    // than silently showing "no payments" as if that were the true answer.
-    showToast(`Could not load your payment history${e?.code ? ` (${e.code})` : ''} — please refresh the page and try again.`, 'error');
+    if (!paymentsResult.ok) console.error('Loading payment history failed:', e?.code || e);
+    // This is the resident's own money — a toast alone is easy to miss or
+    // dismiss, and computing dues from an empty array/empty settings
+    // afterward would show a wrong (often inflated, or understated —
+    // missing a real membership fee entirely) balance as if it were the
+    // true, current one. Neither the dues panel nor the list should look
+    // like a genuine "nothing here" state when the real answer is
+    // "couldn't check".
+    showToast(`Could not load your payment${!paymentsResult.ok && !maintenanceResult.ok ? ' and rate' : !maintenanceResult.ok ? ' rate' : ''} details${e?.code ? ` (${e.code})` : ''} — please refresh the page and try again.`, 'error');
+    const duesEl = document.getElementById('duesPanel');
+    if (duesEl) { duesEl.innerHTML = emptyState('Could not load your dues', 'Please refresh the page and try again.', { compact: true }); window.__translate?.(duesEl); }
+    list.innerHTML = emptyState('Could not load your payment history', 'Please refresh the page and try again.', { compact: true });
+    window.__translate(list);
+    // Stale data is worse than no data — a resident acting on a dues
+    // figure or payment list from before this failure (tapping Pay Now or
+    // Download Statement right after) shouldn't be working from a snapshot
+    // that's no longer known to be current.
+    allPaymentRows = [];
+    currentDues = null;
+    currentMembership = null;
+    currentMaintenance = null;
+    return;
   }
+  const maintenance = maintenanceResult.data;
+  const rows = paymentsResult.rows;
+  rows.sort((a, b) => (b.submittedAt?.seconds || 0) - (a.submittedAt?.seconds || 0));
   allPaymentRows = rows;   // kept for the statement button
 
   // Dues are computed from the same rows the history renders, so the panel
@@ -4565,9 +4759,14 @@ async function loadPayments(uid) {
     window.__translate(list); return;
   }
 
-  // Show only the 10 most recent in the list; the full set stays in
-  // allPaymentRows for the dues panel and the statement download.
-  const listRows = rows.slice(0, 10);
+  // Shown progressively — starts at 10 most recent, "Load more" reveals
+  // more from the already-loaded `rows` (no new fetch needed) rather than
+  // dead-ending at "download the FY Statement" for anything older, which
+  // isn't interactive and doesn't help with one specific old receipt.
+  // Reset here, on a genuine reload — not when "Load more" itself
+  // triggered this call (its own click already incremented the count).
+  if (!preserveShowCount) paymentListShowCount = 10;
+  const listRows = rows.slice(0, paymentListShowCount);
 
   const statusBadge = {
     pending_approval: '<span class="badge badge-warning">Pending Approval</span>',
@@ -4604,10 +4803,13 @@ async function loadPayments(uid) {
 
   if (rows.length > listRows.length) {
     const note = document.createElement('div');
-    note.className = 't-muted';
-    note.style.cssText = 'font-size:12px; text-align:center; padding:12px 0 2px;';
-    note.textContent = `Showing ${listRows.length} recent — download "FY Statement" for the full history`;
+    note.style.cssText = 'text-align:center; padding:12px 0 2px;';
+    note.innerHTML = `<button type="button" class="link-btn" id="paymentListLoadMoreBtn" style="font-size:12px;">Load more (${rows.length - listRows.length} older)</button>`;
     list.appendChild(note);
+    document.getElementById('paymentListLoadMoreBtn').addEventListener('click', () => {
+      paymentListShowCount += 10;
+      loadPayments(currentUser.uid, true);
+    });
   }
 
   window.__translate(list);
@@ -4796,12 +4998,12 @@ async function openPaymentModal() {
   if (membershipPending) payableOptions.push({ type: 'membership', amount: membership.outstanding, label: 'Membership Fee' });
   if (!maintenanceAlreadyPending) payableOptions.push({ type: 'maintenance', amount: dues.outstanding, label: 'Maintenance', clearLabel: dues.outstanding > 0 ? null : (hasRate ? '✓ Clear' : '—') });
   eventDues.filter(ed => !pendingKeys.has(`event:${ed.eventId}`))
-    .forEach(ed => payableOptions.push({ type: 'event', amount: ed.outstanding, label: ed.name, eventId: ed.eventId, eventName: ed.name }));
+    .forEach(ed => payableOptions.push({ type: 'event', amount: ed.outstanding, label: ed.name, eventId: ed.eventId, eventName: ed.name, eventFY: ed.fy }));
 
   const toggleButtons = payableOptions.map((o, i) => {
     const selected = i === 0 ? ' selected' : '';
     const amtLabel = o.clearLabel || formatINR(o.amount);
-    const eventAttrs = o.type === 'event' ? ` data-event-id="${escapeHtml(o.eventId)}" data-event-name="${escapeHtml(o.eventName)}"` : '';
+    const eventAttrs = o.type === 'event' ? ` data-event-id="${escapeHtml(o.eventId)}" data-event-name="${escapeHtml(o.eventName)}" data-event-fy="${escapeHtml(o.eventFY || '')}"` : '';
     return `<button type="button" class="paytype${selected}" data-type="${o.type}" data-amt="${o.amount}"${eventAttrs}><div class="pt-top">${escapeHtml(o.label)}</div><div class="pt-amt">${amtLabel}</div></button>`;
   });
   const typeToggle = (toggleButtons.length > 1) ? `<div class="paytype-toggle">${toggleButtons.join('')}</div>` : '';
@@ -4839,6 +5041,7 @@ async function openPaymentModal() {
     hasRate: firstOpt.type === 'membership' ? true : hasRate,
     eventId: firstOpt.eventId || null,
     eventName: firstOpt.eventName || null,
+    eventFY: firstOpt.eventFY || null,
   } : {
     type: 'maintenance',
     outstanding: dues.outstanding,
@@ -4854,6 +5057,7 @@ async function openPaymentModal() {
       payContext.hasRate = payContext.type === 'membership' ? true : hasRate;
       payContext.eventId = tbtn.dataset.eventId || null;
       payContext.eventName = tbtn.dataset.eventName || null;
+      payContext.eventFY = tbtn.dataset.eventFy || null;
       // If a mode was already chosen, re-render the amount block for the new type.
       const sel = body.querySelector('.pay-option.selected');
       if (sel) renderPayDetailForm(sel.dataset.mode, paySettings, payContext);
@@ -4878,6 +5082,7 @@ function renderPayDetailForm(mode, paySettings, payContext) {
   window.__payType = payContext.type;   // read by submitPayment
   window.__payEventId = payContext.eventId || null;
   window.__payEventName = payContext.eventName || null;
+  window.__payEventFY = payContext.eventFY || null;
   holder.innerHTML = `
     <div style="margin-top:18px; border-top:1px solid var(--line); padding-top:18px;">
       ${isOffline ? `
@@ -5025,7 +5230,7 @@ async function submitPayment(mode) {
       type: (window.__payType === 'membership' || window.__payType === 'event') ? window.__payType : 'maintenance',
       ...(window.__payType === 'event' && window.__payEventId
           ? { eventId: window.__payEventId, eventName: window.__payEventName || '' } : {}),
-      financialYear: currentFinancialYear(),
+      financialYear: (window.__payType === 'event' && window.__payEventFY) ? window.__payEventFY : currentFinancialYear(),
       mode,
       utrOrChequeNo: utr,
       paymentProofURL: '',
@@ -5238,19 +5443,18 @@ async function renderPollResults(pollId, poll, box) {
   box.innerHTML = '<p class="t-muted" style="font-size:12px;">Loading…</p>';
   try {
     const tallyDocs = (await getDocs(collection(db, 'polls', pollId, 'tally'))).docs;
-    const counts = {};
-    poll.options.forEach((o) => { counts[o] = 0; });
+    const counts = poll.options.map(() => 0);
     tallyDocs.forEach((d) => {
-      const optionLabel = poll.options[Number(d.id)];
-      if (optionLabel !== undefined) counts[optionLabel] = d.data().count || 0;
+      const idx = Number(d.id);
+      if (idx >= 0 && idx < counts.length) counts[idx] = d.data().count || 0;
     });
-    const total = Object.values(counts).reduce((a, b) => a + b, 0);
+    const total = counts.reduce((a, b) => a + b, 0);
     box.innerHTML = `
       <div class="t-muted" style="font-size:11.5px; margin-bottom:6px;">${total} vote${total === 1 ? '' : 's'} so far</div>
-      ${poll.options.map(o => {
-        const pct = total ? Math.round((counts[o] / total) * 100) : 0;
+      ${poll.options.map((o, i) => {
+        const pct = total ? Math.round((counts[i] / total) * 100) : 0;
         return `<div style="margin-bottom:6px;">
-          <div class="spread" style="font-size:12.5px; margin-bottom:2px;"><span>${escapeHtml(o)}</span><span class="mono">${counts[o]} · ${pct}%</span></div>
+          <div class="spread" style="font-size:12.5px; margin-bottom:2px;"><span>${escapeHtml(o)}</span><span class="mono">${counts[i]} · ${pct}%</span></div>
           <div style="height:6px; background:#eee; border-radius:4px; overflow:hidden;"><div style="height:100%; width:${pct}%; background:var(--gold-500,#C9A227);"></div></div>
         </div>`;
       }).join('')}
@@ -5272,6 +5476,7 @@ async function renderPolls() {
   // paint instead of flickering from one to the other.
   const items = await Promise.all(polls.map(async (p) => {
     if (!currentUser) return { poll: p, hasVoted: false, myOption: null, loggedOut: true };
+    if (currentMember?.status !== 'approved') return { poll: p, hasVoted: false, myOption: null, notApproved: true };
     try {
       const voteSnap = await getDoc(doc(db, 'polls', p.id, 'votes', currentUser.uid));
       return { poll: p, hasVoted: voteSnap.exists(), myOption: voteSnap.exists() ? voteSnap.data().option : null };
@@ -5282,11 +5487,17 @@ async function renderPolls() {
     }
   }));
 
-  el.innerHTML = items.map(({ poll, hasVoted, myOption, loggedOut }) => {
+  el.innerHTML = items.map(({ poll, hasVoted, myOption, loggedOut, notApproved }) => {
     if (loggedOut) {
       return `<div class="card card-pad" style="margin-bottom:14px;">
         <h4 style="margin-bottom:6px;">${escapeHtml(poll.question)}</h4>
         <p class="t-muted" style="font-size:12.5px;">Log in to vote.</p>
+      </div>`;
+    }
+    if (notApproved) {
+      return `<div class="card card-pad" style="margin-bottom:14px;">
+        <h4 style="margin-bottom:6px;">${escapeHtml(poll.question)}</h4>
+        <p class="t-muted" style="font-size:12.5px;">Voting opens once your membership is approved.</p>
       </div>`;
     }
     if (hasVoted) {

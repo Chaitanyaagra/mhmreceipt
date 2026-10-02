@@ -355,6 +355,7 @@ function renderQueue(rows) {
     </div>`).join('');
   wrap.querySelectorAll('[data-checkin]').forEach(b => b.onclick = () => checkIn(b.dataset.checkin));
   wrap.querySelectorAll('[data-checkout]').forEach(b => b.onclick = () => checkOut(b.dataset.checkout));
+  wrap.querySelectorAll('[data-cancel]').forEach(b => b.onclick = () => cancelVisitor(b.dataset.cancel));
 }
 
 function rowHtml(r) {
@@ -366,6 +367,7 @@ function rowHtml(r) {
       </div>
       ${r.status === 'approved' ? `<button class="btn btn-primary btn-sm" data-checkin="${r.id}">Check In</button>` : ''}
       ${r.status === 'checked_in' ? `<button class="btn btn-outline btn-sm on-dark" data-checkout="${r.id}">Check Out</button>` : ''}
+      ${['pending', 'approved'].includes(r.status) ? `<button class="btn btn-outline btn-sm on-dark" data-cancel="${r.id}">Cancel</button>` : ''}
     </div>`;
 }
 
@@ -383,6 +385,15 @@ async function checkOut(id) {
   } catch (err) {
     console.error('Check-out failed:', err);
     showToast('Could not check out — please try again.', 'error');
+  }
+}
+async function cancelVisitor(id) {
+  if (!confirm('Cancel this visitor entry? This cannot be undone.')) return;
+  try {
+    await updateDoc(doc(db, 'visitors', id), { status: 'cancelled', cancelledBy: auth.currentUser.uid, updatedAt: serverTimestamp() });
+  } catch (err) {
+    console.error('Cancel visitor failed:', err);
+    showToast('Could not cancel — please try again.', 'error');
   }
 }
 </script>

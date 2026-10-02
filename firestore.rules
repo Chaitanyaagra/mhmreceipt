@@ -458,6 +458,13 @@ service cloud.firestore {
                     && request.resource.data.flatNumber
                        == get(/databases/$(database)/documents/members/$(request.auth.uid)).data.flatNumber
                     && isOptionalString(request.resource.data, 'utrOrChequeNo', 40)
+                    && (
+                      absentOrNull(request.resource.data, 'utrOrChequeNo')
+                      || (
+                        existsAfter(/databases/$(database)/documents/paymentsByUtr/$(request.resource.data.utrOrChequeNo.upper()))
+                        && getAfter(/databases/$(database)/documents/paymentsByUtr/$(request.resource.data.utrOrChequeNo.upper())).data.claimedBy == request.auth.uid
+                      )
+                    )
                     && isOptionalTxDate(request.resource.data, 'transactionDate'))
                     // Treasurer / Super Admin recording a payment handed in or
                     // confirmed at the office — cash, cheque, or a UPI/bank
@@ -493,6 +500,13 @@ service cloud.firestore {
                     && request.resource.data.flatNumber
                        == get(/databases/$(database)/documents/members/$(request.resource.data.memberUid)).data.flatNumber
                     && isOptionalString(request.resource.data, 'utrOrChequeNo', 40)
+                    && (
+                      absentOrNull(request.resource.data, 'utrOrChequeNo')
+                      || (
+                        existsAfter(/databases/$(database)/documents/paymentsByUtr/$(request.resource.data.utrOrChequeNo.upper()))
+                        && getAfter(/databases/$(database)/documents/paymentsByUtr/$(request.resource.data.utrOrChequeNo.upper())).data.claimedBy == request.auth.uid
+                      )
+                    )
                     && isOptionalTxDate(request.resource.data, 'transactionDate'))
                     || (
                       // Suspense: a bank credit that's genuinely arrived but
@@ -588,6 +602,7 @@ service cloud.firestore {
                     )
                     && isOptionalString(request.resource.data, 'utrOrChequeNo', 40)
                     && isOptionalString(request.resource.data, 'remarks', 500)
+                    && isOptionalString(request.resource.data, 'rejectionReason', 500)
                     && isOptionalTxDate(request.resource.data, 'transactionDate')
                     // A locked FY's books are closed to correction, not just
                     // to voiding — previously only voiding was blocked here,
@@ -605,6 +620,16 @@ service cloud.firestore {
                         && unchanged('type') && unchanged('financialYear')
                         && unchanged('transactionDate')
                       )
+                    )
+                    // A still-pending payment being verified for the FIRST
+                    // time is a separate case from the block above (which
+                    // only covers one that was ALREADY verified) — without
+                    // this, a payment recorded before a year was locked
+                    // could still be freshly verified into it afterward.
+                    && (
+                      request.resource.data.status != 'verified'
+                      || resource.data.status == 'verified'
+                      || !exists(/databases/$(database)/documents/financialYearLocks/$(request.resource.data.financialYear))
                     )
                     // Once verified, the STATUS itself can only stay
                     // 'verified' or move to 'voided' — not silently back to
@@ -676,6 +701,22 @@ service cloud.firestore {
       // so it can only be voided (see `update` above), never hard-deleted —
       // "payments never truly disappear" is the actual guarantee here, not
       // a comment that the rule then contradicts.
+      // Office-bearers (canApproveMembers(), not canVerifyPayments()) need
+      // to be able to sync a member's tower/flatNumber/residentName onto
+      // their PAST payment records when correcting a genuine flat-
+      // assignment mistake — the member-edit itself is theirs to do, but
+      // the payment-update permission above is Treasurer/Super-Admin only,
+      // so without this narrow allowance that correction silently failed
+      // for a President or Secretary doing the transfer. Strictly scoped:
+      // ONLY these three identity fields may change, nothing financial, and
+      // the new values must match the member's CURRENT record — the exact
+      // same identity-match safety check the rule above already uses.
+      allow update: if canApproveMembers()
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['residentName', 'tower', 'flatNumber', 'updatedAt'])
+                    && exists(/databases/$(database)/documents/members/$(resource.data.memberUid))
+                    && request.resource.data.residentName == get(/databases/$(database)/documents/members/$(resource.data.memberUid)).data.name
+                    && request.resource.data.tower == get(/databases/$(database)/documents/members/$(resource.data.memberUid)).data.tower
+                    && request.resource.data.flatNumber == get(/databases/$(database)/documents/members/$(resource.data.memberUid)).data.flatNumber;
       allow delete: if canVerifyPayments()
                     && resource.data.status != 'verified'
                     && resource.data.status != 'voided';
@@ -793,7 +834,11 @@ service cloud.firestore {
                     && request.resource.data.createdByUid == request.auth.uid
                     && request.resource.data.formType in ['daily-tower', 'weekly-mep', 'daily-security', 'club-house']
                     && request.resource.data.status == 'submitted'
-                    && request.resource.size() < 900000;
+                    // Several renderers interpolate these two directly into
+                    // HTML, trusting they're always a safe number — nothing
+                    // else in this rule constrained that before.
+                    && request.resource.data.issueCount is int
+                    && request.resource.data.uncheckedCount is int;
       allow update: if false;
       allow delete: if canApproveMembers();
     }
@@ -1071,11 +1116,19 @@ service cloud.firestore {
     }
     match /polls/{pollId} {
       allow read: if true;
-      // No update — admin.html has no edit-existing-poll UI (only create and
-      // delete), so this was pure unused attack surface: a modified client
-      // could otherwise change a poll's question/options after votes had
-      // already been cast, silently changing what people thought they were
-      // voting on.
+      // Still no general update — a modified client must not be able to
+      // change a poll's question/options after votes have already been
+      // cast, silently changing what people thought they were voting on.
+      // The one narrow exception: closing voting early (endTime moved to
+      // now-or-earlier, nothing else touched) — this is what lets deleting
+      // an active poll close its voting window BEFORE the votes/tally
+      // cleanup runs, instead of a vote racing in during that cleanup and
+      // surviving as an orphan after the poll itself is gone.
+      allow update: if canApproveMembers()
+                    && unchanged('question') && unchanged('options') && unchanged('startTime')
+                    && request.resource.data.endTime is timestamp
+                    && request.resource.data.endTime <= request.time
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['endTime']);
       allow create: if canApproveMembers()
                     && isNonEmptyString(request.resource.data.question, 300)
                     && request.resource.data.options is list
@@ -1110,9 +1163,14 @@ service cloud.firestore {
                       || (isApprovedMember() && pollIsOpen(pollId) && request.resource.data.count == 1 && request.resource.data.keys().hasOnly(['count']));
         // The ONLY legal update, ever: exactly +1, nothing else on the
         // document changes. A resident cannot set this to any number of
-        // their choosing, decrement it, or touch any other field.
+        // their choosing, decrement it, or touch any other field. The
+        // !exists() on their own vote document is what ties this update to
+        // actually casting a vote for the first time — without it, nothing
+        // stopped a resident from calling this update repeatedly to
+        // inflate the same option's count with no vote behind it at all.
         allow update: if isApprovedMember()
                       && pollIsOpen(pollId)
+                      && !exists(/databases/$(database)/documents/polls/$(pollId)/votes/$(request.auth.uid))
                       && request.resource.data.count == resource.data.count + 1
                       && request.resource.data.keys().hasOnly(['count']);
         allow delete: if isAdmin();
@@ -1257,6 +1315,13 @@ service cloud.firestore {
                     // receipt un-voidable purely because time passed — same
                     // fix as payments' update rule above.
                     && (unchanged('financialYear') || isValidFY(request.resource.data.financialYear));
+      // Narrow companion to the same exception on payments/{id}: an office-
+      // bearer correcting a member's flat needs this receipt's identity
+      // fields kept in sync too, or the QR-scanned public receipt keeps
+      // showing the old flat/name forever. Everything financial — amount,
+      // receiptNumber, financialYear, status — stays untouched by this path.
+      allow update: if canApproveMembers()
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['residentName', 'tower', 'flatNumber']);
       allow delete: if canVerifyPayments();
     }
 
@@ -1319,7 +1384,17 @@ service cloud.firestore {
                     && (absentOrNull(resource.data, 'addedAt') || unchanged('addedAt'))
                     && (
                       !(absentOrNull(resource.data, 'status') || resource.data.status == 'approved')
-                      || (unchanged('amount') && unchanged('category') && unchanged('description') && unchanged('financialYear'))
+                      || (unchanged('amount') && unchanged('category') && unchanged('description') && unchanged('financialYear') && unchanged('date') && unchanged('mode'))
+                    )
+                    // A still-pending expense being approved for the FIRST
+                    // time is separate from the block above (only covers
+                    // one ALREADY approved) — without this, an expense
+                    // recorded before a year was locked could still be
+                    // freshly approved into it afterward.
+                    && (
+                      request.resource.data.status != 'approved'
+                      || (absentOrNull(resource.data, 'status') || resource.data.status == 'approved')
+                      || !exists(/databases/$(database)/documents/financialYearLocks/$(request.resource.data.financialYear))
                     )
                     // Once approved, the STATUS itself can only stay
                     // 'approved' or move to 'voided' — not silently back to
@@ -1331,6 +1406,12 @@ service cloud.firestore {
                       !(absentOrNull(resource.data, 'status') || resource.data.status == 'approved')
                       || request.resource.data.status in ['approved', 'voided']
                     )
+                    // Voiding is a one-way door, same as everywhere else
+                    // this pattern is used — a voided expense staying
+                    // voided forever, never silently written back to
+                    // 'approved', is what makes voiding a real, permanent
+                    // correction rather than a reversible toggle.
+                    && (resource.data.status != 'voided' || request.resource.data.status == 'voided')
                     && (request.resource.data.status != 'voided' || (
                           isNonEmptyString(request.resource.data.voidReason, 300)
                           // A locked FY's books are closed — voiding an
@@ -1414,6 +1495,12 @@ service cloud.firestore {
                     && request.resource.data.type in ['credit', 'debit']
                     && (resource.data.status != 'matched' || (
                           unchanged('amount') && unchanged('type')
+                          // Already matched, and staying matched, must mean
+                          // staying matched to the SAME thing — re-pointing
+                          // it at a different payment/expense without first
+                          // un-matching would strand the original match's
+                          // lock forever while this transaction moved on.
+                          && (request.resource.data.status != 'matched' || unchanged('matchedRef'))
                        ));
       // A matched transaction is reconciliation history — deleting it would
       // silently erase the record that a specific payment/expense was
@@ -1438,8 +1525,7 @@ service cloud.firestore {
       // doc id is a valid FY, categories is a map, and the doc isn't huge.
       allow create, update: if canVerifyPayments()
                             && isValidFY(fy)
-                            && request.resource.data.categories is map
-                            && request.resource.size() < 100000;
+                            && request.resource.data.categories is map;
       // Categories can already be added, changed, or zeroed out via update —
       // there's no case where losing the whole FY's budget record is the
       // right fix for a mistake, only editing it is.
@@ -1460,8 +1546,7 @@ service cloud.firestore {
                             && request.resource.data.closedAt is timestamp
                             && request.resource.data.allChecksOk is bool
                             && isNonEmptyString(request.resource.data.closedBy, 150)
-                            && request.resource.data.keys().hasOnly(['closedAt', 'allChecksOk', 'closedBy'])
-                            && request.resource.size() < 5000;
+                            && request.resource.data.keys().hasOnly(['closedAt', 'allChecksOk', 'closedBy']);
       allow update: if false;
       allow delete: if false;
     }
@@ -1486,8 +1571,20 @@ service cloud.firestore {
     // closing a real duplicate-payment/fraud gap the old client-only
     // same-tab guard never actually covered.
     match /paymentsByUtr/{utrKey} {
-      allow read: if isAdmin();
-      allow create: if (isApprovedMember() || isAdmin())
+      // A resident's own online-payment submission reads this document
+      // (inside a transaction, to confirm the UTR isn't already claimed)
+      // before it can create their payment — admin-only read meant that
+      // read always failed, which meant every UPI/Net Banking/cheque
+      // payment with a UTR failed outright for every ordinary resident.
+      // isSignedIn(), not isApprovedMember(): a resident submitting their
+      // registration membership-fee payment is still 'pending' at that
+      // exact moment, so requiring 'approved' here reintroduced the same
+      // failure during registration specifically. The data here (claimedAt,
+      // claimedBy — no financial detail) is minimal enough that any
+      // signed-in user checking a UTR's claim-status is a safe allowance.
+      allow read: if isSignedIn();
+      allow create: if isSignedIn()
+                    && request.resource.data.claimedBy == request.auth.uid
                     && request.resource.data.keys().hasOnly(['claimedAt', 'claimedBy']);
       allow update: if false;
       allow delete: if isAdmin();
@@ -1638,7 +1735,9 @@ service cloud.firestore {
                       // settled, since nothing here checked what the OLD
                       // status actually was.
                       && (
-                        (resource.data.status == 'pending' && request.resource.data.status in ['approved', 'rejected'])
+                        (resource.data.status == 'pending' && request.resource.data.status == 'approved'
+                         && get(/databases/$(database)/documents/facilities/$(resource.data.facilityId)).data.active == true)
+                        || (resource.data.status == 'pending' && request.resource.data.status == 'rejected')
                         || (resource.data.status == 'approved' && request.resource.data.status == 'cancelled')
                         || unchanged('status')
                       )
@@ -1671,9 +1770,19 @@ service cloud.firestore {
       // the date/slot for someone else, instead of leaving it stuck
       // forever. Ownership is proven by reading the referenced booking,
       // never trusted from the client.
-      allow delete: if canApproveMembers()
-                    || (isSignedIn()
-                        && get(/databases/$(database)/documents/facilityBookings/$(resource.data.bookingId)).data.memberUid == request.auth.uid);
+      allow delete: if (
+                      canApproveMembers()
+                      || (isSignedIn() && get(/databases/$(database)/documents/facilityBookings/$(resource.data.bookingId)).data.memberUid == request.auth.uid)
+                    )
+                    // Neither being an admin nor owning the booking is
+                    // enough on its own — the booking the SLOT ITSELF
+                    // currently points to (never trusted from the client)
+                    // must actually be ending up cancelled as part of this
+                    // same write. Without this, a stale local screen —
+                    // admin's or the resident's — cancelling a booking
+                    // that's since lost this slot to someone else would
+                    // delete THAT newer booking's valid lock instead.
+                    && getAfter(/databases/$(database)/documents/facilityBookings/$(resource.data.bookingId)).data.status == 'cancelled';
     }
 
     // ---- Parking conflict-warning is a client-side scan of allMembers in
@@ -1759,7 +1868,11 @@ service cloud.firestore {
                             && isOptionalDateString(request.resource.data, 'amcEnd')
                             && isOptionalDateString(request.resource.data, 'lastServiceDate')
                             && isOptionalDateString(request.resource.data, 'nextServiceDate')
-                            && isOptionalString(request.resource.data, 'notes', 1000);
+                            && isOptionalString(request.resource.data, 'notes', 1000)
+                            && (absentOrNull(request.resource.data, 'amcStart') || absentOrNull(request.resource.data, 'amcEnd')
+                                || request.resource.data.amcEnd >= request.resource.data.amcStart)
+                            && (absentOrNull(request.resource.data, 'lastServiceDate') || absentOrNull(request.resource.data, 'nextServiceDate')
+                                || request.resource.data.nextServiceDate >= request.resource.data.lastServiceDate);
       allow delete: if canApproveMembers();
     }
 
@@ -1879,12 +1992,34 @@ service cloud.firestore {
                       isGuard()
                       && resource.data.status == 'approved'
                       && request.resource.data.status == 'checked_in'
+                      // An approval is a same-day gate credential, not a
+                      // standing one — without this, a visitor approved
+                      // days or weeks ago and never checked in stays
+                      // check-in-able indefinitely.
+                      && resource.data.decidedAt is timestamp
+                      && request.time < resource.data.decidedAt + duration.value(24, 'h')
                       && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'checkedInAt', 'updatedAt'])
                     ) || (
                       isGuard()
                       && resource.data.status == 'checked_in'
                       && request.resource.data.status == 'checked_out'
                       && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'checkedOutAt', 'updatedAt'])
+                    ) || (
+                      // Cancelling a pending or approved entry that never
+                      // resulted in an actual visit — the visitor left, or
+                      // the entry was a mistake. The resident can cancel
+                      // their own still-pending request; any guard can
+                      // cancel either state (same shift-handover reasoning
+                      // check-in/out already use above).
+                      request.resource.data.status == 'cancelled'
+                      && (
+                        (resource.data.status == 'pending'
+                         && isApprovedMember()
+                         && resource.data.tower == get(/databases/$(database)/documents/members/$(request.auth.uid)).data.tower
+                         && resource.data.flatNumber == get(/databases/$(database)/documents/members/$(request.auth.uid)).data.flatNumber)
+                        || (isGuard() && resource.data.status in ['pending', 'approved'])
+                      )
+                      && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'cancelledBy', 'updatedAt'])
                     );
       allow delete: if false;
     }

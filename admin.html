@@ -651,6 +651,7 @@
         <button data-ptab="pending" class="active">Pending Verification</button>
         <button data-ptab="all">All Collection</button>
         <button data-ptab="defaulters">Defaulters</button>
+        <button data-ptab="membershipDues">Membership Fees Not Paid</button>
       </div>
       <div id="paymentsPendingPanel">
         <div class="toolbar" id="pendingBulkBar" style="display:none;">
@@ -685,6 +686,14 @@
         <div class="table-wrap responsive">
           <table><thead><tr><th>Resident</th><th>Flat / Tower</th><th>Outstanding</th><th>Health</th><th>Remind</th><th></th></tr></thead>
           <tbody id="defaultersBody"><tr><td colspan="6" class="t-muted">Loading…</td></tr></tbody></table>
+        </div>
+      </div>
+      <div id="paymentsMembershipDuesPanel" style="display:none;">
+        <div class="toolbar"><span id="membershipDuesTotal" class="mono" style="font-size:12.5px; color:var(--ink-600);"></span></div>
+        <p class="t-muted" style="font-size:12.5px; margin-bottom:12px;">The one-time joining fee, owner-only — a tenant never owes this. Shown here so it's easy to see at a glance who still needs to be asked for it, without opening each member one by one.</p>
+        <div class="table-wrap responsive">
+          <table><thead><tr><th>Resident</th><th>Flat / Tower</th><th>Mobile</th><th>Outstanding</th></tr></thead>
+          <tbody id="membershipDuesBody"><tr><td colspan="4" class="t-muted">Loading…</td></tr></tbody></table>
         </div>
       </div>
     </div>
@@ -993,7 +1002,7 @@
       </div>
       <div class="table-wrap responsive" style="margin-bottom:24px;">
         <table>
-          <thead><tr><th>Name</th><th>Role</th><th>Trade</th><th>Email</th><th>Status</th><th>Actions</th></tr></thead>
+          <thead><tr><th>Name</th><th>Role</th><th>Trade</th><th>Login ID</th><th>Status</th><th>Actions</th></tr></thead>
           <tbody id="staffBody"><tr><td colspan="6" class="t-muted">Loading…</td></tr></tbody>
         </table>
       </div>
@@ -1239,6 +1248,9 @@
             Upload an .xlsx/.csv with columns: <b>Name, FatherHusbandName, Tower, FlatNumber, Mobile, Email, ResidentType</b> (all required),
             plus optional columns for birthday wishing: <b>DOB, Anniversary, Family1Name, Family1Relation, Family1DOB</b> (up to Family3 —
             more family members can be added later per-resident from "Edit Master Data"). Rows are dry-run validated before anything is saved.
+          </p>
+          <p class="t-sub" style="font-size:12.5px; margin-bottom:14px; padding:10px; background:#FDF3E2; border-radius:8px;">
+            ⚠️ <b>No login is attached to an imported resident.</b> If they later self-register from the app with their own email, approving that registration will show "already registered" (their imported profile still holds the flat) — that screen tells you how to resolve it: deactivate the imported placeholder, or migrate its claim from their Master Data Edit.
           </p>
           <input type="file" id="importFile" accept=".xlsx,.csv">
           <div id="importPreview" style="margin-top:16px;"></div>
@@ -1517,13 +1529,25 @@
   </div>
 </div>
 
+<div class="modal-backdrop" id="staffCredsModalBackdrop">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-head"><h3 style="font-size:16px;">Staff Login Created</h3><button class="icon-btn" id="closeStaffCredsModal">✕</button></div>
+    <div class="modal-body">
+      <p style="font-size:13px; margin-bottom:14px;">Give these to the staff member, on paper or verbally — not over an unsecured chat. This PIN is <b>not stored anywhere retrievable</b>; if it's lost, deactivate this staff member from the list and add a new one.</p>
+      <div class="field"><label>Staff App</label><input type="text" readonly value="staff.html (open on their phone)"></div>
+      <div class="field"><label>Login ID</label><input type="text" id="staffCredsId" readonly class="mono" style="font-size:18px; font-weight:700;"></div>
+      <div class="field"><label>PIN</label><input type="text" id="staffCredsPin" readonly class="mono" style="font-size:18px; font-weight:700;"></div>
+      <button class="btn btn-primary btn-block" id="closeStaffCredsBtn">Done — I've written these down</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-backdrop" id="staffModalBackdrop">
   <div class="modal" style="max-width:420px;">
     <div class="modal-head"><h3 style="font-size:16px;">Add Staff</h3><button class="icon-btn" id="closeStaffModal">✕</button></div>
     <div class="modal-body">
       <form id="staffForm">
         <div class="field"><label for="staffName">Name</label><input type="text" id="staffName" maxlength="100" required placeholder="e.g. Ramesh Kumar"></div>
-        <div class="field"><label for="staffEmail">Email</label><input type="email" id="staffEmail" required placeholder="their real email — they'll sign in with this"></div>
         <div class="field"><label for="staffRole">Role</label><select id="staffRole"><option value="supervisor">Supervisor</option><option value="manager">Managing Staff</option></select></div>
         <div class="field"><label for="staffTrade">Trade / Department</label><select id="staffTrade">
           <option value="general">General</option>
@@ -1536,7 +1560,7 @@
           <option value="guard">Guard</option>
           <option value="gardener">Gardener</option>
         </select></div>
-        <p class="t-muted" style="font-size:12px; margin-bottom:12px;">They'll get an email to set their own password — nothing to write down here.</p>
+        <p class="t-muted" style="font-size:12px; margin-bottom:12px;">No email needed — a Login ID and PIN are generated for you to hand to them directly, same as a guard's.</p>
         <button class="btn btn-primary btn-block" type="submit">Create Staff Account</button>
       </form>
     </div>
@@ -2049,7 +2073,7 @@ import {
   ref as storageRef, uploadBytes, getDownloadURL, getStorage, deleteObject
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-storage.js";
 import {
-  showToast, escapeHtml, smartMatch, fmtDate, fmtDateTime, formatINR, currentFinancialYear, financialYearOptions,
+  showToast, escapeHtml, smartMatch, fmtDate, fmtDateTime, formatINR, currentFinancialYear, financialYearForDate, financialYearOptions,
   generateMemberId, generateReceiptNumber, generateReceiptNumberAtomic, logAudit, generateReceiptPDF, generateIncomeExpenditurePDF, exportToExcel, parseExcelFile, PAYMENT_DEFAULTS, sanitizeUrl, safeStorageFilename, flatClaimId, findBlockingFlatClaim, generatePetId,
   encryptFile, decryptToBlob, backupToDrive, waLink, waShareText, serializeForExport,
   newPublicToken, publicKeyForMember,
@@ -3583,7 +3607,7 @@ function renderMonthlySummary() {
   let defaulters = 0;
   approved.forEach(m => {
     try {
-      const d = duesFor(m, allPayments.filter(p => p.memberUid === m.uid), selectedFY, maintenanceSettings);
+      const d = duesFor(m, allPayments.filter(p => p.memberUid === (m.uid || m.id)), selectedFY, maintenanceSettings);
       // A defaulter is anyone with money still owed for a FY that has a rate set
       // (covers both "unpaid" and "partial"); no_rate/paid/overpaid don't count.
       if (d && d.status !== 'no_rate' && d.outstanding > 0) defaulters++;
@@ -4403,7 +4427,7 @@ function renderMemberDetailView(m) {
       ${(() => {
         // Membership fee status — helps the committee see who still owes the
         // one-time joining fee. Computed from this member's verified payments.
-        const mem = membershipDue(m, allPayments.filter(p => p.memberUid === m.uid), maintenanceSettings);
+        const mem = membershipDue(m, allPayments.filter(p => p.memberUid === (m.uid || m.id)), maintenanceSettings);
         return `<div class="vrow"><span class="t-muted">Membership Fee</span><span>${
           mem.cleared
             ? `<span class="badge badge-success">Paid · ${formatINR(mem.fee)}</span>`
@@ -4571,34 +4595,44 @@ async function erasePersonalData(m) {
 
   if (!confirm(
     `Permanently erase ${m.name}'s (${m.tower}-${m.flatNumber}) personal data?\n\n` +
-    `WILL BE ERASED: mobile, email, DOB, anniversary, family members, nominee details, photo, ID document` +
+    `WILL BE ERASED: mobile, email, DOB, anniversary, family members, nominee details, co-owner details, rent agreement, emergency contact, photo, ID document` +
     `${ownedPets.length ? `, and ${ownedPets.length} pet record${ownedPets.length === 1 ? '' : 's'} (${ownedPets.map(p => p.name).join(', ')})` : ''}.\n` +
     `WILL BE RETAINED: name, flat, Member ID, and the full payment/expense history (needed for audit).\n\n` +
     `This cannot be undone.`
   )) return;
   try {
+    // A failed file delete must not make "Personal data erased" a false
+    // claim — if either fails, the toast below says so plainly instead of
+    // reporting a clean success regardless of what actually happened.
+    let fileDeleteFailed = false;
     if (m.photoURL) {
-      try { await deleteObject(storageRef(storage, m.photoURL)); } catch (e) { console.warn('Photo delete failed:', e?.code || e); }
+      try { await deleteObject(storageRef(storage, m.photoURL)); } catch (e) { console.warn('Photo delete failed:', e?.code || e); fileDeleteFailed = true; }
     }
     if (m.idDocURL) {
-      try { await deleteObject(storageRef(storage, m.idDocURL)); } catch (e) { console.warn('ID doc delete failed:', e?.code || e); }
+      try { await deleteObject(storageRef(storage, m.idDocURL)); } catch (e) { console.warn('ID doc delete failed:', e?.code || e); fileDeleteFailed = true; }
+    }
+    if (m.rentAgreementURL) {
+      try { await deleteObject(storageRef(storage, m.rentAgreementURL)); } catch (e) { console.warn('Rent agreement delete failed:', e?.code || e); fileDeleteFailed = true; }
     }
     for (const pet of ownedPets) {
       if (pet.photoURL) {
-        try { await deleteObject(storageRef(storage, pet.photoURL)); } catch (e) { console.warn('Pet photo delete failed:', pet.id, e?.code || e); }
+        try { await deleteObject(storageRef(storage, pet.photoURL)); } catch (e) { console.warn('Pet photo delete failed:', pet.id, e?.code || e); fileDeleteFailed = true; }
       }
-      try { await deleteDoc(doc(db, 'pets', pet.id)); } catch (e) { console.warn('Pet delete failed:', pet.id, e?.code || e); }
+      try { await deleteDoc(doc(db, 'pets', pet.id)); } catch (e) { console.warn('Pet delete failed:', pet.id, e?.code || e); fileDeleteFailed = true; }
     }
     await updateDoc(doc(db, 'members', m.id), {
       mobile: '', email: '', address: '', fatherHusbandName: '', occupation: '',
       dob: null, anniversary: null, familyMembers: [],
       nomineeName: '', nomineeRelation: '',
+      coOwnerName: '', coOwnerMobile: '', coOwnerEmail: '',
+      rentAgreementStart: null, rentAgreementEnd: null, rentAgreementURL: '',
+      emergencyContactName: '', emergencyContactPhone: '',
       photoURL: '', idDocURL: '', idDocEncrypted: false,
       dataErasedAt: serverTimestamp(), dataErasedBy: currentAdmin.email,
       updatedAt: serverTimestamp()
     });
-    await logAudit(auth.currentUser, 'erase_personal_data', { memberId: m.id, name: m.name, flat: `${m.tower}-${m.flatNumber}`, petsDeleted: ownedPets.length });
-    showToast('Personal data erased. Financial history has been retained.', 'success');
+    await logAudit(auth.currentUser, 'erase_personal_data', { memberId: m.id, name: m.name, flat: `${m.tower}-${m.flatNumber}`, petsDeleted: ownedPets.length, fileDeleteFailed });
+    showToast(fileDeleteFailed ? 'Personal data erased, but one or more files or pet records could not be removed — check the console and remove them manually if needed.' : 'Personal data erased. Financial history has been retained.', fileDeleteFailed ? 'error' : 'success');
     document.getElementById('memberModalBackdrop').classList.remove('open');
     await reloadMembers(); renderMembersTable(); renderOverview(); await loadPets();
   } catch (err) {
@@ -4625,6 +4659,12 @@ function renderMemberEditForm(m) {
       <div class="form-2col">
         <div class="field"><label for="meTowerSelect">Tower</label><select name="tower" id="meTowerSelect" required></select></div>
         <div class="field"><label for="meFlatSelect">Flat Number</label><select name="flatNumber" id="meFlatSelect" required></select></div>
+      </div>
+      <div class="field" id="meFlatCorrectionWrap" style="display:none;">
+        <label style="display:flex; align-items:flex-start; gap:8px; font-weight:400;">
+          <input type="checkbox" id="meFixPastPayments" style="margin-top:3px;">
+          <span style="font-size:12.5px;">This Tower/Flat change is <b>correcting a mistake</b> (e.g. a typo at registration) — also update this flat on their past payment records. Leave unchecked if they genuinely moved flats; past payments should then keep showing where they lived at the time.</span>
+        </label>
       </div>
       <div class="form-2col">
         <div class="field"><label for="me-mobile">Mobile</label><input name="mobile" id="me-mobile" type="tel" maxlength="10" required value="${escapeHtml(m.mobile || '')}"></div>
@@ -4709,6 +4749,16 @@ function renderMemberEditForm(m) {
   tSel.value = m.tower || '';
   tSel.dispatchEvent(new Event('change', { bubbles: true }));
   setTimeout(() => { const fSel = document.getElementById('meFlatSelect'); if (fSel) fSel.value = m.flatNumber || ''; }, 0);
+  const updateFlatCorrectionVisibility = () => {
+    const wrap = document.getElementById('meFlatCorrectionWrap');
+    const fSel = document.getElementById('meFlatSelect');
+    if (!wrap || !fSel) return;
+    const changed = tSel.value !== (m.tower || '') || fSel.value !== (m.flatNumber || '');
+    wrap.style.display = changed ? '' : 'none';
+    if (!changed) document.getElementById('meFixPastPayments').checked = false;
+  };
+  tSel.addEventListener('change', () => setTimeout(updateFlatCorrectionVisibility, 0));
+  document.getElementById('meFlatSelect').addEventListener('change', updateFlatCorrectionVisibility);
 
   const meFamilyEditor = document.getElementById('meFamilyEditor');
   initFamilyMembersEditor(meFamilyEditor, m.familyMembers || []);
@@ -4828,6 +4878,23 @@ async function submitMemberEdit(e, original) {
           });
         }
       });
+
+      if (document.getElementById('meFixPastPayments')?.checked && original.uid) {
+        const theirPayments = (allPayments || []).filter((p) => p.memberUid === original.uid);
+        const CHUNK = 225; // each payment can write up to 2 docs now (payment + its receiptsPublic, if verified) — stays under the 500-per-batch limit even if every one has a receipt
+        for (let i = 0; i < theirPayments.length; i += CHUNK) {
+          const payBatch = writeBatch(db);
+          theirPayments.slice(i, i + CHUNK).forEach((p) => {
+            payBatch.update(doc(db, 'payments', p.id), { tower, flatNumber, residentName: patch.name, updatedAt: serverTimestamp() });
+            if (p.publicToken) {
+              payBatch.update(doc(db, 'receiptsPublic', p.publicToken), { tower, flatNumber, residentName: patch.name });
+            }
+          });
+          await payBatch.commit();
+        }
+        await logAudit(auth.currentUser, 'correct_payment_flat', { memberId: original.id, uid: original.uid, from: `${original.tower}-${original.flatNumber}`, to: `${tower}-${flatNumber}`, paymentsUpdated: theirPayments.length });
+        if (theirPayments.length) await reloadPayments();
+      }
     } else {
       // members and membersPublic must move together — a bare updateDoc on
       // each meant a failed second write left the public/QR record showing
@@ -5095,6 +5162,8 @@ document.querySelectorAll('[data-ptab]').forEach(btn => btn.addEventListener('cl
   document.getElementById('paymentsPendingPanel').style.display = btn.dataset.ptab === 'pending' ? 'block' : 'none';
   document.getElementById('paymentsAllPanel').style.display = btn.dataset.ptab === 'all' ? 'block' : 'none';
   document.getElementById('paymentsDefaultersPanel').style.display = btn.dataset.ptab === 'defaulters' ? 'block' : 'none';
+  document.getElementById('paymentsMembershipDuesPanel').style.display = btn.dataset.ptab === 'membershipDues' ? 'block' : 'none';
+  if (btn.dataset.ptab === 'membershipDues') renderMembershipDues();
 }));
 
 document.querySelectorAll('[data-ftab]').forEach(btn => btn.addEventListener('click', () => {
@@ -5190,7 +5259,7 @@ async function bulkVerifyPayments(ids) {
     showToast(`${done} payments verified — receipts generated. (To notify someone on WhatsApp, open their payment individually — bulk-verify skips that to avoid ${done} pop-ups in a row.)`, 'success');
   }
   if (btn) { btn.disabled = false; btn.textContent = '✓ Verify Selected'; }
-  await reloadPayments(); renderPendingPayments(); renderAllPayments(); renderOverview(); renderDefaulters();
+  await reloadPayments(); renderPendingPayments(); renderAllPayments(); renderOverview(); renderDefaulters(); renderMembershipDues();
 }
 
 const PAYMENTS_PAGE_SIZE = 25;
@@ -5663,7 +5732,7 @@ async function voidPaymentEntry(p) {
     await logAudit(auth.currentUser, 'void_payment', { paymentId: p.id, amount: p.amount, residentName: p.residentName, reason: reason.trim() });
     showToast('Payment voided.', 'success');
     document.getElementById('paymentDetailModalBackdrop').classList.remove('open');
-    await reloadPayments(); renderPendingPayments(); renderAllPayments(); renderOverview(); renderDefaulters();
+    await reloadPayments(); renderPendingPayments(); renderAllPayments(); renderOverview(); renderDefaulters(); renderMembershipDues();
   } catch (err) {
     console.error('Void payment failed:', err);
     const code = err?.code || '';
@@ -5692,6 +5761,13 @@ function renderPaymentDetailEdit(p) {
         <div class="field"><label for="pe-mode">Mode</label><select id="pe-mode" name="mode">${modeOptions}</select></div>
         <div class="field"><label for="pe-type">Type</label><select id="pe-type" name="type">${typeOptions}</select></div>
       </div>
+      <div class="field" id="pe-event-field" style="display:${p.type === 'event' ? '' : 'none'};">
+        <label for="pe-event">Event</label>
+        <select id="pe-event" name="eventId">
+          <option value="">— select an event —</option>
+          ${(allEvents || []).map(ev => `<option value="${escapeHtml(ev.id)}" ${p.eventId === ev.id ? 'selected' : ''}>${escapeHtml(ev.name)}</option>`).join('')}
+        </select>
+      </div>
       <div class="field"><label for="pe-fy">Financial Year</label><select id="pe-fy" name="financialYear"></select></div>
       <div class="field"><label for="pe-txdate">Transaction Date <span class="t-muted" style="font-weight:400;">(when the money actually moved — for bank reconciliation)</span></label><input id="pe-txdate" name="transactionDate" type="date" required></div>
       <div class="field"><label for="pe-utr">UTR / Cheque No. (optional)</label><input id="pe-utr" name="utrOrChequeNo" value="${escapeHtml(p.utrOrChequeNo || '')}" maxlength="40"></div>
@@ -5719,6 +5795,9 @@ function renderPaymentDetailEdit(p) {
   // field exists to fix.
   document.getElementById('pe-txdate').value = p.transactionDate
     || (p.submittedAt?.toDate ? dateToLocalISO(p.submittedAt.toDate()) : todayLocalISO());
+  document.getElementById('pe-type').addEventListener('change', (e) => {
+    document.getElementById('pe-event-field').style.display = e.target.value === 'event' ? '' : 'none';
+  });
   document.getElementById('cancelPayEdit').addEventListener('click', () => renderPaymentDetailView(p));
   document.getElementById('paymentEditForm').addEventListener('submit', (e) => submitPaymentEdit(e, p));
 }
@@ -5730,15 +5809,37 @@ async function submitPaymentEdit(e, original) {
   const amount = Number(f.amount.value);
   if (!Number.isFinite(amount) || amount <= 0) { showToast('Please enter a valid amount.', 'error'); return; }
   if (!f.transactionDate.value) { showToast('Please enter the transaction date.', 'error'); return; }
+  if (f.type.value === 'event' && !f.eventId.value) { showToast('Please select which event this payment is for.', 'error'); return; }
   const patch = {
     amount, mode: f.mode.value, type: f.type.value, financialYear: f.financialYear.value,
     transactionDate: f.transactionDate.value,
-    utrOrChequeNo: f.utrOrChequeNo.value.trim(), remarks: f.remarks.value.trim() || null
+    utrOrChequeNo: f.utrOrChequeNo.value.trim(), remarks: f.remarks.value.trim() || null,
+    eventId: f.type.value === 'event' ? f.eventId.value : null
   };
+  const oldUtr = (original.utrOrChequeNo || '').trim().toUpperCase();
+  const newUtr = patch.utrOrChequeNo.toUpperCase();
+  const utrChanged = oldUtr !== newUtr;
   if (btn) btn.disabled = true;
   try {
     await runTransaction(db, async (tx) => {
+      // If the UTR is changing, release the old lock and claim the new one
+      // in the same transaction as the payment update itself — otherwise
+      // the old UTR stays permanently locked (blocking it for everyone,
+      // forever, even though no payment uses it anymore) and the new one
+      // is never locked at all (so a genuine duplicate of it wouldn't be
+      // caught). A pre-read first, since Firestore requires all reads in a
+      // transaction before any writes.
+      let newLockAlreadyClaimed = false;
+      if (utrChanged && newUtr) {
+        const newLockSnap = await tx.get(doc(db, 'paymentsByUtr', newUtr));
+        newLockAlreadyClaimed = newLockSnap.exists();
+      }
+      if (newLockAlreadyClaimed) throw new Error('NEW_UTR_ALREADY_CLAIMED');
       tx.update(doc(db, 'payments', original.id), patch);
+      if (utrChanged) {
+        if (oldUtr) tx.delete(doc(db, 'paymentsByUtr', oldUtr));
+        if (newUtr) tx.set(doc(db, 'paymentsByUtr', newUtr), { claimedAt: serverTimestamp(), claimedBy: auth.currentUser.uid });
+      }
       // Keep the public receipt in sync so a QR scan shows the corrected figure,
       // not the original mistake — only when this payment actually has one.
       if (original.receiptNumber && original.publicToken) {
@@ -5751,11 +5852,15 @@ async function submitPaymentEdit(e, original) {
     });
     showToast('Payment entry updated.', 'success');
     document.getElementById('paymentDetailModalBackdrop').classList.remove('open');
-    await reloadPayments(); renderPendingPayments(); renderAllPayments(); renderOverview(); renderDefaulters();
+    await reloadPayments(); renderPendingPayments(); renderAllPayments(); renderOverview(); renderDefaulters(); renderMembershipDues();
   } catch (err) {
-    console.error('Edit payment failed:', err);
-    const code = err?.code || '';
-    showToast(`Could not save correction${code ? ` (${code})` : ''}.`, 'error');
+    if (err.message === 'NEW_UTR_ALREADY_CLAIMED') {
+      showToast('That UTR/cheque number is already used by another payment — please double-check it.', 'error');
+    } else {
+      console.error('Edit payment failed:', err);
+      const code = err?.code || '';
+      showToast(`Could not save correction${code ? ` (${code})` : ''}.`, 'error');
+    }
   } finally {
     if (btn) btn.disabled = false;
   }
@@ -5773,7 +5878,7 @@ async function deletePaymentEntry(p) {
     });
     showToast('Payment entry deleted.', 'success');
     document.getElementById('paymentDetailModalBackdrop').classList.remove('open');
-    await reloadPayments(); renderPendingPayments(); renderAllPayments(); renderOverview(); renderDefaulters();
+    await reloadPayments(); renderPendingPayments(); renderAllPayments(); renderOverview(); renderDefaulters(); renderMembershipDues();
   } catch (err) {
     console.error('Delete payment failed:', err);
     const code = err?.code || '';
@@ -5859,28 +5964,36 @@ async function verifyPayment(id) {
   if (btn) { btn.disabled = true; btn.textContent = 'Verifying…'; }
   try {
     const publicToken = newPublicToken();
-    const receiptNumber = await generateReceiptNumberAtomic(p.financialYear, (tx, receiptNumber) => {
-      tx.update(doc(db, 'payments', id), {
-        status: 'verified', receiptNumber, publicToken,
-        // Use the LIVE Firebase Auth email, not the (possibly stale) email cached
-        // on the admins/{uid} doc — the two can drift apart (case, a later email
-        // change) and this field is compared against request.auth.token.email
-        // server-side on the record-payment path, so any mismatch there fails.
-        verifiedAt: serverTimestamp(), verifiedBy: auth.currentUser?.email || currentAdmin.email
-      });
-      // Keyed by the random token: a resident scanning their own QR resolves it
-      // instantly, and nobody can walk the receipt numbers to total up what the
-      // society has collected and from whom.
-      tx.set(doc(db, 'receiptsPublic', publicToken), {
-        receiptNumber, residentName: p.residentName, flatNumber: p.flatNumber, tower: p.tower,
-        amount: p.amount, financialYear: p.financialYear, verifiedAt: serverTimestamp(), status: 'Verified'
-      });
-    });
+    const payRef = doc(db, 'payments', id);
+    const receiptNumber = await generateReceiptNumberAtomic(
+      p.financialYear,
+      (tx, receiptNumber, fresh) => {
+        tx.update(payRef, {
+          status: 'verified', receiptNumber, publicToken,
+          // Use the LIVE Firebase Auth email, not the (possibly stale) email cached
+          // on the admins/{uid} doc — the two can drift apart (case, a later email
+          // change) and this field is compared against request.auth.token.email
+          // server-side on the record-payment path, so any mismatch there fails.
+          verifiedAt: serverTimestamp(), verifiedBy: auth.currentUser?.email || currentAdmin.email
+        });
+        // Keyed by the random token: a resident scanning their own QR resolves it
+        // instantly, and nobody can walk the receipt numbers to total up what the
+        // society has collected and from whom.
+        tx.set(doc(db, 'receiptsPublic', publicToken), {
+          receiptNumber, residentName: fresh.residentName, flatNumber: fresh.flatNumber, tower: fresh.tower,
+          amount: fresh.amount, financialYear: fresh.financialYear, verifiedAt: serverTimestamp(), status: 'Verified'
+        });
+      },
+      async (tx) => {
+        const freshSnap = await tx.get(payRef);
+        return freshSnap.exists() ? freshSnap.data() : p;
+      }
+    );
 
     await logAudit(auth.currentUser, 'verify_payment', { paymentId: id, receiptNumber, amount: p.amount });
     showToast(`Verified! Receipt: ${receiptNumber}`, 'success');
     document.getElementById('paymentDetailModalBackdrop').classList.remove('open');
-    await reloadPayments(); renderPendingPayments(); renderAllPayments(); renderOverview(); renderDefaulters();
+    await reloadPayments(); renderPendingPayments(); renderAllPayments(); renderOverview(); renderDefaulters(); renderMembershipDues();
     updateNavBadges();
     if (document.getElementById('view-approvals')?.classList.contains('active')) renderApprovalCenter();
     const payingMember = allMembers.find(x => x.uid === p.memberUid || x.id === p.memberUid);
@@ -5900,7 +6013,7 @@ async function rejectPayment(id) {
   const reason = prompt('Reason for rejection:');
   if (reason === null) return;
   try {
-    await updateDoc(doc(db, 'payments', id), { status: 'rejected', remarks: reason, updatedAt: serverTimestamp() });
+    await updateDoc(doc(db, 'payments', id), { status: 'rejected', rejectionReason: reason, updatedAt: serverTimestamp() });
     await logAudit(auth.currentUser, 'reject_payment', { paymentId: id, reason });
     showToast('Payment has been rejected.', 'success');
     document.getElementById('paymentDetailModalBackdrop').classList.remove('open');
@@ -6083,7 +6196,7 @@ async function submitRecordSuspense() {
     showToast('Recorded in Suspense — assign it to a resident once you know whose payment this was.', 'success');
     document.getElementById('recordPaymentModalBackdrop').classList.remove('open');
     renderSuspenseList();
-    await reloadPayments(); renderPendingPayments(); renderAllPayments(); renderOverview(); renderDefaulters();
+    await reloadPayments(); renderPendingPayments(); renderAllPayments(); renderOverview(); renderDefaulters(); renderMembershipDues();
   } catch (err) {
     console.error('Record suspense failed:', err);
     const code = err?.code || '';
@@ -6129,9 +6242,15 @@ async function submitRecordPayment(e) {
 
     const receiptNumber = await generateReceiptNumberAtomic(fy, (tx, receiptNumber, utrAlreadyClaimed) => {
       if (utrAlreadyClaimed) throw new Error('UTR_TAKEN');
-      if (utrLockRef) tx.set(utrLockRef, { claimedAt: serverTimestamp(), claimedBy: currentAdmin.email });
+      if (utrLockRef) tx.set(utrLockRef, { claimedAt: serverTimestamp(), claimedBy: auth.currentUser.uid });
+      if (reassigningSuspenseId) {
+        tx.update(doc(db, 'payments', reassigningSuspenseId), {
+          status: 'voided', voidReason: `Reassigned to ${member.name} (Flat ${member.tower}-${member.flatNumber}) — receipt ${receiptNumber}`,
+          voidedBy: auth.currentUser.email, voidedAt: serverTimestamp()
+        });
+      }
       tx.set(payRef, {
-        memberUid: member.uid,
+        memberUid: member.uid || member.id,
         memberID: member.memberID || null,
         residentName: member.name,
         flatNumber: member.flatNumber,
@@ -6180,21 +6299,12 @@ async function submitRecordPayment(e) {
     showToast(`Payment recorded! Receipt: ${receiptNumber}`, 'success');
     document.getElementById('recordPaymentModalBackdrop').classList.remove('open');
     if (reassigningSuspenseId) {
-      try {
-        await updateDoc(doc(db, 'payments', reassigningSuspenseId), {
-          status: 'voided', voidReason: `Reassigned to ${member.name} (Flat ${member.tower}-${member.flatNumber}) — receipt ${receiptNumber}`,
-          voidedBy: auth.currentUser.email, voidedAt: serverTimestamp()
-        });
-        await logAudit(auth.currentUser, 'reassign_suspense', { suspenseId: reassigningSuspenseId, newPaymentId: payRef.id, memberUid: member.uid, receiptNumber });
-      } catch (voidErr) {
-        console.error('Voiding the suspense entry failed (new payment is already recorded):', voidErr);
-        showToast('The new payment was recorded, but the old suspense entry could not be automatically voided — please void it manually from the Suspense Account list.', 'error');
-      }
+      await logAudit(auth.currentUser, 'reassign_suspense', { suspenseId: reassigningSuspenseId, newPaymentId: payRef.id, memberUid: member.uid, receiptNumber });
       reassigningSuspenseId = null;
       document.getElementById('rpAmount').readOnly = false;
       await loadBankReconciliation();
     }
-    await reloadPayments(); renderPendingPayments(); renderAllPayments(); renderOverview(); renderDefaulters();
+    await reloadPayments(); renderPendingPayments(); renderAllPayments(); renderOverview(); renderDefaulters(); renderMembershipDues();
   } catch (err) {
     console.error('Record payment failed:', err);
     const code = err?.code || '';
@@ -6312,6 +6422,35 @@ function renderDefaulters() {
   document.querySelectorAll('[data-toggle-dispute]').forEach(btn => btn.addEventListener('click', () => toggleDuesDispute(btn.dataset.toggleDispute)));
 }
 
+function renderMembershipDues() {
+  const body = document.getElementById('membershipDuesBody');
+  const totalEl = document.getElementById('membershipDuesTotal');
+  if (!body) return;
+  const rows = allMembers
+    .filter((m) => m.status === 'approved')
+    .map((m) => ({ m, d: membershipDue(m, allPayments.filter((p) => p.memberUid === (m.uid || m.id)), maintenanceSettings) }))
+    .filter(({ d }) => d.outstanding > 0)
+    .sort((a, b) => (a.m.tower + a.m.flatNumber).localeCompare(b.m.tower + b.m.flatNumber));
+
+  const total = rows.reduce((s, { d }) => s + d.outstanding, 0);
+  if (totalEl) {
+    totalEl.textContent = rows.length
+      ? `${rows.length} resident${rows.length === 1 ? '' : 's'} · ${formatINR(total)} outstanding`
+      : 'Every owner has cleared the membership fee';
+  }
+
+  body.innerHTML = rows.map(({ m, d }) => `
+    <tr>
+      <td data-label="Resident"><a href="#" class="name-link" data-view-member="${escapeHtml(m.id)}">${escapeHtml(m.name)}</a></td>
+      <td data-label="Flat / Tower">${escapeHtml(m.flatNumber)} / ${escapeHtml(m.tower)}</td>
+      <td data-label="Mobile">${escapeHtml(m.mobile || '—')}</td>
+      <td data-label="Outstanding"><b class="t-danger">${formatINR(d.outstanding)}</b>
+        <span class="t-muted" style="font-size:11.5px;"> of ${formatINR(d.fee)}</span></td>
+    </tr>`).join('') || '<tr><td colspan="4" class="t-muted">Every owner has cleared the membership fee</td></tr>';
+
+  body.querySelectorAll('[data-view-member]').forEach((b) => b.addEventListener('click', (e) => { e.preventDefault(); openMemberModal(b.dataset.viewMember); }));
+}
+
 // Marking dues "Disputed" takes it out of the automatic paid/unpaid/overdue
 // grading entirely (see maintenanceHealthStatus()) — for the genuine edge
 // case where a resident's payment is under review (bounced cheque, wrong
@@ -6381,10 +6520,8 @@ async function loadContentPanels() {
       // acknowledged this notice) and any Storage attachment both used to
       // survive the notice itself, permanently orphaned.
       const readsSnap = await getDocs(collection(db, 'notices', noticeId, 'reads'));
-      const batch = writeBatch(db);
-      readsSnap.docs.slice(0, 499).forEach(d => batch.delete(d.ref));
-      batch.delete(doc(db, 'notices', noticeId));
-      await batch.commit();
+      await deleteRefsInChunks(readsSnap.docs.map(d => d.ref));
+      await deleteDoc(doc(db, 'notices', noticeId));
       if (n?.attachmentURL) {
         try { await deleteObject(storageRef(storage, n.attachmentURL)); } catch (e) { console.warn('Notice attachment delete failed:', e?.code || e); }
       }
@@ -6544,6 +6681,7 @@ document.getElementById('pollForm')?.addEventListener('submit', async (e) => {
 
   if (!question) return showToast('Question is required.', 'error');
   if (options.length < 2) return showToast('Please fill in at least 2 options.', 'error');
+  if (new Set(options.map((o) => o.trim().toLowerCase())).size !== options.length) return showToast('Options must be unique — two options have the same text.', 'error');
   if (!startDate || !endDate || Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) return showToast('Please enter valid Start and End times.', 'error');
   if (endDate <= startDate) return showToast('End time must be after Start time.', 'error');
 
@@ -6867,6 +7005,11 @@ function facilitySlotId(facilityId, date, slot) { return `${facilityId}_${date}_
 async function approveBooking(id) {
   const b = allBookings.find(x => x.id === id);
   if (!b) return;
+  const facility = allFacilities.find(x => x.id === b.facilityId);
+  if (facility && facility.active === false) {
+    showToast(`${b.facilityName} is currently inactive — reactivate it first, or reject this request instead.`, 'error');
+    return;
+  }
   try {
     // A Full Day booking occupies the whole date — it has to be checked
     // against (and lock) Morning, Evening AND Full Day together, or a
@@ -7279,7 +7422,7 @@ function inspectionsInRange() {
   const to = document.getElementById('inspRptTo')?.value || '';
   const ms = (r) => (r.createdAt?.seconds ? r.createdAt.seconds * 1000 : 0);
   const fromMs = from ? new Date(from + 'T00:00:00').getTime() : -Infinity;
-  const toMs = to ? new Date(to + 'T23:59:59').getTime() : Infinity;
+  const toMs = to ? new Date(to + 'T23:59:59.999').getTime() : Infinity;
   const insp = allInspections.filter(r => ms(r) >= fromMs && ms(r) <= toMs);
   const issues = allComplaints.filter(c => c.source === 'inspection' && ms(c) >= fromMs && ms(c) <= toMs);
   return { insp, issues, from, to };
@@ -7419,8 +7562,10 @@ function renderInspectionSchedule() {
     if (sched.perTower) {
       const def = INSPECTION_TYPES[type];
       TOWER_IDS.forEach(t => {
-        const done = filedTodayKeys.has(`${type}:${t}`);
-        const rec = done ? todaysInspections.find(r => r.formType === type && r.tower === t) : null;
+        const filed = filedTodayKeys.has(`${type}:${t}`);
+        const rec = filed ? todaysInspections.find(r => r.formType === type && r.tower === t) : null;
+        const partial = filed && (rec?.uncheckedCount || 0) > 0;
+        const done = filed && !partial;
         let group = towerGroups.find(g => g.tower === t);
         if (!group) { group = { tower: t, items: [] }; towerGroups.push(group); }
         // Floor-by-floor breakdown, for types (like daily-tower) that file
@@ -7437,11 +7582,15 @@ function renderInspectionSchedule() {
             { label: 'Additional Areas', done: sectionDone('Additional Areas') }
           ];
         }
-        group.items.push({ label, done, rec, subItems });
+        group.items.push({ label, done, partial, rec, subItems });
       });
     } else {
       const assignee = allInspectionAssignments.find(a => a.id === type)?.assignedToName || null;
-      dueTodayFlat.push({ label, done: filedTodayKeys.has(`${type}:`), assignee });
+      const filed = filedTodayKeys.has(`${type}:`);
+      const rec = filed ? todaysInspections.find(r => r.formType === type) : null;
+      const partial = filed && (rec?.uncheckedCount || 0) > 0;
+      const done = filed && !partial;
+      dueTodayFlat.push({ label, done, partial, assignee, rec, formType: type });
     }
   }
 
@@ -7467,32 +7616,48 @@ function renderInspectionSchedule() {
   const pendingTodayCount = totalToday - doneToday;
   const pendingWeekCount = mepSections.filter(s => !s.done).length + dueThisWeekFlat.filter(d => !d.done).length;
 
-  const line = (d) => `
-    <div style="display:flex; align-items:center; gap:8px; padding:4px 0; font-size:12.5px;">
-      <span style="width:16px; flex-shrink:0;">${d.done ? '✅' : '⬜'}</span>
-      <span style="${d.done ? 'color:var(--ink-500); text-decoration:line-through;' : ''}">${escapeHtml(d.label)}</span>
-      <span class="t-muted" style="font-size:11px;">— ${d.assignee ? escapeHtml(d.assignee) : 'unassigned'}</span>
-    </div>`;
+  const line = (d) => {
+    const items = Object.values(INSPECTION_TYPES[d.formType]?.sections || {}).flatMap(sec => sec.items);
+    const filedItems = d.rec ? (d.rec.sections || []).flatMap(sec => sec.items) : [];
+    const statusFor = (label) => filedItems.find(it => it.label === label)?.status;
+    const pill = (status) => status === 'ok' ? '✅' : status === 'issue' ? '🔴' : '⬜';
+    return `<details class="insp-tower-group">
+      <summary>
+        <span>${escapeHtml(d.label)}<span class="t-muted" style="font-weight:400; font-size:11px;"> — ${d.assignee ? escapeHtml(d.assignee) : 'unassigned'}</span></span>
+        <span class="badge ${d.done ? 'badge-success' : 'badge-warning'}">${d.done ? 'Done today' : d.partial ? `Filed — ${Number(d.rec.uncheckedCount)} unchecked` : 'Pending'}</span>
+      </summary>
+      <div style="padding:8px 4px 2px;">
+        ${d.done || d.partial
+          ? (items.length
+              ? items.map(it => `<div style="display:flex; align-items:center; gap:8px; padding:4px 0; font-size:12.5px;"><span style="width:16px; flex-shrink:0;">${pill(statusFor(it))}</span><span>${escapeHtml(it)}</span></div>`).join('')
+              : `<div class="t-muted" style="font-size:12px;">${filedWhen(d.rec)}</div>`)
+          : `<p class="t-muted" style="font-size:12px;">Not filed yet today.</p>`}
+      </div>
+    </details>`;
+  };
 
   const filedWhen = (r) => r?.createdAt?.seconds ? `by ${escapeHtml(r.createdByName || 'staff')}, ${fmtDateTime(r.createdAt)}` : '';
   const assigneeFor = (slotId) => allInspectionAssignments.find(a => a.id === slotId)?.assignedToName || null;
 
   const towerDropdown = (g) => {
-    const pending = g.items.filter(i => !i.done).length;
+    const pending = g.items.filter(i => !i.done && !i.partial).length;
+    const partialCount = g.items.filter(i => i.partial).length;
     const assignee = assigneeFor(`daily-tower_${g.tower}`);
+    const badgeText = pending ? `${pending} pending` : partialCount ? `${partialCount} left unchecked` : 'All done';
+    const badgeClass = pending ? 'badge-warning' : partialCount ? 'badge-warning' : 'badge-success';
     return `<details class="insp-tower-group">
       <summary>
         <span>Tower ${escapeHtml(g.tower)}${assignee ? ` <span class="t-muted" style="font-weight:400; font-size:11px;">— ${escapeHtml(assignee)}</span>` : ' <span class="t-muted" style="font-weight:400; font-size:11px;">— unassigned</span>'}</span>
-        <span class="badge ${pending ? 'badge-warning' : 'badge-success'}">${pending ? `${pending} pending` : 'All done'}</span>
+        <span class="badge ${badgeClass}">${badgeText}</span>
       </summary>
       <div style="padding:8px 4px 2px;">
         ${g.items.map(i => `
           <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:4px 0; font-size:12.5px;">
             <span style="display:flex; align-items:center; gap:8px;">
-              <span style="width:16px; flex-shrink:0;">${i.done ? '✅' : '⬜'}</span>
-              <span style="${i.done ? 'color:var(--ink-500); text-decoration:line-through;' : ''}">${escapeHtml(i.label)}</span>
+              <span style="width:16px; flex-shrink:0;">${i.done ? '✅' : i.partial ? '🟡' : '⬜'}</span>
+              <span style="${i.done ? 'color:var(--ink-500); text-decoration:line-through;' : ''}">${escapeHtml(i.label)}${i.partial ? ` <span class="t-muted" style="font-size:11px;">(${Number(i.rec.uncheckedCount)} unchecked)</span>` : ''}</span>
             </span>
-            ${i.done ? `<span class="t-muted" style="font-size:11px; white-space:nowrap;">${filedWhen(i.rec)}</span>` : ''}
+            ${i.done || i.partial ? `<span class="t-muted" style="font-size:11px; white-space:nowrap;">${filedWhen(i.rec)}</span>` : ''}
           </div>
           ${i.subItems ? `
           <div style="display:grid; grid-template-columns:1fr 1fr; gap:2px 10px; margin:2px 0 8px 24px; padding:6px 0 6px 10px; border-left:2px solid var(--line);">
@@ -7623,6 +7788,38 @@ function renderInspectionAnalytics() {
             <span>${escapeHtml(name)}</span><span><b>${c}</b> inspection${c > 1 ? 's' : ''}</span>
           </div>`).join('')}
       </div>` : ''}
+
+    ${(() => {
+      const inspIssues = (allComplaints || []).filter((c) => c.source === 'inspection' && ['open', 'in_progress'].includes(c.status));
+      if (!inspIssues.length) return '';
+      const byPriority = { high: 0, medium: 0 };
+      inspIssues.forEach((c) => { if (byPriority[c.priority] !== undefined) byPriority[c.priority]++; });
+      return `
+        <div style="font-size:12px; font-weight:700; margin:14px 0 6px;">Open Issues by Priority</div>
+        <div style="display:flex; gap:8px; margin-bottom:14px;">
+          <span class="badge badge-danger">High (24h) · ${byPriority.high}</span>
+          <span class="badge badge-warning">Medium (72h) · ${byPriority.medium}</span>
+        </div>`;
+    })()}
+
+    ${(() => {
+      // Same 30-day / 2-prior-occurrence signal as the Collection list's
+      // own 🔁 Recurring badge, rolled up here into a top-5 view instead of
+      // having to notice it one complaint at a time.
+      const inspComplaints = (allComplaints || []).filter((c) => c.source === 'inspection' && c.title);
+      const counts = {};
+      inspComplaints.forEach((c) => { counts[c.title] = (counts[c.title] || 0) + 1; });
+      const topLocations = Object.entries(counts).filter(([, n]) => n >= 2).sort((a, b) => b[1] - a[1]).slice(0, 5);
+      if (!topLocations.length) return '';
+      return `
+        <div style="font-size:12px; font-weight:700; margin-bottom:6px;">Recurring Issue Locations</div>
+        <div>
+          ${topLocations.map(([loc, n]) => `
+            <div style="display:flex; justify-content:space-between; font-size:12.5px; padding:4px 0; border-bottom:1px solid var(--line);">
+              <span>${escapeHtml(loc)}</span><span><b>${n}×</b></span>
+            </div>`).join('')}
+        </div>`;
+    })()}
   `;
 }
 const STAFF_ROLE_LABEL = { manager: 'Managing Staff', supervisor: 'Supervisor' };
@@ -7635,7 +7832,7 @@ function renderStaffTable() {
       <td data-label="Name">${escapeHtml(s.name)}</td>
       <td data-label="Role">${STAFF_ROLE_LABEL[s.role] || escapeHtml(s.role || '—')}</td>
       <td data-label="Trade">${STAFF_TRADES[s.trade]?.label || '—'}</td>
-      <td data-label="Email">${escapeHtml(s.email || '—')}</td>
+      <td data-label="Login ID" class="mono">${escapeHtml(s.loginId || s.email || '—')}</td>
       <td data-label="Status"><span class="badge badge-${s.active !== false ? 'success' : 'neutral'}">${s.active !== false ? 'Active' : 'Deactivated'}</span></td>
       <td data-label="Actions"><button class="btn btn-outline btn-sm" data-toggle-staff="${s.id}">${s.active !== false ? 'Deactivate' : 'Reactivate'}</button></td>
     </tr>`).join('');
@@ -7735,7 +7932,7 @@ function renderInspectionLogTable() {
       <td data-label="Type">${INSPECTION_TYPE_LABEL_ADMIN[r.formType] || escapeHtml(r.formType || '—')}</td>
       <td data-label="Tower">${escapeHtml(r.tower || '—')}</td>
       <td data-label="Filed By">${escapeHtml(r.createdByName || '—')}</td>
-      <td data-label="Issues">${r.issueCount ? `<span class="badge badge-danger">${r.issueCount}</span>` : `<span class="badge badge-success">0</span>`}</td>
+      <td data-label="Issues">${Number(r.issueCount) ? `<span class="badge badge-danger">${Number(r.issueCount)}</span>` : `<span class="badge badge-success">0</span>`}</td>
       <td data-label="Time"><button class="btn btn-outline btn-sm" data-view-insp="${r.id}">${r.createdAt ? fmtDateTime(r.createdAt) : '—'} · View</button></td>
     </tr>`).join('');
   body.querySelectorAll('[data-view-insp]').forEach(b => b.onclick = () => openInspectionDetail(b.dataset.viewInsp));
@@ -7752,7 +7949,8 @@ function openInspectionDetail(id) {
   document.getElementById('inspectionDetailTitle').textContent =
     (INSPECTION_TYPE_LABEL_ADMIN[r.formType] || r.formType) + (r.tower ? ' — Tower ' + r.tower : '');
   document.getElementById('inspectionDetailMeta').textContent =
-    'Filed by ' + (r.createdByName || '—') + (r.createdAt ? ' · ' + fmtDateTime(r.createdAt) : '');
+    'Filed by ' + (r.createdByName || '—') + (r.createdAt ? ' · ' + fmtDateTime(r.createdAt) : '')
+    + (r.verifiedBy ? ' · Verified by ' + r.verifiedBy : '');
 
   // Tank checks store true/false/null (OK/Issue/unchecked); every other
   // checklist item stores the 'ok'/'issue'/'unchecked' strings staff.html
@@ -7798,7 +7996,7 @@ function openInspectionDetail(id) {
     if (r.readingsData) {
       html += sectionCard('Readings', tpl.readings.map(label => `
         <div style="display:flex; justify-content:space-between; padding:5px 0; border-bottom:1px solid var(--line); font-size:12px;">
-          <span>${escapeHtml(label)}</span><b>${escapeHtml(r.readingsData[label] || '—')}</b>
+          <span>${escapeHtml(label)} <span class="t-muted" style="font-size:10.5px;">(${escapeHtml(tpl.READING_HINTS?.[label] || '')})</span></span><b>${escapeHtml(r.readingsData[label] || '—')}</b>
         </div>`).join(''));
     }
     if (r.maintenanceNotes) html += `<div class="card" style="margin-bottom:10px; padding:14px;"><b style="font-size:13.5px;">Preventive Maintenance</b><p style="font-size:12.5px; margin-top:6px;">${escapeHtml(r.maintenanceNotes)}</p></div>`;
@@ -7833,16 +8031,27 @@ function openInspectionDetail(id) {
 }
 document.getElementById('closeInspectionDetailModal')?.addEventListener('click', () => document.getElementById('inspectionDetailModalBackdrop').classList.remove('open'));
 
+async function generateStaffLoginId() {
+  const ref = doc(db, 'counters', 'staffSeq');
+  const seq = await runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    const next = (snap.exists() ? (snap.data().value || 0) : 0) + 1;
+    tx.set(ref, { value: next, updatedAt: serverTimestamp() }, { merge: true });
+    return next;
+  });
+  return 'S' + String(seq).padStart(3, '0');
+}
+
 document.getElementById('addStaffBtn')?.addEventListener('click', () => document.getElementById('staffModalBackdrop').classList.add('open'));
 document.getElementById('closeStaffModal')?.addEventListener('click', () => document.getElementById('staffModalBackdrop').classList.remove('open'));
+document.getElementById('closeStaffCredsModal')?.addEventListener('click', () => document.getElementById('staffCredsModalBackdrop').classList.remove('open'));
+document.getElementById('closeStaffCredsBtn')?.addEventListener('click', () => document.getElementById('staffCredsModalBackdrop').classList.remove('open'));
 
-// Same secondary-app pattern as "Add Admin" and "Add Guard" above — creating
-// this account never signs the currently logged-in committee member out of
-// their own admin session. Unlike a guard's fake @...local address, staff
-// use their REAL email, so the account is created with a random throwaway
-// password and immediately followed by a real sendPasswordResetEmail —
-// nobody, including the admin creating it, ever sees or handles the
-// password itself.
+// Same fake @...local address + PIN pattern as "Add Guard" — most facility
+// staff don't have (or check) a real mailbox any more reliably than a
+// guard does, and a Login ID + PIN that the admin hands over directly is
+// one less thing to go wrong than a password-reset email arriving,
+// being found, and being acted on before it expires.
 document.getElementById('staffForm')?.addEventListener('submit', async (e) => {
   e.preventDefault();
   const f = e.target;
@@ -7852,34 +8061,35 @@ document.getElementById('staffForm')?.addEventListener('submit', async (e) => {
   let cred;
   try {
     const name = document.getElementById('staffName').value.trim();
-    const email = document.getElementById('staffEmail').value.trim();
     const role = document.getElementById('staffRole').value;
     const trade = document.getElementById('staffTrade').value;
-    // crypto.randomUUID(), not Math.random() — same reasoning as the guard
-    // PIN fix: a temporary password is a real credential, however short-
-    // lived, and Math.random() gives no unpredictability guarantee.
-    const tempPassword = 'Tmp-' + crypto.randomUUID().replace(/-/g, '').slice(0, 8) + 'Aa1!';
+    const loginId = await generateStaffLoginId();
+    // crypto.getRandomValues(), not Math.random() — same reasoning as the
+    // guard PIN: a real login credential needs an actual unpredictability
+    // guarantee, which an ordinary pseudorandom generator doesn't give.
+    const pin = String(100000 + (crypto.getRandomValues(new Uint32Array(1))[0] % 900000));
+    const staffEmail = `${loginId.toLowerCase()}@mhmrws-portal.local`;
 
     const secondaryAuth = getAuth(secondaryApp);
-    cred = await createUserWithEmailAndPassword(secondaryAuth, email, tempPassword);
+    cred = await createUserWithEmailAndPassword(secondaryAuth, staffEmail, pin);
     const newUid = cred.user.uid;
 
     await setDoc(doc(db, 'staff', newUid), {
-      uid: newUid, name, email, role, trade, active: true, createdAt: serverTimestamp(), createdBy: currentAdmin.email
+      uid: newUid, name, loginId, role, trade, active: true, createdAt: serverTimestamp(), createdBy: currentAdmin.email
     });
-    await sendPasswordResetEmail(secondaryAuth, email);
 
-    await logAudit(auth.currentUser, 'add_staff', { email, name, role, trade });
-    showToast('Staff account created — a password-reset email has been sent.', 'success');
+    await logAudit(auth.currentUser, 'add_staff', { loginId, name, role, trade });
     document.getElementById('staffModalBackdrop').classList.remove('open');
     f.reset();
+    document.getElementById('staffCredsId').value = loginId;
+    document.getElementById('staffCredsPin').value = pin;
+    document.getElementById('staffCredsModalBackdrop').classList.add('open');
     await loadFacilityStaffData();
   } catch (err) {
-    // Same rollback reasoning as Add Admin: the Auth account is created
-    // first, so anything failing after it would otherwise leave a login
-    // that exists but has no staff/{uid} record and no way to fix that
-    // from the UI — and, if the failure happened AFTER the staff/{uid}
-    // write (e.g. sendPasswordResetEmail failing), an orphan document too.
+    // Same rollback reasoning as Add Admin/Add Guard: the Auth account is
+    // created first, so anything failing after it would otherwise leave a
+    // login that exists but has no staff/{uid} record and no way to fix
+    // that from the UI.
     if (cred?.user) {
       try { await deleteDoc(doc(db, 'staff', cred.user.uid)); }
       catch (e2) { console.warn('Could not roll back the staff/{uid} document:', e2); }
@@ -7989,13 +8199,16 @@ document.getElementById('assetForm')?.addEventListener('submit', async (e) => {
   e.preventDefault();
   const name = document.getElementById('astName').value.trim();
   if (!name) return;
+  const amcStart = document.getElementById('astAmcStart').value || null;
+  const amcEnd = document.getElementById('astAmcEnd').value || null;
+  const lastServiceDate = document.getElementById('astLastService').value || null;
+  const nextServiceDate = document.getElementById('astNextService').value || null;
+  if (amcStart && amcEnd && amcEnd < amcStart) return showToast('AMC end date cannot be before the AMC start date.', 'error');
+  if (lastServiceDate && nextServiceDate && nextServiceDate < lastServiceDate) return showToast('Next service date cannot be before the last service date.', 'error');
   const data = {
     name, category: document.getElementById('astCategory').value.trim() || null,
     amcProvider: document.getElementById('astProvider').value.trim() || null,
-    amcStart: document.getElementById('astAmcStart').value || null,
-    amcEnd: document.getElementById('astAmcEnd').value || null,
-    lastServiceDate: document.getElementById('astLastService').value || null,
-    nextServiceDate: document.getElementById('astNextService').value || null,
+    amcStart, amcEnd, lastServiceDate, nextServiceDate,
     notes: document.getElementById('astNotes').value.trim() || null,
     updatedAt: serverTimestamp()
   };
@@ -8235,19 +8448,38 @@ document.getElementById('ownershipForm')?.addEventListener('submit', async (e) =
   } catch (err) { showToast(`Could not save${err?.code ? ` (${err.code})` : ''}.`, 'error'); }
 });
 
+// A single Firestore batch caps at 500 operations — deleting every doc in a
+// subcollection that could plausibly exceed that (votes, notice reads) has
+// to be split across multiple sequential batches, not truncated to
+// whatever fits in one, or the excess is silently left behind forever
+// while the UI reports a complete deletion.
+async function deleteRefsInChunks(refs) {
+  const CHUNK = 450;
+  for (let i = 0; i < refs.length; i += CHUNK) {
+    const batch = writeBatch(db);
+    refs.slice(i, i + CHUNK).forEach((ref) => batch.delete(ref));
+    await batch.commit();
+  }
+}
+
 async function loadPollsPanel() {
   const canEdit = can('approveMembers');
   const createForm = document.getElementById('pollForm');
   if (createForm) createForm.style.display = canEdit ? 'block' : 'none';
 
   let polls = [];
+  let pollsLoadFailed = false;
   try {
     polls = (await getDocs(collection(db, 'polls'))).docs.map(d => ({ id: d.id, ...d.data() }));
-  } catch (e) { console.warn('Polls read failed:', e?.code || e); }
+  } catch (e) { console.warn('Polls read failed:', e?.code || e); pollsLoadFailed = true; }
   polls.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
 
   const list = document.getElementById('pollsList');
   if (!list) return;
+  if (pollsLoadFailed) {
+    list.innerHTML = `<div style="padding:10px 12px; background:#FDEDED; border-radius:8px; font-size:12.5px;">Could not load polls — please check your connection and refresh.</div>`;
+    return;
+  }
   list.innerHTML = polls.map(p => {
     const st = pollStatus(p);
     const start = p.startTime?.toDate ? p.startTime.toDate() : new Date(p.startTime);
@@ -8301,19 +8533,21 @@ async function loadPollsPanel() {
     if (!confirm('Delete this poll? All its votes will be removed too.')) return;
     const pollId = b.dataset.delPoll;
     try {
+      // Close voting before touching anything else — otherwise a vote cast
+      // in the window between reading the votes snapshot below and the
+      // poll document actually being deleted could land after the cleanup
+      // already ran, surviving as an orphaned vote/tally doc with no poll
+      // left to explain it.
+      await updateDoc(doc(db, 'polls', pollId), { endTime: new Date() });
       // Deleting the poll document alone leaves every vote in its votes
       // subcollection permanently orphaned — real Firestore documents with
       // a voterUid → option mapping and no poll left to explain them. The
       // confirm dialog already promises votes are removed too; this is what
-      // actually delivers on that. Capped at 500 (a Firestore batch's own
-      // limit) — comfortably covers this society's whole membership.
+      // actually delivers on that.
       const votesSnap = await getDocs(collection(db, 'polls', pollId, 'votes'));
       const tallySnap = await getDocs(collection(db, 'polls', pollId, 'tally'));
-      const batch = writeBatch(db);
-      votesSnap.docs.slice(0, 489).forEach(d => batch.delete(d.ref));
-      tallySnap.docs.forEach(d => batch.delete(d.ref));
-      batch.delete(doc(db, 'polls', pollId));
-      await batch.commit();
+      await deleteRefsInChunks([...votesSnap.docs.map(d => d.ref), ...tallySnap.docs.map(d => d.ref)]);
+      await deleteDoc(doc(db, 'polls', pollId));
       await logAudit(auth.currentUser, 'delete_poll', { id: pollId, votesDeleted: votesSnap.size });
       loadPollsPanel();
     } catch (err) {
@@ -8453,10 +8687,13 @@ function showMatchCandidates(txId) {
 
 async function matchTransaction(txId, candidate) {
   const lockRef = doc(db, 'bankMatchLocks', `${candidate.col}_${candidate.id}`);
+  const txRef = doc(db, 'bankTransactions', txId);
   try {
     await runTransaction(db, async (tx) => {
       const lockSnap = await tx.get(lockRef);
       if (lockSnap.exists()) throw new Error('ALREADY_MATCHED');
+      const txSnap = await tx.get(txRef);
+      if (txSnap.exists() && txSnap.data().status === 'matched') throw new Error('TX_ALREADY_MATCHED');
       tx.set(lockRef, { matchedTxId: txId, matchedAt: serverTimestamp() });
       tx.update(doc(db, 'bankTransactions', txId), {
         status: 'matched',
@@ -8471,6 +8708,9 @@ async function matchTransaction(txId, candidate) {
   } catch (err) {
     if (err.message === 'ALREADY_MATCHED') {
       showToast('That payment/expense was just matched to a different bank transaction — refreshing the list.', 'error');
+      await loadBankReconciliation();
+    } else if (err.message === 'TX_ALREADY_MATCHED') {
+      showToast('This bank transaction was just matched by someone else — refreshing the list.', 'error');
       await loadBankReconciliation();
     } else {
       console.error('Match failed:', err);
@@ -8490,20 +8730,39 @@ async function moveTxToSuspense(txId) {
   if (!tx) return;
   const notes = prompt(`Why can't this ₹${tx.amount} credit be matched to a resident right now? (e.g. "UTR doesn't match any resident's submission")`);
   if (!notes || !notes.trim()) return;
+  const payRef = doc(collection(db, 'payments'));
+  const txRef = doc(db, 'bankTransactions', txId);
   try {
-    const ref = await addDoc(collection(db, 'payments'), {
-      type: 'suspense', amount: tx.amount, mode: 'netbanking', financialYear: currentFinancialYear(),
-      status: 'verified', recordedByAdmin: true, verifiedBy: auth.currentUser.email,
-      transactionDate: tx.date || null, notes: notes.trim(), submittedAt: serverTimestamp(), verifiedAt: serverTimestamp()
+    await runTransaction(db, async (rtx) => {
+      const txSnap = await rtx.get(txRef);
+      if (txSnap.exists() && txSnap.data().status === 'matched') throw new Error('TX_ALREADY_MATCHED');
+      const lockRef = doc(db, 'bankMatchLocks', `payments_${payRef.id}`);
+      rtx.set(lockRef, { matchedTxId: txId, matchedAt: serverTimestamp() });
+      rtx.set(payRef, {
+        type: 'suspense', amount: tx.amount, mode: 'netbanking', financialYear: financialYearForDate(tx.date ? new Date(tx.date) : new Date()),
+        status: 'verified', recordedByAdmin: true, verifiedBy: auth.currentUser.email,
+        transactionDate: tx.date || null, notes: notes.trim(), submittedAt: serverTimestamp(), verifiedAt: serverTimestamp()
+      });
+      rtx.update(txRef, {
+        status: 'matched', matchedRef: { col: 'payments', id: payRef.id },
+        matchedLabel: `Suspense — ${notes.trim().slice(0, 60)}`,
+        matchedBy: currentAdmin.email, matchedAt: serverTimestamp()
+      });
     });
-    await logAudit(auth.currentUser, 'create_suspense_payment', { paymentId: ref.id, amount: tx.amount, txId });
+    await logAudit(auth.currentUser, 'create_suspense_payment', { paymentId: payRef.id, amount: tx.amount, txId });
     allPayments.push({
-      id: ref.id, type: 'suspense', amount: tx.amount, mode: 'netbanking', financialYear: currentFinancialYear(),
+      id: payRef.id, type: 'suspense', amount: tx.amount, mode: 'netbanking', financialYear: financialYearForDate(tx.date ? new Date(tx.date) : new Date()),
       status: 'verified', recordedByAdmin: true, verifiedBy: auth.currentUser.email,
       transactionDate: tx.date || null, notes: notes.trim()
     });
-    await matchTransaction(txId, { col: 'payments', id: ref.id, label: `Suspense — ${notes.trim().slice(0, 60)}` });
+    showToast('Matched.', 'success');
+    await loadBankReconciliation();
   } catch (err) {
+    if (err.message === 'TX_ALREADY_MATCHED') {
+      showToast('This bank transaction was just matched by someone else — refreshing the list.', 'error');
+      await loadBankReconciliation();
+      return;
+    }
     console.error('Move to suspense failed:', err);
     showToast(`Could not move to suspense${err?.code ? ` (${err.code})` : ''}.`, 'error');
   }
@@ -8539,18 +8798,20 @@ function renderSuspenseList() {
 async function setTxStatus(txId, status, clearMatch = false) {
   try {
     const patch = { status };
+    const batch = writeBatch(db);
     if (clearMatch) {
       patch.matchedRef = null; patch.matchedLabel = null;
       // Release the lock too, or the payment/expense this transaction was
       // matched to would stay permanently unmatchable by anything else even
-      // after this match is explicitly undone.
+      // after this match is explicitly undone. In the same batch as the
+      // transaction update below — either both land, or neither does.
       const current = (window.__bankTxs || []).find(t => t.id === txId);
       if (current?.matchedRef) {
-        try { await deleteDoc(doc(db, 'bankMatchLocks', `${current.matchedRef.col}_${current.matchedRef.id}`)); }
-        catch (e) { console.warn('Could not release match lock:', e?.code || e); }
+        batch.delete(doc(db, 'bankMatchLocks', `${current.matchedRef.col}_${current.matchedRef.id}`));
       }
     }
-    await updateDoc(doc(db, 'bankTransactions', txId), patch);
+    batch.update(doc(db, 'bankTransactions', txId), patch);
+    await batch.commit();
     await logAudit(auth.currentUser, 'update_bank_tx_status', { txId, status });
     await loadBankReconciliation();
   } catch (err) {
@@ -8592,14 +8853,20 @@ async function loadBudgetPanel() {
   if (catSel) catSel.innerHTML = EXPENSE_CATEGORIES.map(c => `<option>${escapeHtml(c)}</option>`).join('');
 
   let categories = {};
+  let budgetLoadFailed = false;
   try {
     const snap = await getDoc(doc(db, 'budgets', selectedFY));
     categories = snap.exists() ? (snap.data().categories || {}) : {};
-  } catch (e) { console.warn('Budget read failed:', e?.code || e); }
+  } catch (e) { console.warn('Budget read failed:', e?.code || e); budgetLoadFailed = true; }
   window.__budgetCategories = categories;
+  window.__budgetLoadFailed = budgetLoadFailed;
   renderBudgetTable();
 }
 function renderBudgetTable() {
+  if (window.__budgetLoadFailed) {
+    document.getElementById('budgetBody').innerHTML = '<tr><td colspan="4" class="t-muted" style="color:var(--danger);">Could not load the budget — please check your connection and refresh before making changes here.</td></tr>';
+    return;
+  }
   const budgets = window.__budgetCategories || {};
   const actualByCategory = {};
   expenseSummary(allExpenses, selectedFY).categories.forEach(c => { actualByCategory[c.name] = c.amount; });
@@ -8653,15 +8920,25 @@ async function loadClosingPanel() {
   document.getElementById('closingMonthLabel').textContent = `Close "${now.toLocaleString('en-IN', { month: 'long', year: 'numeric' })}"`;
 
   let closures = [];
+  let closuresLoadFailed = false;
   try {
     closures = (await getDocs(collection(db, 'monthClosures'))).docs.map(d => ({ id: d.id, ...d.data() }));
-  } catch (e) { console.warn('Closures read failed:', e?.code || e); }
+  } catch (e) { console.warn('Closures read failed:', e?.code || e); closuresLoadFailed = true; }
   closures.sort((a, b) => b.id.localeCompare(a.id));
 
+  // Scoped to the month being closed — an old, still-pending item predates
+  // this month's books and is its own separate problem; it shouldn't block
+  // closing THIS month forever just because it was never resolved.
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const inThisMonth = (ts) => {
+    const d = ts?.toDate ? ts.toDate() : (ts ? new Date(ts) : null);
+    return d && d >= startOfMonth && d < endOfMonth;
+  };
   const alreadyClosed = closures.some(c => c.id === currentYM);
-  const pendingPayments = allPayments.filter(p => p.status === 'pending_approval' || p.status === 'pending_verification').length;
-  const pendingExpenses = allExpenses.filter(e => e.status === 'pending_approval').length;
-  const unmatchedBankTx = (window.__bankTxs || []).filter(t => !t.status || t.status === 'unmatched').length;
+  const pendingPayments = allPayments.filter(p => (p.status === 'pending_approval' || p.status === 'pending_verification') && inThisMonth(p.submittedAt)).length;
+  const pendingExpenses = allExpenses.filter(e => e.status === 'pending_approval' && inThisMonth(e.addedAt)).length;
+  const unmatchedBankTx = (window.__bankTxs || []).filter(t => (!t.status || t.status === 'unmatched') && inThisMonth(t.date)).length;
 
   const checks = [
     { label: 'Saare payments verify ho chuke hain', ok: pendingPayments === 0, detail: pendingPayments > 0 ? `${pendingPayments} pending` : null },
@@ -8679,7 +8956,11 @@ async function loadClosingPanel() {
   const closeBtn = document.getElementById('closeMonthBtn');
   closeBtn.dataset.ym = currentYM;
   closeBtn.dataset.allOk = allOk;
-  if (alreadyClosed) {
+  closeBtn.dataset.retry = closuresLoadFailed ? 'true' : 'false';
+  if (closuresLoadFailed) {
+    closeBtn.disabled = false;
+    closeBtn.textContent = 'Could not check — tap to retry';
+  } else if (alreadyClosed) {
     closeBtn.disabled = true;
     closeBtn.textContent = `${currentYM} is already closed`;
   } else {
@@ -8735,6 +9016,7 @@ async function unlockFY(fy) {
 }
 document.getElementById('closeMonthBtn')?.addEventListener('click', async (e) => {
   const btn = e.currentTarget;
+  if (btn.dataset.retry === 'true') { await loadClosingPanel(); return; }
   const ym = btn.dataset.ym;
   const allOk = btn.dataset.allOk === 'true';
   if (!confirm(`Close ${ym}?${allOk ? '' : ' Some checklist items are still pending.'} This cannot be undone.`)) return;
@@ -8774,7 +9056,12 @@ async function loadDocuments() {
       if (!confirm('Remove this document?')) return;
       b.disabled = true;
       try {
+        const docItem = rows.find((x) => x.id === b.dataset.delDoc);
         await deleteDoc(doc(db, 'documents', b.dataset.delDoc));
+        if (docItem?.source === 'upload' && docItem.url) {
+          try { await deleteObject(storageRef(storage, docItem.url)); }
+          catch (fileErr) { console.warn('Document file delete failed (Firestore record already removed):', fileErr?.code || fileErr); }
+        }
         await logAudit(auth.currentUser, 'delete_document', { id: b.dataset.delDoc });
         loadDocuments();
       } catch (err) {
@@ -9105,16 +9392,26 @@ async function confirmImport() {
     for (const row of importRows) {
       if (row.errors.length) continue;
       try {
-        // Generated before the transaction starts — generateMemberId() and
-        // newPublicToken() each do their own atomic work (a counter
-        // transaction, a random token), and Firestore doesn't allow nesting
-        // a transaction inside another. Same order approveMember() uses.
-        const memberID = await generateMemberId();
-        const publicToken = newPublicToken();
         const memberRef = doc(collection(db, 'members'));
         const claimRef = doc(db, 'flatClaims', flatClaimId(row.tower, row.flat, row.residentType));
         const otherSide = row.residentType === 'tenant' ? 'owner' : 'tenant';
         const otherClaimRef = doc(db, 'flatClaims', flatClaimId(row.tower, row.flat, otherSide));
+
+        // Checked here, BEFORE consuming a Member ID, so a row that's
+        // going to fail this exact check inside the real transaction below
+        // never wastes one — generateMemberId()'s own counter transaction
+        // can't be nested inside this one, so the only way to know in
+        // advance is to check the same condition here first.
+        const preCheckClaim = await getDoc(claimRef);
+        if (preCheckClaim.exists()) throw new Error('FLAT_TAKEN');
+
+        // Generated only now that the row is confirmed likely to succeed —
+        // generateMemberId() and newPublicToken() each do their own atomic
+        // work (a counter transaction, a random token), and Firestore
+        // doesn't allow nesting a transaction inside another. Same order
+        // approveMember() uses.
+        const memberID = await generateMemberId();
+        const publicToken = newPublicToken();
 
         await runTransaction(db, async (tx) => {
           // A flat already claimed for this exact slot (owner/tenant) by
@@ -9209,23 +9506,29 @@ document.getElementById('zipExportBtn').addEventListener('click', async () => {
       society = societySnap.exists() ? societySnap.data() : { fullName: SOCIETY.fullName };
     } catch (e) { society = { fullName: SOCIETY.fullName }; }
 
-    let done = 0;
-    const total = verifiedThisMonth.length + files.length;
-    const tick = () => { statusEl.textContent = `Building ${++done} / ${total}…`; };
-
+    const failed = [];
+    const plannedTotal = files.length + verifiedThisMonth.length;
+    let receiptsDone = 0;
     for (const p of verifiedThisMonth) {
       try {
         const mem = allMembers.find(x => x.uid === p.memberUid) || {};
         const blob = await generateReceiptPDF({ payment: p, member: mem, society, logoDataUrl: null, save: false });
         files.push({ blob, name: `Receipts/${p.receiptNumber}.pdf` });
-      } catch (e) { /* skip a failed receipt rather than aborting the whole export */ }
-      tick();
+      } catch (e) {
+        // Previously swallowed with no tracking at all — an incomplete ZIP
+        // could report itself as fully "Done", with no way to know which
+        // receipt never made it in.
+        failed.push(`Receipts/${p.receiptNumber}.pdf (generation failed)`);
+        console.warn('Receipt PDF generation failed, skipped:', p.receiptNumber, e?.message || e);
+      }
+      statusEl.textContent = `Generating receipts ${++receiptsDone} / ${verifiedThisMonth.length}…`;
     }
 
     const zip = new window.JSZip();
-    const failed = [];
+    let zipped = 0;
+    const totalToZip = files.length;
     for (const f of files) {
-      if (f.blob) { zip.file(f.name, f.blob); tick(); continue; }
+      if (f.blob) { zip.file(f.name, f.blob); statusEl.textContent = `Zipping ${++zipped} / ${totalToZip}…`; continue; }
       try {
         const resp = await fetch(f.url);
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
@@ -9238,17 +9541,17 @@ document.getElementById('zipExportBtn').addEventListener('click', async () => {
         failed.push(f.name);
         console.warn('ZIP file fetch failed, skipped:', f.name, e?.message || e);
       }
-      tick();
+      statusEl.textContent = `Zipping ${++zipped} / ${totalToZip}…`;
     }
     statusEl.textContent = 'Compressing…';
     const zipBlob = await zip.generateAsync({ type: 'blob' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(zipBlob); a.download = `MHMRWS-${monthVal}.zip`; a.click();
     URL.revokeObjectURL(a.href);
-    const successCount = files.length - failed.length;
+    const successCount = plannedTotal - failed.length;
     await logAudit(auth.currentUser, 'zip_export', { month: monthVal, fileCount: successCount, failedCount: failed.length, failed });
     statusEl.textContent = failed.length
-      ? `ZIP created — ${successCount}/${files.length} files. Failed: ${failed.join(', ')}`
+      ? `ZIP created — ${successCount}/${plannedTotal} files. Failed: ${failed.join(', ')}`
       : `Done — ${successCount} files zipped.`;
   } catch (err) {
     console.error('ZIP export failed:', err);
@@ -9588,65 +9891,111 @@ document.getElementById('encryptPendingBtn').addEventListener('click', async () 
 // of history could make every single backup noticeably slower to build for
 // a record that's already durably stored in Firestore itself.
 async function collectBackupBundle() {
-  const [notices, committee, documents, expenses, events, admins, bankTransactions,
+  // Each collection below is fetched independently so one failing doesn't
+  // stop the rest from being backed up too — but a failure must never look
+  // identical to that collection genuinely being empty. Every failed read
+  // is recorded here, and the caller refuses to report a completed backup
+  // if this isn't empty.
+  const failures = [];
+  const [freshMembers, freshPayments, notices, committee, documents, expenses, events, admins, bankTransactions,
          budgetDocs, calendarEvents, monthClosures, pets, polls,
-         complaints, inspections, facilities, facilityBookings, facilitySlots,
+         complaints, inspections, inspectionAssignments, facilities, facilityBookings, facilitySlots,
          staff, guards, visitors, vendors, assets, parkingSlots, ownershipHistory,
          moveRequests, suggestions, expectedGuests, financialYearLocks, flatClaims,
          auditLogs, counters, membersPublic, receiptsPublic, paymentsByUtr,
          bankMatchLocks, publicFinancialSummary] = await Promise.all([
-    getDocs(collection(db, 'notices')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
-    getDocs(collection(db, 'committee')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
-    getDocs(collection(db, 'documents')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
-    getDocs(collection(db, 'expenses')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
-    getDocs(collection(db, 'events')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
-    getDocs(collection(db, 'admins')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
-    getDocs(collection(db, 'bankTransactions')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
-    getDocs(collection(db, 'budgets')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
-    getDocs(collection(db, 'calendarEvents')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
-    getDocs(collection(db, 'monthClosures')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
-    getDocs(collection(db, 'pets')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
-    getDocs(collection(db, 'polls')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
-    getDocs(collection(db, 'complaints')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
-    getDocs(collection(db, 'inspections')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
-    getDocs(collection(db, 'facilities')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
-    getDocs(collection(db, 'facilityBookings')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
-    getDocs(collection(db, 'facilitySlots')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
-    getDocs(collection(db, 'staff')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
-    getDocs(collection(db, 'guards')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
-    getDocs(collection(db, 'visitors')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
-    getDocs(collection(db, 'vendors')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
-    getDocs(collection(db, 'assets')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
-    getDocs(collection(db, 'parkingSlots')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
-    getDocs(collection(db, 'ownershipHistory')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
-    getDocs(collection(db, 'moveRequests')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
-    getDocs(collection(db, 'suggestions')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
-    getDocs(collection(db, 'expectedGuests')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
-    getDocs(collection(db, 'financialYearLocks')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
-    getDocs(collection(db, 'flatClaims')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
-    getDocs(collection(db, 'auditLogs')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
-    getDocs(collection(db, 'counters')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
-    getDocs(collection(db, 'membersPublic')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
-    getDocs(collection(db, 'receiptsPublic')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
-    getDocs(collection(db, 'paymentsByUtr')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
-    getDocs(collection(db, 'bankMatchLocks')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => []),
-    getDocs(collection(db, 'publicFinancialSummary')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch(() => [])
+    getDocs(collection(db, 'members')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch((e) => { console.error('Backup: members failed to load', e?.code || e); failures.push('members'); return []; }),
+    getDocs(collection(db, 'payments')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch((e) => { console.error('Backup: payments failed to load', e?.code || e); failures.push('payments'); return []; }),
+    getDocs(collection(db, 'notices')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch((e) => { console.error('Backup: notices failed to load', e?.code || e); failures.push('notices'); return []; }),
+    getDocs(collection(db, 'committee')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch((e) => { console.error('Backup: committee failed to load', e?.code || e); failures.push('committee'); return []; }),
+    getDocs(collection(db, 'documents')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch((e) => { console.error('Backup: documents failed to load', e?.code || e); failures.push('documents'); return []; }),
+    getDocs(collection(db, 'expenses')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch((e) => { console.error('Backup: expenses failed to load', e?.code || e); failures.push('expenses'); return []; }),
+    getDocs(collection(db, 'events')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch((e) => { console.error('Backup: events failed to load', e?.code || e); failures.push('events'); return []; }),
+    getDocs(collection(db, 'admins')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch((e) => { console.error('Backup: admins failed to load', e?.code || e); failures.push('admins'); return []; }),
+    getDocs(collection(db, 'bankTransactions')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch((e) => { console.error('Backup: bankTransactions failed to load', e?.code || e); failures.push('bankTransactions'); return []; }),
+    getDocs(collection(db, 'budgets')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch((e) => { console.error('Backup: budgets failed to load', e?.code || e); failures.push('budgets'); return []; }),
+    getDocs(collection(db, 'calendarEvents')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch((e) => { console.error('Backup: calendarEvents failed to load', e?.code || e); failures.push('calendarEvents'); return []; }),
+    getDocs(collection(db, 'monthClosures')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch((e) => { console.error('Backup: monthClosures failed to load', e?.code || e); failures.push('monthClosures'); return []; }),
+    getDocs(collection(db, 'pets')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch((e) => { console.error('Backup: pets failed to load', e?.code || e); failures.push('pets'); return []; }),
+    getDocs(collection(db, 'polls')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch((e) => { console.error('Backup: polls failed to load', e?.code || e); failures.push('polls'); return []; }),
+    getDocs(collection(db, 'complaints')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch((e) => { console.error('Backup: complaints failed to load', e?.code || e); failures.push('complaints'); return []; }),
+    getDocs(collection(db, 'inspections')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch((e) => { console.error('Backup: inspections failed to load', e?.code || e); failures.push('inspections'); return []; }),
+    getDocs(collection(db, 'inspectionAssignments')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch((e) => { console.error('Backup: inspectionAssignments failed to load', e?.code || e); failures.push('inspectionAssignments'); return []; }),
+    getDocs(collection(db, 'facilities')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch((e) => { console.error('Backup: facilities failed to load', e?.code || e); failures.push('facilities'); return []; }),
+    getDocs(collection(db, 'facilityBookings')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch((e) => { console.error('Backup: facilityBookings failed to load', e?.code || e); failures.push('facilityBookings'); return []; }),
+    getDocs(collection(db, 'facilitySlots')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch((e) => { console.error('Backup: facilitySlots failed to load', e?.code || e); failures.push('facilitySlots'); return []; }),
+    getDocs(collection(db, 'staff')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch((e) => { console.error('Backup: staff failed to load', e?.code || e); failures.push('staff'); return []; }),
+    getDocs(collection(db, 'guards')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch((e) => { console.error('Backup: guards failed to load', e?.code || e); failures.push('guards'); return []; }),
+    getDocs(collection(db, 'visitors')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch((e) => { console.error('Backup: visitors failed to load', e?.code || e); failures.push('visitors'); return []; }),
+    getDocs(collection(db, 'vendors')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch((e) => { console.error('Backup: vendors failed to load', e?.code || e); failures.push('vendors'); return []; }),
+    getDocs(collection(db, 'assets')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch((e) => { console.error('Backup: assets failed to load', e?.code || e); failures.push('assets'); return []; }),
+    getDocs(collection(db, 'parkingSlots')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch((e) => { console.error('Backup: parkingSlots failed to load', e?.code || e); failures.push('parkingSlots'); return []; }),
+    getDocs(collection(db, 'ownershipHistory')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch((e) => { console.error('Backup: ownershipHistory failed to load', e?.code || e); failures.push('ownershipHistory'); return []; }),
+    getDocs(collection(db, 'moveRequests')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch((e) => { console.error('Backup: moveRequests failed to load', e?.code || e); failures.push('moveRequests'); return []; }),
+    getDocs(collection(db, 'suggestions')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch((e) => { console.error('Backup: suggestions failed to load', e?.code || e); failures.push('suggestions'); return []; }),
+    getDocs(collection(db, 'expectedGuests')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch((e) => { console.error('Backup: expectedGuests failed to load', e?.code || e); failures.push('expectedGuests'); return []; }),
+    getDocs(collection(db, 'financialYearLocks')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch((e) => { console.error('Backup: financialYearLocks failed to load', e?.code || e); failures.push('financialYearLocks'); return []; }),
+    getDocs(collection(db, 'flatClaims')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch((e) => { console.error('Backup: flatClaims failed to load', e?.code || e); failures.push('flatClaims'); return []; }),
+    getDocs(collection(db, 'auditLogs')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch((e) => { console.error('Backup: auditLogs failed to load', e?.code || e); failures.push('auditLogs'); return []; }),
+    getDocs(collection(db, 'counters')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch((e) => { console.error('Backup: counters failed to load', e?.code || e); failures.push('counters'); return []; }),
+    getDocs(collection(db, 'membersPublic')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch((e) => { console.error('Backup: membersPublic failed to load', e?.code || e); failures.push('membersPublic'); return []; }),
+    getDocs(collection(db, 'receiptsPublic')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch((e) => { console.error('Backup: receiptsPublic failed to load', e?.code || e); failures.push('receiptsPublic'); return []; }),
+    getDocs(collection(db, 'paymentsByUtr')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch((e) => { console.error('Backup: paymentsByUtr failed to load', e?.code || e); failures.push('paymentsByUtr'); return []; }),
+    getDocs(collection(db, 'bankMatchLocks')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch((e) => { console.error('Backup: bankMatchLocks failed to load', e?.code || e); failures.push('bankMatchLocks'); return []; }),
+    getDocs(collection(db, 'publicFinancialSummary')).then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))).catch((e) => { console.error('Backup: publicFinancialSummary failed to load', e?.code || e); failures.push('publicFinancialSummary'); return []; })
   ]);
+  // Poll votes/tally live in subcollections under each poll document, which
+  // the top-level collection() fetches above can't reach — without this,
+  // the backup had every poll's question/options but none of its actual
+  // results or individual ballots.
+  let pollVotes = [];
+  let pollTallies = [];
+  try {
+    const pollSubResults = await Promise.all(polls.map(async (p) => {
+      const [votesSnap, tallySnap] = await Promise.all([
+        getDocs(collection(db, 'polls', p.id, 'votes')),
+        getDocs(collection(db, 'polls', p.id, 'tally'))
+      ]);
+      return {
+        votes: votesSnap.docs.map((d) => ({ id: d.id, pollId: p.id, ...d.data() })),
+        tally: tallySnap.docs.map((d) => ({ id: d.id, pollId: p.id, ...d.data() }))
+      };
+    }));
+    pollVotes = pollSubResults.flatMap((r) => r.votes);
+    pollTallies = pollSubResults.flatMap((r) => r.tally);
+  } catch (e) { console.error('Backup: poll votes/tally failed to load', e?.code || e); failures.push('pollVotes/pollTally'); }
+
+  let noticeReads = [];
+  try {
+    const noticeReadResults = await Promise.all(notices.map(async (n) => {
+      const readsSnap = await getDocs(collection(db, 'notices', n.id, 'reads'));
+      return readsSnap.docs.map((d) => ({ id: d.id, noticeId: n.id, ...d.data() }));
+    }));
+    noticeReads = noticeReadResults.flat();
+  } catch (e) { console.error('Backup: notice reads failed to load', e?.code || e); failures.push('noticeReads'); }
+
   let settingsDocs = [];
   try {
-    const [society, maintenance, payment, paymentPrivate] = await Promise.all([
+    const [society, maintenance, payment, paymentPrivate, escalation] = await Promise.all([
       getDoc(doc(db, 'settings', 'society')), getDoc(doc(db, 'settings', 'maintenance')),
-      getDoc(doc(db, 'settings', 'payment')), getDoc(doc(db, 'settings', 'paymentPrivate'))
+      getDoc(doc(db, 'settings', 'payment')), getDoc(doc(db, 'settings', 'paymentPrivate')),
+      getDoc(doc(db, 'settings', 'escalationMatrix'))
     ]);
     if (society.exists()) settingsDocs.push({ id: 'society', ...society.data() });
     if (maintenance.exists()) settingsDocs.push({ id: 'maintenance', ...maintenance.data() });
     if (payment.exists()) settingsDocs.push({ id: 'payment', ...payment.data() });
     if (paymentPrivate.exists()) settingsDocs.push({ id: 'paymentPrivate', ...paymentPrivate.data() });
-  } catch (e) { console.warn('Settings backup fetch failed:', e?.code || e); }
+    if (escalation.exists()) settingsDocs.push({ id: 'escalationMatrix', ...escalation.data() });
+  } catch (e) { console.error('Settings backup fetch failed:', e?.code || e); failures.push('settings'); }
 
   return {
-    members: serializeForExport(allMembers),
-    payments: serializeForExport(allPayments),
+    _backupFailures: failures,
+    members: serializeForExport(freshMembers),
+    payments: serializeForExport(freshPayments),
+    inspectionAssignments: serializeForExport(inspectionAssignments),
+    pollVotes: serializeForExport(pollVotes),
+    pollTallies: serializeForExport(pollTallies),
+    noticeReads: serializeForExport(noticeReads),
     expenses: serializeForExport(expenses),
     events: serializeForExport(events),
     notices: serializeForExport(notices),
@@ -9800,6 +10149,7 @@ async function renderBackupAge() {
   const el = document.getElementById('backupAge');
   if (!el) return;
   let last = null, by = '', kind = '';
+  let backupAgeLoadFailed = false;
   try {
     const snap = await getDoc(doc(db, 'settings', 'backup'));
     if (snap.exists()) {
@@ -9807,8 +10157,15 @@ async function renderBackupAge() {
       last = d.lastAt?.toDate ? d.lastAt.toDate() : null;
       by = d.lastBy || ''; kind = d.lastKind || '';
     }
-  } catch (e) {}
+  } catch (e) { backupAgeLoadFailed = true; }
 
+  if (backupAgeLoadFailed) {
+    el.innerHTML = `<div class="notice-banner" style="margin:0;">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#a-cloud"/></svg>
+      <div><b>Could not check when the last backup was taken.</b> Please refresh — this isn't necessarily "no backup".</div>
+    </div>`;
+    return;
+  }
   if (!last) {
     el.innerHTML = `<div class="notice-banner" style="margin:0;">
       <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#a-cloud"/></svg>
@@ -9839,6 +10196,7 @@ document.getElementById('downloadBackupBtn')?.addEventListener('click', async ()
   btn.disabled = true;
   try {
     const bundle = await collectBackupBundle();
+    const failures = bundle._backupFailures || [];
     const stamp = todayLocalISO();
     let blob = new Blob([JSON.stringify({ takenAt: new Date().toISOString(), society: 'MHMRWS', ...bundle }, null, 2)],
                           { type: 'application/json' });
@@ -9855,10 +10213,14 @@ document.getElementById('downloadBackupBtn')?.addEventListener('click', async ()
     const link = document.createElement('a');
     link.href = url; link.download = filename; link.click();
     URL.revokeObjectURL(url);
-    const counts = Object.entries(bundle).map(([k, v]) => `${k}:${v.length}`).join(', ');
-    await logAudit(auth.currentUser, 'backup_download', { counts, encrypted: !!wantsEncryption });
-    await recordBackup('download', counts);
-    showToast(wantsEncryption ? 'Encrypted backup downloaded. Keep the passphrase written down somewhere separate from this file.' : 'Backup file downloaded. Please keep it somewhere safe.', 'success');
+    const counts = Object.entries(bundle).filter(([k]) => k !== '_backupFailures').map(([k, v]) => `${k}:${v.length}`).join(', ');
+    await logAudit(auth.currentUser, 'backup_download', { counts, encrypted: !!wantsEncryption, failures: failures.join(',') || null });
+    await recordBackup('download', failures.length ? `INCOMPLETE — ${failures.join(', ')} failed to load. ${counts}` : counts);
+    if (failures.length) {
+      showToast(`Backup downloaded, but ${failures.join(', ')} could not be read and may be missing or incomplete. Try again, and if it keeps failing, check your connection or permissions.`, 'error');
+    } else {
+      showToast(wantsEncryption ? 'Encrypted backup downloaded. Keep the passphrase written down somewhere separate from this file.' : 'Backup file downloaded. Please keep it somewhere safe.', 'success');
+    }
   } catch (e) {
     showToast('Could not create backup.', 'error');
   } finally { btn.disabled = false; }
@@ -9890,10 +10252,15 @@ document.getElementById('backupNowBtn').addEventListener('click', async () => {
   btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
   try {
     const result = await backupToDrive(GOOGLE_OAUTH_CLIENT_ID, await collectBackupBundle());
-    await logAudit(auth.currentUser, 'drive_backup', { fileCount: result.files.length });
-    await recordBackup('drive', `${result.files.length} files`);
+    const readFailures = result.readFailures || [];
+    await logAudit(auth.currentUser, 'drive_backup', { fileCount: result.files.length, failures: readFailures.join(',') || null });
+    await recordBackup('drive', readFailures.length ? `INCOMPLETE — ${readFailures.join(', ')} failed to load. ${result.files.length} files` : `${result.files.length} files`);
     document.getElementById('backupStatus').innerHTML = `Backed up ${result.files.length} files to <b>${result.folderPath}</b> — ${new Date(result.timestamp).toLocaleString('en-IN')}`;
-    showToast('Google Drive backup succeeded!', 'success');
+    if (readFailures.length) {
+      showToast(`Backed up to Drive, but ${readFailures.join(', ')} could not be read and may be missing. Try again, and if it keeps failing, check your connection or permissions.`, 'error');
+    } else {
+      showToast('Google Drive backup succeeded!', 'success');
+    }
   } catch (e) {
     showToast(e.message || 'Backup failed.', 'error');
   } finally { btn.disabled = false; btn.innerHTML = `<svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#a-cloud"/></svg>Backup Now`; }

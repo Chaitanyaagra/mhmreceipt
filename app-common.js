@@ -99,7 +99,7 @@ export function validatePayment({ amount, mode, utr, isOffline }) {
   if (!Number.isFinite(amt)) return 'Amount must be a valid number.';
   if (amt < LIMITS.amountMin) return 'Amount must be at least ₹1.';
   if (amt > LIMITS.amountMax) return `Amount cannot exceed ₹${LIMITS.amountMax.toLocaleString('en-IN')}. Please contact the office for amounts this large.`;
-  if (Math.round(amt * 100) !== amt * 100) return 'Amount cannot have more than two decimal places.';
+  if (Math.abs(Math.round(amt * 100) - amt * 100) > 1e-6) return 'Amount cannot have more than two decimal places.';
   if (!PAYMENT_MODES.includes(mode)) return 'Invalid payment mode.';
   if (!isOffline) {
     const t = String(utr || '').trim();
@@ -370,7 +370,7 @@ export function eventDue(member, payments, event) {
   const fee = Number(event?.feeAmount) || 0;
   const paid = eventPaid(payments, member?.uid, event?.id);
   const outstanding = Math.max(0, fee - paid);
-  return { eventId: event?.id, name: event?.name || 'Event', fee, paid, outstanding, cleared: outstanding === 0 };
+  return { eventId: event?.id, name: event?.name || 'Event', fee, paid, outstanding, cleared: outstanding === 0, fy: event?.fy || null };
 }
 
 export const DUES_LABEL = {
@@ -527,7 +527,12 @@ export function validateExpense({ description, amount, category, mode, paidTo })
 /* ---------------------------------------------------------------------- */
 export function formatINR(amount) {
   const n = Number(amount) || 0;
-  return '₹' + n.toLocaleString('en-IN', { maximumFractionDigits: 0 });
+  // Whole-rupee amounts (the overwhelming majority) show with no decimals,
+  // same as before — but an amount that actually carries paise (validation
+  // allows up to 2 decimal places) must not get silently rounded away on
+  // a receipt or statement.
+  const hasFraction = Math.abs(n - Math.round(n)) > 1e-9;
+  return '₹' + n.toLocaleString('en-IN', hasFraction ? { minimumFractionDigits: 2, maximumFractionDigits: 2 } : { maximumFractionDigits: 0 });
 }
 
 export function numberToWordsINR(amount) {
@@ -682,10 +687,13 @@ export function debounce(fn, delay = 300) {
 /* ---------------------------------------------------------------------- */
 /*  Financial year helpers (India: 1 Apr – 31 Mar)                         */
 /* ---------------------------------------------------------------------- */
+export function financialYearForDate(d) {
+  const y = d.getFullYear();
+  return d.getMonth() >= 3 ? `${y}-${String(y + 1).slice(-2)}` : `${y - 1}-${String(y).slice(-2)}`;
+}
+
 export function currentFinancialYear() {
-  const now = new Date();
-  const y = now.getFullYear();
-  return now.getMonth() >= 3 ? `${y}-${String(y + 1).slice(-2)}` : `${y - 1}-${String(y).slice(-2)}`;
+  return financialYearForDate(new Date());
 }
 
 export function financialYearOptions(back = 3, forward = 1) {
@@ -763,6 +771,14 @@ export const INSPECTION_TYPES = {
     tankChecks: ['Tank Clean', 'Lid Closed', 'Overflow OK', 'Float Valve OK', 'No Leakage'],
     readings: ['pH', 'TDS', 'Turbidity', 'Residual Chlorine', 'Inlet Flow', 'Outlet Flow']
   },
+  READING_HINTS: {
+    'pH': 'typically 6.5–8.5',
+    'TDS': 'ppm · typically under 500',
+    'Turbidity': 'NTU · typically under 5',
+    'Residual Chlorine': 'mg/L · typically 0.2–0.5',
+    'Inlet Flow': 'LPM — compare to this tank\u2019s own usual reading',
+    'Outlet Flow': 'LPM — compare to this tank\u2019s own usual reading'
+  },
   'daily-security': {
     label: 'Daily Security & Common Area',
     sections: {
@@ -797,7 +813,8 @@ export const INSPECTION_CRITICAL_ITEMS = new Set([
   'Fire System OK', 'Fire Pump', 'Diesel Pump', 'Jockey Pump', 'Fire Panel', 'Hydrant Pressure',
   'Hose Boxes', 'Hose Pipes', 'Fire Extinguishers', 'Fire Extinguisher Available', 'Fire Alarm System', 'Smoke Detectors',
   'Emergency Lights', 'Emergency Lights Working', 'Fire Exit Accessible', 'Exit Sign Boards',
-  'Boom Barrier Working', 'Emergency Exit Clear', 'Intercom / Emergency Panel Working'
+  'Boom Barrier Working', 'Emergency Exit Clear', 'Intercom / Emergency Panel Working',
+  'Recording System (NVR/DVR) Working'
 ]);
 
 // A defect/complaint's hazard type, independent of its category (a
@@ -1073,6 +1090,21 @@ export function verifyUrlFor(payment) {
     : `${base}verify.html?receipt=${encodeURIComponent(p.receiptNumber || '')}`;
 }
 
+/* Draws the society's name at the given position, shrinking its font just
+   enough to clear a right-aligned title text (with a small gap) — a long
+   society name at a fixed size could otherwise run straight into that
+   title with nothing to stop the overlap. Used by every PDF header below
+   that pairs a left-aligned society name with a right-aligned document
+   title on the same line. */
+function drawShrinkToFitSocietyName(pdf, name, x, y, rightEdge, titleWidth) {
+  pdf.setFont('times', 'bold'); pdf.setFontSize(18);
+  const availableWidth = (rightEdge - titleWidth - 16) - x;
+  while (pdf.getTextWidth(name) > availableWidth && pdf.getFontSize() > 10) {
+    pdf.setFontSize(pdf.getFontSize() - 1);
+  }
+  pdf.text(name, x, y);
+}
+
 /* ---------------------------------------------------------------------- */
 /*  Receipt PDF (uses jsPDF — window.jspdf.jsPDF)                          */
 /* ---------------------------------------------------------------------- */
@@ -1107,8 +1139,9 @@ export async function generateRegistrationConfirmationPDF({ formData, membership
     } catch (e) {/* still a valid document without the seal */}
   }
   pdf.setTextColor(255, 255, 255);
-  pdf.setFont('times', 'bold'); pdf.setFontSize(18);
-  pdf.text(society.fullName || 'Resident Welfare Society', marginX + 64, 46);
+  pdf.setFont('helvetica', 'bold'); pdf.setFontSize(11);
+  const regTitleWidth = pdf.getTextWidth('REGISTRATION CONFIRMATION');
+  drawShrinkToFitSocietyName(pdf, society.fullName || 'Resident Welfare Society', marginX + 64, 46, W - marginX, regTitleWidth);
   pdf.setFont('helvetica', 'normal'); pdf.setFontSize(10);
   pdf.text(`Reg. No: ${society.regNumber || '—'}`, marginX + 64, 62);
   pdf.setFont('helvetica', 'bold'); pdf.setFontSize(11);
@@ -1249,8 +1282,9 @@ export async function generateReceiptPDF({ payment, member, society, logoDataUrl
     } catch (e) {/* receipt is still valid without the seal */}
   }
   pdf.setTextColor(255, 255, 255);
-  pdf.setFont('times', 'bold'); pdf.setFontSize(18);
-  pdf.text(society.fullName || 'Resident Welfare Society', marginX + 64, 46);
+  pdf.setFont('helvetica', 'bold'); pdf.setFontSize(11);
+  const receiptTitleWidth = pdf.getTextWidth('PAYMENT RECEIPT');
+  drawShrinkToFitSocietyName(pdf, society.fullName || 'Resident Welfare Society', marginX + 64, 46, W - marginX, receiptTitleWidth);
   pdf.setFont('helvetica', 'normal'); pdf.setFontSize(10);
   pdf.text(`Reg. No: ${society.regNumber || '—'}`, marginX + 64, 62);
   pdf.setFont('helvetica', 'bold'); pdf.setFontSize(11);
@@ -1361,8 +1395,9 @@ export async function generateStatementPDF({ payments, member, society, financia
       } catch (e) {/* statement is still valid without the seal */}
     }
     pdf.setTextColor(255, 255, 255);
-    pdf.setFont('times', 'bold'); pdf.setFontSize(18);
-    pdf.text(society.fullName || 'Resident Welfare Society', marginX + 64, 46);
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(11);
+    const stmtTitleWidth = pdf.getTextWidth('PAYMENT STATEMENT');
+    drawShrinkToFitSocietyName(pdf, society.fullName || 'Resident Welfare Society', marginX + 64, 46, W - marginX, stmtTitleWidth);
     pdf.setFont('helvetica', 'normal'); pdf.setFontSize(10);
     pdf.text(`Reg. No: ${society.regNumber || '—'}`, marginX + 64, 62);
     pdf.setFont('helvetica', 'bold'); pdf.setFontSize(11);
@@ -1473,7 +1508,12 @@ export async function generateIncomeExpenditurePDF({ payments, expenses, society
   const W = pdf.internal.pageSize.getWidth();
   const marginX = 48;
 
-  const verified = (payments || []).filter(p => p.status === 'verified' && p.financialYear === financialYear);
+  // Suspense excluded here on purpose — it's money received but not yet
+  // attributed to a resident/purpose, so it isn't real "Maintenance"
+  // income (or any other category) until it's reassigned. Counting it as
+  // Maintenance overstated that line and double-counted once it's later
+  // reassigned and shows up again as its real type.
+  const verified = (payments || []).filter(p => p.status === 'verified' && p.financialYear === financialYear && p.type !== 'suspense');
   const incomeByType = {};
   verified.forEach(p => {
     const k = p.type === 'membership' ? 'Membership Fees' : p.type === 'event' ? 'Event Collections' : 'Maintenance';
@@ -1502,8 +1542,9 @@ export async function generateIncomeExpenditurePDF({ payments, expenses, society
       } catch (e) {/* statement is still valid without the seal */}
     }
     pdf.setTextColor(255, 255, 255);
-    pdf.setFont('times', 'bold'); pdf.setFontSize(18);
-    pdf.text(society.fullName || 'Resident Welfare Society', marginX + 64, 46);
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(11);
+    const ieTitleWidth = pdf.getTextWidth('INCOME & EXPENDITURE STATEMENT');
+    drawShrinkToFitSocietyName(pdf, society.fullName || 'Resident Welfare Society', marginX + 64, 46, W - marginX, ieTitleWidth);
     pdf.setFont('helvetica', 'normal'); pdf.setFontSize(10);
     pdf.text(`Reg. No: ${society.regNumber || '—'}`, marginX + 64, 62);
     pdf.setFont('helvetica', 'bold'); pdf.setFontSize(11);
@@ -2014,7 +2055,11 @@ export async function generateMembershipCard({ member, society, logoDataUrl, fin
     pdf.roundedRect(qx - 0.8, qy - 0.8, qs + 1.6, qs + 1.6, 0.8, 0.8, 'F');
     pdf.addImage(qr, 'PNG', qx, qy, qs, qs);
     pdf.setFont('courier','normal'); pdf.setFontSize(3.4); pdf.setTextColor(190,200,215);
-    pdf.text('SCAN TO VERIFY', qx + qs / 2, qy + qs + 2.6, { align: 'center' });
+    // A family member has no photo, QR, or verification record of their
+    // own — both the photo above and this QR are the primary member's.
+    // Saying so here (space allowing) keeps the card from implying an
+    // independent verification of the named person that doesn't exist.
+    pdf.text(familyMember ? `VIA ${String(member.name || '').toUpperCase()}` : 'SCAN TO VERIFY', qx + qs / 2, qy + qs + 2.6, { align: 'center' });
   } catch (e) { /* card is still valid without the QR */ }
 
   // --- footer ------------------------------------------------------------
@@ -2233,7 +2278,11 @@ async function driveUploadJSON(token, folderId, filename, jsonData) {
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': `multipart/related; boundary=${boundary}` },
     body
   });
-  return res.json();
+  const data = await res.json().catch(() => null);
+  if (!res.ok) {
+    throw new Error(`Drive upload failed for ${filename}: ${data?.error?.message || res.status}`);
+  }
+  return data;
 }
 
 /**
@@ -2250,10 +2299,11 @@ export async function backupToDrive(clientId, collectionsBundle) {
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
   const uploaded = [];
   for (const [name, data] of Object.entries(collectionsBundle)) {
+    if (name === '_backupFailures') continue;
     const res = await driveUploadJSON(token, dbFolderId, `${name}_${stamp}.json`, data);
     uploaded.push(res.name || `${name}_${stamp}.json`);
   }
-  return { folderPath: 'MHMRWS/Database', files: uploaded, timestamp: stamp };
+  return { folderPath: 'MHMRWS/Database', files: uploaded, timestamp: stamp, readFailures: collectionsBundle._backupFailures || [] };
 }
 
 /* ---------------------------------------------------------------------- */
