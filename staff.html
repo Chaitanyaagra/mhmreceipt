@@ -131,7 +131,7 @@ import {
 import {
   ref as storageRef, uploadBytes, getDownloadURL
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-storage.js";
-import { showToast, escapeHtml, fmtDate, fmtDateTime, TOWER_IDS, INSPECTION_TYPES, INSPECTION_SCHEDULE, INSPECTION_CRITICAL_ITEMS, DEFECT_TAG_OPTIONS, inspectionSectionToComplaintCategory, STAFF_TRADES, dateToLocalISO } from './app-common.js';
+import { showToast, escapeHtml, fmtDate, fmtDateTime, TOWER_IDS, INSPECTION_TYPES, INSPECTION_SCHEDULE, INSPECTION_CRITICAL_ITEMS, DEFECT_TAG_OPTIONS, inspectionSectionToComplaintCategory, STAFF_TRADES, dateToLocalISO, complaintUrgency, COMPLAINT_SLA_HOURS } from './app-common.js';
 import { installOfflineBanner } from './ui-a11y.js';
 import { installAppInstallPrompt } from './install-prompt.js';
 installOfflineBanner();
@@ -139,6 +139,44 @@ installAppInstallPrompt({ appName: 'MHMRWS Staff', showToast });
 
 let currentStaff = null; // {uid, name, role}
 let draft = null;        // in-progress inspection {formType, tower, sections:[{title, items:[{label,status,note,priority}]}]}
+let inspectionSubmitInFlight = false;
+
+/* ---------------------------------------------------------------------- */
+/*  Draft autosave/recovery — localStorage, debounced                      */
+/* ---------------------------------------------------------------------- */
+function draftStorageKey() { return `mhmrws_insp_draft_${currentStaff?.uid || 'unknown'}`; }
+let draftSaveTimer = null;
+function saveDraftToLocalStorage() {
+  clearTimeout(draftSaveTimer);
+  draftSaveTimer = setTimeout(() => {
+    if (!draft) return;
+    try {
+      // photoFile is a real File object — not JSON-serializable, and not
+      // meaningful to restore anyway (the browser can't hand back a
+      // picked file after a reload). Keep everything else, including any
+      // photoURL that already finished uploading before the interruption.
+      const serializable = {
+        ...draft,
+        sections: draft.sections.map((sec) => ({
+          ...sec,
+          items: sec.items.map((it) => { const { photoFile, ...rest } = it; return rest; })
+        })),
+        savedAt: Date.now()
+      };
+      localStorage.setItem(draftStorageKey(), JSON.stringify(serializable));
+    } catch (e) { console.warn('Could not autosave draft:', e); }
+  }, 800);
+}
+function clearSavedDraft() {
+  clearTimeout(draftSaveTimer);
+  try { localStorage.removeItem(draftStorageKey()); } catch (e) { /* non-fatal */ }
+}
+function loadSavedDraft() {
+  try {
+    const raw = localStorage.getItem(draftStorageKey());
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) { return null; }
+}
 let myInspections = [];
 let myComplaints = [];
 
@@ -211,7 +249,7 @@ onAuthStateChanged(auth, async (user) => {
     document.getElementById('staffRoleLabel').textContent = currentStaff.role === 'manager' ? 'Managing Staff' : 'Supervisor';
     document.getElementById('teamTabBtn').style.display = currentStaff.role === 'manager' ? '' : 'none';
     showScreen('screen-main');
-    await Promise.all([loadMyInspections(), loadComplaints(), loadInspectionAssignments()]);
+    await Promise.all([loadMyInspections(), loadComplaints(), loadInspectionAssignments(), loadInspectionsForReview()]);
     showTab('home');
   } catch (err) {
     console.error('Staff profile load failed:', err);
@@ -234,7 +272,19 @@ async function loadMyInspections() {
     inspectionsLoadFailed = false;
   } catch (e) { console.warn('Inspection history load failed:', e?.code || e); myInspections = []; inspectionsLoadFailed = true; }
 }
+let inspectionsForReview = [];
+async function loadInspectionsForReview() {
+  if (currentStaff.role !== 'manager') return;
+  try {
+    const cutoff = Date.now() - 30 * 86400000;
+    const snap = await getDocs(query(collection(db, 'inspections'), where('createdAt', '>=', new Date(cutoff))));
+    inspectionsForReview = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .filter((r) => !r.managerVerificationStatus)
+      .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+  } catch (e) { console.warn('Inspections-for-review load failed:', e?.code || e); inspectionsForReview = []; }
+}
 let allStaffList = [];
+let complaintsLoadFailed = false;
 async function loadComplaints() {
   try {
     // A Managing Staff triages the whole queue; a Supervisor may only read
@@ -249,7 +299,8 @@ async function loadComplaints() {
     }
     myComplaints = snap.docs.map(d => ({ id: d.id, ...d.data() }))
       .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
-  } catch (e) { console.warn('Complaints load failed:', e?.code || e); myComplaints = []; }
+    complaintsLoadFailed = false;
+  } catch (e) { console.warn('Complaints load failed:', e?.code || e); myComplaints = []; complaintsLoadFailed = true; }
 
   // Managing Staff needs the staff list to assign complaints to supervisors.
   if (currentStaff.role === 'manager' && !allStaffList.length) {
@@ -292,11 +343,51 @@ function allAssignableSlots() {
 /* ---------------------------------------------------------------------- */
 /*  Team tab (Managing Staff only) — who's responsible for what           */
 /* ---------------------------------------------------------------------- */
+async function verifyInspection(inspectionId, status) {
+  let remarks = '';
+  if (status === 'needs_correction') {
+    remarks = prompt('What needs to be corrected? This will be visible to admin and the staff who filed it.') || '';
+    if (!remarks.trim()) { showToast('Please describe what needs correction.', 'error'); return; }
+    if (remarks.length > 1000) { remarks = remarks.slice(0, 1000); showToast('Note was shortened to 1000 characters.', 'info'); }
+  }
+  try {
+    await updateDoc(doc(db, 'inspections', inspectionId), {
+      managerVerificationStatus: status,
+      managerVerifiedBy: currentStaff.name,
+      managerVerifiedByUid: currentStaff.uid,
+      managerVerifiedAt: serverTimestamp(),
+      ...(remarks.trim() ? { managerRemarks: remarks.trim() } : {})
+    });
+    inspectionsForReview = inspectionsForReview.filter((r) => r.id !== inspectionId);
+    renderTeam();
+    showToast(status === 'verified' ? 'Marked as verified.' : 'Marked as needing correction.', 'success');
+  } catch (err) {
+    console.error('Inspection review failed:', err);
+    showToast(`Could not save your review${err?.code ? ` (${err.code})` : ''} — please try again.`, 'error');
+  }
+}
+
 function renderTeam() {
   const el = document.getElementById('tab-team');
   const supervisors = allStaffList.filter(s => s.active !== false && s.role === 'supervisor');
   const slots = allAssignableSlots();
   el.innerHTML = `
+    <div class="card card-pad" style="margin-bottom:12px;">
+      <h3 style="font-size:15px; margin-bottom:4px;">Review Submitted Inspections</h3>
+      <p class="t-muted" style="font-size:12px; margin-bottom:${inspectionsForReview.length ? '10px' : '0'};">Mark a filed inspection as reviewed, from your own login — a typed "Verified By" name on the form isn't a real review. Last 30 days, not yet reviewed.</p>
+      ${!inspectionsForReview.length ? `<p class="t-muted" style="font-size:12.5px;">Nothing waiting on review right now.</p>` : inspectionsForReview.map((r, i) => `
+        <div style="border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin-top:8px;">
+          <div class="spread">
+            <b style="font-size:13px;">${escapeHtml(INSPECTION_TYPES[r.formType]?.label || r.formType)}${r.tower ? ' — Tower ' + escapeHtml(r.tower) : ''}</b>
+            <span class="t-muted" style="font-size:11px;">${r.createdAt ? fmtDateTime(r.createdAt) : ''}</span>
+          </div>
+          <div class="t-muted" style="font-size:11.5px; margin:2px 0 8px;">Filed by ${escapeHtml(r.createdByName || '—')}${Number(r.issueCount) ? ` · ${Number(r.issueCount)} issue${Number(r.issueCount) > 1 ? 's' : ''}` : ''}${Number(r.uncheckedCount) ? ` · ${Number(r.uncheckedCount)} unchecked` : ''}</div>
+          <div style="display:flex; gap:6px; flex-wrap:wrap;">
+            <button type="button" class="btn btn-primary btn-sm" data-verify-insp="${i}">Verify</button>
+            <button type="button" class="btn btn-outline btn-sm" data-correct-insp="${i}">Needs Correction</button>
+          </div>
+        </div>`).join('')}
+    </div>
     <div class="card card-pad" style="margin-bottom:12px;">
       <h3 style="font-size:15px; margin-bottom:4px;">Assign Inspections</h3>
       <p class="t-muted" style="font-size:12px;">Decide who's responsible for each daily and weekly check. Leave "Unassigned" and any supervisor (and you) can still pick it up from New Inspection.</p>
@@ -317,6 +408,8 @@ function renderTeam() {
     }).join('')}
   `;
   el.querySelectorAll('select[data-slot]').forEach(sel => sel.addEventListener('change', () => saveAssignment(sel)));
+  el.querySelectorAll('[data-verify-insp]').forEach(b => b.onclick = () => verifyInspection(inspectionsForReview[Number(b.dataset.verifyInsp)].id, 'verified'));
+  el.querySelectorAll('[data-correct-insp]').forEach(b => b.onclick = () => verifyInspection(inspectionsForReview[Number(b.dataset.correctInsp)].id, 'needs_correction'));
 }
 
 async function saveAssignment(sel) {
@@ -481,7 +574,18 @@ function renderInspectPicker() {
   const visibleTypes = Object.entries(INSPECTION_TYPES).filter(([key]) =>
     key === 'daily-tower' ? TOWER_IDS.some(t => isSlotAvailableToMe(key, t)) : isSlotAvailableToMe(key, null)
   );
+  const savedDraft = loadSavedDraft();
+  const savedDraftAgo = savedDraft ? Math.round((Date.now() - (savedDraft.savedAt || Date.now())) / 60000) : 0;
   el.innerHTML = `
+    ${savedDraft ? `
+      <div style="padding:12px; background:#FDF3E2; border-radius:10px; margin-bottom:14px;">
+        <b style="font-size:13px;">You have an unfinished ${escapeHtml(INSPECTION_TYPES[savedDraft.formType]?.label || savedDraft.formType)}${savedDraft.tower ? ' — Tower ' + escapeHtml(savedDraft.tower) : ''}</b>
+        <div class="t-muted" style="font-size:11.5px; margin:2px 0 8px;">Last saved ${savedDraftAgo < 1 ? 'just now' : savedDraftAgo + ' min ago'} — not yet submitted. Any photo not already uploaded will need to be re-attached.</div>
+        <div style="display:flex; gap:8px;">
+          <button type="button" class="btn btn-primary btn-sm" id="resumeDraftBtn">Resume</button>
+          <button type="button" class="btn btn-outline btn-sm" id="discardDraftBtn">Discard</button>
+        </div>
+      </div>` : ''}
     <p class="t-muted" style="font-size:12.5px; margin-bottom:12px;">Pick a checklist to start.</p>
     ${inspectionAssignmentsLoadFailed
       ? `<div style="padding:10px 12px; background:#FDEDED; border-radius:8px; font-size:12.5px; margin-bottom:12px;">Could not check your assignments — please check your connection. <button type="button" class="link-btn" id="retryAssignmentsBtn">Retry</button></div>`
@@ -496,6 +600,16 @@ function renderInspectPicker() {
   `;
   el.querySelectorAll('[data-type]').forEach(b => b.onclick = () => startInspection(b.dataset.type));
   document.getElementById('retryAssignmentsBtn')?.addEventListener('click', () => loadInspectionAssignments().then(renderInspectPicker));
+  document.getElementById('resumeDraftBtn')?.addEventListener('click', () => {
+    const { savedAt, ...restored } = savedDraft;
+    draft = restored;
+    renderChecklist();
+  });
+  document.getElementById('discardDraftBtn')?.addEventListener('click', () => {
+    if (!confirm('Discard this unfinished inspection? This cannot be undone.')) return;
+    clearSavedDraft();
+    renderInspectPicker();
+  });
 }
 
 function startInspection(formType) {
@@ -630,7 +744,7 @@ function renderChecklist() {
         <button type="button" class="btn btn-outline btn-sm" id="sigClearBtn" style="margin-top:6px;">Clear Signature</button>
       </div>
     </div>
-    <button class="btn btn-primary" style="width:100%; margin-top:8px;" id="submitInspBtn">Submit Inspection${issueCount ? ' (' + issueCount + ' issue' + (issueCount > 1 ? 's' : '') + ' will be logged as complaints)' : ''}</button>
+    <button class="btn btn-primary" style="width:100%; margin-top:8px;" id="submitInspBtn" ${inspectionSubmitInFlight ? 'disabled' : ''}>${inspectionSubmitInFlight ? 'Submitting…' : 'Submit Inspection' + (issueCount ? ' (' + issueCount + ' issue' + (issueCount > 1 ? 's' : '') + ' will be logged as complaints)' : '')}</button>
   `;
   const towerSel = document.getElementById('inspTower');
   if (towerSel) { draft.tower = draft.tower || towerSel.value; towerSel.addEventListener('change', () => { draft.tower = towerSel.value; }); }
@@ -654,6 +768,7 @@ function renderChecklist() {
   document.getElementById('inspChangeTypeBtn')?.addEventListener('click', () => {
     if (!confirm('Discard this in-progress checklist and pick a different inspection type?')) return;
     draft = null;
+    clearSavedDraft();
     renderInspectPicker();
   });
   el.querySelectorAll('[data-tag]').forEach(b => b.onclick = () => {
@@ -667,7 +782,7 @@ function renderChecklist() {
   el.querySelectorAll('[data-photo]').forEach(inp => inp.addEventListener('change', () => {
     const [si, ii] = inp.dataset.photo.split(':');
     const file = inp.files?.[0] || null;
-    if (file && file.size > 8 * 1024 * 1024) {
+    if (file && file.size >= 8 * 1024 * 1024) {
       showToast(`That photo is ${(file.size / 1024 / 1024).toFixed(1)} MB — please choose one under 8 MB.`, 'error');
       inp.value = '';
       draft.sections[si].items[ii].photoFile = null;
@@ -682,6 +797,8 @@ function renderChecklist() {
   initSignaturePad();
   document.getElementById('sigClearBtn')?.addEventListener('click', clearSignaturePad);
   document.getElementById('submitInspBtn').onclick = submitInspection;
+  el.addEventListener('input', saveDraftToLocalStorage);
+  el.addEventListener('click', saveDraftToLocalStorage);
 }
 
 /* ---- signature pad: plain pointer-events drawing on a canvas, exported
@@ -751,6 +868,7 @@ function clearSignaturePad() {
 }
 
 async function submitInspection() {
+  if (inspectionSubmitInFlight) return;
   if (draft.needsTower && !draft.tower) { showToast('Please select a tower.', 'error'); return; }
   if (!draft.verifiedBy || !draft.verifiedBy.trim()) { showToast('Please enter who verified this inspection.', 'error'); return; }
   const allItems = draft.sections.flatMap(sec => sec.items.map(it => ({ ...it, section: sec.title })));
@@ -760,17 +878,23 @@ async function submitInspection() {
   if (missingRequiredPhoto) { showToast(`"${missingRequiredPhoto.label}" is a critical item marked Issue — please attach a photo before submitting.`, 'error'); return; }
 
   const btn = document.getElementById('submitInspBtn');
+  inspectionSubmitInFlight = true;
   btn.disabled = true; btn.textContent = 'Submitting…';
   try {
-    for (const sec of draft.sections) {
-      for (const it of sec.items) {
-        if (it.status === 'issue' && it.photoFile) {
-          const r = storageRef(storage, `complaintPhotos/${currentStaff.uid}/issue_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`);
-          await uploadBytes(r, it.photoFile);
-          it.photoURL = await getDownloadURL(r);
-        }
-      }
+    const itemsNeedingUpload = draft.sections.flatMap((sec) => sec.items).filter((it) => it.status === 'issue' && it.photoFile);
+    const uploadResults = await Promise.allSettled(itemsNeedingUpload.map(async (it) => {
+      const r = storageRef(storage, `complaintPhotos/${currentStaff.uid}/issue_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`);
+      await uploadBytes(r, it.photoFile);
+      it.photoURL = await getDownloadURL(r);
+    }));
+    const failedRequiredItem = itemsNeedingUpload.find((it, i) => uploadResults[i].status === 'rejected' && it.priority === 'high');
+    if (failedRequiredItem) {
+      showToast(`"${failedRequiredItem.label}" needs a photo (it's a critical item) and the upload failed — please check your connection and try submitting again.`, 'error');
+      btn.disabled = false; btn.textContent = 'Submit Inspection';
+      inspectionSubmitInFlight = false;
+      return;
     }
+    const failedOptionalCount = itemsNeedingUpload.filter((it, i) => uploadResults[i].status === 'rejected').length;
     const freshItems = draft.sections.flatMap(sec => sec.items.map(it => ({ ...it, section: sec.title })));
     // One batch for the inspection AND every auto-created complaint — either
     // all of it lands, or none of it does. Previously each write was a
@@ -791,7 +915,8 @@ async function submitInspection() {
       sections: draft.sections.map(sec => ({ title: sec.title, items: sec.items.map(it => ({ label: it.label, status: it.status || 'unchecked', note: it.note || null, tags: it.tags?.length ? it.tags : null, photoURL: it.photoURL || null })) })),
       issueCount: freshItems.filter(it => it.status === 'issue').length
         + (draft.tankData ? Object.values(draft.tankData).reduce((sum, checks) => sum + checks.filter((v) => v === false).length, 0) : 0),
-      uncheckedCount: freshItems.filter(it => !it.status).length,
+      uncheckedCount: freshItems.filter(it => !it.status).length
+        + (draft.tankData ? Object.values(draft.tankData).reduce((sum, checks) => sum + checks.filter((v) => v === null).length, 0) : 0),
       createdByUid: currentStaff.uid,
       createdByName: currentStaff.name,
       status: 'submitted',
@@ -815,8 +940,21 @@ async function submitInspection() {
 
     // Every flagged item becomes an ordinary complaint — same SLA/escalation
     // system a resident's complaint already goes through, tagged so it's
-    // visually distinguishable in that list.
-    const issues = freshItems.filter(it => it.status === 'issue');
+    // visually distinguishable in that list. Tank checks are included here
+    // too — a failed tank check (a leak, an open lid, a stuck float valve)
+    // is exactly as real a maintenance issue as any regular checklist item,
+    // and deserves the same SLA tracking, not just a higher issueCount with
+    // nothing anyone is actually notified to act on.
+    const tankIssues = [];
+    if (draft.tankData) {
+      const tankCheckLabels = INSPECTION_TYPES['weekly-mep'].tankChecks;
+      Object.entries(draft.tankData).forEach(([tower, checks]) => {
+        checks.forEach((v, i) => {
+          if (v === false) tankIssues.push({ label: `Tower ${tower} Tank — ${tankCheckLabels[i]}`, section: 'Water Supply System', priority: 'high' });
+        });
+      });
+    }
+    const issues = freshItems.filter(it => it.status === 'issue').concat(tankIssues);
     for (const it of issues) {
       const complaintRef = doc(collection(db, 'complaints'));
       batch.set(complaintRef, {
@@ -836,14 +974,19 @@ async function submitInspection() {
     }
 
     await batch.commit();
-    showToast('Inspection submitted' + (issues.length ? ' — ' + issues.length + ' issue(s) logged.' : '.'), 'success');
+    showToast('Inspection submitted' + (issues.length ? ' — ' + issues.length + ' issue(s) logged.' : '.')
+      + (failedOptionalCount ? ` (${failedOptionalCount} photo${failedOptionalCount > 1 ? 's' : ''} could not be uploaded — check your connection and add ${failedOptionalCount > 1 ? 'them' : 'it'} later if needed.)` : ''),
+      failedOptionalCount ? 'error' : 'success');
     draft = null;
+    clearSavedDraft();
     await Promise.all([loadMyInspections(), loadComplaints()]);
     showTab('history');
   } catch (err) {
     console.error('Submit inspection failed:', err);
     showToast(`Could not submit${err?.code ? ` (${err.code})` : ''} — please try again.`, 'error');
     btn.disabled = false; btn.textContent = 'Submit Inspection';
+  } finally {
+    inspectionSubmitInFlight = false;
   }
 }
 
@@ -852,6 +995,11 @@ async function submitInspection() {
 /* ---------------------------------------------------------------------- */
 function renderHistory() {
   const el = document.getElementById('tab-history');
+  if (inspectionsLoadFailed) {
+    el.innerHTML = `<div style="padding:10px 12px; background:#FDEDED; border-radius:8px; font-size:12.5px;">Could not load your inspection history — please check your connection. <button type="button" class="link-btn" id="retryHistoryBtn">Retry</button></div>`;
+    document.getElementById('retryHistoryBtn')?.addEventListener('click', () => loadMyInspections().then(renderHistory));
+    return;
+  }
   if (!myInspections.length) { el.innerHTML = '<p class="t-muted" style="font-size:13px;">No inspections filed yet.</p>'; return; }
   el.innerHTML = myInspections.map(r => `
     <div class="cx-row">
@@ -864,37 +1012,25 @@ function renderHistory() {
           : Number(r.uncheckedCount) ? `<span class="badge badge-warning">${Number(r.uncheckedCount)} unchecked</span>`
           : `<span class="badge badge-success">All clear</span>`}
       </div>
+      ${r.managerVerificationStatus === 'needs_correction' ? `
+        <div style="margin-top:6px; padding:8px 10px; background:#FDF3E2; border-radius:8px; font-size:12px;">
+          <b>⚠️ Needs correction</b> — by ${escapeHtml(r.managerVerifiedBy || '—')}${r.managerRemarks ? `: ${escapeHtml(r.managerRemarks)}` : ''}
+        </div>` : r.managerVerificationStatus === 'verified' ? `
+        <div class="t-muted" style="margin-top:4px; font-size:11px;">✅ Verified by ${escapeHtml(r.managerVerifiedBy || '—')}</div>` : ''}
     </div>`).join('');
 }
 
 /* ---------------------------------------------------------------------- */
 /*  Complaints tab — staff can move status forward, same as admin can      */
 /* ---------------------------------------------------------------------- */
-// SLA response-time budget per category — kept in step with admin.html's
-// COMPLAINT_SLA_HOURS. Used to pre-fill a sensible target date on assign.
-const STAFF_SLA_HOURS = {
-  security: 4, plumbing: 24, electrical: 24, maintenance: 48,
-  housekeeping: 48, noise: 48, parking: 72, other: 72
-};
 function staffSuggestedTarget(category) {
-  const hours = STAFF_SLA_HOURS[category] ?? 48;
+  const hours = COMPLAINT_SLA_HOURS[category] ?? 48;
   return dateToLocalISO(new Date(Date.now() + hours * 3600000));
 }
 
 const COMPLAINT_STATUS_NEXT = { open: 'in_progress', in_progress: 'resolved' };
 const COMPLAINT_STATUS_LABEL = { open: 'Open', in_progress: 'In Progress', resolved: 'Resolved', closed: 'Closed', rejected: 'Rejected' };
 const COMPLAINT_STATUS_BADGE = { open: 'warning', in_progress: 'warning', resolved: 'success', closed: 'neutral', rejected: 'neutral' };
-
-// SLA status from the target date: overdue if past and still open, due-soon
-// if within 24h. Mirrors the admin panel's complaintSlaStatus intent.
-function complaintSla(c) {
-  if (!c.targetDate || ['resolved', 'closed', 'rejected'].includes(c.status)) return null;
-  const target = new Date(c.targetDate + 'T23:59:59.999').getTime();
-  const now = Date.now();
-  if (now > target) return 'overdue';
-  if (target - now < 24 * 60 * 60 * 1000) return 'due_soon';
-  return null;
-}
 
 // Same recurring-issue signal as admin.html's version (2+ prior occurrences
 // of the same title within 30 days) — only meaningful for a Managing Staff,
@@ -914,13 +1050,18 @@ function recurringCount(c) {
 function renderComplaints() {
   const el = document.getElementById('tab-complaints');
   const isManager = currentStaff.role === 'manager';
+  if (complaintsLoadFailed) {
+    el.innerHTML = `<div style="padding:10px 12px; background:#FDEDED; border-radius:8px; font-size:12.5px;">Could not load complaints — please check your connection. <button type="button" class="link-btn" id="retryComplaintsBtn">Retry</button></div>`;
+    document.getElementById('retryComplaintsBtn')?.addEventListener('click', () => loadComplaints().then(renderComplaints));
+    return;
+  }
   if (!myComplaints.length) {
     el.innerHTML = `<p class="t-muted" style="font-size:13px;">${isManager ? 'No complaints on record.' : 'No complaints assigned to you yet. A Managing Staff or the committee will assign them.'}</p>`;
     return;
   }
   el.innerHTML = myComplaints.map(c => {
-    const sla = complaintSla(c);
-    const slaBadge = sla === 'overdue' ? '<span class="badge badge-danger" style="margin-left:6px;">Overdue</span>'
+    const sla = complaintUrgency(c);
+    const slaBadge = sla === 'breached' ? '<span class="badge badge-danger" style="margin-left:6px;">Overdue</span>'
       : sla === 'due_soon' ? '<span class="badge badge-warning" style="margin-left:6px;">Due soon</span>' : '';
     // A supervisor can only act on complaints assigned to them; a manager
     // sees the queue but acts on the same rule basis (assigned to them) —
@@ -950,13 +1091,18 @@ function renderComplaints() {
       ${canAct ? `
         ${COMPLAINT_STATUS_NEXT[c.status] === 'resolved' ? `
           <div style="margin-top:8px;">
-            <input type="text" data-resolve-note="${c.id}" placeholder="Resolution note (optional)" style="width:100%; font-size:12.5px; padding:6px 8px; border-radius:7px; border:1px solid var(--line); margin-bottom:6px;">
+            <input type="text" data-resolve-note="${c.id}" placeholder="Resolution note (optional)" maxlength="500" style="width:100%; font-size:12.5px; padding:6px 8px; border-radius:7px; border:1px solid var(--line);">
+            <div class="t-muted" style="font-size:10.5px; text-align:right; margin-bottom:6px;" data-resolve-note-count="${c.id}">0/500</div>
             <input type="file" accept="image/*" data-resolve-photo="${c.id}" style="font-size:12px;">
           </div>` : ''}
         <button class="btn btn-primary btn-sm" style="margin-top:8px;" data-advance="${c.id}" data-next="${COMPLAINT_STATUS_NEXT[c.status]}">Mark ${COMPLAINT_STATUS_LABEL[COMPLAINT_STATUS_NEXT[c.status]]}</button>` : ''}
     </div>`;
   }).join('');
 
+  el.querySelectorAll('[data-resolve-note]').forEach((inp) => inp.addEventListener('input', () => {
+    const counter = el.querySelector(`[data-resolve-note-count="${inp.dataset.resolveNote}"]`);
+    if (counter) counter.textContent = `${inp.value.length}/500`;
+  }));
   el.querySelectorAll('[data-advance]').forEach(b => b.onclick = () => {
     const note = el.querySelector(`[data-resolve-note="${b.dataset.advance}"]`)?.value?.trim() || '';
     const photoFile = el.querySelector(`[data-resolve-photo="${b.dataset.advance}"]`)?.files?.[0] || null;

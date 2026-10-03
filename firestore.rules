@@ -460,8 +460,21 @@ service cloud.firestore {
                     && isOptionalString(request.resource.data, 'utrOrChequeNo', 40)
                     && (
                       absentOrNull(request.resource.data, 'utrOrChequeNo')
+                      // Cash/cheque payments write utrOrChequeNo as an empty
+                      // string, not absent/null — every resident and admin
+                      // cash/cheque submission was being rejected outright
+                      // by this check before this line existed, since ''
+                      // satisfies neither absentOrNull() nor a genuine lock.
+                      || request.resource.data.utrOrChequeNo == ''
                       || (
-                        existsAfter(/databases/$(database)/documents/paymentsByUtr/$(request.resource.data.utrOrChequeNo.upper()))
+                        // Must be a FRESH claim made in this very write, not
+                        // an already-existing lock from an earlier payment —
+                        // without the pre-write !exists() check, an account
+                        // that already legitimately owns a lock could create
+                        // additional payment documents re-using it, since
+                        // "a lock exists, owned by me" was true either way.
+                        !exists(/databases/$(database)/documents/paymentsByUtr/$(request.resource.data.utrOrChequeNo.upper()))
+                        && existsAfter(/databases/$(database)/documents/paymentsByUtr/$(request.resource.data.utrOrChequeNo.upper()))
                         && getAfter(/databases/$(database)/documents/paymentsByUtr/$(request.resource.data.utrOrChequeNo.upper())).data.claimedBy == request.auth.uid
                       )
                     )
@@ -502,8 +515,21 @@ service cloud.firestore {
                     && isOptionalString(request.resource.data, 'utrOrChequeNo', 40)
                     && (
                       absentOrNull(request.resource.data, 'utrOrChequeNo')
+                      // Cash/cheque payments write utrOrChequeNo as an empty
+                      // string, not absent/null — every resident and admin
+                      // cash/cheque submission was being rejected outright
+                      // by this check before this line existed, since ''
+                      // satisfies neither absentOrNull() nor a genuine lock.
+                      || request.resource.data.utrOrChequeNo == ''
                       || (
-                        existsAfter(/databases/$(database)/documents/paymentsByUtr/$(request.resource.data.utrOrChequeNo.upper()))
+                        // Must be a FRESH claim made in this very write, not
+                        // an already-existing lock from an earlier payment —
+                        // without the pre-write !exists() check, an account
+                        // that already legitimately owns a lock could create
+                        // additional payment documents re-using it, since
+                        // "a lock exists, owned by me" was true either way.
+                        !exists(/databases/$(database)/documents/paymentsByUtr/$(request.resource.data.utrOrChequeNo.upper()))
+                        && existsAfter(/databases/$(database)/documents/paymentsByUtr/$(request.resource.data.utrOrChequeNo.upper()))
                         && getAfter(/databases/$(database)/documents/paymentsByUtr/$(request.resource.data.utrOrChequeNo.upper())).data.claimedBy == request.auth.uid
                       )
                     )
@@ -839,7 +865,24 @@ service cloud.firestore {
                     // else in this rule constrained that before.
                     && request.resource.data.issueCount is int
                     && request.resource.data.uncheckedCount is int;
-      allow update: if false;
+      // A Managing Staff marking a submitted inspection reviewed — the one
+      // narrow exception to "inspections are immutable". Recorded against
+      // the manager's own login (managerVerifiedByUid must equal the
+      // caller), not a typed name, which is the actual point of this —
+      // the previous "Verified By" field on the form was just text anyone
+      // filling out the checklist could type, not a real approval. Can
+      // only happen once per inspection (resource.data must not already
+      // have a status) — re-reviewing isn't meaningful since the checklist
+      // itself can never change; a correction is a new inspection filed in
+      // response, not an edit to this one.
+      allow update: if isManagerStaff()
+                    && absentOrNull(resource.data, 'managerVerificationStatus')
+                    && request.resource.data.managerVerificationStatus in ['verified', 'needs_correction']
+                    && request.resource.data.managerVerifiedByUid == request.auth.uid
+                    && isNonEmptyString(request.resource.data.managerVerifiedBy, 200)
+                    && isOptionalString(request.resource.data, 'managerRemarks', 1000)
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(['managerVerificationStatus', 'managerVerifiedBy', 'managerVerifiedByUid', 'managerVerifiedAt', 'managerRemarks']);
       allow delete: if canApproveMembers();
     }
 
@@ -1013,7 +1056,7 @@ service cloud.firestore {
                       && unchanged('raisedByUid') && unchanged('title')
                       && unchanged('description') && unchanged('category') && unchanged('createdAt')
                       && request.resource.data.diff(resource.data).affectedKeys()
-                           .hasOnly(['status', 'resolutionNote', 'resolutionPhotoURL', 'resolvedAt', 'updatedAt', 'assignedToUid', 'assignedToName', 'targetDate', 'assignedAt'])
+                           .hasOnly(['status', 'resolutionNote', 'resolutionPhotoURL', 'resolvedAt', 'closedAt', 'updatedAt', 'assignedToUid', 'assignedToName', 'targetDate', 'assignedAt'])
                       && isValidComplaintStatus(request.resource.data.status)
                       && isOptionalString(request.resource.data, 'resolutionNote', 500)
                       && isOptionalString(request.resource.data, 'resolutionPhotoURL', 500)
@@ -1061,6 +1104,18 @@ service cloud.firestore {
                       && request.resource.data.satisfactionRating is int
                       && request.resource.data.satisfactionRating >= 1
                       && request.resource.data.satisfactionRating <= 5
+                    )
+                    || (
+                      // --- Resident adding a photo they didn't manage to
+                      // attach at submission time (e.g. the upload failed) —
+                      // only while still open/in_progress, only from
+                      // genuinely absent to set, never replacing one that's
+                      // already there.
+                      isSignedIn() && isOwner(resource.data.raisedByUid)
+                      && resource.data.status in ['open', 'in_progress']
+                      && absentOrNull(resource.data, 'photoURL')
+                      && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['photoURL', 'updatedAt'])
+                      && isNonEmptyString(request.resource.data.photoURL, 500)
                     )
                     || (
                       // --- Resident verification of a resolved complaint:
@@ -1114,6 +1169,19 @@ service cloud.firestore {
       let poll = get(/databases/$(database)/documents/polls/$(pollId)).data;
       return option in poll.options;
     }
+    // The actual fix for the tally-inflation gap: a standalone tally
+    // increment, called repeatedly with nothing else, always satisfied
+    // !exists(votes/{uid}) — that check only proves the caller HASN'T
+    // voted yet, which stays true forever if they never actually create a
+    // vote. This proves a vote for THIS SPECIFIC OPTION is landing in the
+    // SAME atomic operation as the increment — existsAfter (not exists)
+    // reads the post-write state, so only a batch/transaction that writes
+    // both documents together can ever satisfy it.
+    function tallyPairedWithVote(pollId, optionIndex) {
+      let poll = get(/databases/$(database)/documents/polls/$(pollId)).data;
+      let voteRef = /databases/$(database)/documents/polls/$(pollId)/votes/$(request.auth.uid);
+      return existsAfter(voteRef) && getAfter(voteRef).data.option == poll.options[int(optionIndex)];
+    }
     match /polls/{pollId} {
       allow read: if true;
       // Still no general update — a modified client must not be able to
@@ -1160,17 +1228,14 @@ service cloud.firestore {
         // option (no admin seed to build on yet — same effect, just later).
         // Never an arbitrary count.
         allow create: if (canApproveMembers() && request.resource.data.count == 0 && request.resource.data.keys().hasOnly(['count']))
-                      || (isApprovedMember() && pollIsOpen(pollId) && request.resource.data.count == 1 && request.resource.data.keys().hasOnly(['count']));
+                      || (isApprovedMember() && pollIsOpen(pollId) && request.resource.data.count == 1 && request.resource.data.keys().hasOnly(['count'])
+                          && tallyPairedWithVote(pollId, optionIndex));
         // The ONLY legal update, ever: exactly +1, nothing else on the
         // document changes. A resident cannot set this to any number of
-        // their choosing, decrement it, or touch any other field. The
-        // !exists() on their own vote document is what ties this update to
-        // actually casting a vote for the first time — without it, nothing
-        // stopped a resident from calling this update repeatedly to
-        // inflate the same option's count with no vote behind it at all.
+        // their choosing, decrement it, or touch any other field.
         allow update: if isApprovedMember()
                       && pollIsOpen(pollId)
-                      && !exists(/databases/$(database)/documents/polls/$(pollId)/votes/$(request.auth.uid))
+                      && tallyPairedWithVote(pollId, optionIndex)
                       && request.resource.data.count == resource.data.count + 1
                       && request.resource.data.keys().hasOnly(['count']);
         allow delete: if isAdmin();

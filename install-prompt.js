@@ -9,7 +9,7 @@
    iOS/Safari never fires this event and has no programmatic install, so there
    we show the Share -> Add to Home Screen instruction instead. Self-suppresses
    once installed; a dismissal snoozes for three days instead of nagging. */
-export function installAppInstallPrompt({ appName, showToast }) {
+export function installAppInstallPrompt({ appName, showToast, shouldSuppress }) {
   let deferredPrompt = null;
   const SNOOZE_KEY = 'mhmrws_install_snoozed';
   const INSTALLED_KEY = 'mhmrws_pwa_installed';
@@ -41,6 +41,7 @@ export function installAppInstallPrompt({ appName, showToast }) {
   function showBanner() {
     if (document.getElementById('installBanner') || !shouldShow()) return;
     if (!deferredPrompt && !isIOS()) return;
+    if (shouldSuppress?.()) { setTimeout(showBanner, 2000); return; }
 
     const banner = document.createElement('div');
     banner.id = 'installBanner';

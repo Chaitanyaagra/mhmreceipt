@@ -8,7 +8,17 @@
    Bump CACHE_NAME on any future structural change to force a clean cache.
    ========================================================================== */
 
-const CACHE_NAME = 'mhmrws-shell-v113';
+const CACHE_NAME = 'mhmrws-shell-v125';
+// Pinned Firebase SDK version used across every page (index/admin/staff/guard/
+// verify) — a specific version's content never changes, so caching these is
+// as safe as caching the vendored libraries below, and without this the app
+// genuinely cannot start offline even with the shell itself fully cached.
+const FIREBASE_SDK_FILES = [
+  'https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js',
+  'https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js',
+  'https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js',
+  'https://www.gstatic.com/firebasejs/12.18.0/firebase-storage.js'
+];
 const SHELL_FILES = [
   './',
   './index.html',
@@ -52,7 +62,7 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => Promise.all(
-        SHELL_FILES.map((url) =>
+        [...SHELL_FILES, ...FIREBASE_SDK_FILES].map((url) =>
           cache.add(url).catch((err) => console.warn('[sw] could not cache', url, err))
         )
       ))
@@ -71,9 +81,32 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
+  if (event.request.method !== 'GET') return;
+
+  // The pinned Firebase SDK files are the one deliberate exception to
+  // "cross-origin always goes straight to network" — cache-first, same
+  // reasoning as the vendored libraries below (a specific version's content
+  // never changes). Everything else cross-origin (Google APIs, other CDN
+  // scripts) still always goes straight to the network.
+  if (FIREBASE_SDK_FILES.includes(event.request.url)) {
+    event.respondWith(
+      caches.match(event.request).then((cached) => {
+        if (cached) return cached;
+        return fetch(event.request).then((response) => {
+          if (response && response.ok) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+          }
+          return response;
+        });
+      })
+    );
+    return;
+  }
+
   // Only handle same-origin GET requests for the app shell.
   // Firebase, Google APIs, and CDN scripts always go straight to the network.
-  if (event.request.method !== 'GET' || url.origin !== self.location.origin) return;
+  if (url.origin !== self.location.origin) return;
 
   // --------------------------------------------------------------------
   // Three strategies, chosen per file type, tuned for speed on weak mobile

@@ -42,6 +42,19 @@ if (typeof document !== 'undefined') {
 
 export { installModalA11y, installOfflineBanner, isOffline } from './ui-a11y.js';
 
+const __scriptLoadPromises = {};
+export function loadScript(src) {
+  if (__scriptLoadPromises[src]) return __scriptLoadPromises[src];
+  __scriptLoadPromises[src] = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = () => resolve();
+    s.onerror = () => { delete __scriptLoadPromises[src]; reject(new Error(`Could not load ${src}`)); };
+    document.head.appendChild(s);
+  });
+  return __scriptLoadPromises[src];
+}
+
 export function showToast(message, type = 'info') {
   const region = ensureToastRegion();
   const el = document.createElement('div');
@@ -89,6 +102,37 @@ export const LIMITS = {
 };
 
 export const PAYMENT_MODES = ['cash', 'cheque', 'upi', 'netbanking'];
+
+// Response-time budget per category, when no explicit target has been set.
+export const COMPLAINT_SLA_HOURS = {
+  security: 4, plumbing: 24, electrical: 24, maintenance: 48,
+  housekeeping: 48, noise: 48, parking: 72, other: 72
+};
+// The single shared notion of "is this complaint overdue" — used by both
+// admin.html and staff.html, so the same complaint can never show
+// "breached" to one and no warning at all to the other. An explicit
+// targetDate (set deliberately by admin when assigning) is the
+// authoritative deadline when present; otherwise falls back to the
+// generic category SLA clock measured from createdAt.
+export function complaintUrgency(c) {
+  if (!['open', 'in_progress'].includes(c.status)) return null; // resolved/closed/rejected aren't "breaching" anything
+  const now = Date.now();
+  let deadline, windowHours;
+  if (c.targetDate) {
+    deadline = new Date(c.targetDate + 'T23:59:59.999').getTime();
+    windowHours = 24; // "due soon" = within the last 24h of an explicit target
+  } else {
+    const created = c.createdAt?.toMillis ? c.createdAt.toMillis() : (c.createdAt ? new Date(c.createdAt).getTime() : null);
+    if (!created) return null;
+    const slaHours = COMPLAINT_SLA_HOURS[c.category] ?? 48;
+    deadline = created + slaHours * 3600000;
+    windowHours = slaHours * 0.25; // "due soon" = within the last quarter of the category window
+  }
+  const hoursLeft = (deadline - now) / 3600000;
+  if (hoursLeft <= 0) return 'breached';
+  if (hoursLeft <= windowHours) return 'due_soon';
+  return 'on_track';
+}
 
 /**
  * Validates a payment before submission.
@@ -769,15 +813,15 @@ export const INSPECTION_TYPES = {
     // preventive maintenance actually carried out.
     towers: TOWER_IDS,
     tankChecks: ['Tank Clean', 'Lid Closed', 'Overflow OK', 'Float Valve OK', 'No Leakage'],
-    readings: ['pH', 'TDS', 'Turbidity', 'Residual Chlorine', 'Inlet Flow', 'Outlet Flow']
-  },
-  READING_HINTS: {
-    'pH': 'typically 6.5–8.5',
-    'TDS': 'ppm · typically under 500',
-    'Turbidity': 'NTU · typically under 5',
-    'Residual Chlorine': 'mg/L · typically 0.2–0.5',
-    'Inlet Flow': 'LPM — compare to this tank\u2019s own usual reading',
-    'Outlet Flow': 'LPM — compare to this tank\u2019s own usual reading'
+    readings: ['pH', 'TDS', 'Turbidity', 'Residual Chlorine', 'Inlet Flow', 'Outlet Flow'],
+    READING_HINTS: {
+      'pH': 'typically 6.5–8.5',
+      'TDS': 'ppm · typically under 500',
+      'Turbidity': 'NTU · typically under 5',
+      'Residual Chlorine': 'mg/L · typically 0.2–0.5',
+      'Inlet Flow': 'LPM — compare to this tank\u2019s own usual reading',
+      'Outlet Flow': 'LPM — compare to this tank\u2019s own usual reading'
+    }
   },
   'daily-security': {
     label: 'Daily Security & Common Area',
@@ -1071,7 +1115,8 @@ export async function logAudit(user, action, details = {}) {
 /* ---------------------------------------------------------------------- */
 /*  QR code generation (uses the `qrcode` UMD build — window.QRCode)       */
 /* ---------------------------------------------------------------------- */
-export function generateQR(text, size = 220) {
+export async function generateQR(text, size = 220) {
+  await loadScript('./qrcode.local.js');
   return new Promise((resolve, reject) => {
     if (!window.QRCode) return reject(new Error('QR library not loaded'));
     window.QRCode.toDataURL(text, { width: size, margin: 1, color: { dark: '#0A1B33', light: '#FFFFFF' } }, (err, url) => {
@@ -1116,6 +1161,7 @@ function drawShrinkToFitSocietyName(pdf, name, x, y, rightEdge, titleWidth) {
    optional at registration time — someone can register today and pay
    later without this document lying about what happened). */
 export async function generateRegistrationConfirmationPDF({ formData, membershipPayment, society, logoDataUrl, save = true }) {
+  await loadScript('./jspdf.umd.min.js');
   const { jsPDF } = window.jspdf;
   const pdf = new jsPDF({ unit: 'pt', format: 'a4' });
   const W = pdf.internal.pageSize.getWidth();
@@ -1256,6 +1302,7 @@ export async function generateRegistrationConfirmationPDF({ formData, membership
 }
 
 export async function generateReceiptPDF({ payment, member, society, logoDataUrl, save = true }) {
+  await loadScript('./jspdf.umd.min.js');
   const { jsPDF } = window.jspdf;
   const pdf = new jsPDF({ unit: 'pt', format: 'a4' });
   const W = pdf.internal.pageSize.getWidth();
@@ -1367,6 +1414,7 @@ export async function generateReceiptPDF({ payment, member, society, logoDataUrl
 /*  automatically once a year has more rows than fit on a page.             */
 /* ---------------------------------------------------------------------- */
 export async function generateStatementPDF({ payments, member, society, financialYear, logoDataUrl, save = true }) {
+  await loadScript('./jspdf.umd.min.js');
   const { jsPDF } = window.jspdf;
   const pdf = new jsPDF({ unit: 'pt', format: 'a4' });
   const W = pdf.internal.pageSize.getWidth();
@@ -1503,6 +1551,7 @@ export async function generateStatementPDF({ payments, member, society, financia
  * committee actually thinks about "where the money came from and went",
  * not a raw transaction log. */
 export async function generateIncomeExpenditurePDF({ payments, expenses, society, financialYear, logoDataUrl, save = true }) {
+  await loadScript('./jspdf.umd.min.js');
   const { jsPDF } = window.jspdf;
   const pdf = new jsPDF({ unit: 'pt', format: 'a4' });
   const W = pdf.internal.pageSize.getWidth();
@@ -1952,6 +2001,7 @@ export async function sealOnWhiteDisc(logoDataUrl, size = 256) {
 }
 
 export async function generateMembershipCard({ member, society, logoDataUrl, financialYear, officeAddress, familyMember = null }) {
+  await loadScript('./jspdf.umd.min.js');
   const { jsPDF } = window.jspdf;
   const pdf = new jsPDF({ unit: 'mm', format: [CARD_W, CARD_H], orientation: 'landscape' });
 
@@ -2155,15 +2205,17 @@ export async function downloadImageFromUrl(url, filename) {
 /* ---------------------------------------------------------------------- */
 /*  Excel export / import (uses SheetJS — window.XLSX)                    */
 /* ---------------------------------------------------------------------- */
-export function exportToExcel(rows, filename = 'export.xlsx', sheetName = 'Sheet1') {
+export async function exportToExcel(rows, filename = 'export.xlsx', sheetName = 'Sheet1') {
   if (!rows || !rows.length) { showToast('No data found to export.', 'error'); return; }
+  await loadScript('./xlsx.full.min.js');
   const ws = window.XLSX.utils.json_to_sheet(rows);
   const wb = window.XLSX.utils.book_new();
   window.XLSX.utils.book_append_sheet(wb, ws, sheetName);
   window.XLSX.writeFile(wb, filename);
 }
 
-export function parseExcelFile(file) {
+export async function parseExcelFile(file) {
+  await loadScript('./xlsx.full.min.js');
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (e) => {

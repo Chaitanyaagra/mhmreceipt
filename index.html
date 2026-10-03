@@ -61,8 +61,6 @@
      Same-origin scripts can't be tampered with by a third party, need no SRI
      hash, keep working even if a CDN is blocked, and are cached by the service
      worker for offline use. -->
-<script src="./jspdf.umd.min.js" defer></script>
-<script src="./qrcode.local.js" defer></script>
 <script src="./update-banner.js" defer></script>
 <script src="./back-button-handler.js" defer></script>
 <style>
@@ -1931,6 +1929,7 @@ if (towerSelect && flatSelect) {
       ).join('');
     flatSelect.disabled = false;
     window.__translate?.(flatSelect);
+    window.__flatAvailabilityCheckToken++;  // invalidate any in-flight check from the previous tower's flat
     const msg = document.getElementById('flatAvailabilityMsg');
     if (msg) msg.style.display = 'none';
   });
@@ -2091,7 +2090,13 @@ import { installAppInstallPrompt } from './install-prompt.js';
 // The "install this app" prompt runs from here (not the branding block above)
 // because it uses showToast, which is imported in this block. Same shared
 // module guard.html and staff.html use.
-installAppInstallPrompt({ appName: 'MHMRWS Portal', showToast });
+installAppInstallPrompt({
+  appName: 'MHMRWS Portal', showToast,
+  shouldSuppress: () => {
+    const f = document.getElementById('registerForm');
+    return !!f && getComputedStyle(f).display !== 'none';
+  }
+});
 
 /* Branding, the year stamp and the committee fallback are handled by the
    standalone module above, which has no Firebase dependency. LOGO_DATA_URI
@@ -2149,12 +2154,14 @@ if (regVehiclesEditor) {
 // check inside the real submit is what actually prevents a duplicate claim
 // if two people happen to pick the same flat at the same moment.
 const flatAvailabilityMsg = document.getElementById('flatAvailabilityMsg');
+window.__flatAvailabilityCheckToken = 0;
 async function checkFlatAvailability() {
   const tower = document.getElementById('towerSelect')?.value;
   const flat = document.getElementById('flatSelect')?.value;
   const residentType = registerForm.querySelector('[name=residentType]')?.value;
   if (!flatAvailabilityMsg) return;
   if (!tower || !flat || !residentType) { flatAvailabilityMsg.style.display = 'none'; return; }
+  const myToken = ++window.__flatAvailabilityCheckToken;
   flatAvailabilityMsg.style.display = 'block';
   flatAvailabilityMsg.style.color = 'var(--ink-500,#6B7385)';
   flatAvailabilityMsg.textContent = 'Checking availability…';
@@ -2165,6 +2172,11 @@ async function checkFlatAvailability() {
     // alongside an already-registered tenant (or vice versa) correctly
     // sees the flat as available for THEM.
     const blocking = await findBlockingFlatClaim(tower, flat, residentType, null);
+    // Someone may have changed tower/flat/type (or started a newer check)
+    // while this one was in flight — a stale, slower-resolving answer for
+    // what USED to be selected must never overwrite the current selection's
+    // message, only the latest request's result gets applied.
+    if (myToken !== window.__flatAvailabilityCheckToken) return;
     if (blocking) {
       flatAvailabilityMsg.style.color = 'var(--danger,#C0392B)';
       const asType = residentType === 'tenant' ? 'a tenant' : 'an owner';
@@ -2174,6 +2186,7 @@ async function checkFlatAvailability() {
       flatAvailabilityMsg.textContent = '✓ This flat is available.';
     }
   } catch (err) {
+    if (myToken !== window.__flatAvailabilityCheckToken) return;
     // Non-fatal: the real check still happens at actual submission time,
     // this is only ever a heads-up.
     flatAvailabilityMsg.style.display = 'none';
@@ -3009,6 +3022,9 @@ document.getElementById('forgotPasswordLink').addEventListener('click', async (e
 let currentUser = null;
 let currentMember = null;
 let unsubscribeGateVisitors = null;
+let unsubscribePaymentUpdates = null;
+let unsubscribeComplaintUpdates = null;
+let unsubscribeBookingUpdates = null;
 
 onAuthStateChanged(auth, async (user) => {
   currentUser = user;
@@ -3049,6 +3065,9 @@ onAuthStateChanged(auth, async (user) => {
     document.body.classList.remove('logged-in');
     currentMember = null;
     if (unsubscribeGateVisitors) { unsubscribeGateVisitors(); unsubscribeGateVisitors = null; }
+    if (unsubscribePaymentUpdates) { unsubscribePaymentUpdates(); unsubscribePaymentUpdates = null; }
+    if (unsubscribeComplaintUpdates) { unsubscribeComplaintUpdates(); unsubscribeComplaintUpdates = null; }
+    if (unsubscribeBookingUpdates) { unsubscribeBookingUpdates(); unsubscribeBookingUpdates = null; }
     window.__setDynamicLabel(navBtn, 'Resident Login');
     navBtn.onclick = () => window.__goToPortal('login');
     portal.style.display = 'block';
@@ -3358,6 +3377,9 @@ async function loadDashboard(uid) {
     // actually finished.
     await Promise.allSettled([loadPayments(uid), loadMyPets(uid), loadMyComplaints(uid), loadMyBookings(uid), loadMyGuests(uid), loadMySuggestions(uid)]);
     subscribeGateVisitors(currentMember);
+    subscribePaymentUpdates(uid);
+    subscribeComplaintUpdates(uid);
+    subscribeBookingUpdates(uid);
     loadInspectionsCard();
     loadFinancialSummaryCard();
   }
@@ -3783,6 +3805,61 @@ function subscribeGateVisitors(member) {
   }, (err) => console.warn('Gate visitors listener failed:', err?.code || err));
 }
 
+// A short debounce so several documents changing together (a batch write,
+// or just normal snapshot chunking) collapses into one reload instead of
+// firing the underlying load function repeatedly in quick succession.
+function debounceReload(fn, ms = 600) {
+  let t = null;
+  return () => { clearTimeout(t); t = setTimeout(fn, ms); };
+}
+
+function isOwnActionInProgress() {
+  return document.getElementById('successModalBackdrop')?.classList.contains('open')
+      || document.getElementById('paymentModalBackdrop')?.classList.contains('open')
+      || document.getElementById('complaintModalBackdrop')?.classList.contains('open')
+      || document.getElementById('bookingModalBackdrop')?.classList.contains('open');
+}
+
+function subscribePaymentUpdates(uid) {
+  if (unsubscribePaymentUpdates) { unsubscribePaymentUpdates(); unsubscribePaymentUpdates = null; }
+  if (!uid) return;
+  let first = true;
+  // Checked at the moment the (debounced) reload actually runs, not at
+  // snapshot-fire time — the modal that was open when the snapshot fired
+  // may have already closed by then, so checking earlier wouldn't reflect
+  // the real state when it matters.
+  const reload = debounceReload(() => { if (!isOwnActionInProgress()) loadPayments(uid, true); });
+  const q = query(collection(db, 'payments'), where('memberUid', '==', uid));
+  unsubscribePaymentUpdates = onSnapshot(q, () => {
+    if (first) { first = false; return; }   // the initial dashboard load already covers this fire
+    reload();
+  }, (err) => console.warn('Payment updates listener failed:', err?.code || err));
+}
+
+function subscribeComplaintUpdates(uid) {
+  if (unsubscribeComplaintUpdates) { unsubscribeComplaintUpdates(); unsubscribeComplaintUpdates = null; }
+  if (!uid) return;
+  let first = true;
+  const reload = debounceReload(() => { if (!isOwnActionInProgress()) loadMyComplaints(uid); });
+  const q = query(collection(db, 'complaints'), where('raisedByUid', '==', uid));
+  unsubscribeComplaintUpdates = onSnapshot(q, () => {
+    if (first) { first = false; return; }
+    reload();
+  }, (err) => console.warn('Complaint updates listener failed:', err?.code || err));
+}
+
+function subscribeBookingUpdates(uid) {
+  if (unsubscribeBookingUpdates) { unsubscribeBookingUpdates(); unsubscribeBookingUpdates = null; }
+  if (!uid) return;
+  let first = true;
+  const reload = debounceReload(() => { if (!isOwnActionInProgress()) loadMyBookings(uid); });
+  const q = query(collection(db, 'facilityBookings'), where('memberUid', '==', uid));
+  unsubscribeBookingUpdates = onSnapshot(q, () => {
+    if (first) { first = false; return; }
+    reload();
+  }, (err) => console.warn('Booking updates listener failed:', err?.code || err));
+}
+
 const GATE_PURPOSE_LABEL = { guest: 'Guest', delivery: 'Delivery', cab: 'Cab', service: 'Service', other: 'Other' };
 function renderGateCard(rows) {
   const el = document.getElementById('gateCard');
@@ -3814,6 +3891,8 @@ function renderGateCard(rows) {
 }
 
 async function decideGateVisitor(id, status) {
+  const buttons = document.querySelectorAll(`[data-gate-decide="${id}"]`);
+  buttons.forEach((b) => { b.disabled = true; });
   try {
     await updateDoc(doc(db, 'visitors', id), {
       status, decidedByUid: auth.currentUser.uid, decidedAt: serverTimestamp(), updatedAt: serverTimestamp()
@@ -3821,6 +3900,7 @@ async function decideGateVisitor(id, status) {
   } catch (err) {
     console.error('Gate decision failed:', err);
     showToast('Could not send your decision — please try again.', 'error');
+    buttons.forEach((b) => { b.disabled = false; });
   }
 }
 
@@ -3946,9 +4026,44 @@ function openResidentInspectionDetail(idx) {
       </div>`;
   }).join('');
 
+  // Weekly MEP's tank checks/readings live in their own fields, not
+  // r.sections — without this, a resident saw the total issue count
+  // (which does include a failed tank check) but had no way to see which
+  // tank, or which specific check, actually failed.
+  let tankBody = '';
+  if (r.formType === 'weekly-mep' && r.tankData) {
+    const tpl = INSPECTION_TYPES['weekly-mep'];
+    tankBody += Object.entries(r.tankData).map(([tower, checks]) => {
+      const tIssues = tpl.tankChecks.filter((_, i) => checks[i] === false);
+      const tOk = checks.filter((v) => v === true).length;
+      const tUnchecked = checks.filter((v) => v === null || v === undefined).length;
+      return `
+        <div style="margin-bottom:12px; border:1px solid var(--line,#EAE6DC); border-radius:10px; padding:12px;">
+          <b style="font-size:13.5px;">Tower ${escapeHtml(tower)} Tank</b>
+          ${tIssues.length ? tIssues.map((label) => `
+            <div style="padding:6px 0; border-bottom:1px solid var(--line,#EAE6DC);">
+              <div style="display:flex; justify-content:space-between; gap:8px;"><span style="font-size:12.5px;">${escapeHtml(label)}</span><span class="badge badge-warning">Issue</span></div>
+            </div>`).join('') : ''}
+          ${tOk ? `<div class="t-muted" style="font-size:11.5px; margin-top:8px;">${tOk} check${tOk > 1 ? 's' : ''} OK</div>` : ''}
+          ${tUnchecked ? `<div style="font-size:11.5px; margin-top:4px; color:var(--warning,#B87A1F);">${tUnchecked} check${tUnchecked > 1 ? 's' : ''} not checked</div>` : ''}
+        </div>`;
+    }).join('');
+  }
+  if (r.formType === 'weekly-mep' && r.readingsData) {
+    const tpl = INSPECTION_TYPES['weekly-mep'];
+    tankBody += `
+      <div style="margin-bottom:12px; border:1px solid var(--line,#EAE6DC); border-radius:10px; padding:12px;">
+        <b style="font-size:13.5px;">Readings</b>
+        ${tpl.readings.map((label) => `
+          <div style="display:flex; justify-content:space-between; padding:5px 0; border-bottom:1px solid var(--line,#EAE6DC); font-size:12px;">
+            <span>${escapeHtml(label)}</span><b>${escapeHtml(r.readingsData[label] || '—')}</b>
+          </div>`).join('')}
+      </div>`;
+  }
+
   const title = (INSPECTION_TYPES[r.formType]?.label || r.formType) + (r.tower ? ' — Tower ' + r.tower : '');
   const meta = 'Filed by ' + (r.createdByName || '—') + (r.createdAt ? ' · ' + fmtDate(r.createdAt) : '');
-  openInfoModal(title, `<p class="t-muted" style="font-size:12px; margin-bottom:12px;">${escapeHtml(meta)}</p>${body || '<p class="t-muted">No checklist details recorded.</p>'}`);
+  openInfoModal(title, `<p class="t-muted" style="font-size:12px; margin-bottom:12px;">${escapeHtml(meta)}</p>${body}${tankBody}${(body || tankBody) ? '' : '<p class="t-muted">No checklist details recorded.</p>'}`);
 }
 
 function openInfoModal(title, bodyHtml) {
@@ -4180,14 +4295,19 @@ function renderMyComplaints() {
         <span><b>${escapeHtml(c.title)}</b> <span class="t-muted" style="font-size:11.5px;">(${escapeHtml(COMPLAINT_CATEGORY_LABEL_R[c.category] || c.category)})</span></span>
         <span class="t-muted" style="font-size:12px;">${escapeHtml(COMPLAINT_STATUS_LABEL_R[c.status] || c.status)}</span>
       </div>
+      ${c.photoURL ? `<img src="${escapeHtml(c.photoURL)}" alt="" style="max-width:220px; border-radius:8px; margin-top:4px;">`
+        : ['open', 'in_progress'].includes(c.status) ? `
+          <div style="width:100%;">
+            <label class="btn btn-outline btn-sm" style="display:inline-block; cursor:pointer;">Add photo<input type="file" accept="image/*" data-add-photo="${i}" style="display:none;"></label>
+          </div>` : ''}
       ${c.resolutionNote ? `<p class="t-muted" style="font-size:12px; margin:0;">${escapeHtml(c.resolutionNote)}</p>` : ''}
       ${c.resolutionPhotoURL ? `<img src="${escapeHtml(c.resolutionPhotoURL)}" alt="" style="max-width:220px; border-radius:8px; margin-top:4px;">` : ''}
       ${canVerify ? `
         <div style="width:100%; background:var(--paper,#FAF7F0); border:1px solid var(--line,#EAE6DC); border-radius:8px; padding:8px 10px; margin-top:4px;">
           <div style="font-size:12px; font-weight:600; margin-bottom:6px;">Staff marked this fixed. Is it actually resolved?</div>
           <div style="display:flex; gap:6px; flex-wrap:wrap;">
-            <button type="button" class="btn btn-primary btn-sm" data-verify-close="${i}">Yes, it's fixed</button>
-            <button type="button" class="btn btn-outline btn-sm" data-verify-reopen="${i}">No, reopen</button>
+            <button type="button" class="btn btn-primary btn-sm" data-verify-close="${c.id}">Yes, it's fixed</button>
+            <button type="button" class="btn btn-outline btn-sm" data-verify-reopen="${c.id}">No, reopen</button>
           </div>
         </div>` : ''}
       ${c.satisfactionRating ? `<div style="font-size:13px;">${'⭐'.repeat(c.satisfactionRating)}</div>` :
@@ -4201,11 +4321,35 @@ function renderMyComplaints() {
       starBtn.addEventListener('click', () => submitComplaintRating(complaint.id, Number(starBtn.dataset.star)));
     });
   });
-  el.querySelectorAll('[data-verify-close]').forEach(b => b.onclick = () => verifyComplaintClose(rows[Number(b.dataset.verifyClose)].id));
-  el.querySelectorAll('[data-verify-reopen]').forEach(b => b.onclick = () => verifyComplaintReopen(rows[Number(b.dataset.verifyReopen)].id));
+  el.querySelectorAll('[data-verify-close]').forEach(b => b.onclick = () => verifyComplaintClose(b.dataset.verifyClose));
+  el.querySelectorAll('[data-verify-reopen]').forEach(b => b.onclick = () => verifyComplaintReopen(b.dataset.verifyReopen));
+  el.querySelectorAll('[data-add-photo]').forEach((inp) => inp.addEventListener('change', () => {
+    const complaint = rows[Number(inp.dataset.addPhoto)];
+    const file = inp.files?.[0];
+    if (file) addComplaintPhoto(complaint.id, file);
+  }));
+}
+
+async function addComplaintPhoto(complaintId, file) {
+  if (file.size >= 8 * 1024 * 1024) { showToast('That photo is too large — please choose one under 8 MB.', 'error'); return; }
+  showToast('Uploading photo…', 'success');
+  const photoURL = await uploadFile(`complaintPhotos/${currentUser.uid}/complaint_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`, file);
+  if (!photoURL) { showToast('Could not upload the photo — please check your connection and try again.', 'error'); return; }
+  try {
+    await updateDoc(doc(db, 'complaints', complaintId), { photoURL, updatedAt: serverTimestamp() });
+    showToast('Photo added.', 'success');
+    const idx = (window.__myComplaints || []).findIndex((c) => c.id === complaintId);
+    if (idx >= 0) window.__myComplaints[idx].photoURL = photoURL;
+    renderMyComplaints();
+  } catch (err) {
+    console.error('Saving complaint photo failed:', err);
+    showToast(`Photo uploaded, but could not be saved to the complaint${err?.code ? ` (${err.code})` : ''} — please try again.`, 'error');
+  }
 }
 
 async function verifyComplaintClose(complaintId) {
+  const buttons = document.querySelectorAll(`[data-verify-close="${complaintId}"], [data-verify-reopen="${complaintId}"]`);
+  buttons.forEach((b) => { b.disabled = true; });
   try {
     await updateDoc(doc(db, 'complaints', complaintId), { status: 'closed', residentVerifiedAt: serverTimestamp(), updatedAt: serverTimestamp() });
     showToast('Thank you! Marked as resolved.', 'success');
@@ -4213,12 +4357,15 @@ async function verifyComplaintClose(complaintId) {
   } catch (err) {
     console.error('Verify-close failed:', err);
     showToast(`Could not update${err?.code ? ` (${err.code})` : ''}.`, 'error');
+    buttons.forEach((b) => { b.disabled = false; });
   }
 }
 
 async function verifyComplaintReopen(complaintId) {
   const reason = prompt('What is still not fixed? (this is shown to the staff)');
   if (reason === null) return; // cancelled
+  const buttons = document.querySelectorAll(`[data-verify-close="${complaintId}"], [data-verify-reopen="${complaintId}"]`);
+  buttons.forEach((b) => { b.disabled = true; });
   try {
     await updateDoc(doc(db, 'complaints', complaintId), {
       status: 'in_progress',
@@ -4228,6 +4375,7 @@ async function verifyComplaintReopen(complaintId) {
     showToast('Reopened — the staff will look at it again.', 'success');
     await loadMyComplaints(currentUser.uid);
   } catch (err) {
+    buttons.forEach((b) => { b.disabled = false; });
     console.error('Verify-reopen failed:', err);
     showToast(`Could not reopen${err?.code ? ` (${err.code})` : ''}.`, 'error');
   }
@@ -4505,17 +4653,6 @@ async function downloadStatement(e) {
 /* ---- Membership card ---- */
 async function downloadCard() {
   const btn = document.getElementById('downloadCardBtn');
-
-  // jsPDF is bundled locally (jspdf.umd.min.js), not loaded from a CDN — but
-  // it's still an external <script> tag, so a corrupted/partial file or a
-  // browser extension blocking script execution can leave it undefined.
-  // Every later call throws a cryptic destructure error in that case, so
-  // check up front and say so plainly.
-  if (!window.jspdf || !window.jspdf.jsPDF) {
-    showToast('PDF library failed to load — check your connection or refresh the page and try again.', 'error');
-    return;
-  }
-
   setLoading(btn, true);
   try {
     let society = { name: SOCIETY.fullName, regNumber: SOCIETY.regNumber };
@@ -4572,10 +4709,6 @@ async function downloadCard() {
    reordered — good enough for a household card, not a claim of a
    permanent independent identifier. */
 async function downloadFamilyMemberCard(familyMember, index) {
-  if (!window.jspdf || !window.jspdf.jsPDF) {
-    showToast('PDF library failed to load — check your connection or refresh the page and try again.', 'error');
-    return;
-  }
   const btn = document.querySelector(`[data-family-card="${index}"]`);
   setLoading(btn, true);
   try {
