@@ -137,8 +137,8 @@
       <div class="g-field"><label for="vName">Name</label><input type="text" id="vName" maxlength="100" required autocomplete="off"></div>
       <div class="g-field"><label for="vPhone">Phone <span style="opacity:.5;">(optional)</span></label><input type="tel" id="vPhone" maxlength="20" autocomplete="off"></div>
       <div class="g-row2">
-        <div class="g-field"><label for="vTower">Tower</label><select id="vTower"></select></div>
-        <div class="g-field"><label for="vFlat">Flat</label><select id="vFlat"></select></div>
+        <div class="g-field"><label for="vTower">Tower</label><select id="vTower" required></select></div>
+        <div class="g-field"><label for="vFlat">Flat</label><select id="vFlat" required></select></div>
       </div>
       <button class="btn btn-primary" type="submit" style="width:100%; margin-top:6px;">Send for Approval</button>
     </form>
@@ -161,6 +161,18 @@ if ('serviceWorker' in navigator) {
 }
 </script>
 
+<!-- Offline banner in its own tiny module that imports ONLY the Firebase-free
+     ui-a11y.js. It used to be installed from the main module below, whose
+     static imports include the Firebase SDK from a CDN — if any one of those
+     fails to load, the browser never evaluates that module at all, so the
+     offline banner (the very thing meant to explain a bad connection) would
+     vanish exactly when the connection is the problem. The resident, admin
+     pages already work this way. -->
+<script type="module">
+import { installOfflineBanner } from './ui-a11y.js';
+installOfflineBanner();
+</script>
+
 <script type="module">
 import { auth, db } from './firebase-config.js';
 import {
@@ -170,9 +182,7 @@ import {
   doc, getDoc, addDoc, updateDoc, collection, query, where, onSnapshot, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 import { showToast, escapeHtml, TOWER_IDS, flatsForTower, flatKey } from './app-common.js';
-import { installOfflineBanner } from './ui-a11y.js';
 import { installAppInstallPrompt } from './install-prompt.js';
-installOfflineBanner();
 installAppInstallPrompt({ appName: 'MHMRWS Gate', showToast });
 
 let currentGuard = null;
@@ -254,18 +264,29 @@ onAuthStateChanged(auth, async (user) => {
 /* ---------------------------------------------------------------------- */
 function populateTowerSelect() {
   const sel = document.getElementById('vTower');
-  sel.innerHTML = TOWER_IDS.map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
+  // Starts on an explicit "Select tower" placeholder rather than silently
+  // defaulting to the first tower/flat — a default that looks filled-in is
+  // exactly how a hurried entry ends up sent to the wrong resident.
+  sel.innerHTML = '<option value="">Select tower</option>' + TOWER_IDS.map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
+  sel.value = '';
   populateFlatSelect();
 }
 document.getElementById('vTower').addEventListener('change', populateFlatSelect);
 function populateFlatSelect() {
   const tower = document.getElementById('vTower').value;
   const sel = document.getElementById('vFlat');
-  sel.innerHTML = flatsForTower(tower).map(g =>
+  if (!tower) {
+    sel.innerHTML = '<option value="">Select tower first</option>';
+    sel.disabled = true;
+    return;
+  }
+  sel.disabled = false;
+  sel.innerHTML = '<option value="">Select flat</option>' + flatsForTower(tower).map(g =>
     `<optgroup label="${escapeHtml(g.label)}">` +
     g.flats.map(f => `<option value="${escapeHtml(f)}">${escapeHtml(f)}</option>`).join('') +
     `</optgroup>`
   ).join('');
+  sel.value = '';
 }
 
 /* ---------------------------------------------------------------------- */
@@ -277,6 +298,11 @@ document.querySelectorAll('[data-purpose]').forEach(btn => btn.addEventListener(
   document.getElementById('entryFormTitle').textContent = `New ${btn.dataset.label} Entry`;
   document.getElementById('vName').value = '';
   document.getElementById('vPhone').value = '';
+  // Tower/flat reset too — they used to keep the PREVIOUS visitor's choice,
+  // so the next entry could be sent to the wrong resident without the guard
+  // ever actively choosing a flat.
+  document.getElementById('vTower').value = '';
+  populateFlatSelect();
   document.getElementById('entrySheetBackdrop').classList.add('open');
   document.getElementById('vName').focus();
 }));
@@ -290,7 +316,10 @@ document.getElementById('entryForm').addEventListener('submit', async (e) => {
   const name = document.getElementById('vName').value.trim();
   const tower = document.getElementById('vTower').value;
   const flat = document.getElementById('vFlat').value;
-  if (!name || !tower || !flat || !currentGuard) return;
+  if (!name || !tower || !flat || !currentGuard) {
+    showToast('Please enter the visitor name and select both tower and flat.', 'error');
+    return;
+  }
   const btn = e.target.querySelector('button[type="submit"]');
   btn.disabled = true;
   try {
@@ -341,10 +370,27 @@ function subscribeVisitors() {
   });
 }
 
+// An approval is a same-day gate credential: the rules refuse a check-in
+// more than 24h after the resident approved it. The queue used to keep
+// showing such a visitor under "Approved — let them in" with a live Check
+// In button that could only ever fail — so the guard sees it as expired
+// instead (the rules stay the actual enforcement; this just stops the UI
+// from inviting an action that's bound to be refused).
+const APPROVAL_VALID_MS = 24 * 3600 * 1000;
+function isApprovalExpired(r) {
+  return r.status === 'approved' && !!r.decidedAt?.seconds && (Date.now() - r.decidedAt.seconds * 1000) >= APPROVAL_VALID_MS;
+}
+let lastQueueRows = [];
+// Re-render periodically so an approval that crosses the 24h mark while the
+// screen is simply left open flips to "expired" without needing a snapshot.
+setInterval(() => { if (lastQueueRows.length) renderQueue(lastQueueRows); }, 60000);
+
 function renderQueue(rows) {
+  lastQueueRows = rows;
   const groups = [
     { key: 'pending', label: 'Sent — waiting for the resident', items: rows.filter(r => r.status === 'pending') },
-    { key: 'approved', label: 'Approved — let them in', items: rows.filter(r => r.status === 'approved') },
+    { key: 'approved', label: 'Approved — let them in', items: rows.filter(r => r.status === 'approved' && !isApprovalExpired(r)) },
+    { key: 'expired', label: 'Approval expired — ask the resident again', items: rows.filter(isApprovalExpired) },
     { key: 'checked_in', label: 'Currently inside', items: rows.filter(r => r.status === 'checked_in') }
   ];
   const wrap = document.getElementById('queueWrap');
@@ -358,6 +404,7 @@ function renderQueue(rows) {
       ${g.items.map(rowHtml).join('')}
     </div>`).join('');
   wrap.querySelectorAll('[data-checkin]').forEach(b => b.onclick = () => checkIn(b.dataset.checkin));
+  wrap.querySelectorAll('[data-askagain]').forEach(b => b.onclick = () => askAgain(b.dataset.askagain, b));
   wrap.querySelectorAll('[data-checkout]').forEach(b => b.onclick = () => checkOut(b.dataset.checkout));
   wrap.querySelectorAll('[data-cancel]').forEach(b => b.onclick = () => cancelVisitor(b.dataset.cancel));
 }
@@ -369,13 +416,20 @@ function rowHtml(r) {
         <b>${escapeHtml(r.visitorName)}</b>
         <div class="q-sub">${PURPOSE_LABEL[r.purpose] || escapeHtml(r.purpose || '')} · ${escapeHtml(r.tower || '')}-${escapeHtml(r.flatNumber || '')}</div>
       </div>
-      ${r.status === 'approved' ? `<button class="btn btn-primary btn-sm" data-checkin="${r.id}">Check In</button>` : ''}
+      ${r.status === 'approved' && !isApprovalExpired(r) ? `<button class="btn btn-primary btn-sm" data-checkin="${r.id}">Check In</button>` : ''}
+      ${isApprovalExpired(r) ? `<button class="btn btn-primary btn-sm" data-askagain="${r.id}">Ask Again</button>` : ''}
       ${r.status === 'checked_in' ? `<button class="btn btn-outline btn-sm on-dark" data-checkout="${r.id}">Check Out</button>` : ''}
       ${['pending', 'approved'].includes(r.status) ? `<button class="btn btn-outline btn-sm on-dark" data-cancel="${r.id}">Cancel</button>` : ''}
     </div>`;
 }
 
 async function checkIn(id) {
+  const row = lastQueueRows.find(r => r.id === id);
+  if (row && isApprovalExpired(row)) {
+    showToast('This approval has expired — use Ask Again to get a fresh one.', 'error');
+    renderQueue(lastQueueRows);
+    return;
+  }
   try {
     await updateDoc(doc(db, 'visitors', id), { status: 'checked_in', checkedInAt: serverTimestamp(), updatedAt: serverTimestamp() });
   } catch (err) {
@@ -391,6 +445,39 @@ async function checkOut(id) {
     showToast('Could not check out — please try again.', 'error');
   }
 }
+// Fresh approval for an expired one: sends a brand-new pending request with
+// the same details to the same flat, then retires the stale entry. The new
+// request is created FIRST — if retiring the old one then fails, the guard
+// is left with an extra expired row (harmless), never with the visitor
+// having lost their request altogether.
+async function askAgain(id, btn) {
+  const old = lastQueueRows.find(r => r.id === id);
+  if (!old || !currentGuard) return;
+  if (btn) btn.disabled = true;
+  try {
+    await addDoc(collection(db, 'visitors'), {
+      visitorName: old.visitorName,
+      visitorPhone: old.visitorPhone || null,
+      purpose: old.purpose,
+      tower: old.tower, flatNumber: old.flatNumber,
+      flatKey: flatKey(old.tower, old.flatNumber),
+      createdByGuardUid: currentGuard.uid,
+      status: 'pending',
+      createdAt: serverTimestamp()
+    });
+    showToast('Sent to the resident for a fresh approval.', 'success');
+    try {
+      await updateDoc(doc(db, 'visitors', id), { status: 'cancelled', cancelledBy: auth.currentUser.uid, updatedAt: serverTimestamp() });
+    } catch (err) {
+      console.warn('Could not retire the expired entry:', err);
+    }
+  } catch (err) {
+    console.error('Ask again failed:', err);
+    showToast(`Could not send${err?.code ? ` (${err.code})` : ''} — please try again.`, 'error');
+    if (btn) btn.disabled = false;
+  }
+}
+
 async function cancelVisitor(id) {
   if (!confirm('Cancel this visitor entry? This cannot be undone.')) return;
   try {

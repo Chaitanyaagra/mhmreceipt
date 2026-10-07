@@ -856,6 +856,12 @@ service cloud.firestore {
       // Function writing per-period counts residents can read) rather than
       // exposing the raw documents — not expressible in static rules alone.
       allow read: if isAdmin() || isStaff() || isApprovedMember();
+      // Deliberate: any active staff member can file ANY accepted
+      // inspection type, regardless of inspectionAssignments — assignment
+      // is advisory (who's expected to handle it), not an exclusive
+      // server-enforced lock. If the assigned supervisor is sick/absent,
+      // another one covering for them must still be able to file it; the
+      // inspection getting done matters more than enforcing who files it.
       allow create: if isStaff()
                     && request.resource.data.createdByUid == request.auth.uid
                     && request.resource.data.formType in ['daily-tower', 'weekly-mep', 'daily-security', 'club-house']

@@ -37,10 +37,36 @@ export function installModalA11y() {
   const focusables = (root) => Array.from(root.querySelectorAll(FOCUSABLE))
     .filter(el => el.offsetParent !== null || el === document.activeElement);
 
+  /* Escape, a tap on the dark backdrop and the Back gesture all used to close
+     a dialog instantly — including one with a half-filled form (or one whose
+     submit was still running), losing what had been typed or entered. A
+     dialog counts as "dirty" once the person has genuinely typed/selected
+     something in it (isTrusted: scripted pre-fills and programmatic events
+     don't count, so opening an edit form pre-populated is not "changes").
+     Explicit Cancel/✕ buttons are deliberate and are not intercepted. */
+  const markDirty = (e) => {
+    if (!e.isTrusted) return;
+    const t = e.target;
+    if (!t || !t.matches || !t.matches('input, textarea, select')) return;
+    if (['search', 'button', 'submit', 'reset'].includes(t.type) || t.hasAttribute('data-no-dirty')) return;
+    e.currentTarget.dataset.dirty = '1';
+  };
+  const confirmClose = (backdrop) => {
+    const busy = !!window.__appBusy;
+    const dirty = backdrop && backdrop.dataset && backdrop.dataset.dirty === '1';
+    if (!busy && !dirty) return true;
+    return window.confirm(busy
+      ? "An action is still in progress — closing this won't cancel it. Close anyway?"
+      : 'You have unsaved changes here. Discard them and close?');
+  };
+  // Shared with back-button-handler.js (a plain script, not a module).
+  window.__confirmModalClose = confirmClose;
+
   const onKeydown = (e) => {
     if (!openBackdrop) return;
     if (e.key === 'Escape') {
       e.preventDefault();
+      if (!confirmClose(openBackdrop)) return;   // unsaved changes / work in progress: ask first
       openBackdrop.classList.remove('open');   // triggers the existing close path
       return;
     }
@@ -79,8 +105,8 @@ export function installModalA11y() {
       const el = m.target;
       if (!el.classList || !el.classList.contains('modal-backdrop')) continue;
       const isOpen = el.classList.contains('open');
-      if (isOpen && el !== openBackdrop) activate(el);
-      else if (!isOpen && el === openBackdrop) deactivate();
+      if (isOpen && el !== openBackdrop) { delete el.dataset.dirty; activate(el); }
+      else if (!isOpen) { delete el.dataset.dirty; if (el === openBackdrop) deactivate(); }
     }
   });
   document.querySelectorAll('.modal-backdrop').forEach(b =>
@@ -89,8 +115,10 @@ export function installModalA11y() {
   // Clicking the dark area outside the dialog closes it — expected modal
   // behaviour that was also missing.
   document.querySelectorAll('.modal-backdrop').forEach(backdrop => {
+    backdrop.addEventListener('input', markDirty, true);
+    backdrop.addEventListener('change', markDirty, true);
     backdrop.addEventListener('mousedown', (e) => {
-      if (e.target === backdrop) backdrop.classList.remove('open');
+      if (e.target === backdrop && confirmClose(backdrop)) backdrop.classList.remove('open');
     });
   });
 }

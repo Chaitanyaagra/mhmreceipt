@@ -1651,6 +1651,7 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
             <option value="evening">Evening</option>
             <option value="full_day">Full Day</option>
           </select>
+          <div id="bk-avail-note" class="t-muted" style="font-size:12px; margin-top:4px; min-height:15px;" aria-live="polite"></div>
         </div>
         <div class="field"><label for="bk-purpose">Purpose <span class="t-muted" style="font-weight:400;">(optional)</span></label><textarea name="purpose" id="bk-purpose" rows="2" maxlength="300" placeholder="e.g. Birthday party"></textarea></div>
         <button class="btn btn-primary btn-block" type="submit">Submit Request</button>
@@ -1759,6 +1760,7 @@ import { LOGO_DATA_URI, getLogoDataUri } from './logo-data.js';
 import { initLang, setLang, translateSubtree, setDynamicLabel, HI } from './i18n.js';
 import { TOWER_IDS, flatsForTower } from './tower-plan.js';
 import { installModalA11y, installOfflineBanner, installSlowConnectionBanner, isOffline, installPasswordToggles } from './ui-a11y.js';
+import { imgTag } from './html-helpers.js';
 import { hideAppLoader } from './premium.js';
 
 /* Accessibility + offline live in a Firebase-free module and are installed
@@ -1821,7 +1823,7 @@ window.__renderCommittee = (rows) => {
   const esc = (s) => { const d = document.createElement('div'); d.textContent = String(s ?? ''); return d.innerHTML; };
   const cardHTML = (m) => `
     <div class="committee-card">
-      <img src="${esc(m.photoURL || LOGO_DATA_URI)}" alt="">
+      ${imgTag(m.photoURL || LOGO_DATA_URI, 'alt=""')}
       <div class="nm" data-no-translate>${esc(m.name)}</div>
       <div class="role">${esc(m.role)}</div>
     </div>`;
@@ -2087,13 +2089,14 @@ import {
 import {
   ref as storageRef, uploadBytes, getDownloadURL
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-storage.js";
+import { imgTag } from './html-helpers.js';
 import {
   showToast, escapeHtml, fmtDate, formatINR, currentFinancialYear, financialYearOptions,
   generateReceiptPDF, printReceipt, validatePayment, validateRegistration,
   generateMembershipCard, duesFor, DUES_LABEL, DUES_BADGE,
   generateRegistrationConfirmationPDF,
   generateStatementPDF, skeletonList, emptyState, showFieldError, clearFieldErrors,
-  membershipDue, membershipFeeAmount, paymentDetails, eventDue,
+  membershipDue, membershipFeeAmount, paymentDetails, eventDue, bookingSlotAvailability, validateRentAgreementDates,
   waShareText, downloadImageFromUrl,
   initFamilyMembersEditor, addFamilyMemberRow, collectFamilyMembers,
   initVehiclesEditor, addVehicleRow, collectVehicles,
@@ -2245,7 +2248,7 @@ async function fetchFeeQrIfNeeded() {
     const upiId = snap.exists() ? snap.data().upiId : '';
     const wrap = document.getElementById('regFeeQrWrap');
     wrap.innerHTML = url
-      ? `<img src="${url}" alt="Payment QR" style="max-width:200px; border-radius:12px; border:1px solid var(--line,#E2E6EF);">${upiId ? `<p class="t-muted" style="font-size:12px; margin-top:8px;">UPI ID: ${escapeHtml(upiId)}</p>` : ''}`
+      ? `${imgTag(url, 'alt="Payment QR" style="max-width:200px; border-radius:12px; border:1px solid var(--line,#E2E6EF);"')}${upiId ? `<p class="t-muted" style="font-size:12px; margin-top:8px;">UPI ID: ${escapeHtml(upiId)}</p>` : ''}`
       : `<p class="t-muted" style="font-size:12.5px;">QR code not configured yet — pay via the office directly, or from your dashboard once approved.</p>`;
   } catch (e) {
     document.getElementById('regFeeQrWrap').innerHTML = '<p class="t-muted" style="font-size:12.5px;">Could not load the QR code right now — you can pay from your dashboard once approved.</p>';
@@ -3072,7 +3075,14 @@ onAuthStateChanged(auth, async (user) => {
     // there's no reason for the polls-query to sit behind the whole
     // dashboard-load finishing first — same reasoning as the earlier fix
     // to loadPayments/loadMyPets/loadMyComplaints.
+    pollsMemberSettled = false;
     await Promise.allSettled([loadDashboard(user.uid), loadPolls()]);
+    // loadPolls() above ran IN PARALLEL with loadDashboard() — which is what
+    // fills in currentMember. If the polls came back first they were drawn
+    // while the resident's approval status was still unknown, so now that it
+    // is, draw them once more with the real answer.
+    pollsMemberSettled = true;
+    if (window.__activePolls?.length) renderPolls();
     loadNotificationCenter();
   } else {
     window.__loggedIn = false;
@@ -3082,6 +3092,7 @@ onAuthStateChanged(auth, async (user) => {
     if (unsubscribePaymentUpdates) { unsubscribePaymentUpdates(); unsubscribePaymentUpdates = null; }
     if (unsubscribeComplaintUpdates) { unsubscribeComplaintUpdates(); unsubscribeComplaintUpdates = null; }
     if (unsubscribeBookingUpdates) { unsubscribeBookingUpdates(); unsubscribeBookingUpdates = null; }
+    liveListenerFailures.clear(); refreshLiveUpdatesBanner();
     window.__setDynamicLabel(navBtn, 'Resident Login');
     navBtn.onclick = () => window.__goToPortal('login');
     portal.style.display = 'block';
@@ -3194,7 +3205,7 @@ async function loadDashboard(uid) {
   content.innerHTML = `
     <div class="card status-card">
       <div class="status-head">
-        <img src="${escapeHtml(currentMember.photoURL || LOGO_DATA_URI)}" alt="">
+        ${imgTag(currentMember.photoURL || LOGO_DATA_URI, 'alt=""')}
         <div style="min-width:0;">
           <div style="font-weight:600; font-size:16px;">${escapeHtml(currentMember.name)}</div>
           <div class="t-sub" style="font-size:13px;">${escapeHtml(currentMember.tower)} · Flat ${escapeHtml(currentMember.flatNumber)}</div>
@@ -3831,15 +3842,58 @@ function subscribeGateVisitors(member) {
   const key = flatKey(member.tower, member.flatNumber);
   const q = query(collection(db, 'visitors'), where('flatKey', '==', key));
   unsubscribeGateVisitors = onSnapshot(q, (snap) => {
+    noteListenerOk('Gate visitors');
     const rows = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     rows.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
     renderGateCard(rows);
-  }, (err) => console.warn('Gate visitors listener failed:', err?.code || err));
+  }, (err) => noteListenerFailure('Gate visitors', err));
 }
 
 // A short debounce so several documents changing together (a batch write,
 // or just normal snapshot chunking) collapses into one reload instead of
 // firing the underlying load function repeatedly in quick succession.
+/* ---------------------------------------------------------------------- */
+/*  Live-update health. Each listener below used to log a console warning  */
+/*  on failure and nothing else — the resident kept looking at a screen    */
+/*  that had silently stopped updating, with no sign it had. Now a failed  */
+/*  listener raises a visible banner with a Retry, and the banner clears   */
+/*  itself once every failed listener delivers data again.                 */
+/* ---------------------------------------------------------------------- */
+const liveListenerFailures = new Set();
+function refreshLiveUpdatesBanner() {
+  let b = document.getElementById('liveUpdatesBanner');
+  if (!liveListenerFailures.size) { b?.remove(); return; }
+  if (b) return;
+  b = document.createElement('div');
+  b.id = 'liveUpdatesBanner';
+  b.className = 'offline-banner slow-connection-banner';
+  b.setAttribute('role', 'status');
+  b.innerHTML = `<span>Live updates paused — what you see may be out of date.</span>
+    <button type="button" id="liveUpdatesRetryBtn" class="btn btn-sm" style="background:#fff; color:#6b4a14; margin-left:6px;">Retry</button>`;
+  document.body.appendChild(b);
+  b.querySelector('#liveUpdatesRetryBtn').addEventListener('click', retryLiveListeners);
+}
+function noteListenerFailure(name, err) {
+  console.warn(`${name} listener failed:`, err?.code || err);
+  liveListenerFailures.add(name);
+  refreshLiveUpdatesBanner();
+}
+function noteListenerOk(name) {
+  if (liveListenerFailures.delete(name)) refreshLiveUpdatesBanner();
+}
+function retryLiveListeners() {
+  liveListenerFailures.clear();
+  refreshLiveUpdatesBanner();
+  const uid = currentUser?.uid;
+  if (!uid) return;
+  subscribeGateVisitors(currentMember);
+  subscribePaymentUpdates(uid);
+  subscribeComplaintUpdates(uid);
+  subscribeBookingUpdates(uid);
+  // Changes made while updates were paused were missed — catch up right now.
+  loadPayments(uid, true); loadMyComplaints(uid); loadMyBookings(uid);
+}
+
 function debounceReload(fn, ms = 600) {
   let t = null;
   return () => { clearTimeout(t); t = setTimeout(fn, ms); };
@@ -3883,9 +3937,10 @@ function subscribePaymentUpdates(uid) {
   const reload = debounceReload(() => { if (isOwnActionInProgress()) pendingRefreshOnModalClose = true; else loadPayments(uid, true); });
   const q = query(collection(db, 'payments'), where('memberUid', '==', uid));
   unsubscribePaymentUpdates = onSnapshot(q, () => {
+    noteListenerOk('Payment updates');
     if (first) { first = false; return; }   // the initial dashboard load already covers this fire
     reload();
-  }, (err) => console.warn('Payment updates listener failed:', err?.code || err));
+  }, (err) => noteListenerFailure('Payment updates', err));
 }
 
 function subscribeComplaintUpdates(uid) {
@@ -3895,9 +3950,10 @@ function subscribeComplaintUpdates(uid) {
   const reload = debounceReload(() => { if (isOwnActionInProgress()) pendingRefreshOnModalClose = true; else loadMyComplaints(uid); });
   const q = query(collection(db, 'complaints'), where('raisedByUid', '==', uid));
   unsubscribeComplaintUpdates = onSnapshot(q, () => {
+    noteListenerOk('Complaint updates');
     if (first) { first = false; return; }
     reload();
-  }, (err) => console.warn('Complaint updates listener failed:', err?.code || err));
+  }, (err) => noteListenerFailure('Complaint updates', err));
 }
 
 function subscribeBookingUpdates(uid) {
@@ -3907,9 +3963,10 @@ function subscribeBookingUpdates(uid) {
   const reload = debounceReload(() => { if (isOwnActionInProgress()) pendingRefreshOnModalClose = true; else loadMyBookings(uid); });
   const q = query(collection(db, 'facilityBookings'), where('memberUid', '==', uid));
   unsubscribeBookingUpdates = onSnapshot(q, () => {
+    noteListenerOk('Booking updates');
     if (first) { first = false; return; }
     reload();
-  }, (err) => console.warn('Booking updates listener failed:', err?.code || err));
+  }, (err) => noteListenerFailure('Booking updates', err));
 }
 
 const GATE_PURPOSE_LABEL = { guest: 'Guest', delivery: 'Delivery', cab: 'Cab', service: 'Service', other: 'Other' };
@@ -3962,37 +4019,19 @@ async function decideGateVisitor(id, status) {
 /*  way a guest waiting at the gate is, so a plain fetch on dashboard load */
 /*  is enough — same pattern as loadMyBookings, not onSnapshot.            */
 /* ---------------------------------------------------------------------- */
-// Society accounts, at a glance — the admin side already publishes this
-// (publicFinancialSummary/{fy}, publicly readable) every time expenses or
-// payments change, but nothing on the resident side ever read it back.
-async function loadFinancialSummaryCard() {
-  const el = document.getElementById('financialSummaryCard');
-  if (!el) return;
-  try {
-    const fy = currentFinancialYear();
-    const snap = await getDoc(doc(db, 'publicFinancialSummary', fy));
-    if (!snap.exists()) { el.innerHTML = ''; return; }
-    const s = snap.data();
-    const cats = Object.entries(s.categories || {}).sort((a, b) => b[1] - a[1]).slice(0, 4);
-    el.innerHTML = `
-      <div class="card card-pad">
-        <div class="t-muted" style="font-size:12px; margin-bottom:10px;">Society Accounts &middot; FY ${escapeHtml(fy)}</div>
-        <div style="display:flex; gap:16px; flex-wrap:wrap; margin-bottom:${cats.length ? '12px' : '0'};">
-          <div><div class="t-muted" style="font-size:11.5px;">Collected</div><b style="font-size:16px;">${formatINR(s.collected || 0)}</b></div>
-          <div><div class="t-muted" style="font-size:11.5px;">Spent</div><b style="font-size:16px;">${formatINR(s.spent || 0)}</b></div>
-          <div><div class="t-muted" style="font-size:11.5px;">Balance</div><b style="font-size:16px;">${formatINR(s.balance || 0)}</b></div>
-        </div>
-        ${cats.length ? `<div style="font-size:12px;">${cats.map(([k, v]) => `<span style="margin-right:12px;">${escapeHtml(k)}: ${formatINR(v)}</span>`).join('')}</div>` : ''}
-      </div>`;
-  } catch (e) { console.warn('Financial summary load failed:', e?.code || e); el.innerHTML = ''; }
-}
-
 async function loadInspectionsCard() {
   const el = document.getElementById('inspectionsCard');
   if (!el) return;
   try {
-    const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
-    const snap = await getDocs(query(collection(db, 'inspections'), where('createdAt', '>=', startOfMonth)));
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    // The weekly summary reaches back to the start of the current week, which
+    // in the first days of a month began in the PREVIOUS month — fetching only
+    // from the 1st silently dropped those days from "This Week". Same week
+    // definition renderInspectionsCard uses (Sunday start).
+    const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay());
+    const fetchFrom = startOfWeek < startOfMonth ? startOfWeek : startOfMonth;
+    const snap = await getDocs(query(collection(db, 'inspections'), where('createdAt', '>=', fetchFrom)));
     const all = snap.docs.map(d => ({ id: d.id, ...d.data() }))
       .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
     renderInspectionsCard(all);
@@ -4011,7 +4050,12 @@ function renderInspectionsCard(all) {
   const startOfToday = new Date(now); startOfToday.setHours(0, 0, 0, 0);
   const startOfWeek = new Date(startOfToday); startOfWeek.setDate(startOfToday.getDate() - now.getDay());
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  const ms = (r) => (r.createdAt?.seconds ? r.createdAt.seconds * 1000 : 0);
+  // Bucketed by when the work was actually done (inspectionDate) where it's
+  // recorded, falling back to the submission time for older records — the
+  // same basis the admin schedule and reports use. Anything with an
+  // inspectionDate was necessarily submitted on/after it, so it's always
+  // inside the createdAt window fetched above.
+  const ms = (r) => (r.inspectionDate ? new Date(r.inspectionDate + 'T12:00:00').getTime() : (r.createdAt?.seconds ? r.createdAt.seconds * 1000 : 0));
 
   const period = (start) => {
     const rows = all.filter(r => ms(r) >= start.getTime());
@@ -4191,8 +4235,64 @@ function openBookingModal() {
   sel.innerHTML = allActiveFacilities.map(f => `<option value="${f.id}">${escapeHtml(f.name)}</option>`).join('');
   document.getElementById('bookingForm').reset();
   document.getElementById('bk-date').min = todayLocalISO();
+  refreshBookingAvailability();   // clears any note/disabled state left from the last time
   document.getElementById('bookingModalBackdrop').classList.add('open');
 }
+
+// Which slots are already booked for the chosen facility + date, shown while
+// the resident is still filling the form. Previously every slot always looked
+// free, so a busy one could be requested and only turn out to be taken when
+// the committee came to approve it. The committee's atomic approval-time lock
+// remains the authority — this is a courtesy so people pick a free slot first.
+// Residents may read facilitySlots (signed-in only, per the rules).
+let bookingAvailabilityToken = 0;
+const BOOKING_SLOT_LABELS = { morning: 'Morning', evening: 'Evening', full_day: 'Full Day' };
+async function refreshBookingAvailability() {
+  const token = ++bookingAvailabilityToken;
+  const facilityId = document.getElementById('bk-facility')?.value;
+  const date = document.getElementById('bk-date')?.value;
+  const slotSel = document.getElementById('bk-slot');
+  const note = document.getElementById('bk-avail-note');
+  const submitBtn = document.querySelector('#bookingForm button[type="submit"]');
+  if (!slotSel || !note) return { checked: false };
+  const paint = (unavailable) => {
+    [...slotSel.options].forEach((o) => {
+      const taken = !!unavailable?.[o.value];
+      o.disabled = taken;
+      o.textContent = BOOKING_SLOT_LABELS[o.value] + (taken ? ' — already booked' : '');
+    });
+  };
+  if (!facilityId || !date) { paint(null); note.textContent = ''; if (submitBtn) submitBtn.disabled = false; return { checked: false }; }
+  note.textContent = 'Checking availability…';
+  let taken;
+  try {
+    const slots = Object.keys(BOOKING_SLOT_LABELS);
+    const snaps = await Promise.all(slots.map((s) => getDoc(doc(db, 'facilitySlots', `${facilityId}_${date}_${s}`))));
+    taken = slots.filter((_, i) => snaps[i].exists());
+  } catch (e) {
+    if (token !== bookingAvailabilityToken) return { stale: true };
+    console.warn('Slot availability lookup failed:', e?.code || e);
+    paint(null);
+    note.textContent = "Couldn't check which slots are free — you can still send the request and the committee will confirm.";
+    if (submitBtn) submitBtn.disabled = false;
+    return { checked: false };
+  }
+  if (token !== bookingAvailabilityToken) return { stale: true };   // a newer facility/date choice superseded this lookup
+  const unavailable = bookingSlotAvailability(taken);
+  paint(unavailable);
+  const free = Object.keys(unavailable).filter((s) => !unavailable[s]);
+  if (!free.length) {
+    note.textContent = 'Every slot is already booked on this date — please choose another date.';
+    if (submitBtn) submitBtn.disabled = true;
+  } else {
+    if (unavailable[slotSel.value]) slotSel.value = free[0];
+    note.textContent = Object.values(unavailable).some(Boolean) ? 'Some slots on this date are already booked.' : '';
+    if (submitBtn) submitBtn.disabled = false;
+  }
+  return { checked: true, unavailable };
+}
+document.getElementById('bk-facility')?.addEventListener('change', refreshBookingAvailability);
+document.getElementById('bk-date')?.addEventListener('change', refreshBookingAvailability);
 document.getElementById('closeBookingModal')?.addEventListener('click', () => document.getElementById('bookingModalBackdrop').classList.remove('open'));
 document.getElementById('bookingForm')?.addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -4201,7 +4301,16 @@ document.getElementById('bookingForm')?.addEventListener('submit', async (e) => 
   if (!facility) return;
   const btn = f.querySelector('button[type=submit]');
   setLoading(btn, true);
+  let blockedBySlot = false;
   try {
+    // Re-check just before sending — someone's booking may have been approved
+    // since the date was picked. (Approval still enforces it atomically.)
+    const av = await refreshBookingAvailability();
+    if (av?.checked && av.unavailable[f.slot.value]) {
+      blockedBySlot = true;
+      showToast('That slot has just been booked — please choose another.', 'error');
+      return;
+    }
     await addDoc(collection(db, 'facilityBookings'), {
       memberUid: currentUser.uid, facilityId: facility.id, facilityName: facility.name,
       date: f.date.value, slot: f.slot.value, purpose: f.purpose.value.trim() || null,
@@ -4212,7 +4321,7 @@ document.getElementById('bookingForm')?.addEventListener('submit', async (e) => 
     document.getElementById('bookingModalBackdrop').classList.remove('open');
     await loadMyBookings(currentUser.uid);
   } catch (err) { showToast(`Could not submit${err?.code ? ` (${err.code})` : ''}.`, 'error'); }
-  finally { setLoading(btn, false); }
+  finally { setLoading(btn, false); if (blockedBySlot) await refreshBookingAvailability(); }
 });
 
 /* ======================= Community: Expected Guests ======================= */
@@ -4354,13 +4463,13 @@ function renderMyComplaints() {
         <span><b>${escapeHtml(c.title)}</b> <span class="t-muted" style="font-size:11.5px;">(${escapeHtml(COMPLAINT_CATEGORY_LABEL_R[c.category] || c.category)})</span></span>
         <span class="t-muted" style="font-size:12px;">${escapeHtml(COMPLAINT_STATUS_LABEL_R[c.status] || c.status)}</span>
       </div>
-      ${c.photoURL ? `<img src="${escapeHtml(c.photoURL)}" alt="" style="max-width:220px; border-radius:8px; margin-top:4px;">`
+      ${c.photoURL ? `${imgTag(c.photoURL, 'alt="" style="max-width:220px; border-radius:8px; margin-top:4px;"')}`
         : ['open', 'in_progress'].includes(c.status) ? `
           <div style="width:100%;">
             <label class="btn btn-outline btn-sm" style="display:inline-block; cursor:pointer;">Add photo<input type="file" accept="image/*" data-add-photo="${i}" style="display:none;"></label>
           </div>` : ''}
       ${c.resolutionNote ? `<p class="t-muted" style="font-size:12px; margin:0;">${escapeHtml(c.resolutionNote)}</p>` : ''}
-      ${c.resolutionPhotoURL ? `<img src="${escapeHtml(c.resolutionPhotoURL)}" alt="" style="max-width:220px; border-radius:8px; margin-top:4px;">` : ''}
+      ${c.resolutionPhotoURL ? `${imgTag(c.resolutionPhotoURL, 'alt="" style="max-width:220px; border-radius:8px; margin-top:4px;"')}` : ''}
       ${canVerify ? `
         <div style="width:100%; background:var(--paper,#FAF7F0); border:1px solid var(--line,#EAE6DC); border-radius:8px; padding:8px 10px; margin-top:4px;">
           <div style="font-size:12px; font-weight:600; margin-bottom:6px;">Staff marked this fixed. Is it actually resolved?</div>
@@ -4558,6 +4667,8 @@ document.getElementById('profileEditForm')?.addEventListener('submit', async (e)
     updatedAt: serverTimestamp()
   };
   if (currentMember.residentType === 'tenant') {
+    const rentErr = validateRentAgreementDates(f.rentAgreementStart.value, f.rentAgreementEnd.value);
+    if (rentErr) { showToast(rentErr, 'error'); f.rentAgreementEnd.focus(); return; }
     patch.rentAgreementStart = f.rentAgreementStart.value || null;
     patch.rentAgreementEnd = f.rentAgreementEnd.value || null;
   }
@@ -5283,7 +5394,7 @@ function renderPayDetailForm(mode, paySettings, payContext) {
       ` : `
         <div class="qr-box" style="margin-bottom:14px;">
           ${paySettings.qrCodeImageURL ? `
-            <img src="${escapeHtml(paySettings.qrCodeImageURL)}" alt="Payment QR">
+            ${imgTag(paySettings.qrCodeImageURL, 'alt="Payment QR"')}
             <button type="button" class="qr-download-btn" id="qrDownloadBtn">
               <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 4v11m0 0l-4-4m4 4l4-4M5 19h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
               Download QR
@@ -5613,6 +5724,7 @@ function renderCalendar() {
    vote per poll, and show them the result once they have. Not logged in?
    They still see the question, just with a "login to vote" nudge instead
    of clickable options — the poll itself is public read. */
+let pollsMemberSettled = true; // false only during the login-time parallel load (see the auth handler)
 async function loadPolls() {
   const el = document.getElementById('pollsList');
   if (el && !el.dataset.loaded) el.innerHTML = skeletonList(2);
@@ -5651,7 +5763,13 @@ async function renderPollResults(pollId, poll, box) {
         </div>`;
       }).join('')}
     `;
-  } catch (e) { box.innerHTML = ''; }
+  } catch (e) {
+    // Used to blank the box — indistinguishable from "no results yet", with
+    // no hint anything had gone wrong. Say so, and offer a retry.
+    console.warn('Poll results load failed:', e?.code || e);
+    box.innerHTML = `<p class="t-muted" style="font-size:12px;">Couldn't load the results. <button type="button" class="btn btn-outline btn-sm" data-poll-results-retry>Retry</button></p>`;
+    box.querySelector('[data-poll-results-retry]')?.addEventListener('click', () => renderPollResults(pollId, poll, box));
+  }
 }
 async function renderPolls() {
   const el = document.getElementById('pollsList');
@@ -5668,18 +5786,38 @@ async function renderPolls() {
   // paint instead of flickering from one to the other.
   const items = await Promise.all(polls.map(async (p) => {
     if (!currentUser) return { poll: p, hasVoted: false, myOption: null, loggedOut: true };
-    if (currentMember?.status !== 'approved') return { poll: p, hasVoted: false, myOption: null, notApproved: true };
+    if (currentMember?.status !== 'approved') {
+      // Not-yet-known is not the same as not-approved: during the login-time
+      // parallel load the member record may simply not have arrived yet.
+      if (!pollsMemberSettled) return { poll: p, hasVoted: false, myOption: null, checkingMember: true };
+      return { poll: p, hasVoted: false, myOption: null, notApproved: true };
+    }
     try {
       const voteSnap = await getDoc(doc(db, 'polls', p.id, 'votes', currentUser.uid));
       return { poll: p, hasVoted: voteSnap.exists(), myOption: voteSnap.exists() ? voteSnap.data().option : null };
     } catch (e) {
-      // Can't tell — default to showing vote buttons; a genuine repeat
-      // attempt is still safely rejected by the rules either way.
-      return { poll: p, hasVoted: false, myOption: null };
+      // Can't tell whether they've voted. Guessing "not voted" would show an
+      // existing voter fresh vote buttons (the rules would reject a repeat,
+      // but the screen would still be misleading) — so this is its own
+      // state, with a retry, rather than a silent default.
+      return { poll: p, hasVoted: false, myOption: null, lookupFailed: true };
     }
   }));
 
-  el.innerHTML = items.map(({ poll, hasVoted, myOption, loggedOut, notApproved }) => {
+  el.innerHTML = items.map(({ poll, hasVoted, myOption, loggedOut, notApproved, lookupFailed, checkingMember }) => {
+    if (checkingMember) {
+      return `<div class="card card-pad" style="margin-bottom:14px;">
+        <h4 style="margin-bottom:6px;">${escapeHtml(poll.question)}</h4>
+        <p class="t-muted" style="font-size:12.5px;">Checking your membership…</p>
+      </div>`;
+    }
+    if (lookupFailed) {
+      return `<div class="card card-pad" style="margin-bottom:14px;">
+        <h4 style="margin-bottom:6px;">${escapeHtml(poll.question)}</h4>
+        <p class="t-muted" style="font-size:12.5px; margin-bottom:8px;">Couldn't check whether you've already voted on this poll.</p>
+        <button type="button" class="btn btn-outline btn-sm" data-poll-retry>Retry</button>
+      </div>`;
+    }
     if (loggedOut) {
       return `<div class="card card-pad" style="margin-bottom:14px;">
         <h4 style="margin-bottom:6px;">${escapeHtml(poll.question)}</h4>
@@ -5705,6 +5843,7 @@ async function renderPolls() {
     </div>`;
   }).join('');
   window.__translate(el);
+  el.querySelectorAll('[data-poll-retry]').forEach(btn => btn.addEventListener('click', () => renderPolls()));
 
   el.querySelectorAll('.poll-vote-btn').forEach(btn => {
     btn.addEventListener('click', async () => {

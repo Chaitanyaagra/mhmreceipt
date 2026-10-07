@@ -120,6 +120,18 @@ if ('serviceWorker' in navigator) {
 }
 </script>
 
+<!-- Offline banner in its own tiny module that imports ONLY the Firebase-free
+     ui-a11y.js. It used to be installed from the main module below, whose
+     static imports include the Firebase SDK from a CDN — if any one of those
+     fails to load, the browser never evaluates that module at all, so the
+     offline banner (the very thing meant to explain a bad connection) would
+     vanish exactly when the connection is the problem. The resident, admin
+     pages already work this way. -->
+<script type="module">
+import { installOfflineBanner } from './ui-a11y.js';
+installOfflineBanner();
+</script>
+
 <script type="module">
 import { auth, db, storage } from './firebase-config.js';
 import {
@@ -132,9 +144,7 @@ import {
   ref as storageRef, uploadBytes, getDownloadURL
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-storage.js";
 import { showToast, escapeHtml, fmtDate, fmtDateTime, TOWER_IDS, TOWER_PLAN, INSPECTION_TYPES, INSPECTION_SCHEDULE, INSPECTION_CRITICAL_ITEMS, DEFECT_TAG_OPTIONS, inspectionSectionToComplaintCategory, STAFF_TRADES, dateToLocalISO, todayLocalISO, complaintUrgency, COMPLAINT_SLA_HOURS } from './app-common.js';
-import { installOfflineBanner } from './ui-a11y.js';
 import { installAppInstallPrompt } from './install-prompt.js';
-installOfflineBanner();
 installAppInstallPrompt({ appName: 'MHMRWS Staff', showToast });
 
 let currentStaff = null; // {uid, name, role}
@@ -752,7 +762,9 @@ function renderChecklist() {
         <div class="chk-section-head">Weekly Readings</div>
         <div style="padding:10px 12px;">
           ${INSPECTION_TYPES['weekly-mep'].readings.map((label) => `
-            <div class="field"><label>${escapeHtml(label)} <span class="t-muted" style="font-weight:400; font-size:11px;">(${escapeHtml(INSPECTION_TYPES['weekly-mep'].READING_HINTS?.[label] || '')})</span></label><input type="text" inputmode="decimal" value="${escapeHtml(draft.readingsData[label] || '')}" data-reading="${escapeHtml(label)}"></div>`).join('')}
+            <div class="field"><label>${escapeHtml(label)} <span class="t-muted" style="font-weight:400; font-size:11px;">(${escapeHtml(INSPECTION_TYPES['weekly-mep'].READING_HINTS?.[label] || '')})</span></label><input type="text" inputmode="decimal" value="${escapeHtml(draft.readingsData[label] || '')}" data-reading="${escapeHtml(label)}">
+              <div class="t-muted" data-reading-warn="${escapeHtml(label)}" style="display:${draft.readingsData[label] && isNaN(parseFloat(draft.readingsData[label])) ? 'block' : 'none'}; font-size:10.5px; color:var(--warning,#B8860B); margin-top:2px;">Doesn't look like a number — OK if that's intentional (e.g. sensor not working).</div>
+            </div>`).join('')}
         </div>
       </div>
       <div class="chk-section">
@@ -772,8 +784,8 @@ function renderChecklist() {
         <div class="chk-section-head">Attendance</div>
         <div style="padding:10px 12px;">
           <div class="field"><label>Consent Forms Attached (nos)</label><input type="text" inputmode="numeric" value="${escapeHtml(draft.consentForms)}" data-field="consentForms"></div>
-          <div class="field"><label>Gym Attendance (nos)</label><input type="text" inputmode="numeric" value="${escapeHtml(draft.gymAttendance)}" data-field="gymAttendance"></div>
-          <div class="field"><label>Swim Attendance (nos)</label><input type="text" inputmode="numeric" value="${escapeHtml(draft.swimAttendance)}" data-field="swimAttendance"></div>
+          <div class="field"><label>Gym Attendance (nos)</label><input type="number" min="0" step="1" value="${escapeHtml(draft.gymAttendance)}" data-field="gymAttendance"></div>
+          <div class="field"><label>Swim Attendance (nos)</label><input type="number" min="0" step="1" value="${escapeHtml(draft.swimAttendance)}" data-field="swimAttendance"></div>
         </div>
       </div>` : ''}
     <div class="chk-section">
@@ -816,7 +828,11 @@ function renderChecklist() {
     draft.tankData[t][ci] = draft.tankData[t][ci] === (val === 'true') ? null : (val === 'true');
     renderChecklist();
   });
-  el.querySelectorAll('[data-reading]').forEach(inp => inp.addEventListener('input', () => { draft.readingsData[inp.dataset.reading] = inp.value; }));
+  el.querySelectorAll('[data-reading]').forEach(inp => inp.addEventListener('input', () => {
+    draft.readingsData[inp.dataset.reading] = inp.value;
+    const warn = el.querySelector(`[data-reading-warn="${inp.dataset.reading}"]`);
+    if (warn) warn.style.display = (inp.value && isNaN(parseFloat(inp.value))) ? 'block' : 'none';
+  }));
   document.getElementById('inspChangeTypeBtn')?.addEventListener('click', () => {
     if (!confirm('Discard this in-progress checklist and pick a different inspection type?')) return;
     draft = null;
@@ -1070,7 +1086,7 @@ async function submitInspection() {
         raisedByUid: currentStaff.uid,
         title: it.label,
         description: (it.note || 'Flagged during ' + INSPECTION_TYPES[snap.formType].label + (snap.tower ? ' — Tower ' + snap.tower : '') + '.'),
-        category: inspectionSectionToComplaintCategory(it.label + ' ' + it.section),
+        category: inspectionSectionToComplaintCategory(it.label, it.section),
         status: 'open',
         source: 'inspection',
         sourceInspectionId: inspRef.id,
@@ -1218,10 +1234,32 @@ function renderComplaints() {
     const file = inp.files?.[0];
     if (file) addStaffComplaintPhoto(inp.dataset.addStaffPhoto, file);
   }));
-  el.querySelectorAll('[data-advance]').forEach(b => b.onclick = () => {
-    const note = el.querySelector(`[data-resolve-note="${b.dataset.advance}"]`)?.value?.trim() || '';
-    const photoFile = el.querySelector(`[data-resolve-photo="${b.dataset.advance}"]`)?.files?.[0] || null;
-    advanceComplaint(b.dataset.advance, b.dataset.next, note, photoFile);
+  el.querySelectorAll('[data-advance]').forEach(b => b.onclick = async () => {
+    const id = b.dataset.advance;
+    // One in-flight advance per complaint — a second tap while the (possibly
+    // slow, photo-carrying) first one is still running used to start a
+    // second upload and a second status write for the same complaint.
+    if (complaintAdvanceInFlight.has(id)) return;
+    const note = el.querySelector(`[data-resolve-note="${id}"]`)?.value?.trim() || '';
+    const photoFile = el.querySelector(`[data-resolve-photo="${id}"]`)?.files?.[0] || null;
+    // Same limits Storage enforces (under 8 MB, an image) — checked up front
+    // so a too-large photo is rejected in an instant, with a clear reason,
+    // rather than after the whole upload has crawled up a weak connection.
+    if (photoFile) {
+      if (photoFile.size >= 8 * 1024 * 1024) { showToast('That photo is too large — please choose one under 8 MB.', 'error'); return; }
+      if (!/^image\//.test(photoFile.type || '')) { showToast('Please attach an image file for the resolution photo.', 'error'); return; }
+    }
+    complaintAdvanceInFlight.add(id);
+    const origLabel = b.textContent;
+    b.disabled = true; b.textContent = 'Updating…';
+    try {
+      await advanceComplaint(id, b.dataset.next, note, photoFile);
+    } finally {
+      complaintAdvanceInFlight.delete(id);
+      // On success the list re-renders (this button is replaced); on failure
+      // the same button is still here and must be usable for a retry.
+      if (b.isConnected) { b.disabled = false; b.textContent = origLabel; }
+    }
   });
   el.querySelectorAll('[data-assign-save]').forEach(b => b.onclick = () => {
     const id = b.dataset.assignSave;
@@ -1267,6 +1305,7 @@ async function addStaffComplaintPhoto(complaintId, file) {
   }
 }
 
+const complaintAdvanceInFlight = new Set();
 async function advanceComplaint(id, nextStatus, note, photoFile) {
   try {
     const payload = { status: nextStatus, updatedAt: serverTimestamp() };

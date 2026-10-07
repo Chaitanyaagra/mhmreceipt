@@ -8,7 +8,7 @@
    Bump CACHE_NAME on any future structural change to force a clean cache.
    ========================================================================== */
 
-const CACHE_NAME = 'mhmrws-shell-v140';
+const CACHE_NAME = 'mhmrws-shell-v146';
 // Pinned Firebase SDK version used across every page (index/admin/staff/guard/
 // verify) — a specific version's content never changes, so caching these is
 // as safe as caching the vendored libraries below, and without this the app
@@ -19,6 +19,18 @@ const FIREBASE_SDK_FILES = [
   'https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js',
   'https://www.gstatic.com/firebasejs/12.18.0/firebase-storage.js',
   'https://www.gstatic.com/firebasejs/12.18.0/firebase-app-check.js'
+];
+// Export libraries (~1.6 MB together) are lazy-loaded on first use so they
+// never block page load — but "first use" could be while offline, with
+// nothing cached yet. Precached here at service-worker install instead
+// (a background task, not part of any page's load), so an export opened
+// offline for the very first time still finds its library.
+const EXPORT_LIBRARY_FILES = [
+  './jspdf.umd.min.js',
+  './xlsx.full.min.js',
+  './chart.umd.min.js',
+  './jszip.min.js',
+  './qrcode.local.js'
 ];
 const SHELL_FILES = [
   './',
@@ -33,6 +45,7 @@ const SHELL_FILES = [
   './avatar-placeholder.js',
   './premium.js',
   './ui-a11y.js',
+  './html-helpers.js',
   './install-prompt.js',
   './back-button-handler.js',
   './update-banner.js',
@@ -59,7 +72,7 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => Promise.all(
-        [...SHELL_FILES, ...FIREBASE_SDK_FILES].map((url) =>
+        [...SHELL_FILES, ...FIREBASE_SDK_FILES, ...EXPORT_LIBRARY_FILES].map((url) =>
           cache.add(url).catch((err) => console.warn('[sw] could not cache', url, err))
         )
       ))
@@ -89,13 +102,16 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       caches.match(event.request).then((cached) => {
         if (cached) return cached;
-        return fetch(event.request).then((response) => {
+        const networkFetch = fetch(event.request).then(async (response) => {
           if (response && response.ok) {
             const copy = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+            const cache = await caches.open(CACHE_NAME);
+            await cache.put(event.request, copy);
           }
           return response;
         });
+        event.waitUntil(networkFetch);
+        return networkFetch;
       })
     );
     return;
@@ -132,13 +148,16 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       caches.match(event.request).then((cached) => {
         if (cached) return cached;
-        return fetch(event.request).then((response) => {
+        const networkFetch = fetch(event.request).then(async (response) => {
           if (response && response.ok) {
             const copy = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+            const cache = await caches.open(CACHE_NAME);
+            await cache.put(event.request, copy);
           }
           return response;
         });
+        event.waitUntil(networkFetch);
+        return networkFetch;
       })
     );
     return;
@@ -148,10 +167,11 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     caches.match(event.request).then((cached) => {
       const networkFetch = fetch(event.request)
-        .then((response) => {
+        .then(async (response) => {
           if (response && response.ok) {
             const copy = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+            const cache = await caches.open(CACHE_NAME);
+            await cache.put(event.request, copy);
           }
           return response;
         })

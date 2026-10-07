@@ -5,7 +5,7 @@
      jsPDF, qrcode.js, SheetJS (XLSX), JSZip  — see each HTML file's <head>
    ========================================================================== */
 
-import { db } from './firebase-config.js';
+import { db, auth } from './firebase-config.js';
 import { TOWER_PLAN, TOWER_IDS, isValidFlat } from './tower-plan.js';
 import { AVATAR_PLACEHOLDER } from './avatar-placeholder.js';
 import {
@@ -167,6 +167,27 @@ export function validatePayment({ amount, mode, utr, isOffline }) {
  * people for details after the fact.
  * @returns {string|null} an error message, or null when the form is valid.
  */
+/** Rent-agreement dates: each, if given, must be a real calendar date
+ *  (YYYY-MM-DD) and the end must not be before the start. Returns an error
+ *  message, or null when fine (including when either/both are left empty —
+ *  they're optional). Both dates used to go straight into the saved record
+ *  unchecked, so an end date earlier than the start made the agreement-expiry
+ *  reminders meaningless. */
+export function validateRentAgreementDates(start, end) {
+  const s = String(start ?? '').trim();
+  const e = String(end ?? '').trim();
+  const real = (v) => {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v);
+    if (!m) return false;
+    const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+    return d.getFullYear() === Number(m[1]) && d.getMonth() === Number(m[2]) - 1 && d.getDate() === Number(m[3]);
+  };
+  if (s && !real(s)) return 'Agreement start date is not a valid date.';
+  if (e && !real(e)) return 'Agreement end date is not a valid date.';
+  if (s && e && e < s) return 'Agreement end date cannot be before the start date.';
+  return null;
+}
+
 export function validateRegistration(f, skipPassword = false) {
   const val = (k) => String(f[k]?.value ?? '').trim();
   const name = val('name');
@@ -215,6 +236,10 @@ export function validateRegistration(f, skipPassword = false) {
     if (f.password.value !== f.confirmPassword.value) return { field: 'confirmPassword', message: 'Passwords do not match.' };
   }
   if (!f.declaration.checked) return { field: 'declaration', message: 'Please check the declaration to continue.' };
+  if (residentType === 'tenant') {
+    const rentErr = validateRentAgreementDates(f.rentAgreementStart?.value, f.rentAgreementEnd?.value);
+    if (rentErr) return { field: 'rentAgreementEnd', message: rentErr };
+  }
   return null;
 }
 
@@ -371,7 +396,13 @@ export function paymentDetails(saved) {
 /** The configured one-time membership fee (falls back to the ₹1100 default). */
 export function membershipFeeAmount(maintenanceSettings) {
   const v = maintenanceSettings?.membershipFee;
-  return Number.isFinite(Number(v)) ? Number(v) : DEFAULT_MEMBERSHIP_FEE;
+  // Number(null) and Number('') are both 0 — so a stored null/empty fee used
+  // to pass the isFinite check and silently become a ₹0 membership fee
+  // (nobody owes anything) instead of falling back to the default. Unset
+  // (undefined/null/blank text) is not the same thing as an intentional 0.
+  if (v === undefined || v === null || (typeof v === 'string' && v.trim() === '')) return DEFAULT_MEMBERSHIP_FEE;
+  const n = Number(v);
+  return Number.isFinite(n) && n >= 0 ? n : DEFAULT_MEMBERSHIP_FEE;
 }
 
 /** Total verified membership payments a member has made (across all years). */
@@ -905,14 +936,75 @@ export const INSPECTION_SCHEDULE = {
   'weekly-mep':     { frequency: 'weekly', perTower: false }
 };
 
-export function inspectionSectionToComplaintCategory(sectionTitle) {
-  const t = String(sectionTitle || '').toLowerCase();
+// Which kind of staff a flagged inspection item should be routed to.
+//
+// The ITEM's own wording says what is actually wrong, so it is read first:
+// "Security Lighting Working" is a lighting (electrical) fault, "Main Gate
+// Clean" is a cleaning job, "No Water Leakage" is a leak — whichever area of
+// the society they happen to sit in. This used to be one keyword search over
+// "item + section" with location words checked first, so a gate, a basement
+// or a security area claimed every item inside it: lighting went to security,
+// cleaning to security, a basement water leak to parking.
+//
+// Only when the item's own wording names no recognisable fault does the
+// section/location decide (the original behaviour), and failing that the
+// category is the generic 'maintenance'. Order matters inside the nature
+// list: a "Clean"/"Housekeeping" item is a housekeeping job even when it
+// names equipment ("Pump Room Housekeeping").
+const INSPECTION_NATURE_RULES = [
+  ['housekeeping', /\b(clean|cleaning|dirty|housekeeping|garbage|waste|dust|sweep|pest|toilet|oil)\b/],
+  // Fire-fighting equipment and lifts stay with general maintenance whatever
+  // part of them is named ("Hose Pipes" under Fire Fighting System is not a
+  // plumber's job). Tested against label + section together for that reason.
+  ['maintenance',  /\b(lift|elevator|fire)\b/, true],
+  ['security',     /\b(cctv|camera|cameras|guard|visitor|barrier|boom|intercom|alarm|recording|register)\b/],
+  ['electrical',   /\b(light|lights|lighting|lamp|bulb|electrical|electric|switch|switches|wiring|transformer|panel|earthing|dg|amf|inverter)\b/],
+  ['plumbing',     /\b(leak|leaks|leakage|seepage|pipe|pipes|pipeline|tap|taps|drain|drainage|sewage|stp|pump|pumps|motor|motors|borewell|tank|overflow|valve|water)\b/]
+];
+function inspectionLocationCategory(text) {
+  const t = String(text || '').toLowerCase();
   if (t.includes('security') || t.includes('gate') || t.includes('cctv')) return 'security';
   if (t.includes('housekeeping') || t.includes('toilet') || t.includes('clean')) return 'housekeeping';
   if (t.includes('electrical') || t.includes('lighting') || t.includes('light')) return 'electrical';
   if (t.includes('water supply') || t.includes('sewage') || t.includes('stp') || t.includes('pool')) return 'plumbing';
   if (t.includes('parking') || t.includes('basement')) return 'parking';
   return 'maintenance';
+}
+/** `itemLabel` is the checklist item's own wording; `sectionTitle` (optional)
+ *  is the area/section it belongs to, used only as the fallback. */
+export function inspectionSectionToComplaintCategory(itemLabel, sectionTitle = '') {
+  const label = String(itemLabel || '').toLowerCase();
+  const withSection = `${label} ${String(sectionTitle || '').toLowerCase()}`;
+  for (const [category, re, includeSection] of INSPECTION_NATURE_RULES) {
+    if (re.test(includeSection ? withSection : label)) return category;
+  }
+  return inspectionLocationCategory(withSection);
+}
+
+/** OK / issue / unchecked counts for one saved inspection record — every
+ *  checklist item in `sections` AND every terrace-tank check in `tankData`
+ *  (true = OK, false = issue, null/missing = never checked). Staff
+ *  performance used to count `sections` only, so a weekly inspection with
+ *  every tank check skipped could still show 100% checked. */
+export function inspectionItemCounts(record) {
+  let ok = 0, issue = 0, unchecked = 0;
+  for (const sec of (record?.sections || [])) {
+    for (const it of (sec?.items || [])) {
+      if (it?.status === 'ok') ok++;
+      else if (it?.status === 'issue') issue++;
+      else unchecked++;
+    }
+  }
+  if (record?.tankData && typeof record.tankData === 'object') {
+    for (const checks of Object.values(record.tankData)) {
+      for (const v of (Array.isArray(checks) ? checks : [])) {
+        if (v === true) ok++;
+        else if (v === false) issue++;
+        else unchecked++;
+      }
+    }
+  }
+  return { ok, issue, unchecked };
 }
 
 // Calendar date as YYYY-MM-DD in the DEVICE's own local timezone.
@@ -936,6 +1028,47 @@ export function flatClaimId(tower, flatNumber, residentType) {
   const base = `${String(tower || '').trim()}_${String(flatNumber || '').trim()}`;
   const slot = residentType === 'tenant' ? 'tenant' : (residentType === 'owner' || residentType === 'jointowner') ? 'owner' : null;
   return slot ? `${base}_${slot}` : base;
+}
+
+/** Which booking slots can no longer be requested, given the slots that already
+ *  hold a lock for that facility+date. Mirrors the committee's approval check:
+ *  a Morning or Evening request conflicts with that slot OR a Full Day lock; a
+ *  Full Day request conflicts with ANY lock on that date.
+ *  `taken` is any iterable of slot names ('morning' | 'evening' | 'full_day'). */
+export function bookingSlotAvailability(taken) {
+  const t = new Set(taken || []);
+  const fullDay = t.has('full_day');
+  return {
+    morning: t.has('morning') || fullDay,
+    evening: t.has('evening') || fullDay,
+    full_day: t.has('morning') || t.has('evening') || fullDay
+  };
+}
+
+/** Does this approved member actually hold THEIR OWN flat claim?
+ *  Compares the expected claim ID (tower + flat + owner/tenant slot), the
+ *  claim's memberDocId and its tower/flat — not just "is anyone holding a
+ *  claim on this tower|flat". The old health check only asked the latter, so
+ *  a claim belonging to a different member, or sitting in the other
+ *  owner/tenant slot, passed as if it were this member's.
+ *  status: 'ok' | 'held-by-other' | 'mismatch' | 'elsewhere' | 'missing'. */
+export function checkMemberFlatClaim(member, flatClaims) {
+  const claims = Array.isArray(flatClaims) ? flatClaims : [];
+  const norm = (v) => String(v ?? '').trim();
+  const expectedId = flatClaimId(member.tower, member.flatNumber, member.residentType);
+  const legacyId = flatClaimId(member.tower, member.flatNumber, null);   // pre-owner/tenant-slot claims: "<tower>_<flat>"
+  const byId = new Map(claims.map((c) => [c.id, c]));
+  const atExpected = byId.get(expectedId);
+  if (atExpected) {
+    if (atExpected.memberDocId !== member.id) return { status: 'held-by-other', claimId: expectedId, holderId: atExpected.memberDocId };
+    if (norm(atExpected.tower) !== norm(member.tower) || norm(atExpected.flatNumber) !== norm(member.flatNumber)) return { status: 'mismatch', claimId: expectedId };
+    return { status: 'ok', claimId: expectedId };
+  }
+  const legacy = byId.get(legacyId);
+  if (legacy && legacy.memberDocId === member.id) return { status: 'ok', claimId: legacyId, legacy: true };
+  const own = claims.find((c) => c.memberDocId === member.id);
+  if (own) return { status: 'elsewhere', claimId: own.id };
+  return { status: 'missing' };
 }
 
 /* Used by the gate-security visitor log (guards/{uid}, visitors/{id} in
@@ -1103,18 +1236,86 @@ export function publicKeyForMember(member) {
 /*  audit trail, these writes must move into a Cloud Function, where        */
 /*  context.auth and the true request IP are observed server-side.          */
 /* ---------------------------------------------------------------------- */
-export async function logAudit(user, action, details = {}) {
+/* A failed activity-log write used to be swallowed completely: the action
+   itself had already succeeded, but its record just never existed, with no
+   sign anywhere that anything was missing. Failing the whole action over it
+   would be wrong (the money/approval already went through), so instead the
+   entry is kept in a small localStorage outbox, retried automatically (next
+   successful log, the browser coming back online, or the next admin login),
+   and the admin is told once per session that a record is pending — a
+   missing entry becomes a visible, recoverable state rather than silence.
+   Replayed entries keep the time the action actually happened
+   (actedAtClient) alongside the server timestamp of the eventual write. */
+const AUDIT_OUTBOX_KEY = 'mhmrws_audit_outbox_v1';
+let __auditFlushing = false;
+let __auditWarned = false;
+
+function readAuditOutbox() {
+  try { const a = JSON.parse(localStorage.getItem(AUDIT_OUTBOX_KEY) || '[]'); return Array.isArray(a) ? a : []; }
+  catch { return []; }
+}
+function writeAuditOutbox(list) {
+  try { localStorage.setItem(AUDIT_OUTBOX_KEY, JSON.stringify(list.slice(-200))); } catch { /* storage full/blocked — best effort */ }
+}
+export function pendingAuditCount() { return readAuditOutbox().length; }
+
+export async function flushAuditOutbox(user) {
+  if (__auditFlushing || !user?.uid) return 0;
+  __auditFlushing = true;
+  let sent = 0;
   try {
-    await addDoc(collection(db, 'auditLogs'), {
-      userId: user?.uid || 'system',
-      userEmail: user?.email || 'system',
-      action,
-      details,
-      source: 'client',   // honest about where this came from
-      timestamp: serverTimestamp()
-    });
+    const box = readAuditOutbox();
+    const remaining = [];
+    for (const entry of box) {
+      // userId must equal the signed-in admin (the rule) — leave another
+      // admin's pending entries for them to flush on their own login.
+      if (entry.userId !== user.uid) { remaining.push(entry); continue; }
+      try {
+        await addDoc(collection(db, 'auditLogs'), { ...entry, delayed: true, timestamp: serverTimestamp() });
+        sent++;
+      } catch (e) {
+        remaining.push(entry);
+        // Stop at the first failure — likely still offline; keep order.
+        remaining.push(...box.slice(box.indexOf(entry) + 1));
+        break;
+      }
+    }
+    writeAuditOutbox(remaining);
+  } finally { __auditFlushing = false; }
+  return sent;
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('online', () => { flushAuditOutbox(auth.currentUser).catch(() => {}); });
+}
+
+/* Returns true if the entry was written, false if it had to be queued.
+   Never throws — a logging problem must not fail the action it describes. */
+export async function logAudit(user, action, details = {}) {
+  const entry = {
+    userId: user?.uid || 'system',
+    userEmail: user?.email || 'system',
+    action,
+    details,
+    source: 'client',   // honest about where this came from
+    actedAtClient: Date.now()
+  };
+  try {
+    await addDoc(collection(db, 'auditLogs'), { ...entry, timestamp: serverTimestamp() });
+    if (readAuditOutbox().length) flushAuditOutbox(user).catch(() => {});
+    return true;
   } catch (e) {
-    console.warn('Activity log write failed:', e);
+    console.warn('Activity log write failed — queued for retry:', e);
+    try {
+      let safe = entry;
+      try { JSON.stringify(entry); } catch { safe = { ...entry, details: { note: 'details could not be saved' } }; }
+      writeAuditOutbox([...readAuditOutbox(), JSON.parse(JSON.stringify(safe))]);
+    } catch { /* nothing more can be done */ }
+    if (!__auditWarned) {
+      __auditWarned = true;
+      try { showToast('Done — but its activity-log entry could not be saved right now. It will retry automatically.', 'error'); } catch { /* ignore */ }
+    }
+    return false;
   }
 }
 
@@ -2308,20 +2509,35 @@ async function getDriveToken(clientId) {
 }
 
 async function driveFindOrCreateFolder(token, name, parentId = null) {
-  let q = `mimeType='application/vnd.google-apps.folder' and name='${name}' and trashed=false`;
-  if (parentId) q += ` and '${parentId}' in parents`;
+  // Drive query strings use single quotes — escape any in the name/parent
+  // rather than let them break (or inject into) the query.
+  const esc = (v) => String(v).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  let q = `mimeType='application/vnd.google-apps.folder' and name='${esc(name)}' and trashed=false`;
+  if (parentId) q += ` and '${esc(parentId)}' in parents`;
   const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name)`, {
     headers: { Authorization: `Bearer ${token}` }
   });
-  const data = await res.json();
-  if (data.files?.length) return data.files[0].id;
+  const data = await res.json().catch(() => null);
+  // A failed SEARCH (expired token, quota, network error body) must stop
+  // here. It used to fall straight through to "not found, so create it" —
+  // which meant a transient search failure silently made a brand-new
+  // duplicate folder on every backup, and a failed create then handed an
+  // undefined folder ID on to the upload.
+  if (!res.ok) {
+    throw new Error(`Could not look up the "${name}" folder in Google Drive: ${data?.error?.message || res.status}`);
+  }
+  if (data?.files?.length && data.files[0].id) return data.files[0].id;
   const metadata = { name, mimeType: 'application/vnd.google-apps.folder' };
   if (parentId) metadata.parents = [parentId];
-  const created = await fetch('https://www.googleapis.com/drive/v3/files', {
+  const createRes = await fetch('https://www.googleapis.com/drive/v3/files', {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify(metadata)
-  }).then(r => r.json());
+  });
+  const created = await createRes.json().catch(() => null);
+  if (!createRes.ok || !created?.id) {
+    throw new Error(`Could not create the "${name}" folder in Google Drive: ${created?.error?.message || createRes.status}`);
+  }
   return created.id;
 }
 

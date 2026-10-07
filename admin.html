@@ -87,6 +87,7 @@
   .side-nav .icon{ width:18px; height:18px; display:grid; place-items:center; flex-shrink:0; }
   .nav-section-label{ font-size:10.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:rgba(255,255,255,.38); padding:14px 12px 5px; }
   .nav-section-label:first-child{ padding-top:2px; }
+  body.money-read-only #recordPaymentBtn, body.money-read-only #pendingBulkBar, body.money-read-only #pendingSelectAll, body.money-read-only .pending-pay-check{ display:none !important; }
   /* Pending-work count — Members (pending approvals) and Payments (pending
      verification). Hidden entirely at zero so an empty queue doesn't nag. */
   .nav-badge{
@@ -2078,14 +2079,15 @@ import {
 import {
   ref as storageRef, uploadBytes, getDownloadURL, getStorage, deleteObject
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-storage.js";
+import { imgTag } from './html-helpers.js';
 import {
   loadScript, showToast, escapeHtml, smartMatch, fmtDate, fmtDateTime, formatINR, currentFinancialYear, financialYearForDate, financialYearOptions,
   complaintUrgency, COMPLAINT_SLA_HOURS,
-  generateMemberId, generateReceiptNumber, generateReceiptNumberAtomic, logAudit, generateReceiptPDF, generateIncomeExpenditurePDF, exportToExcel, parseExcelFile, PAYMENT_DEFAULTS, sanitizeUrl, safeStorageFilename, flatClaimId, findBlockingFlatClaim, generatePetId,
+  generateMemberId, generateReceiptNumber, generateReceiptNumberAtomic, logAudit, flushAuditOutbox, generateReceiptPDF, generateIncomeExpenditurePDF, exportToExcel, parseExcelFile, PAYMENT_DEFAULTS, sanitizeUrl, safeStorageFilename, flatClaimId, findBlockingFlatClaim, generatePetId,
   encryptFile, decryptToBlob, backupToDrive, waLink, waShareText, serializeForExport,
   newPublicToken, publicKeyForMember,
-  TOWER_IDS, TOWER_PLAN, flatsForTower, isValidFlat,
-  duesFor, DUES_LABEL, DUES_BADGE, maintenanceHealthStatus, membershipDue, eventDue,
+  TOWER_IDS, TOWER_PLAN, flatsForTower, isValidFlat, inspectionItemCounts, checkMemberFlatClaim, validateRentAgreementDates,
+  duesFor, DUES_LABEL, DUES_BADGE, maintenanceHealthStatus, membershipDue, membershipFeeAmount, eventDue,
   EXPENSE_CATEGORIES, EXPENSE_MODES, expenseSummary, fundPosition, treasurerDashboardStats, validateExpense,
   renderPager, skeletonTableRows, emptyState,
   initFamilyMembersEditor, addFamilyMemberRow, collectFamilyMembers,
@@ -2170,9 +2172,9 @@ const ROLE_NAV = {
   superadmin: ['overview','approvals','members','pets','payments','events','expenses','content','calendar','complaints','community','vendors','gateSecurity','facilityStaff','operations','polls','financials','importExport','settings','adminUsers','auditLog'],
   // Office-bearers can see where the money went even though only the
   // Treasurer may record it — that visibility is the point of the ledger.
-  president: ['overview','approvals','members','pets','events','expenses','content','calendar','complaints','community','gateSecurity','facilityStaff','operations','polls','auditLog'],
-  secretary: ['overview','approvals','members','pets','events','expenses','content','calendar','complaints','community','gateSecurity','facilityStaff','operations','polls','auditLog'],
-  jointsecretary: ['overview','approvals','members','pets','events','expenses','content','calendar','complaints','community','gateSecurity','facilityStaff','operations','polls','auditLog'],
+  president: ['overview','approvals','members','pets','payments','events','expenses','content','calendar','complaints','community','gateSecurity','facilityStaff','operations','polls','auditLog'],
+  secretary: ['overview','approvals','members','pets','payments','events','expenses','content','calendar','complaints','community','gateSecurity','facilityStaff','operations','polls','auditLog'],
+  jointsecretary: ['overview','approvals','members','pets','payments','events','expenses','content','calendar','complaints','community','gateSecurity','facilityStaff','operations','polls','auditLog'],
   treasurer: ['overview','approvals','members','pets','payments','events','expenses','calendar','community','vendors','financials','importExport','auditLog']
 };
 const ACTION_PERMS = {
@@ -2338,6 +2340,7 @@ onAuthStateChanged(auth, async (user) => {
   document.getElementById('adminName').textContent = currentAdmin.name || currentAdmin.email;
   document.getElementById('adminRole').textContent = ROLE_LABELS[currentAdmin.role] || currentAdmin.role || '';
   applyRoleNav();
+  flushAuditOutbox(user).catch(() => {});   // retry any activity-log entries a previous session couldn't save
   resetIdleTimer();   // start the inactivity clock for this session
   checkStorageAvailable();
   // Safety net: bootData() loads every section of the panel. Its own pieces
@@ -2365,6 +2368,11 @@ function applyRoleNav() {
   // Treasurer from being offered an action the rule (rightly) rejects.
   const importCard = document.getElementById('bulkImportResidentsCard');
   if (importCard) importCard.style.display = can('approveMembers') ? '' : 'none';
+  // Collection is visible to every office-bearer (rules let any admin read
+  // payments), but only the Treasurer/Super Admin may record or verify —
+  // so for everyone else the write controls are hidden, not left to fail
+  // with a permission error when clicked.
+  document.body.classList.toggle('money-read-only', !can('verifyPayments'));
 }
 
 /* ---- Tower → Flat dropdowns (same floor plan as the resident form) ---- */
@@ -3382,9 +3390,9 @@ function openComplaintDetail(id) {
     <div class="detail-line"><span>Category</span><span>${escapeHtml(COMPLAINT_CATEGORY_LABEL[c.category] || c.category || '—')}</span></div>
     <div class="detail-line"><span>Raised On</span><span>${fmtDate(c.createdAt)}</span></div>
     <div style="margin:12px 0;"><div class="t-muted" style="font-size:12px; margin-bottom:4px;">Description</div><p style="font-size:13.5px; white-space:pre-wrap;">${escapeHtml(c.description)}</p></div>
-    ${c.photoURL ? `<img src="${escapeHtml(c.photoURL)}" alt="" style="max-width:100%; border-radius:8px; margin-bottom:12px;">` : ''}
+    ${c.photoURL ? `${imgTag(c.photoURL, 'alt="" style="max-width:100%; border-radius:8px; margin-bottom:12px;"')}` : ''}
     ${c.resolutionNote ? `<div style="margin-bottom:12px;"><div class="t-muted" style="font-size:12px; margin-bottom:4px;">Resolution Note</div><p style="font-size:13.5px;">${escapeHtml(c.resolutionNote)}</p></div>` : ''}
-    ${c.resolutionPhotoURL ? `<div style="margin-bottom:12px;"><div class="t-muted" style="font-size:12px; margin-bottom:4px;">Resolution Photo</div><img src="${escapeHtml(c.resolutionPhotoURL)}" alt="" style="max-width:100%; border-radius:8px;"></div>` : ''}
+    ${c.resolutionPhotoURL ? `<div style="margin-bottom:12px;"><div class="t-muted" style="font-size:12px; margin-bottom:4px;">Resolution Photo</div>${imgTag(c.resolutionPhotoURL, 'alt="" style="max-width:100%; border-radius:8px;"')}</div>` : ''}
     ${c.satisfactionRating ? `<div class="t-muted" style="font-size:12.5px; margin-bottom:12px;">Resident Rating: ${'⭐'.repeat(c.satisfactionRating)}</div>` : ''}
     ${c.assignedToName ? `<div class="detail-line"><span>Assigned To</span><span><b>${escapeHtml(c.assignedToName)}</b></span></div>` : ''}
     ${c.targetDate ? `<div class="detail-line"><span>Target Date</span><span>${escapeHtml(c.targetDate)}</span></div>` : ''}
@@ -4398,7 +4406,7 @@ function renderMemberDetailView(m) {
   const body = document.getElementById('memberModalBody');
   body.innerHTML = `
     <div class="row" style="gap:14px; margin-bottom:16px;">
-      <div class="seal seal-md"><img src="${escapeHtml(m.photoURL || window.__MHM_LOGO)}" alt=""></div>
+      <div class="seal seal-md">${imgTag(m.photoURL || window.__MHM_LOGO, 'alt=""')}</div>
       <div><b style="font-size:15.5px;">${escapeHtml(m.name)}</b><div class="t-sub" style="font-size:12.5px;">${escapeHtml(m.fatherHusbandName || '')}</div></div>
       <div style="margin-left:auto;">${statusBadgeHtml[m.status] || ''}</div>
     </div>
@@ -4590,15 +4598,22 @@ async function erasePersonalData(m) {
   // history does, so this deletes them outright rather than trying to
   // "erase but keep" the way the member record itself does.
   let ownedPets = [];
+  // A failed lookup is NOT the same as "has no pets": it used to leave
+  // ownedPets empty and carry on, so the erase finished with a clean success
+  // message while any pet records (and their photos/certificates) were never
+  // touched. Remembered, shown in the confirm, and reported as a partial
+  // cleanup at the end.
+  let petLookupFailed = false;
   try {
     ownedPets = (await getDocs(query(collection(db, 'pets'), where('ownerUid', '==', m.uid)))).docs.map(d => ({ id: d.id, ...d.data() }));
-  } catch (e) { console.warn('Pet lookup before erase failed:', e?.code || e); }
+  } catch (e) { console.warn('Pet lookup before erase failed:', e?.code || e); petLookupFailed = true; }
 
   if (!confirm(
     `Permanently erase ${m.name}'s (${m.tower}-${m.flatNumber}) personal data?\n\n` +
     `WILL BE ERASED: mobile, email, DOB, anniversary, family members, nominee details, co-owner details, rent agreement, emergency contact, photo, ID document` +
     `${ownedPets.length ? `, and ${ownedPets.length} pet record${ownedPets.length === 1 ? '' : 's'} (${ownedPets.map(p => p.name).join(', ')})` : ''}.\n` +
     `WILL BE RETAINED: name, flat, Member ID, and the full payment/expense history (needed for audit).\n\n` +
+    `${petLookupFailed ? `⚠ Could not check whether this member has pet records, so any pets will NOT be erased by this action — you would need to remove them separately.\n\n` : ''}` +
     `This cannot be undone.`
   )) return;
   try {
@@ -4616,8 +4631,12 @@ async function erasePersonalData(m) {
       try { await deleteObject(storageRef(storage, m.rentAgreementURL)); } catch (e) { console.warn('Rent agreement delete failed:', e?.code || e); fileDeleteFailed = true; }
     }
     for (const pet of ownedPets) {
-      if (pet.photoURL) {
-        try { await deleteObject(storageRef(storage, pet.photoURL)); } catch (e) { console.warn('Pet photo delete failed:', pet.id, e?.code || e); fileDeleteFailed = true; }
+      // Every file a pet record points at — the photo AND the four health /
+      // vaccination certificates. Only the photo used to be removed, leaving
+      // the certificates behind in Storage after the pet record was gone.
+      for (const field of ['photoURL', 'antiRabiesCertURL', 'annualVaccinationCertURL', 'vetHealthCertURL', 'sterilizationCertURL']) {
+        if (!pet[field]) continue;
+        try { await deleteObject(storageRef(storage, pet[field])); } catch (e) { console.warn(`Pet ${field} delete failed:`, pet.id, e?.code || e); fileDeleteFailed = true; }
       }
       try { await deleteDoc(doc(db, 'pets', pet.id)); } catch (e) { console.warn('Pet delete failed:', pet.id, e?.code || e); fileDeleteFailed = true; }
     }
@@ -4632,8 +4651,13 @@ async function erasePersonalData(m) {
       dataErasedAt: serverTimestamp(), dataErasedBy: currentAdmin.email,
       updatedAt: serverTimestamp()
     });
-    await logAudit(auth.currentUser, 'erase_personal_data', { memberId: m.id, name: m.name, flat: `${m.tower}-${m.flatNumber}`, petsDeleted: ownedPets.length, fileDeleteFailed });
-    showToast(fileDeleteFailed ? 'Personal data erased, but one or more files or pet records could not be removed — check the console and remove them manually if needed.' : 'Personal data erased. Financial history has been retained.', fileDeleteFailed ? 'error' : 'success');
+    await logAudit(auth.currentUser, 'erase_personal_data', { memberId: m.id, name: m.name, flat: `${m.tower}-${m.flatNumber}`, petsDeleted: ownedPets.length, fileDeleteFailed, petLookupFailed });
+    const partial = fileDeleteFailed || petLookupFailed;
+    showToast(petLookupFailed
+      ? 'Personal data erased, but pet records could not be checked — remove any pets for this member separately.'
+      : fileDeleteFailed
+        ? 'Personal data erased, but one or more files or pet records could not be removed — check the console and remove them manually if needed.'
+        : 'Personal data erased. Financial history has been retained.', partial ? 'error' : 'success');
     document.getElementById('memberModalBackdrop').classList.remove('open');
     await reloadMembers(); renderMembersTable(); renderOverview(); await loadPets();
   } catch (err) {
@@ -5434,7 +5458,7 @@ function renderPetsSection() {
     const st = petVaccinationStatus(p);
     const owner = owners.get(p.ownerUid);
     return `<tr>
-      <td data-label="">${p.photoURL ? `<img src="${escapeHtml(p.photoURL)}" alt="" style="width:36px; height:36px; border-radius:8px; object-fit:cover;">` : `<span style="font-size:22px;">${PET_ICON[p.species] || '🐾'}</span>`}</td>
+      <td data-label="">${p.photoURL ? `${imgTag(p.photoURL, 'alt="" style="width:36px; height:36px; border-radius:8px; object-fit:cover;"')}` : `<span style="font-size:22px;">${PET_ICON[p.species] || '🐾'}</span>`}</td>
       <td data-label="Pet"><a href="#" class="name-link" data-edit-pet="${p.id}">${escapeHtml(p.name)}</a></td>
       <td data-label="Species">${escapeHtml((p.species || '').charAt(0).toUpperCase() + (p.species || '').slice(1))}</td>
       <td data-label="Owner">${owner ? `<a href="#" class="name-link" data-view-owner="${owner.id || owner.uid}">${escapeHtml(p.ownerName || owner.name)}</a>` : escapeHtml(p.ownerName || '—')}</td>
@@ -7566,19 +7590,26 @@ async function generateInspectionReportPDF() {
 }
 
 async function generateInspectionReportExcel() {
-  await loadScript('./xlsx.full.min.js');
   const range = inspectionsInRange();
   if (!range) return;
   const { insp, issues, from } = range;
   if (!insp.length && !issues.length) { showToast('No inspections in that date range.', 'error'); return; }
   try {
+    // Inside the try on purpose: the library is fetched on first use, so
+    // when that fetch fails (offline, flaky network) the rejection used to
+    // escape this function entirely — no message, no way to tell the
+    // button had even done anything. Now it lands in the same catch below.
+    await loadScript('./xlsx.full.min.js');
     const inspRows = insp.map(r => ({
       Type: INSPECTION_TYPES[r.formType]?.label || r.formType,
       Tower: r.tower || '',
       'Filed By': r.createdByName || '',
       Issues: r.issueCount || 0,
       Unchecked: r.uncheckedCount || 0,
-      Date: r.createdAt?.seconds ? new Date(r.createdAt.seconds * 1000).toLocaleString('en-IN') : ''
+      // The report is filtered by when the work was actually done, so show
+      // that date too — not just the submission time.
+      'Inspection Date': r.inspectionDate || '',
+      Submitted: r.createdAt?.seconds ? new Date(r.createdAt.seconds * 1000).toLocaleString('en-IN') : ''
     }));
     // Two-sheet workbook built directly so both sheets land in one file.
     const wb = window.XLSX.utils.book_new();
@@ -7592,7 +7623,7 @@ async function generateInspectionReportExcel() {
     logAudit(auth.currentUser, 'inspection_report_xlsx', { count: insp.length });
   } catch (err) {
     console.error('Inspection report Excel failed:', err);
-    showToast('Could not build the Excel file — please try again.', 'error');
+    showToast(/Could not load/i.test(err?.message || '') ? 'Could not load the Excel tool — check your connection and try again.' : 'Could not build the Excel file — please try again.', 'error');
   }
 }
 
@@ -7964,9 +7995,9 @@ function renderStaffPerformance() {
   const rows = active.map(s => {
     const myInsp = allInspections.filter(r => r.createdByUid === s.id);
     let ok = 0, issue = 0, unchecked = 0;
-    myInsp.forEach(r => (r.sections || []).forEach(sec => (sec.items || []).forEach(it => {
-      if (it.status === 'ok') ok++; else if (it.status === 'issue') issue++; else unchecked++;
-    })));
+    // Shared helper: counts the terrace-tank checks too, not just the
+    // section items — see inspectionItemCounts() in app-common.js.
+    myInsp.forEach(r => { const c = inspectionItemCounts(r); ok += c.ok; issue += c.issue; unchecked += c.unchecked; });
     // Thoroughness, not "how many issues" — honestly finding and reporting
     // a real problem should never make this number worse. Items left
     // unchecked are the only thing counted against a staff member here.
@@ -8096,7 +8127,7 @@ function openInspectionDetail(id) {
       </div>
       ${it.status === 'issue' && it.note ? `<div class="t-muted" style="font-size:11px; margin-top:2px;">${escapeHtml(it.note)}</div>` : ''}
       ${it.status === 'issue' && it.tags?.length ? `<div style="margin-top:3px;">${it.tags.map(t => `<span class="badge badge-warning" style="margin-right:3px; font-size:10px;">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
-      ${it.status === 'issue' && it.photoURL ? `<img src="${escapeHtml(it.photoURL)}" alt="" style="max-width:140px; border-radius:6px; margin-top:5px; display:block;">` : ''}
+      ${it.status === 'issue' && it.photoURL ? `${imgTag(it.photoURL, 'alt="" style="max-width:140px; border-radius:6px; margin-top:5px; display:block;"')}` : ''}
     </div>`;
   const sectionCard = (title, itemsHtml) => `
     <div class="card" style="margin-bottom:10px; padding:14px;">
@@ -8183,27 +8214,45 @@ async function generateDetailedInspectionPDF(r) {
     const marginX = 48;
     let y = 50;
     const ensureSpace = (needed) => { if (y + needed > 780) { pdf.addPage(); y = 50; } };
+    const fullW = pageW - marginX * 2;
+    // Every free-text field goes through this: wrapped to the column width
+    // and paginated LINE BY LINE (the page check runs per line, not once
+    // for the whole block) — a long note, manager remark or club-house
+    // entry that's taller than the space left, or even taller than a whole
+    // page, now continues onto the next page instead of running off the
+    // bottom edge. Font state is re-applied after every page break.
+    const writeLines = (text, x, width, { size = 9, bold = false, gray = false, lineH = 11 } = {}) => {
+      const apply = () => {
+        pdf.setFont('helvetica', bold ? 'bold' : 'normal'); pdf.setFontSize(size);
+        pdf.setTextColor(gray ? 120 : 0);
+      };
+      apply();
+      for (const line of pdf.splitTextToSize(String(text), width)) {
+        if (y + lineH > 780) { pdf.addPage(); y = 50; apply(); }
+        pdf.text(line, x, y);
+        y += lineH;
+      }
+      pdf.setTextColor(0);
+    };
     const heading = (text) => {
-      ensureSpace(26);
+      ensureSpace(44); // keep the heading together with at least its first line
       pdf.setFont('helvetica', 'bold'); pdf.setFontSize(12);
-      pdf.text(text, marginX, y); y += 6;
+      const titleLines = pdf.splitTextToSize(String(text), fullW);
+      pdf.text(titleLines, marginX, y); y += 12 * (titleLines.length - 1) + 6;
       pdf.setDrawColor(200); pdf.line(marginX, y, pageW - marginX, y); y += 14;
     };
     const itemLine = (label, status, note) => {
-      ensureSpace(14);
       const mark = status === 'ok' ? 'OK' : status === 'issue' ? 'ISSUE' : status === true ? 'OK' : status === false ? 'ISSUE' : '—';
+      const textW = pageW - marginX * 2 - 50;
       pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9);
-      pdf.text(`[${mark}]`, marginX, y);
-      const labelLines = pdf.splitTextToSize(label, pageW - marginX * 2 - 50);
-      pdf.text(labelLines, marginX + 46, y);
-      y += labelLines.length * 11;
-      if (note) {
-        const noteLines = pdf.splitTextToSize(`Note: ${note}`, pageW - marginX * 2 - 50);
-        pdf.setTextColor(120);
-        pdf.text(noteLines, marginX + 46, y);
-        pdf.setTextColor(0);
-        y += noteLines.length * 11;
-      }
+      pdf.splitTextToSize(String(label), textW).forEach((line, idx) => {
+        ensureSpace(11);
+        pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9); pdf.setTextColor(0);
+        if (idx === 0) pdf.text(`[${mark}]`, marginX, y);
+        pdf.text(line, marginX + 46, y);
+        y += 11;
+      });
+      if (note) writeLines(`Note: ${note}`, marginX + 46, textW, { gray: true });
       y += 3;
     };
 
@@ -8213,19 +8262,19 @@ async function generateDetailedInspectionPDF(r) {
     pdf.text('Detailed Inspection Record', pageW / 2, y, { align: 'center' }); y += 22;
 
     pdf.setFontSize(9);
-    pdf.text(`Type: ${INSPECTION_TYPE_LABEL_ADMIN[r.formType] || r.formType}${r.tower ? '  ·  Tower ' + r.tower : ''}`, marginX, y); y += 13;
+    writeLines(`Type: ${INSPECTION_TYPE_LABEL_ADMIN[r.formType] || r.formType}${r.tower ? '  ·  Tower ' + r.tower : ''}`, marginX, fullW, { lineH: 13 });
     if (r.inspectionDate) {
       const dIns = new Date(r.inspectionDate + 'T00:00:00');
       const weekNo = Math.ceil((dIns.getDate() + new Date(dIns.getFullYear(), dIns.getMonth(), 1).getDay()) / 7);
-      pdf.text(`Date of Inspection: ${fmtDate(r.inspectionDate)}  ·  Week ${weekNo} of ${dIns.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}`, marginX, y); y += 13;
+      writeLines(`Date of Inspection: ${fmtDate(r.inspectionDate)}  ·  Week ${weekNo} of ${dIns.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}`, marginX, fullW, { lineH: 13 });
     }
     const filer = (allStaff || []).find((s) => s.id === r.createdByUid);
     const filerDesignation = filer ? (STAFF_TRADES[filer.trade]?.label || (filer.role === 'manager' ? 'Managing Staff' : 'Supervisor')) : null;
-    pdf.text(`Filed by: ${r.createdByName || '—'}${filerDesignation ? ' (' + filerDesignation + ')' : ''}  ·  Submitted ${r.createdAt ? fmtDateTime(r.createdAt) : '—'}`, marginX, y); y += 13;
-    pdf.text(`Verified By (on form): ${r.verifiedBy || '—'}`, marginX, y); y += 13;
+    writeLines(`Filed by: ${r.createdByName || '—'}${filerDesignation ? ' (' + filerDesignation + ')' : ''}  ·  Submitted ${r.createdAt ? fmtDateTime(r.createdAt) : '—'}`, marginX, fullW, { lineH: 13 });
+    writeLines(`Verified By (on form): ${r.verifiedBy || '—'}`, marginX, fullW, { lineH: 13 });
     if (r.managerVerificationStatus) {
-      pdf.text(`Manager Review: ${r.managerVerificationStatus === 'verified' ? 'Verified' : 'Needs Correction'} by ${r.managerVerifiedBy || '—'}${r.managerVerifiedAt ? ' on ' + fmtDateTime(r.managerVerifiedAt) : ''}`, marginX, y); y += 13;
-      if (r.managerRemarks) { pdf.text(`Manager Remarks: ${r.managerRemarks}`, marginX, y); y += 13; }
+      writeLines(`Manager Review: ${r.managerVerificationStatus === 'verified' ? 'Verified' : 'Needs Correction'} by ${r.managerVerifiedBy || '—'}${r.managerVerifiedAt ? ' on ' + fmtDateTime(r.managerVerifiedAt) : ''}`, marginX, fullW, { lineH: 13 });
+      if (r.managerRemarks) writeLines(`Manager Remarks: ${r.managerRemarks}`, marginX, fullW, { lineH: 13 });
     }
     y += 10;
 
@@ -8249,26 +8298,20 @@ async function generateDetailedInspectionPDF(r) {
     if (r.readingsData) {
       heading('Weekly Readings');
       Object.entries(r.readingsData).forEach(([label, val]) => {
-        ensureSpace(13);
-        pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9);
-        pdf.text(`${label}: ${val || '—'}`, marginX, y); y += 13;
+        writeLines(`${label}: ${val || '—'}`, marginX, fullW, { lineH: 13 });
       });
       y += 6;
     }
     if (r.maintenanceNotes) {
       heading('Preventive Maintenance This Week');
-      const lines = pdf.splitTextToSize(r.maintenanceNotes, pageW - marginX * 2);
-      pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9);
-      ensureSpace(lines.length * 11);
-      pdf.text(lines, marginX, y); y += lines.length * 11 + 6;
+      writeLines(r.maintenanceNotes, marginX, fullW);
+      y += 6;
     }
     if (r.formType === 'club-house') {
       heading('Club House Notes');
       [['Complaints', r.complaintsNotes], ['Incidents', r.incidentNotes], ['Consent Forms', r.consentForms], ['Gym Attendance', r.gymAttendance], ['Swim Attendance', r.swimAttendance]]
         .filter(([, v]) => v).forEach(([label, val]) => {
-          ensureSpace(13);
-          pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9);
-          pdf.text(`${label}: ${val}`, marginX, y); y += 13;
+          writeLines(`${label}: ${val}`, marginX, fullW, { lineH: 13 });
         });
       y += 6;
     }
@@ -8418,15 +8461,25 @@ async function toggleStaffActive(id) {
     : '';
   if (!confirm(`${nextActive ? 'Reactivate' : 'Deactivate'} "${s.name}"?${nextActive ? '' : ' They will not be able to sign in again until reactivated.' + warnOrphaned}`)) return;
   try {
-    await updateDoc(doc(db, 'staff', id), { active: nextActive, updatedAt: serverTimestamp() });
-    if (orphanedSlots.length) {
-      const batch = writeBatch(db);
-      orphanedSlots.forEach(slot => batch.update(doc(db, 'inspectionAssignments', slot.id), {
-        assignedToUid: null, assignedToName: null, assignedByUid: auth.currentUser.uid, assignedByName: currentAdmin?.name || 'Admin', updatedAt: serverTimestamp()
-      }));
-      await batch.commit();
+    // The slot list above came from what was loaded earlier — another admin
+    // may have assigned (or cleared) a slot since. When deactivating, read
+    // the live assignments so what gets cleared is what is actually there.
+    let slotsToClear = orphanedSlots;
+    if (!nextActive) {
+      try {
+        slotsToClear = (await getDocs(query(collection(db, 'inspectionAssignments'), where('assignedToUid', '==', id)))).docs.map(d => ({ id: d.id }));
+      } catch (e) { console.warn('Live assignment lookup failed — using the loaded list:', e?.code || e); }
     }
-    await logAudit(auth.currentUser, nextActive ? 'reactivate_staff' : 'deactivate_staff', { id, name: s.name, clearedSlots: orphanedSlots.length });
+    // ONE batch for both changes. As two separate writes, a failure after
+    // the first left a deactivated person still assigned to towers and
+    // checklists — exactly what this cleanup exists to prevent.
+    const batch = writeBatch(db);
+    batch.update(doc(db, 'staff', id), { active: nextActive, updatedAt: serverTimestamp() });
+    slotsToClear.forEach(slot => batch.update(doc(db, 'inspectionAssignments', slot.id), {
+      assignedToUid: null, assignedToName: null, assignedByUid: auth.currentUser.uid, assignedByName: currentAdmin?.name || 'Admin', updatedAt: serverTimestamp()
+    }));
+    await batch.commit();
+    await logAudit(auth.currentUser, nextActive ? 'reactivate_staff' : 'deactivate_staff', { id, name: s.name, clearedSlots: slotsToClear.length });
     showToast('Updated.', 'success');
     await loadFacilityStaffData();
   } catch (err) { showToast(`Could not update${err?.code ? ` (${err.code})` : ''}.`, 'error'); }
@@ -9480,7 +9533,7 @@ function openCommitteeModal(member = null) {
   document.getElementById('committeeModalTitle').textContent = member ? 'Edit Committee Member' : 'Add Committee Member';
   const photoWrap = document.getElementById('committeePhotoCurrent');
   if (member?.photoURL) {
-    photoWrap.innerHTML = `<img src="${escapeHtml(member.photoURL)}" alt="" style="width:56px; height:56px; border-radius:50%; object-fit:cover;"> <span class="t-muted" style="font-size:12px;">Current photo — choose a new file only to replace it.</span>`;
+    photoWrap.innerHTML = `${imgTag(member.photoURL, 'alt="" style="width:56px; height:56px; border-radius:50%; object-fit:cover;"')} <span class="t-muted" style="font-size:12px;">Current photo — choose a new file only to replace it.</span>`;
     photoWrap.style.display = 'flex';
     photoWrap.style.alignItems = 'center';
     photoWrap.style.gap = '10px';
@@ -10018,8 +10071,9 @@ function renderMaintSummary() {
   const el = document.getElementById('maintSummary');
   if (!el) return;
   const years = Object.keys(maintenanceSettings?.rates || {}).sort().reverse();
-  const fee = maintenanceSettings?.membershipFee ?? 1100;
-  const feeLine = `<div style="margin-top:6px;">One-time membership fee: <b>${formatINR(fee)}</b>${maintenanceSettings?.membershipFee == null ? ' (default)' : ''}</div>`;
+  const fee = membershipFeeAmount(maintenanceSettings);
+  const feeIsUnset = [undefined, null, ''].includes(maintenanceSettings?.membershipFee);
+  const feeLine = `<div style="margin-top:6px;">One-time membership fee: <b>${formatINR(fee)}</b>${feeIsUnset ? ' (default)' : ''}</div>`;
   el.innerHTML = (years.length
     ? 'Set for: ' + years.map(y => `FY ${escapeHtml(y)} (${formatINR(maintenanceSettings.rates[y].default || 0)})`).join(', ')
     : 'No rate is set for any year yet — the Defaulters report will show empty.') + feeLine;
@@ -10408,14 +10462,33 @@ async function runDataHealthCheck() {
         findings.push({ severity: 'warn', text: `Flat claim for Tower ${fc.tower}, Flat ${fc.flatNumber} references member "${fc.memberDocId}", which no longer exists — this flat may be incorrectly shown as taken.` });
       }
     }
-    // Reverse check: an approved member should hold a flat claim matching
-    // their own tower/flat — if not, either their registration predates the
-    // flatClaims system or something went wrong during approval.
-    const claimedFlats = new Set(flatClaims.map(fc => `${fc.tower}|${fc.flatNumber}`));
+    // Reverse check: an approved member should hold THEIR OWN flat claim —
+    // right claim ID for their tower/flat/owner-or-tenant slot, pointing back
+    // at them, with matching tower/flat. (This used to only ask whether any
+    // claim at all existed for that tower|flat, which another member's claim,
+    // or the other owner/tenant slot's, satisfied just as well.)
     for (const m of members) {
-      if (m.status === 'approved' && m.tower && m.flatNumber && !claimedFlats.has(`${m.tower}|${m.flatNumber}`)) {
-        findings.push({ severity: 'info', text: `${m.name || m.id} (Tower ${m.tower}, Flat ${m.flatNumber}) is approved but holds no flat claim — their flat may not correctly block a duplicate registration.` });
+      if (m.status !== 'approved' || !m.tower || !m.flatNumber) continue;
+      const who = `${m.name || m.id} (Tower ${m.tower}, Flat ${m.flatNumber})`;
+      const r = checkMemberFlatClaim(m, flatClaims);
+      if (r.status === 'ok') continue;
+      if (r.status === 'held-by-other') {
+        const holder = memberById.get(r.holderId);
+        findings.push({ severity: 'warn', text: `${who} is approved, but the flat claim that should be theirs (${r.claimId}) belongs to ${holder ? (holder.name || holder.id) : `\"${r.holderId}\"`} instead — one of the two records is wrong.` });
+      } else if (r.status === 'mismatch') {
+        findings.push({ severity: 'warn', text: `${who} is approved, but their flat claim (${r.claimId}) records a different tower/flat than their member record.` });
+      } else if (r.status === 'elsewhere') {
+        findings.push({ severity: 'warn', text: `${who} is approved and holds a flat claim (${r.claimId}), but not the one matching their current tower, flat and owner/tenant type — an earlier edit may have left it behind.` });
+      } else {
+        findings.push({ severity: 'info', text: `${who} is approved but holds no flat claim — their flat may not correctly block a duplicate registration.` });
       }
+    }
+    // Existing records with an impossible rent-agreement range (end before
+    // start) would make agreement-expiry reminders unreliable — flag them.
+    for (const m of members) {
+      if (m.residentType !== 'tenant') continue;
+      const rentErr = validateRentAgreementDates(m.rentAgreementStart, m.rentAgreementEnd);
+      if (rentErr) findings.push({ severity: 'warn', text: `${m.name || m.id} (Tower ${m.tower}, Flat ${m.flatNumber}): ${rentErr}` });
     }
     // An approved member's publicToken should have a matching membersPublic
     // doc — that's what the QR on their membership card actually resolves.

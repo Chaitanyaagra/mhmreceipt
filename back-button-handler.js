@@ -26,10 +26,18 @@
 
   // Close the visually top-most open modal, if any. Returns true if one closed.
   function closeTopOpenModal() {
-    const open = Array.from(document.querySelectorAll('.modal-backdrop.open'));
+    // .g-sheet-backdrop is the gate-security page's bottom sheet (visitor
+    // entry) — it isn't a .modal-backdrop, so Back used to skip straight past
+    // it to the "press back again to exit" logic with the sheet still open.
+    const open = Array.from(document.querySelectorAll('.modal-backdrop.open, .g-sheet-backdrop.open'));
     if (!open.length) return false;
     // Last one in DOM order is the most recently stacked / on top.
-    open[open.length - 1].classList.remove('open');
+    const top = open[open.length - 1];
+    // A half-filled form (or a submit still running) asks before it goes. The
+    // back press is still CONSUMED either way (returns true) — declining just
+    // leaves the dialog open rather than letting Back fall through to exit.
+    if (typeof window.__confirmModalClose === 'function' && !window.__confirmModalClose(top)) return true;
+    top.classList.remove('open');
     return true;
   }
 
