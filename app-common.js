@@ -114,6 +114,7 @@ export const COMPLAINT_SLA_HOURS = {
 // targetDate (set deliberately by admin when assigning) is the
 // authoritative deadline when present; otherwise falls back to the
 // generic category SLA clock measured from createdAt.
+const PRIORITY_SLA_HOURS = { high: 24, medium: 72, low: 168 };
 export function complaintUrgency(c) {
   if (!['open', 'in_progress'].includes(c.status)) return null; // resolved/closed/rejected aren't "breaching" anything
   const now = Date.now();
@@ -124,9 +125,14 @@ export function complaintUrgency(c) {
   } else {
     const created = c.createdAt?.toMillis ? c.createdAt.toMillis() : (c.createdAt ? new Date(c.createdAt).getTime() : null);
     if (!created) return null;
-    const slaHours = COMPLAINT_SLA_HOURS[c.category] ?? 48;
+    // A priority (set only on inspection-generated complaints, following
+    // the inspection SOP's own high/medium/low rectification windows)
+    // takes precedence over the generic category clock — a high-priority
+    // defect genuinely needs the 24h SOP window regardless of which
+    // category it happened to land in.
+    const slaHours = PRIORITY_SLA_HOURS[c.priority] ?? COMPLAINT_SLA_HOURS[c.category] ?? 48;
     deadline = created + slaHours * 3600000;
-    windowHours = slaHours * 0.25; // "due soon" = within the last quarter of the category window
+    windowHours = slaHours * 0.25; // "due soon" = within the last quarter of the window
   }
   const hoursLeft = (deadline - now) / 3600000;
   if (hoursLeft <= 0) return 'breached';

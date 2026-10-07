@@ -8,7 +8,7 @@
    Bump CACHE_NAME on any future structural change to force a clean cache.
    ========================================================================== */
 
-const CACHE_NAME = 'mhmrws-shell-v125';
+const CACHE_NAME = 'mhmrws-shell-v140';
 // Pinned Firebase SDK version used across every page (index/admin/staff/guard/
 // verify) — a specific version's content never changes, so caching these is
 // as safe as caching the vendored libraries below, and without this the app
@@ -17,7 +17,8 @@ const FIREBASE_SDK_FILES = [
   'https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js',
   'https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js',
   'https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js',
-  'https://www.gstatic.com/firebasejs/12.18.0/firebase-storage.js'
+  'https://www.gstatic.com/firebasejs/12.18.0/firebase-storage.js',
+  'https://www.gstatic.com/firebasejs/12.18.0/firebase-app-check.js'
 ];
 const SHELL_FILES = [
   './',
@@ -25,16 +26,12 @@ const SHELL_FILES = [
   './admin.html',
   './guard.html',
   './staff.html',
+  './verify.html',
   './styles.css',
   './firebase-config.js',
   './app-common.js',
   './avatar-placeholder.js',
-  './jspdf.umd.min.js',
-  './qrcode.local.js',
   './premium.js',
-  './chart.umd.min.js',
-  './jszip.min.js',
-  './xlsx.full.min.js',
   './ui-a11y.js',
   './install-prompt.js',
   './back-button-handler.js',
@@ -159,6 +156,12 @@ self.addEventListener('fetch', (event) => {
           return response;
         })
         .catch(() => cached); // offline: fall back to whatever we had
+      // Registered with waitUntil() too — respondWith() alone only keeps
+      // the worker alive until the response is sent (serving `cached`
+      // instantly); without this, the browser could terminate the worker
+      // before this background fetch+cache.put ever finishes, silently
+      // defeating the whole point of revalidating in the background.
+      event.waitUntil(networkFetch);
       // If we have a cached copy, serve it instantly and let the network
       // update happen in the background; otherwise wait for the network.
       return cached || networkFetch;

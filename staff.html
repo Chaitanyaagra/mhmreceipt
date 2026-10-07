@@ -131,7 +131,7 @@ import {
 import {
   ref as storageRef, uploadBytes, getDownloadURL
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-storage.js";
-import { showToast, escapeHtml, fmtDate, fmtDateTime, TOWER_IDS, INSPECTION_TYPES, INSPECTION_SCHEDULE, INSPECTION_CRITICAL_ITEMS, DEFECT_TAG_OPTIONS, inspectionSectionToComplaintCategory, STAFF_TRADES, dateToLocalISO, complaintUrgency, COMPLAINT_SLA_HOURS } from './app-common.js';
+import { showToast, escapeHtml, fmtDate, fmtDateTime, TOWER_IDS, TOWER_PLAN, INSPECTION_TYPES, INSPECTION_SCHEDULE, INSPECTION_CRITICAL_ITEMS, DEFECT_TAG_OPTIONS, inspectionSectionToComplaintCategory, STAFF_TRADES, dateToLocalISO, todayLocalISO, complaintUrgency, COMPLAINT_SLA_HOURS } from './app-common.js';
 import { installOfflineBanner } from './ui-a11y.js';
 import { installAppInstallPrompt } from './install-prompt.js';
 installOfflineBanner();
@@ -139,7 +139,7 @@ installAppInstallPrompt({ appName: 'MHMRWS Staff', showToast });
 
 let currentStaff = null; // {uid, name, role}
 let draft = null;        // in-progress inspection {formType, tower, sections:[{title, items:[{label,status,note,priority}]}]}
-let inspectionSubmitInFlight = false;
+let inspectionSubmitInFlight = false; window.__appBusy = false;
 
 /* ---------------------------------------------------------------------- */
 /*  Draft autosave/recovery — localStorage, debounced                      */
@@ -161,6 +161,11 @@ function saveDraftToLocalStorage() {
           ...sec,
           items: sec.items.map((it) => { const { photoFile, ...rest } = it; return rest; })
         })),
+        ...(draft.tankPhotos ? {
+          tankPhotos: Object.fromEntries(Object.entries(draft.tankPhotos).map(([tower, checks]) =>
+            [tower, checks.map((c) => { const { photoFile, ...rest } = c; return rest; })]
+          ))
+        } : {}),
         savedAt: Date.now()
       };
       localStorage.setItem(draftStorageKey(), JSON.stringify(serializable));
@@ -231,7 +236,17 @@ document.getElementById('logoutBtn').addEventListener('click', () => signOut(aut
 
 onAuthStateChanged(auth, async (user) => {
   if (!user) {
+    clearTimeout(draftSaveTimer);
+    draftSaveTimer = null;
+    draft = null;
     currentStaff = null;
+    myInspections = [];
+    myComplaints = [];
+    inspectionsLoadFailed = false;
+    complaintsLoadFailed = false;
+    inspectionsForReview = [];
+    allStaffList = [];
+    allInspectionAssignments = [];
     showScreen('screen-login');
     return;
   }
@@ -277,8 +292,13 @@ async function loadInspectionsForReview() {
   if (currentStaff.role !== 'manager') return;
   try {
     const cutoff = Date.now() - 30 * 86400000;
-    const snap = await getDocs(query(collection(db, 'inspections'), where('createdAt', '>=', new Date(cutoff))));
-    inspectionsForReview = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+    const [flaggedSnap, recentSnap] = await Promise.all([
+      getDocs(query(collection(db, 'inspections'), where('pendingManagerReview', '==', true))),
+      getDocs(query(collection(db, 'inspections'), where('createdAt', '>=', new Date(cutoff))))
+    ]);
+    const byId = new Map();
+    [...flaggedSnap.docs, ...recentSnap.docs].forEach((d) => byId.set(d.id, { id: d.id, ...d.data() }));
+    inspectionsForReview = [...byId.values()]
       .filter((r) => !r.managerVerificationStatus)
       .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
   } catch (e) { console.warn('Inspections-for-review load failed:', e?.code || e); inspectionsForReview = []; }
@@ -356,6 +376,7 @@ async function verifyInspection(inspectionId, status) {
       managerVerifiedBy: currentStaff.name,
       managerVerifiedByUid: currentStaff.uid,
       managerVerifiedAt: serverTimestamp(),
+      pendingManagerReview: false,
       ...(remarks.trim() ? { managerRemarks: remarks.trim() } : {})
     });
     inspectionsForReview = inspectionsForReview.filter((r) => r.id !== inspectionId);
@@ -612,14 +633,24 @@ function renderInspectPicker() {
   });
 }
 
+function floorSectionsForTower(tower) {
+  const tpl = INSPECTION_TYPES['daily-tower'];
+  const floorCount = (TOWER_PLAN[tower]?.floors ?? (tpl.floors.length - 1)) + 1; // Ground (level 0) through the tower's top floor, inclusive
+  return tpl.floors.slice(0, floorCount).map(floor => ({
+    title: floor + ' Floor',
+    items: tpl.floorItems.map(label => ({ label: floor + ' — ' + label, status: null, note: '', priority: INSPECTION_CRITICAL_ITEMS.has(label) ? 'high' : 'medium' }))
+  }));
+}
+
 function startInspection(formType) {
   const tpl = INSPECTION_TYPES[formType];
   let sections = [];
   if (formType === 'daily-tower') {
-    sections = tpl.floors.map(floor => ({
-      title: floor + ' Floor',
-      items: tpl.floorItems.map(label => ({ label: floor + ' — ' + label, status: null, note: '', priority: INSPECTION_CRITICAL_ITEMS.has(label) ? 'high' : 'medium' }))
-    }));
+    // Tower not chosen yet at this point — generate against the first
+    // selectable tower as a reasonable initial guess; the real, correct
+    // set is regenerated the moment a tower is actually picked, below.
+    const firstTower = TOWER_IDS.find(t => isSlotAvailableToMe('daily-tower', t)) || TOWER_IDS[0];
+    sections = floorSectionsForTower(firstTower);
     sections.push({ title: 'Additional Areas', items: tpl.additional.map(label => ({ label, status: null, note: '', priority: INSPECTION_CRITICAL_ITEMS.has(label) ? 'high' : 'medium' })) });
   } else {
     sections = Object.values(tpl.sections).map(sec => ({
@@ -627,10 +658,14 @@ function startInspection(formType) {
       items: sec.items.map(label => ({ label, status: null, note: '', priority: INSPECTION_CRITICAL_ITEMS.has(label) ? 'high' : 'medium' }))
     }));
   }
-  draft = { formType, tower: null, sections, needsTower: formType === 'daily-tower', verifiedBy: '', signatureDataUrl: null };
+  draft = { formType, tower: null, sections, needsTower: formType === 'daily-tower', verifiedBy: '', signatureDataUrl: null, inspectionDate: dateToLocalISO(new Date()) };
   if (formType === 'weekly-mep') {
     draft.tankData = {};
-    tpl.towers.forEach(t => { draft.tankData[t] = tpl.tankChecks.map(() => null); });
+    draft.tankPhotos = {};
+    tpl.towers.forEach(t => {
+      draft.tankData[t] = tpl.tankChecks.map(() => null);
+      draft.tankPhotos[t] = tpl.tankChecks.map(() => ({ photoFile: null, photoURL: null }));
+    });
     draft.readingsData = {};
     tpl.readings.forEach((label) => { draft.readingsData[label] = ''; });
     draft.maintenanceNotes = '';
@@ -703,7 +738,13 @@ function renderChecklist() {
                     <button type="button" class="chk-btn ${draft.tankData[t][ci] === true ? 'ok-on' : ''}" data-tank="${t}:${ci}:true">OK</button>
                     <button type="button" class="chk-btn ${draft.tankData[t][ci] === false ? 'issue-on' : ''}" data-tank="${t}:${ci}:false">Issue</button>
                   </span>
-                </div>`).join('')}
+                </div>
+                ${draft.tankData[t][ci] === false ? `
+                  <div class="chk-note" style="margin:4px 0 8px;">
+                    <label style="font-size:11.5px; display:block; margin-bottom:3px;">Photo <span class="t-muted">(required — this will be logged as a complaint)</span></label>
+                    <input type="file" accept="image/*" data-tank-photo="${t}:${ci}">
+                    ${draft.tankPhotos[t][ci].photoFile ? `<div class="t-muted" style="font-size:11px; margin-top:3px;">📎 ${escapeHtml(draft.tankPhotos[t][ci].photoFile.name)} attached</div>` : ''}
+                  </div>` : ''}`).join('')}
             </div>`).join('')}
         </div>
       </div>
@@ -738,6 +779,7 @@ function renderChecklist() {
     <div class="chk-section">
       <div class="chk-section-head">Verification</div>
       <div style="padding:10px 12px;">
+        <div class="field"><label for="inspDate">Date of Inspection</label><input type="date" id="inspDate" value="${escapeHtml(draft.inspectionDate || '')}" max="${todayLocalISO()}"></div>
         <div class="field"><label for="inspVerifiedBy">Verified By (name)</label><input type="text" id="inspVerifiedBy" placeholder="Your name" value="${escapeHtml(draft.verifiedBy)}"></div>
         <label style="display:block; font-size:12.5px; font-weight:600; margin:8px 0 4px;">Signature</label>
         <canvas id="sigPad" style="width:100%; height:130px; border:1px solid var(--line, #E2E6EF); border-radius:8px; touch-action:none; background:#fff;"></canvas>
@@ -747,7 +789,17 @@ function renderChecklist() {
     <button class="btn btn-primary" style="width:100%; margin-top:8px;" id="submitInspBtn" ${inspectionSubmitInFlight ? 'disabled' : ''}>${inspectionSubmitInFlight ? 'Submitting…' : 'Submit Inspection' + (issueCount ? ' (' + issueCount + ' issue' + (issueCount > 1 ? 's' : '') + ' will be logged as complaints)' : '')}</button>
   `;
   const towerSel = document.getElementById('inspTower');
-  if (towerSel) { draft.tower = draft.tower || towerSel.value; towerSel.addEventListener('change', () => { draft.tower = towerSel.value; }); }
+  if (towerSel) {
+    draft.tower = draft.tower || towerSel.value;
+    towerSel.addEventListener('change', () => {
+      draft.tower = towerSel.value;
+      if (draft.formType === 'daily-tower') {
+        const additionalAreas = draft.sections[draft.sections.length - 1]; // tower-independent, preserved as-is
+        draft.sections = [...floorSectionsForTower(draft.tower), additionalAreas];
+        renderChecklist();
+      }
+    });
+  }
   el.querySelectorAll('[data-mark]').forEach(b => b.onclick = () => {
     const [si, ii, status] = b.dataset.mark.split(':');
     const it = draft.sections[si].items[ii];
@@ -792,7 +844,21 @@ function renderChecklist() {
     draft.sections[si].items[ii].photoFile = file;
     renderChecklist();
   }));
+  el.querySelectorAll('[data-tank-photo]').forEach(inp => inp.addEventListener('change', () => {
+    const [t, ci] = inp.dataset.tankPhoto.split(':');
+    const file = inp.files?.[0] || null;
+    if (file && file.size >= 8 * 1024 * 1024) {
+      showToast(`That photo is ${(file.size / 1024 / 1024).toFixed(1)} MB — please choose one under 8 MB.`, 'error');
+      inp.value = '';
+      draft.tankPhotos[t][ci].photoFile = null;
+      renderChecklist();
+      return;
+    }
+    draft.tankPhotos[t][ci].photoFile = file;
+    renderChecklist();
+  }));
   el.querySelectorAll('[data-field]').forEach(inp => inp.addEventListener('input', () => { draft[inp.dataset.field] = inp.value; }));
+  document.getElementById('inspDate')?.addEventListener('input', (e) => { draft.inspectionDate = e.target.value; });
   document.getElementById('inspVerifiedBy')?.addEventListener('input', (e) => { draft.verifiedBy = e.target.value; });
   initSignaturePad();
   document.getElementById('sigClearBtn')?.addEventListener('click', clearSignaturePad);
@@ -870,32 +936,73 @@ function clearSignaturePad() {
 async function submitInspection() {
   if (inspectionSubmitInFlight) return;
   if (draft.needsTower && !draft.tower) { showToast('Please select a tower.', 'error'); return; }
+  if (!draft.inspectionDate) { showToast('Please select the date of inspection.', 'error'); return; }
+  if (draft.inspectionDate > todayLocalISO()) { showToast('The date of inspection cannot be in the future.', 'error'); return; }
   if (!draft.verifiedBy || !draft.verifiedBy.trim()) { showToast('Please enter who verified this inspection.', 'error'); return; }
   const allItems = draft.sections.flatMap(sec => sec.items.map(it => ({ ...it, section: sec.title })));
-  const unchecked = allItems.filter(it => !it.status).length;
+  const tankUnchecked = draft.tankData ? Object.values(draft.tankData).reduce((sum, checks) => sum + checks.filter((v) => v === null).length, 0) : 0;
+  const unchecked = allItems.filter(it => !it.status).length + tankUnchecked;
   if (unchecked > 0 && !confirm(unchecked + ' item(s) not marked yet. Submit anyway?')) return;
-  const missingRequiredPhoto = allItems.find(it => it.status === 'issue' && it.priority === 'high' && !it.photoFile);
+  const missingRequiredPhoto = allItems.find(it => it.status === 'issue' && it.priority === 'high' && !it.photoFile && !it.photoURL);
   if (missingRequiredPhoto) { showToast(`"${missingRequiredPhoto.label}" is a critical item marked Issue — please attach a photo before submitting.`, 'error'); return; }
+  if (draft.formType === 'weekly-mep' && draft.tankData) {
+    const tankCheckLabels = INSPECTION_TYPES['weekly-mep'].tankChecks;
+    for (const [tower, checks] of Object.entries(draft.tankData)) {
+      for (let ci = 0; ci < checks.length; ci++) {
+        if (checks[ci] === false && !draft.tankPhotos[tower][ci].photoFile && !draft.tankPhotos[tower][ci].photoURL) {
+          showToast(`Tower ${tower} — "${tankCheckLabels[ci]}" is marked Issue — please attach a photo before submitting.`, 'error');
+          return;
+        }
+      }
+    }
+  }
 
   const btn = document.getElementById('submitInspBtn');
-  inspectionSubmitInFlight = true;
+  inspectionSubmitInFlight = true; window.__appBusy = true;
   btn.disabled = true; btn.textContent = 'Submitting…';
+  // Fixed point-in-time copy of everything this submission needs — taken
+  // now, right after validation passes and before the upload-await below
+  // (which can take several seconds on a slow connection). Every reference
+  // from here on reads `snap`, never the live `draft` — so nothing the
+  // staff member does to the live draft during that window (marking a
+  // different item Issue, switching tower, or discarding it entirely via
+  // "Change inspection type", which sets draft=null) can alter what
+  // actually gets submitted, or crash mid-upload reading a field off null.
+  const snap = structuredClone(draft);
   try {
-    const itemsNeedingUpload = draft.sections.flatMap((sec) => sec.items).filter((it) => it.status === 'issue' && it.photoFile);
-    const uploadResults = await Promise.allSettled(itemsNeedingUpload.map(async (it) => {
+    const itemsNeedingUpload = snap.sections.flatMap((sec, si) => sec.items.map((it, ii) => ({ it, si, ii })))
+      .filter(({ it }) => it.status === 'issue' && it.photoFile && !it.photoURL)
+      .map(({ it, si, ii }) => ({ ...it, _section: { si, ii } }));
+    const tankCheckLabels = INSPECTION_TYPES['weekly-mep']?.tankChecks || [];
+    const tankItemsNeedingUpload = snap.formType === 'weekly-mep' && snap.tankPhotos
+      ? Object.entries(snap.tankPhotos).flatMap(([tower, slots]) => slots
+          .map((slot, ci) => ({ slot, tower, ci }))
+          .filter(({ slot, tower: t, ci }) => snap.tankData[t][ci] === false && slot.photoFile && !slot.photoURL)
+          .map(({ slot, tower: t, ci }) => ({ photoFile: slot.photoFile, label: `Tower ${t} — ${tankCheckLabels[ci]}`, priority: 'high', _tank: { tower: t, ci } })))
+      : [];
+    const allItemsNeedingUpload = [...itemsNeedingUpload, ...tankItemsNeedingUpload];
+    const draftStillMatches = draft && draft.formType === snap.formType && draft.tower === snap.tower;
+    const uploadResults = await Promise.allSettled(allItemsNeedingUpload.map(async (it) => {
       const r = storageRef(storage, `complaintPhotos/${currentStaff.uid}/issue_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`);
       await uploadBytes(r, it.photoFile);
-      it.photoURL = await getDownloadURL(r);
+      const url = await getDownloadURL(r);
+      if (it._tank) {
+        snap.tankPhotos[it._tank.tower][it._tank.ci].photoURL = url;
+        if (draftStillMatches) draft.tankPhotos?.[it._tank.tower]?.[it._tank.ci] && (draft.tankPhotos[it._tank.tower][it._tank.ci].photoURL = url);
+      } else {
+        snap.sections[it._section.si].items[it._section.ii].photoURL = url;
+        if (draftStillMatches) draft.sections?.[it._section.si]?.items?.[it._section.ii] && (draft.sections[it._section.si].items[it._section.ii].photoURL = url);
+      }
     }));
-    const failedRequiredItem = itemsNeedingUpload.find((it, i) => uploadResults[i].status === 'rejected' && it.priority === 'high');
+    const failedRequiredItem = allItemsNeedingUpload.find((it, i) => uploadResults[i].status === 'rejected' && it.priority === 'high');
     if (failedRequiredItem) {
       showToast(`"${failedRequiredItem.label}" needs a photo (it's a critical item) and the upload failed — please check your connection and try submitting again.`, 'error');
       btn.disabled = false; btn.textContent = 'Submit Inspection';
-      inspectionSubmitInFlight = false;
+      inspectionSubmitInFlight = false; window.__appBusy = false;
       return;
     }
-    const failedOptionalCount = itemsNeedingUpload.filter((it, i) => uploadResults[i].status === 'rejected').length;
-    const freshItems = draft.sections.flatMap(sec => sec.items.map(it => ({ ...it, section: sec.title })));
+    const failedOptionalCount = allItemsNeedingUpload.filter((it, i) => it.priority !== 'high' && uploadResults[i].status === 'rejected').length;
+    const freshItems = snap.sections.flatMap(sec => sec.items.map(it => ({ ...it, section: sec.title })));
     // One batch for the inspection AND every auto-created complaint — either
     // all of it lands, or none of it does. Previously each write was a
     // separate addDoc(): a network failure partway through the complaints
@@ -908,33 +1015,35 @@ async function submitInspection() {
     // already small for a plain line drawing — a signature is a handful of
     // KB at most, well inside the 900KB document-size rule even alongside a
     // daily-tower inspection's ~170 checklist items.
-    const signatureDataUrl = draft.signatureDataUrl || null;
+    const signatureDataUrl = snap.signatureDataUrl || null;
     const payload = {
-      formType: draft.formType,
-      tower: draft.tower || null,
-      sections: draft.sections.map(sec => ({ title: sec.title, items: sec.items.map(it => ({ label: it.label, status: it.status || 'unchecked', note: it.note || null, tags: it.tags?.length ? it.tags : null, photoURL: it.photoURL || null })) })),
+      formType: snap.formType,
+      tower: snap.tower || null,
+      sections: snap.sections.map(sec => ({ title: sec.title, items: sec.items.map(it => ({ label: it.label, status: it.status || 'unchecked', note: it.note || null, tags: it.tags?.length ? it.tags : null, photoURL: it.photoURL || null })) })),
       issueCount: freshItems.filter(it => it.status === 'issue').length
-        + (draft.tankData ? Object.values(draft.tankData).reduce((sum, checks) => sum + checks.filter((v) => v === false).length, 0) : 0),
+        + (snap.tankData ? Object.values(snap.tankData).reduce((sum, checks) => sum + checks.filter((v) => v === false).length, 0) : 0),
       uncheckedCount: freshItems.filter(it => !it.status).length
-        + (draft.tankData ? Object.values(draft.tankData).reduce((sum, checks) => sum + checks.filter((v) => v === null).length, 0) : 0),
+        + (snap.tankData ? Object.values(snap.tankData).reduce((sum, checks) => sum + checks.filter((v) => v === null).length, 0) : 0),
       createdByUid: currentStaff.uid,
       createdByName: currentStaff.name,
       status: 'submitted',
       createdAt: serverTimestamp(),
-      verifiedBy: draft.verifiedBy.trim(),
-      signatureDataUrl
+      inspectionDate: snap.inspectionDate,
+      verifiedBy: snap.verifiedBy.trim(),
+      signatureDataUrl,
+      pendingManagerReview: true
     };
-    if (draft.formType === 'weekly-mep') {
-      payload.tankData = draft.tankData;
-      payload.readingsData = draft.readingsData;
-      payload.maintenanceNotes = draft.maintenanceNotes || null;
+    if (snap.formType === 'weekly-mep') {
+      payload.tankData = snap.tankData;
+      payload.readingsData = snap.readingsData;
+      payload.maintenanceNotes = snap.maintenanceNotes || null;
     }
-    if (draft.formType === 'club-house') {
-      payload.complaintsNotes = draft.complaintsNotes || null;
-      payload.incidentNotes = draft.incidentNotes || null;
-      payload.consentForms = draft.consentForms || null;
-      payload.gymAttendance = draft.gymAttendance || null;
-      payload.swimAttendance = draft.swimAttendance || null;
+    if (snap.formType === 'club-house') {
+      payload.complaintsNotes = snap.complaintsNotes || null;
+      payload.incidentNotes = snap.incidentNotes || null;
+      payload.consentForms = snap.consentForms || null;
+      payload.gymAttendance = snap.gymAttendance || null;
+      payload.swimAttendance = snap.swimAttendance || null;
     }
     batch.set(inspRef, payload);
 
@@ -946,11 +1055,11 @@ async function submitInspection() {
     // and deserves the same SLA tracking, not just a higher issueCount with
     // nothing anyone is actually notified to act on.
     const tankIssues = [];
-    if (draft.tankData) {
+    if (snap.tankData) {
       const tankCheckLabels = INSPECTION_TYPES['weekly-mep'].tankChecks;
-      Object.entries(draft.tankData).forEach(([tower, checks]) => {
+      Object.entries(snap.tankData).forEach(([tower, checks]) => {
         checks.forEach((v, i) => {
-          if (v === false) tankIssues.push({ label: `Tower ${tower} Tank — ${tankCheckLabels[i]}`, section: 'Water Supply System', priority: 'high' });
+          if (v === false) tankIssues.push({ label: `Tower ${tower} Tank — ${tankCheckLabels[i]}`, section: 'Water Supply System', priority: 'high', photoURL: snap.tankPhotos?.[tower]?.[i]?.photoURL || null });
         });
       });
     }
@@ -960,7 +1069,7 @@ async function submitInspection() {
       batch.set(complaintRef, {
         raisedByUid: currentStaff.uid,
         title: it.label,
-        description: (it.note || 'Flagged during ' + INSPECTION_TYPES[draft.formType].label + (draft.tower ? ' — Tower ' + draft.tower : '') + '.'),
+        description: (it.note || 'Flagged during ' + INSPECTION_TYPES[snap.formType].label + (snap.tower ? ' — Tower ' + snap.tower : '') + '.'),
         category: inspectionSectionToComplaintCategory(it.label + ' ' + it.section),
         status: 'open',
         source: 'inspection',
@@ -975,7 +1084,7 @@ async function submitInspection() {
 
     await batch.commit();
     showToast('Inspection submitted' + (issues.length ? ' — ' + issues.length + ' issue(s) logged.' : '.')
-      + (failedOptionalCount ? ` (${failedOptionalCount} photo${failedOptionalCount > 1 ? 's' : ''} could not be uploaded — check your connection and add ${failedOptionalCount > 1 ? 'them' : 'it'} later if needed.)` : ''),
+      + (failedOptionalCount ? ` (${failedOptionalCount} photo${failedOptionalCount > 1 ? 's' : ''} could not be uploaded — the inspection itself can't be edited, but you can add ${failedOptionalCount > 1 ? 'them' : 'it'} from the Complaints tab, on the complaint this created.)` : ''),
       failedOptionalCount ? 'error' : 'success');
     draft = null;
     clearSavedDraft();
@@ -986,7 +1095,7 @@ async function submitInspection() {
     showToast(`Could not submit${err?.code ? ` (${err.code})` : ''} — please try again.`, 'error');
     btn.disabled = false; btn.textContent = 'Submit Inspection';
   } finally {
-    inspectionSubmitInFlight = false;
+    inspectionSubmitInFlight = false; window.__appBusy = false;
   }
 }
 
@@ -1076,6 +1185,8 @@ function renderComplaints() {
           ${c.assignedToName ? `<div class="t-muted" style="font-size:11px; margin-top:2px;">Assigned to: <b>${escapeHtml(c.assignedToName)}</b></div>` : '<div style="font-size:11px; margin-top:2px; color:var(--danger);">Unassigned</div>'}
           ${c.targetDate ? `<div class="t-muted" style="font-size:11px; margin-top:1px;">Target: ${escapeHtml(c.targetDate)}</div>` : ''}
           ${c.reopenNote ? `<div style="font-size:11px; margin-top:3px; color:var(--danger);">Reopened by resident: ${escapeHtml(c.reopenNote)}</div>` : ''}
+          ${c.raisedByUid === currentStaff.uid && !c.photoURL && ['open', 'in_progress'].includes(c.status) ? `
+            <label class="btn btn-outline btn-sm" style="display:inline-block; cursor:pointer; margin-top:6px;">Add photo<input type="file" accept="image/*" data-add-staff-photo="${c.id}" style="display:none;"></label>` : ''}
         </div>
         <span style="flex-shrink:0; text-align:right;"><span class="badge badge-${COMPLAINT_STATUS_BADGE[c.status] || 'neutral'}">${COMPLAINT_STATUS_LABEL[c.status] || c.status}</span>${slaBadge}${isManager && recurringCount(c) >= 2 ? '<span class="badge badge-warning" style="margin-left:4px;">🔁</span>' : ''}</span>
       </div>
@@ -1102,6 +1213,10 @@ function renderComplaints() {
   el.querySelectorAll('[data-resolve-note]').forEach((inp) => inp.addEventListener('input', () => {
     const counter = el.querySelector(`[data-resolve-note-count="${inp.dataset.resolveNote}"]`);
     if (counter) counter.textContent = `${inp.value.length}/500`;
+  }));
+  el.querySelectorAll('[data-add-staff-photo]').forEach((inp) => inp.addEventListener('change', () => {
+    const file = inp.files?.[0];
+    if (file) addStaffComplaintPhoto(inp.dataset.addStaffPhoto, file);
   }));
   el.querySelectorAll('[data-advance]').forEach(b => b.onclick = () => {
     const note = el.querySelector(`[data-resolve-note="${b.dataset.advance}"]`)?.value?.trim() || '';
@@ -1132,6 +1247,23 @@ async function assignComplaintFromStaff(id, staff, targetDate) {
   } catch (err) {
     console.error('Assign failed:', err);
     showToast(`Could not assign${err?.code ? ` (${err.code})` : ''}.`, 'error');
+  }
+}
+
+async function addStaffComplaintPhoto(complaintId, file) {
+  if (file.size >= 8 * 1024 * 1024) { showToast('That photo is too large — please choose one under 8 MB.', 'error'); return; }
+  showToast('Uploading photo…', 'success');
+  try {
+    const r = storageRef(storage, `complaintPhotos/${currentStaff.uid}/complaint_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`);
+    await uploadBytes(r, file);
+    const photoURL = await getDownloadURL(r);
+    await updateDoc(doc(db, 'complaints', complaintId), { photoURL, updatedAt: serverTimestamp() });
+    showToast('Photo added.', 'success');
+    await loadComplaints();
+    renderComplaints();
+  } catch (err) {
+    console.error('Adding complaint photo failed:', err);
+    showToast(`Could not add the photo${err?.code ? ` (${err.code})` : ''} — please try again.`, 'error');
   }
 }
 

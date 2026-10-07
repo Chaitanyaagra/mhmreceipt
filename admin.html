@@ -992,6 +992,10 @@
          reset-password email, never into this admin panel. -->
     <div class="view-panel" id="view-facilityStaff">
       <div class="topbar"><h2 class="view-title">Facility Staff</h2></div>
+      <div id="facilityStaffLoadError" style="display:none; padding:10px 14px; background:#FDEDED; border-radius:10px; margin-bottom:14px; font-size:12.5px;">
+        Could not load some facility-staff data — what's shown below may be incomplete or out of date.
+        <button type="button" class="btn btn-outline btn-sm" id="facilityStaffRetryBtn" style="margin-left:8px;">Retry</button>
+      </div>
       <div class="card" style="margin-bottom:16px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
           <h3 style="font-size:15.5px;">Staff Accounts</h3>
@@ -1576,6 +1580,9 @@
       <button class="icon-btn" id="closeInspectionDetailModal">✕</button>
     </div>
     <div class="modal-body" id="inspectionDetailBody" style="max-height:70vh; overflow-y:auto;"></div>
+    <div style="padding:12px 20px; border-top:1px solid var(--line);">
+      <button class="btn btn-outline btn-sm btn-block" id="inspectionDetailPdfBtn">Download Detailed PDF</button>
+    </div>
   </div>
 </div>
 
@@ -2831,12 +2838,12 @@ function renderCommandCenter(pendingMemberCount, pendingPaymentCount) {
   const openComplaintCount = allComplaints.filter(c => c.status === 'open').length;
 
   const pills = [
-    { count: pendingPaymentCount, label: 'Payments Pending', show: can('verifyPayments'), go: () => switchView('payments') },
-    { count: pendingMemberCount, label: 'Member Approvals', show: can('approveMembers'), go: () => switchView('approvals') },
-    { count: pendingBookingCount, label: 'Booking Approvals', show: can('approveMembers'), go: () => switchView('approvals') },
-    { count: openComplaintCount, label: 'Open Complaints', show: can('approveMembers'), go: () => switchView('complaints') },
-    { count: pendingExpenseCount, label: 'Expense Approvals', show: can('recordExpenses'), go: () => switchView('approvals') },
-    { count: unmatchedBankCount, label: 'Bank Unmatched', show: can('verifyPayments'), go: () => switchView('financials') },
+    { count: pendingPaymentCount, label: 'Payments Pending', show: can('verifyPayments'), go: () => { switchView('payments'); document.querySelector('[data-ptab="pending"]')?.click(); } },
+    { count: pendingMemberCount, label: 'Member Approvals', show: can('approveMembers'), go: () => { switchView('approvals'); document.getElementById('apMembersCard')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); } },
+    { count: pendingBookingCount, label: 'Booking Approvals', show: can('approveMembers'), go: () => { switchView('approvals'); document.getElementById('apBookingsCard')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); } },
+    { count: openComplaintCount, label: 'Open Complaints', show: can('approveMembers'), go: () => { switchView('complaints'); document.querySelector('[data-cptab="open"]')?.click(); } },
+    { count: pendingExpenseCount, label: 'Expense Approvals', show: can('recordExpenses'), go: () => { switchView('approvals'); document.getElementById('apExpensesCard')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); } },
+    { count: unmatchedBankCount, label: 'Bank Unmatched', show: can('verifyPayments'), go: () => { switchView('financials'); document.querySelector('[data-ftab="recon"]')?.click(); } },
     // Lives on Overview itself (not a separate tab), so this scrolls to it
     // instead of switching views — visible to any role that can see
     // Overview at all, since a pet-safety issue isn't a Treasurer-only or
@@ -4846,7 +4853,13 @@ async function submitMemberEdit(e, original) {
         const claim = await tx.get(newClaimRef);
         if (claim.exists() && claim.data().memberDocId !== original.id) throw new Error('FLAT_TAKEN');
         const otherClaim = await tx.get(otherClaimRef);
-        patch.maintenanceResponsible = !otherClaim.exists();
+        // For a same-flat type-change (owner<->tenant), otherClaimRef IS
+        // oldClaimRef — this member's own claim, not yet deleted at this
+        // point in the transaction. Finding it "occupied" here would mean
+        // finding themselves, not a genuinely different resident already
+        // billed — that must not count as "someone else handles this flat".
+        const otherClaimIsSelf = otherClaim.exists() && otherClaim.data().memberDocId === original.id;
+        patch.maintenanceResponsible = !otherClaim.exists() || otherClaimIsSelf;
         // Promote the old flat's remaining resident, if this move leaves
         // that flat's payer behind. Read inside the transaction for the
         // same race-safety reason as the other tx.get() calls here.
@@ -7418,6 +7431,7 @@ let allInspections = [];
 let allInspectionAssignments = [];
 async function loadFacilityStaffData() {
   document.getElementById('addStaffBtn').style.display = can('approveMembers') ? 'inline-flex' : 'none';
+  const errorBanner = document.getElementById('facilityStaffLoadError');
   try {
     const [staffSnap, inspSnap, assignSnap] = await Promise.all([
       getDocs(collection(db, 'staff')),
@@ -7428,7 +7442,11 @@ async function loadFacilityStaffData() {
     allInspections = inspSnap.docs.map(d => ({ id: d.id, ...d.data() }))
       .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
     allInspectionAssignments = assignSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-  } catch (e) { console.warn('Facility staff load failed:', e?.code || e); }
+    if (errorBanner) errorBanner.style.display = 'none';
+  } catch (e) {
+    console.warn('Facility staff load failed:', e?.code || e);
+    if (errorBanner) errorBanner.style.display = 'block';
+  }
   // Staff Performance needs complaint-assignment data too — a committee
   // member may open Facility Staff before ever visiting Complaints, so
   // ensure it's here (same backfill pattern loadComplaints() already uses
@@ -7461,7 +7479,10 @@ function inspectionsInRange() {
     showToast('"From" date is after "To" date — please fix the range.', 'error');
     return null;
   }
-  const ms = (r) => (r.createdAt?.seconds ? r.createdAt.seconds * 1000 : 0);
+  const ms = (r) => {
+    if (r.inspectionDate) return new Date(r.inspectionDate + 'T12:00:00').getTime(); // midday avoids any DST edge
+    return r.createdAt?.seconds ? r.createdAt.seconds * 1000 : 0;
+  };
   const fromMs = from ? new Date(from + 'T00:00:00').getTime() : -Infinity;
   const toMs = to ? new Date(to + 'T23:59:59.999').getTime() : Infinity;
   const insp = allInspections.filter(r => ms(r) >= fromMs && ms(r) <= toMs);
@@ -7484,6 +7505,7 @@ async function generateInspectionReportPDF() {
   const btn = document.getElementById('inspReportPdfBtn');
   btn.disabled = true; btn.textContent = 'Building…';
   try {
+    await loadScript('./jspdf.umd.min.js');
     const { jsPDF } = window.jspdf;
     const docp = new jsPDF({ unit: 'pt', format: 'a4' });
     const pageW = docp.internal.pageSize.getWidth();
@@ -7588,7 +7610,10 @@ function renderInspectionSchedule() {
 
   const now = new Date();
   const todayKey = todayLocalISO();
-  const isSameDay = (r) => r.createdAt?.seconds && dateToLocalISO(new Date(r.createdAt.seconds * 1000)) === todayKey;
+  const isSameDay = (r) => {
+    if (r.inspectionDate) return r.inspectionDate === todayKey;
+    return r.createdAt?.seconds && dateToLocalISO(new Date(r.createdAt.seconds * 1000)) === todayKey;
+  };
   const weekStart = new Date(now); weekStart.setHours(0, 0, 0, 0); weekStart.setDate(now.getDate() - now.getDay());
   const inThisWeek = (r) => r.createdAt?.seconds && (r.createdAt.seconds * 1000) >= weekStart.getTime();
 
@@ -7625,8 +7650,9 @@ function renderInspectionSchedule() {
           const sectionDone = (title) => rec && (rec.sections || []).some(
             sec => sec.title === title && sec.items.length > 0 && sec.items.every(it => it.status && it.status !== 'unchecked')
           );
+          const towerFloorCount = (TOWER_PLAN[t]?.floors ?? (def.floors.length - 1)) + 1; // Ground (level 0) through this tower's top floor, inclusive
           subItems = [
-            ...def.floors.map(floor => ({ label: floor + ' Floor', done: sectionDone(floor + ' Floor') })),
+            ...def.floors.slice(0, towerFloorCount).map(floor => ({ label: floor + ' Floor', done: sectionDone(floor + ' Floor') })),
             { label: 'Additional Areas', done: sectionDone('Additional Areas') }
           ];
         }
@@ -8009,10 +8035,12 @@ async function renderStaffPerfChart(rows) {
   });
 }
 const INSPECTION_TYPE_LABEL_ADMIN = { 'daily-tower': 'Daily Tower', 'weekly-mep': 'Weekly MEP', 'daily-security': 'Daily Security', 'club-house': 'Club House' };
+let inspectionLogShowCount = 100;
 function renderInspectionLogTable() {
   const body = document.getElementById('inspectionLogBody');
   if (!body) return;
-  const rows = allInspections.slice(0, 100);
+  inspectionLogShowCount = Math.max(inspectionLogShowCount, 100);
+  const rows = allInspections.slice(0, inspectionLogShowCount);
   if (!rows.length) { body.innerHTML = '<tr><td colspan="5" class="t-muted">No inspections filed yet.</td></tr>'; return; }
   body.innerHTML = rows.map(r => `
     <tr>
@@ -8023,6 +8051,15 @@ function renderInspectionLogTable() {
       <td data-label="Time"><button class="btn btn-outline btn-sm" data-view-insp="${r.id}">${r.createdAt ? fmtDateTime(r.createdAt) : '—'} · View</button></td>
     </tr>`).join('');
   body.querySelectorAll('[data-view-insp]').forEach(b => b.onclick = () => openInspectionDetail(b.dataset.viewInsp));
+  if (allInspections.length > rows.length) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td colspan="5" style="text-align:center; padding:10px;"><button type="button" class="btn btn-outline btn-sm" id="inspectionLogLoadMoreBtn">Load more (${allInspections.length - rows.length} older)</button></td>`;
+    body.appendChild(tr);
+    document.getElementById('inspectionLogLoadMoreBtn').addEventListener('click', () => {
+      inspectionLogShowCount += 100;
+      renderInspectionLogTable();
+    });
+  }
 }
 
 // Full checklist, section by section — issues surfaced first within each
@@ -8036,7 +8073,7 @@ function openInspectionDetail(id) {
   document.getElementById('inspectionDetailTitle').textContent =
     (INSPECTION_TYPE_LABEL_ADMIN[r.formType] || r.formType) + (r.tower ? ' — Tower ' + r.tower : '');
   document.getElementById('inspectionDetailMeta').textContent =
-    'Filed by ' + (r.createdByName || '—') + (r.createdAt ? ' · ' + fmtDateTime(r.createdAt) : '')
+    (r.inspectionDate ? 'Inspected ' + fmtDate(r.inspectionDate) + ' · ' : '') + 'Filed by ' + (r.createdByName || '—') + (r.createdAt ? ' · submitted ' + fmtDateTime(r.createdAt) : '')
     + (r.verifiedBy ? ' · Verified by ' + r.verifiedBy : '');
 
   // Tank checks store true/false/null (OK/Issue/unchecked); every other
@@ -8123,6 +8160,133 @@ function openInspectionDetail(id) {
     openComplaintDetail(el.dataset.inspRelatedComplaint);
   }));
   document.getElementById('inspectionDetailModalBackdrop').classList.add('open');
+  document.getElementById('inspectionDetailPdfBtn').onclick = () => generateDetailedInspectionPDF(r);
+}
+
+// B14/I10 fix part 2: the bulk Summary export (unchanged, above) only ever
+// listed one row per inspection — type/tower/filed-by/issues/unchecked/date.
+// None of the actual checklist content (item-by-item status/notes, the
+// tank grid, the six weekly readings, preventive-maintenance notes,
+// verifier name/signature, manager review) was ever exportable at all,
+// even though every one of those fields is already saved on the record —
+// an admin handing this to the committee or an auditor had nothing but a
+// one-line summary to show for a 173-item inspection. This produces a
+// full, per-inspection record reproducing all of it, paginating as needed.
+async function generateDetailedInspectionPDF(r) {
+  const btn = document.getElementById('inspectionDetailPdfBtn');
+  btn.disabled = true; const orig = btn.textContent; btn.textContent = 'Building…';
+  try {
+    await loadScript('./jspdf.umd.min.js');
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ unit: 'pt', format: 'a4' });
+    const pageW = pdf.internal.pageSize.getWidth();
+    const marginX = 48;
+    let y = 50;
+    const ensureSpace = (needed) => { if (y + needed > 780) { pdf.addPage(); y = 50; } };
+    const heading = (text) => {
+      ensureSpace(26);
+      pdf.setFont('helvetica', 'bold'); pdf.setFontSize(12);
+      pdf.text(text, marginX, y); y += 6;
+      pdf.setDrawColor(200); pdf.line(marginX, y, pageW - marginX, y); y += 14;
+    };
+    const itemLine = (label, status, note) => {
+      ensureSpace(14);
+      const mark = status === 'ok' ? 'OK' : status === 'issue' ? 'ISSUE' : status === true ? 'OK' : status === false ? 'ISSUE' : '—';
+      pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9);
+      pdf.text(`[${mark}]`, marginX, y);
+      const labelLines = pdf.splitTextToSize(label, pageW - marginX * 2 - 50);
+      pdf.text(labelLines, marginX + 46, y);
+      y += labelLines.length * 11;
+      if (note) {
+        const noteLines = pdf.splitTextToSize(`Note: ${note}`, pageW - marginX * 2 - 50);
+        pdf.setTextColor(120);
+        pdf.text(noteLines, marginX + 46, y);
+        pdf.setTextColor(0);
+        y += noteLines.length * 11;
+      }
+      y += 3;
+    };
+
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(15);
+    pdf.text('Max Heights Majestic RWS', pageW / 2, y, { align: 'center' }); y += 18;
+    pdf.setFontSize(11); pdf.setFont('helvetica', 'normal');
+    pdf.text('Detailed Inspection Record', pageW / 2, y, { align: 'center' }); y += 22;
+
+    pdf.setFontSize(9);
+    pdf.text(`Type: ${INSPECTION_TYPE_LABEL_ADMIN[r.formType] || r.formType}${r.tower ? '  ·  Tower ' + r.tower : ''}`, marginX, y); y += 13;
+    if (r.inspectionDate) {
+      const dIns = new Date(r.inspectionDate + 'T00:00:00');
+      const weekNo = Math.ceil((dIns.getDate() + new Date(dIns.getFullYear(), dIns.getMonth(), 1).getDay()) / 7);
+      pdf.text(`Date of Inspection: ${fmtDate(r.inspectionDate)}  ·  Week ${weekNo} of ${dIns.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}`, marginX, y); y += 13;
+    }
+    const filer = (allStaff || []).find((s) => s.id === r.createdByUid);
+    const filerDesignation = filer ? (STAFF_TRADES[filer.trade]?.label || (filer.role === 'manager' ? 'Managing Staff' : 'Supervisor')) : null;
+    pdf.text(`Filed by: ${r.createdByName || '—'}${filerDesignation ? ' (' + filerDesignation + ')' : ''}  ·  Submitted ${r.createdAt ? fmtDateTime(r.createdAt) : '—'}`, marginX, y); y += 13;
+    pdf.text(`Verified By (on form): ${r.verifiedBy || '—'}`, marginX, y); y += 13;
+    if (r.managerVerificationStatus) {
+      pdf.text(`Manager Review: ${r.managerVerificationStatus === 'verified' ? 'Verified' : 'Needs Correction'} by ${r.managerVerifiedBy || '—'}${r.managerVerifiedAt ? ' on ' + fmtDateTime(r.managerVerifiedAt) : ''}`, marginX, y); y += 13;
+      if (r.managerRemarks) { pdf.text(`Manager Remarks: ${r.managerRemarks}`, marginX, y); y += 13; }
+    }
+    y += 10;
+
+    (r.sections || []).forEach((sec) => {
+      heading(sec.title);
+      (sec.items || []).forEach((it) => itemLine(it.label, it.status, it.note));
+      y += 6;
+    });
+
+    if (r.tankData) {
+      heading('Terrace Water Tanks');
+      const tankCheckLabels = INSPECTION_TYPES['weekly-mep']?.tankChecks || [];
+      Object.entries(r.tankData).forEach(([tower, checks]) => {
+        ensureSpace(14);
+        pdf.setFont('helvetica', 'bold'); pdf.setFontSize(9.5);
+        pdf.text(`Tower ${tower}`, marginX, y); y += 12;
+        checks.forEach((v, i) => itemLine(tankCheckLabels[i] || `Check ${i + 1}`, v));
+      });
+      y += 6;
+    }
+    if (r.readingsData) {
+      heading('Weekly Readings');
+      Object.entries(r.readingsData).forEach(([label, val]) => {
+        ensureSpace(13);
+        pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9);
+        pdf.text(`${label}: ${val || '—'}`, marginX, y); y += 13;
+      });
+      y += 6;
+    }
+    if (r.maintenanceNotes) {
+      heading('Preventive Maintenance This Week');
+      const lines = pdf.splitTextToSize(r.maintenanceNotes, pageW - marginX * 2);
+      pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9);
+      ensureSpace(lines.length * 11);
+      pdf.text(lines, marginX, y); y += lines.length * 11 + 6;
+    }
+    if (r.formType === 'club-house') {
+      heading('Club House Notes');
+      [['Complaints', r.complaintsNotes], ['Incidents', r.incidentNotes], ['Consent Forms', r.consentForms], ['Gym Attendance', r.gymAttendance], ['Swim Attendance', r.swimAttendance]]
+        .filter(([, v]) => v).forEach(([label, val]) => {
+          ensureSpace(13);
+          pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9);
+          pdf.text(`${label}: ${val}`, marginX, y); y += 13;
+        });
+      y += 6;
+    }
+
+    if (r.signatureDataUrl) {
+      ensureSpace(80);
+      pdf.setFont('helvetica', 'bold'); pdf.setFontSize(10);
+      pdf.text('Inspector Signature', marginX, y); y += 8;
+      try { pdf.addImage(r.signatureDataUrl, 'PNG', marginX, y, 160, 50); y += 58; } catch (e) { /* non-fatal */ }
+    }
+
+    pdf.save(`Inspection-${r.formType}${r.tower ? '-' + r.tower : ''}-${r.id.slice(0, 8)}.pdf`);
+  } catch (err) {
+    console.error('Detailed inspection PDF failed:', err);
+    showToast(`Could not build the PDF${err?.code ? ` (${err.code})` : ''} — please try again.`, 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = orig;
+  }
 }
 document.getElementById('closeInspectionDetailModal')?.addEventListener('click', () => document.getElementById('inspectionDetailModalBackdrop').classList.remove('open'));
 
@@ -8138,6 +8302,7 @@ async function generateStaffLoginId() {
 }
 
 document.getElementById('addStaffBtn')?.addEventListener('click', () => document.getElementById('staffModalBackdrop').classList.add('open'));
+document.getElementById('facilityStaffRetryBtn')?.addEventListener('click', loadFacilityStaffData);
 document.getElementById('closeStaffModal')?.addEventListener('click', () => document.getElementById('staffModalBackdrop').classList.remove('open'));
 document.getElementById('closeStaffCredsModal')?.addEventListener('click', () => document.getElementById('staffCredsModalBackdrop').classList.remove('open'));
 document.getElementById('closeStaffCredsBtn')?.addEventListener('click', () => document.getElementById('staffCredsModalBackdrop').classList.remove('open'));
@@ -8203,7 +8368,8 @@ async function resetStaffLogin(id) {
   const s = allStaff.find(x => x.id === id);
   if (!s) return;
   const orphanedSlots = allInspectionAssignments.filter(a => a.assignedToUid === id);
-  if (!confirm(`Reset the login for "${s.name}"? This deactivates their current login ID and PIN (they can no longer sign in with it) and creates a brand-new login ID + PIN for them, right away.${orphanedSlots.length ? ` They currently have ${orphanedSlots.length} inspection slot(s) assigned — resetting will clear those back to Unassigned.` : ''}`)) return;
+  const openAssignedComplaints = (allComplaints || []).filter(c => c.assignedToUid === id && ['open', 'in_progress'].includes(c.status));
+  if (!confirm(`Reset the login for "${s.name}"? This deactivates their current login ID and PIN (they can no longer sign in with it) and creates a brand-new login ID + PIN for them, right away.${orphanedSlots.length ? ` They currently have ${orphanedSlots.length} inspection slot(s) assigned — resetting will clear those back to Unassigned.` : ''}${openAssignedComplaints.length ? ` They have ${openAssignedComplaints.length} open complaint(s) assigned — these will move to their new login automatically.` : ''}`)) return;
   const secondaryApp = initializeApp(firebaseConfig, 'Secondary_' + Date.now());
   let cred;
   try {
@@ -8223,9 +8389,12 @@ async function resetStaffLogin(id) {
     orphanedSlots.forEach(slot => batch.update(doc(db, 'inspectionAssignments', slot.id), {
       assignedToUid: null, assignedToName: null, assignedByUid: auth.currentUser.uid, assignedByName: currentAdmin?.name || 'Admin', updatedAt: serverTimestamp()
     }));
+    openAssignedComplaints.forEach(c => batch.update(doc(db, 'complaints', c.id), {
+      assignedToUid: newUid, assignedToName: s.name, updatedAt: serverTimestamp()
+    }));
     await batch.commit();
 
-    await logAudit(auth.currentUser, 'reset_staff_login', { oldId: id, newId: newUid, name: s.name, clearedSlots: orphanedSlots.length });
+    await logAudit(auth.currentUser, 'reset_staff_login', { oldId: id, newId: newUid, name: s.name, clearedSlots: orphanedSlots.length, transferredComplaints: openAssignedComplaints.length });
     document.getElementById('staffCredsId').value = loginId;
     document.getElementById('staffCredsPin').value = pin;
     document.getElementById('staffCredsModalBackdrop').classList.add('open');

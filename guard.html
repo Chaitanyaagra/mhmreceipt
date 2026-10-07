@@ -261,7 +261,11 @@ document.getElementById('vTower').addEventListener('change', populateFlatSelect)
 function populateFlatSelect() {
   const tower = document.getElementById('vTower').value;
   const sel = document.getElementById('vFlat');
-  sel.innerHTML = flatsForTower(tower).map(f => `<option value="${escapeHtml(f)}">${escapeHtml(f)}</option>`).join('');
+  sel.innerHTML = flatsForTower(tower).map(g =>
+    `<optgroup label="${escapeHtml(g.label)}">` +
+    g.flats.map(f => `<option value="${escapeHtml(f)}">${escapeHtml(f)}</option>`).join('') +
+    `</optgroup>`
+  ).join('');
 }
 
 /* ---------------------------------------------------------------------- */

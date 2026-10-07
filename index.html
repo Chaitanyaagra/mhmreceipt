@@ -585,6 +585,17 @@ optgroup, option[disabled]{ color:var(--ink-400); font-style:italic; }
   display:inline-flex; align-items:center; gap:8px; margin-top:14px;
 }
 .dash-grid{ display:grid; grid-template-columns:1.35fr 1fr; gap:20px; align-items:start; margin-top:20px; }
+.dash-shortcuts{ display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-top:18px; }
+.dash-shortcut{
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:7px;
+  background:#fff; border:1px solid var(--line); border-radius:14px; padding:14px 6px;
+  min-height:76px; cursor:pointer; transition:border-color .15s ease, transform .1s ease;
+  font-family:inherit; font-size:12.5px; font-weight:600; color:var(--navy-900);
+}
+.dash-shortcut:hover{ border-color:var(--saffron-500); }
+.dash-shortcut:active{ transform:scale(.97); }
+.dash-shortcut svg{ width:22px; height:22px; color:var(--navy-900); }
+@media (max-width:420px){ .dash-shortcuts{ grid-template-columns:repeat(2,1fr); } }
 .pay-history-item{ display:flex; justify-content:space-between; align-items:center; padding:15px 0; border-bottom:1px solid var(--line); gap:12px; flex-wrap:wrap; }
 .pay-history-item:last-child{ border-bottom:none; }
 
@@ -1940,7 +1951,10 @@ if (towerSelect && flatSelect) {
 const mobileInput = document.querySelector('#registerForm [name="mobile"]');
 if (mobileInput) {
   mobileInput.addEventListener('input', () => {
-    const cleaned = mobileInput.value.replace(/\D/g, '').replace(/^(91|0)/, '').slice(0, 10);
+    let digits = mobileInput.value.replace(/\D/g, '');
+    if (digits.length === 12 && digits.startsWith('91')) digits = digits.slice(2);
+    else if (digits.length === 11 && digits.startsWith('0')) digits = digits.slice(1);
+    const cleaned = digits.slice(0, 10);
     if (cleaned !== mobileInput.value) mobileInput.value = cleaned;
   });
 }
@@ -3200,10 +3214,16 @@ async function loadDashboard(uid) {
         </div>` : ''}
     </div>
     ${currentMember.status === 'approved' ? `<div id="gateCard"></div>` : ''}
-    ${currentMember.status === 'approved' ? `<div id="financialSummaryCard"></div>` : ''}
+    
     ${currentMember.status === 'approved' ? `<div id="inspectionsCard"></div>` : ''}
     ${currentMember.status === 'approved' ? `<div id="expiryCenterCard" style="display:none;"></div>` : ''}
     ${currentMember.status === 'approved' ? `
+    <div class="dash-shortcuts" role="group" aria-label="Quick actions">
+      <button type="button" class="dash-shortcut" id="shortcutPay"><svg viewBox="0 0 24 24"><use href="#i-rupee"/></svg><span>Pay</span></button>
+      <button type="button" class="dash-shortcut" id="shortcutComplaint"><svg viewBox="0 0 24 24"><use href="#i-bell"/></svg><span>Complaint</span></button>
+      <button type="button" class="dash-shortcut" id="shortcutVisitors"><svg viewBox="0 0 24 24"><use href="#i-user"/></svg><span>Visitors</span></button>
+      <button type="button" class="dash-shortcut" id="shortcutBookings"><svg viewBox="0 0 24 24"><use href="#i-home"/></svg><span>Bookings</span></button>
+    </div>
     <div class="dash-grid">
       <div class="card card-pad">
         <div id="duesPanel"><div class="skeleton" style="height:186px; margin-bottom:18px;"></div></div>
@@ -3217,6 +3237,9 @@ async function loadDashboard(uid) {
         </div>
         <div id="paymentList"></div>
       </div>
+      <details class="card" style="grid-column:1/-1; padding:0;">
+        <summary style="padding:16px 18px; cursor:pointer; font-size:14.5px; font-weight:700; color:var(--navy-900);">More — Profile, Vehicles, Family &amp; Pets</summary>
+        <div class="dash-grid" style="padding:0 18px 18px; margin-top:0;">
       <div class="card card-pad">
         <h3 style="font-size:16px; margin-bottom:12px;">Your Details</h3>
         ${(() => {
@@ -3275,6 +3298,8 @@ async function loadDashboard(uid) {
         </div>
         <div id="myPetsList"><p class="t-muted" style="font-size:13px;">Loading…</p></div>
       </div>
+        </div>
+      </details>
       <div class="card card-pad">
         <div class="spread" style="margin-bottom:12px;">
           <h3 style="font-size:16px;">My Complaints</h3>
@@ -3348,6 +3373,14 @@ async function loadDashboard(uid) {
     document.getElementById('editProfileBtnFamily')?.addEventListener('click', openProfileModal);
     document.getElementById('addPetBtn')?.addEventListener('click', () => openPetModal());
     document.getElementById('raiseComplaintBtn')?.addEventListener('click', openComplaintModal);
+    document.getElementById('shortcutPay')?.addEventListener('click', () => document.getElementById('openPaymentBtn')?.click());
+    document.getElementById('shortcutComplaint')?.addEventListener('click', () => document.getElementById('raiseComplaintBtn')?.click());
+    const goToCommunityTab = (tab) => {
+      document.querySelector(`[data-cmrtab="${tab}"]`)?.click();
+      document.querySelector('[data-cmrtab]')?.closest('.card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    };
+    document.getElementById('shortcutVisitors')?.addEventListener('click', () => goToCommunityTab('guest'));
+    document.getElementById('shortcutBookings')?.addEventListener('click', () => goToCommunityTab('book'));
     document.getElementById('newBookingBtn')?.addEventListener('click', openBookingModal);
     document.getElementById('newGuestBtn')?.addEventListener('click', () => {
       document.getElementById('guestForm').reset();
@@ -3381,7 +3414,6 @@ async function loadDashboard(uid) {
     subscribeComplaintUpdates(uid);
     subscribeBookingUpdates(uid);
     loadInspectionsCard();
-    loadFinancialSummaryCard();
   }
 }
 
@@ -3819,6 +3851,26 @@ function isOwnActionInProgress() {
       || document.getElementById('complaintModalBackdrop')?.classList.contains('open')
       || document.getElementById('bookingModalBackdrop')?.classList.contains('open');
 }
+// A live-update that arrives while a modal is open gets its reload
+// skipped above — this flag remembers that happened, so the moment the
+// modal actually closes (any of the 4, by any path), a catch-up reload
+// runs instead of leaving the dashboard stale until some unrelated
+// future change happens to trigger a fresh one.
+let pendingRefreshOnModalClose = false;
+['successModalBackdrop', 'paymentModalBackdrop', 'complaintModalBackdrop', 'bookingModalBackdrop'].forEach((id) => {
+  const el = document.getElementById(id);
+  if (!el) return;
+  new MutationObserver(() => {
+    if (!el.classList.contains('open') && pendingRefreshOnModalClose && !isOwnActionInProgress()) {
+      pendingRefreshOnModalClose = false;
+      if (currentUser) {
+        loadPayments(currentUser.uid, true);
+        loadMyComplaints(currentUser.uid);
+        loadMyBookings(currentUser.uid);
+      }
+    }
+  }).observe(el, { attributes: true, attributeFilter: ['class'] });
+});
 
 function subscribePaymentUpdates(uid) {
   if (unsubscribePaymentUpdates) { unsubscribePaymentUpdates(); unsubscribePaymentUpdates = null; }
@@ -3828,7 +3880,7 @@ function subscribePaymentUpdates(uid) {
   // snapshot-fire time — the modal that was open when the snapshot fired
   // may have already closed by then, so checking earlier wouldn't reflect
   // the real state when it matters.
-  const reload = debounceReload(() => { if (!isOwnActionInProgress()) loadPayments(uid, true); });
+  const reload = debounceReload(() => { if (isOwnActionInProgress()) pendingRefreshOnModalClose = true; else loadPayments(uid, true); });
   const q = query(collection(db, 'payments'), where('memberUid', '==', uid));
   unsubscribePaymentUpdates = onSnapshot(q, () => {
     if (first) { first = false; return; }   // the initial dashboard load already covers this fire
@@ -3840,7 +3892,7 @@ function subscribeComplaintUpdates(uid) {
   if (unsubscribeComplaintUpdates) { unsubscribeComplaintUpdates(); unsubscribeComplaintUpdates = null; }
   if (!uid) return;
   let first = true;
-  const reload = debounceReload(() => { if (!isOwnActionInProgress()) loadMyComplaints(uid); });
+  const reload = debounceReload(() => { if (isOwnActionInProgress()) pendingRefreshOnModalClose = true; else loadMyComplaints(uid); });
   const q = query(collection(db, 'complaints'), where('raisedByUid', '==', uid));
   unsubscribeComplaintUpdates = onSnapshot(q, () => {
     if (first) { first = false; return; }
@@ -3852,7 +3904,7 @@ function subscribeBookingUpdates(uid) {
   if (unsubscribeBookingUpdates) { unsubscribeBookingUpdates(); unsubscribeBookingUpdates = null; }
   if (!uid) return;
   let first = true;
-  const reload = debounceReload(() => { if (!isOwnActionInProgress()) loadMyBookings(uid); });
+  const reload = debounceReload(() => { if (isOwnActionInProgress()) pendingRefreshOnModalClose = true; else loadMyBookings(uid); });
   const q = query(collection(db, 'facilityBookings'), where('memberUid', '==', uid));
   unsubscribeBookingUpdates = onSnapshot(q, () => {
     if (first) { first = false; return; }
@@ -3964,18 +4016,25 @@ function renderInspectionsCard(all) {
   const period = (start) => {
     const rows = all.filter(r => ms(r) >= start.getTime());
     const issues = rows.reduce((s, r) => s + (r.issueCount || 0), 0);
-    return { count: rows.length, issues };
+    const unchecked = rows.reduce((s, r) => s + (r.uncheckedCount || 0), 0);
+    return { count: rows.length, issues, unchecked };
   };
   const today = period(startOfToday);
   const week = period(startOfWeek);
   const month = period(startOfMonth);
 
-  const box = (label, p) => `
+  const box = (label, p) => {
+    const status = !p.count ? { text: 'not inspected', color: 'var(--ink-500,#6B7385)' }
+      : p.issues ? { text: p.issues + ' issue' + (p.issues > 1 ? 's' : ''), color: 'var(--warning,#B8860B)' }
+      : p.unchecked ? { text: 'partially checked', color: 'var(--ink-500,#6B7385)' }
+      : { text: 'all clear', color: 'var(--success,#2e7d5b)' };
+    return `
     <div style="flex:1; min-width:90px; background:var(--paper,#FAF7F0); border:1px solid var(--line,#EAE6DC); border-radius:12px; padding:10px 12px; text-align:center;">
       <div style="font-size:20px; font-weight:800;">${p.count}</div>
       <div class="t-muted" style="font-size:10.5px;">${label}</div>
-      <div style="font-size:10.5px; margin-top:2px; color:${p.issues ? 'var(--warning,#B8860B)' : 'var(--success,#2e7d5b)'};">${p.issues ? p.issues + ' issue' + (p.issues > 1 ? 's' : '') : 'all clear'}</div>
+      <div style="font-size:10.5px; margin-top:2px; color:${status.color};">${status.text}</div>
     </div>`;
+  };
 
   const recent = all.slice(0, 8);
   el.innerHTML = `
@@ -5317,7 +5376,7 @@ function renderPayDetailForm(mode, paySettings, payContext) {
   }
 }
 
-let paymentInFlight = false;   // re-entrancy lock: a payment is a financial record, never submit twice
+let paymentInFlight = false; window.__appBusy = false;   // re-entrancy lock: a payment is a financial record, never submit twice
 async function submitPayment(mode) {
   const btn = document.getElementById('submitPaymentBtn');
   const amount = Number(document.getElementById('payAmount').value);
@@ -5340,7 +5399,7 @@ async function submitPayment(mode) {
     return;
   }
 
-  paymentInFlight = true;
+  paymentInFlight = true; window.__appBusy = true;
   setLoading(btn, true);
   try {
     // The payment record is created FIRST — before the (slower,
@@ -5424,7 +5483,7 @@ async function submitPayment(mode) {
     await loadPayments(currentUser.uid);
   } catch (e) {
     showToast('Something went wrong — please try again.', 'error');
-  } finally { setLoading(btn, false); paymentInFlight = false; }
+  } finally { setLoading(btn, false); paymentInFlight = false; window.__appBusy = false; }
 }
 document.getElementById('closePaymentModal').addEventListener('click', () => document.getElementById('paymentModalBackdrop').classList.remove('open'));
 

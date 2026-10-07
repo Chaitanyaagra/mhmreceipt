@@ -42,8 +42,13 @@
   // text-entry field, is the closest cheap signal this app has for "the
   // person is in the middle of something" — reloading through either would
   // risk losing whatever they were doing. Anything else (browsing, a button
-  // focused, a checkbox) is safe.
+  // focused, a checkbox) is safe. window.__appBusy is a generic, optional
+  // escape hatch any page can set during its own in-flight work (a photo
+  // upload, a payment/inspection submit) that this shared file has no
+  // other way to know about — checked alongside the rest, not a
+  // replacement for it.
   function isMidSomething() {
+    if (window.__appBusy) return true;
     if (document.querySelector('.modal-backdrop.open')) return true;
     const el = document.activeElement;
     if (!el) return false;
@@ -82,14 +87,21 @@
 
   function attemptReload() {
     if (!pending) return;
+    if (isMidSomething()) return; // wait for the next trigger below — regardless of visibility, a backgrounded tab isn't reliably "nobody's looking" (opening a camera/file-picker backgrounds it too)
     if (document.hidden) { location.reload(); return; }
-    if (isMidSomething()) return; // wait for the next trigger below
     if (reloadTimer) return; // already counting down
     showUpdatingNotice();
     // Short, fixed delay rather than instant — gives the "Updating…" notice
     // a moment to actually be seen before the page goes away, so a reload
     // never feels like a total surprise even though nothing needs a click.
-    reloadTimer = setTimeout(() => location.reload(), 1200);
+    reloadTimer = setTimeout(() => {
+      reloadTimer = null;
+      // Re-checked here, not just when the timer was scheduled — typing or
+      // opening a modal during this 1.2s window must not still reload out
+      // from under them unconditionally.
+      if (isMidSomething()) { attemptReload(); return; }
+      location.reload();
+    }, 1200);
   }
 
   navigator.serviceWorker.addEventListener('controllerchange', () => {

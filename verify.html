@@ -101,10 +101,10 @@ const stateTitle = document.getElementById('stateTitle');
 const stateSub = document.getElementById('stateSub');
 const details = document.getElementById('details');
 
-function renderNotFound(reason) {
+function renderNotFound(reason, title = 'Receipt Not Found') {
   sealBox.innerHTML = '<span style="font-size:28px;">✕</span>';
   sealBox.style.color = 'var(--danger)';
-  stateTitle.textContent = 'Receipt Not Found';
+  stateTitle.textContent = title;
   stateTitle.style.color = 'var(--danger)';
   stateSub.textContent = reason || 'Yeh receipt number hamare record mein nahi mila. Number dobara jaanch lein.';
 }
@@ -159,14 +159,14 @@ function renderMember(data) {
 
 (async function run() {
   if (!receiptKey && !memberKey) {
-    renderNotFound('Is link mein koi receipt ya member number nahi mila.');
+    renderNotFound('Is link mein koi receipt ya member number nahi mila.', 'Invalid Link');
     return;
   }
   try {
     if (memberKey) {
       const snap = await getDoc(doc(db, 'membersPublic', memberKey));
       if (snap.exists()) renderMember(snap.data());
-      else renderNotFound('Yeh membership hamare record mein nahi mili.');
+      else renderNotFound('Yeh membership hamare record mein nahi mili.', 'Membership Not Found');
       return;
     }
     const snap = await getDoc(doc(db, 'receiptsPublic', receiptKey));
@@ -174,7 +174,7 @@ function renderMember(data) {
     else renderNotFound();
   } catch (e) {
     console.error(e);
-    renderNotFound('Verification service abhi available nahi hai. Baad mein try karein.');
+    renderNotFound('Verification service abhi available nahi hai. Baad mein try karein.', 'Verification Unavailable');
   }
 })();
 </script>

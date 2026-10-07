@@ -861,10 +861,27 @@ service cloud.firestore {
                     && request.resource.data.formType in ['daily-tower', 'weekly-mep', 'daily-security', 'club-house']
                     && request.resource.data.status == 'submitted'
                     // Several renderers interpolate these two directly into
-                    // HTML, trusting they're always a safe number — nothing
-                    // else in this rule constrained that before.
-                    && request.resource.data.issueCount is int
-                    && request.resource.data.uncheckedCount is int;
+                    // HTML, trusting they're always a safe number — "is int"
+                    // alone still accepted a negative value, silently
+                    // corrupting every downstream count/report that trusts
+                    // these as genuine, non-negative counts.
+                    && request.resource.data.issueCount is int && request.resource.data.issueCount >= 0
+                    && request.resource.data.uncheckedCount is int && request.resource.data.uncheckedCount >= 0
+                    && request.resource.data.inspectionDate is string
+                    && request.resource.data.inspectionDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+                    && request.resource.data.sections is list && request.resource.data.sections.size() > 0
+                    && isNonEmptyString(request.resource.data.verifiedBy, 200)
+                    // Manager-review fields must never be set at creation —
+                    // only through the separate review-update path below,
+                    // against the reviewing manager's own login. Without
+                    // this, a modified client could submit a brand-new
+                    // inspection already carrying managerVerificationStatus,
+                    // making it look reviewed before any manager saw it.
+                    && absentOrNull(request.resource.data, 'managerVerificationStatus')
+                    && absentOrNull(request.resource.data, 'managerVerifiedBy')
+                    && absentOrNull(request.resource.data, 'managerVerifiedByUid')
+                    && absentOrNull(request.resource.data, 'managerVerifiedAt')
+                    && absentOrNull(request.resource.data, 'managerRemarks');
       // A Managing Staff marking a submitted inspection reviewed — the one
       // narrow exception to "inspections are immutable". Recorded against
       // the manager's own login (managerVerifiedByUid must equal the
@@ -882,7 +899,7 @@ service cloud.firestore {
                     && isNonEmptyString(request.resource.data.managerVerifiedBy, 200)
                     && isOptionalString(request.resource.data, 'managerRemarks', 1000)
                     && request.resource.data.diff(resource.data).affectedKeys()
-                         .hasOnly(['managerVerificationStatus', 'managerVerifiedBy', 'managerVerifiedByUid', 'managerVerifiedAt', 'managerRemarks']);
+                         .hasOnly(['managerVerificationStatus', 'managerVerifiedBy', 'managerVerifiedByUid', 'managerVerifiedAt', 'managerRemarks', 'pendingManagerReview']);
       allow delete: if canApproveMembers();
     }
 
@@ -1801,7 +1818,9 @@ service cloud.firestore {
                       // status actually was.
                       && (
                         (resource.data.status == 'pending' && request.resource.data.status == 'approved'
-                         && get(/databases/$(database)/documents/facilities/$(resource.data.facilityId)).data.active == true)
+                         && get(/databases/$(database)/documents/facilities/$(resource.data.facilityId)).data.active == true
+                         && existsAfter(/databases/$(database)/documents/facilitySlots/$(resource.data.facilityId + '_' + resource.data.date + '_' + resource.data.slot))
+                         && getAfter(/databases/$(database)/documents/facilitySlots/$(resource.data.facilityId + '_' + resource.data.date + '_' + resource.data.slot)).data.bookingId == bookingId)
                         || (resource.data.status == 'pending' && request.resource.data.status == 'rejected')
                         || (resource.data.status == 'approved' && request.resource.data.status == 'cancelled')
                         || unchanged('status')
