@@ -9,15 +9,32 @@
    iOS/Safari never fires this event and has no programmatic install, so there
    we show the Share -> Add to Home Screen instruction instead. Self-suppresses
    once installed; a dismissal snoozes for three days instead of nagging. */
+/** localStorage keys for one app's install state, scoped by which app this page
+ *  is (index / staff / guard / admin). The resident, staff and guard apps share
+ *  one origin and used to share ONE "installed" key and ONE "snoozed" key, so
+ *  installing — or just dismissing the banner in — one app silently hid the
+ *  install prompt for the others, which were never installed. */
+export function installStorageKeys(pathname) {
+  const file = String(pathname || '').split('/').pop() || 'index.html';
+  const id = file.replace(/\.html?$/i, '') || 'index';
+  return { installed: `mhmrws_pwa_installed:${id}`, snoozed: `mhmrws_install_snoozed:${id}` };
+}
+
 export function installAppInstallPrompt({ appName, showToast, shouldSuppress }) {
   let deferredPrompt = null;
-  const SNOOZE_KEY = 'mhmrws_install_snoozed';
-  const INSTALLED_KEY = 'mhmrws_pwa_installed';
+  const { installed: INSTALLED_KEY, snoozed: SNOOZE_KEY } = installStorageKeys(location.pathname);
+  // localStorage can throw (private mode, storage disabled) — an install
+  // banner is never worth breaking the page over.
+  const store = {
+    get: (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } },
+    set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* ignore */ } },
+    remove: (k) => { try { localStorage.removeItem(k); } catch (e) { /* ignore */ } }
+  };
 
   const isStandalone = () =>
     window.matchMedia('(display-mode: standalone)').matches
     || window.navigator.standalone === true
-    || localStorage.getItem(INSTALLED_KEY) === '1';
+    || store.get(INSTALLED_KEY) === '1';
 
   const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
   const isInAppBrowser = () =>
@@ -26,7 +43,7 @@ export function installAppInstallPrompt({ appName, showToast, shouldSuppress }) 
   function shouldShow() {
     if (isStandalone()) return false;
     if (location.protocol !== 'https:' && location.hostname !== 'localhost') return false;
-    const snz = localStorage.getItem(SNOOZE_KEY);
+    const snz = store.get(SNOOZE_KEY);
     if (snz && Date.now() < Number(snz)) return false;
     return true;
   }
@@ -34,7 +51,7 @@ export function installAppInstallPrompt({ appName, showToast, shouldSuppress }) 
   const removeBanner = () => document.getElementById('installBanner')?.remove();
 
   function snooze() {
-    localStorage.setItem(SNOOZE_KEY, String(Date.now() + 3 * 24 * 60 * 60 * 1000));
+    store.set(SNOOZE_KEY, String(Date.now() + 3 * 24 * 60 * 60 * 1000));
     removeBanner();
   }
 
@@ -68,7 +85,7 @@ export function installAppInstallPrompt({ appName, showToast, shouldSuppress }) 
         p.prompt();
         try {
           const choice = await p.userChoice;
-          if (choice && choice.outcome === 'accepted') localStorage.setItem(INSTALLED_KEY, '1');
+          if (choice && choice.outcome === 'accepted') store.set(INSTALLED_KEY, '1');
         } catch (e) {}
         removeBanner();
       } else if (isIOS()) {
@@ -83,12 +100,17 @@ export function installAppInstallPrompt({ appName, showToast, shouldSuppress }) 
 
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
+    // The browser only offers an install when this app is NOT installed, so
+    // this event is the authoritative answer — a stored "installed" flag that
+    // disagrees with it is stale (the app was uninstalled since) and must go,
+    // or the banner would never come back on this browser.
+    store.remove(INSTALLED_KEY);
     deferredPrompt = e;
     setTimeout(showBanner, 1200);
   });
   window.addEventListener('load', () => { if (isIOS()) setTimeout(showBanner, 1800); });
   window.addEventListener('appinstalled', () => {
-    localStorage.setItem(INSTALLED_KEY, '1');
+    store.set(INSTALLED_KEY, '1');
     deferredPrompt = null;
     removeBanner();
     showToast?.('App install ho gayi! Ab home screen se kholein ✓', 'success');

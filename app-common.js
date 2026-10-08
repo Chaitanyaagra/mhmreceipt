@@ -70,6 +70,10 @@ export function showToast(message, type = 'info') {
     setTimeout(() => el.remove(), 320);
   }, 4200);
 }
+// back-button-handler.js is a classic script, not a module, so it cannot import
+// showToast — it looks for window.showToast to show "Press back again to exit".
+// Nothing ever assigned that, so the hint silently never appeared.
+if (typeof window !== 'undefined' && typeof window.showToast !== 'function') window.showToast = showToast;
 
 /* Tower & flat plan lives in its own dependency-free module so the
    registration form can use it without pulling in the Firebase SDK.
@@ -981,6 +985,275 @@ export function inspectionSectionToComplaintCategory(itemLabel, sectionTitle = '
   return inspectionLocationCategory(withSection);
 }
 
+/** The one wording a payment's status is shown in, everywhere. The two
+ *  "pending" states are the same thing to the committee — both sit in the same
+ *  "Pending Verification" tab — so they read the same, instead of a resident
+ *  seeing "Pending Approval" while the admin saw "pending approval" in a
+ *  different case and style. */
+export function paymentStatusLabel(status) {
+  switch (status) {
+    case 'pending_approval':
+    case 'pending_verification': return 'Pending verification';
+    case 'verified': return 'Verified';
+    case 'rejected': return 'Rejected';
+    case 'voided': return 'Voided';
+    default: {
+      const t = String(status ?? '').replace(/_/g, ' ').trim();
+      return t ? t.charAt(0).toUpperCase() + t.slice(1) : '—';
+    }
+  }
+}
+
+/** What a resident should be able to see about their complaint's progress:
+ *  the four stages (Submitted → Assigned → In progress → Resolved) with which
+ *  are done / current / still ahead, who it is assigned to, when it is
+ *  expected, and a `nextKey` naming the plain-language "what happens next".
+ *  The raw status badge ("Open", "In Progress") alone left residents asking
+ *  the office who was handling it and what was going on. */
+export function complaintProgress(c) {
+  const status = c?.status;
+  const assigned = !!(c?.assignedToUid || c?.assignedToName);
+  const inProgress = ['in_progress', 'resolved', 'closed'].includes(status);
+  const resolved = ['resolved', 'closed'].includes(status);
+  const steps = [
+    { key: 'submitted', label: 'Submitted', done: true, at: c?.createdAt || null },
+    { key: 'assigned', label: 'Assigned', done: assigned || inProgress, at: c?.assignedAt || null },
+    // "In progress" is DONE only once the work is finished; while the work is
+    // under way it is the CURRENT stage (otherwise a complaint being worked on
+    // read as "in progress ✓" with "Resolved" highlighted as the live step).
+    { key: 'in_progress', label: 'In progress', done: resolved, at: null },
+    { key: 'resolved', label: 'Resolved', done: resolved, at: c?.resolvedAt || null }
+  ];
+  const firstOpen = steps.findIndex((st) => !st.done);
+  const withState = steps.map((st, i) => ({ ...st, state: st.done ? 'done' : (i === firstOpen && status !== 'rejected' ? 'current' : 'todo') }));
+  let nextKey;
+  if (status === 'rejected') nextKey = 'rejected';
+  else if (status === 'closed') nextKey = 'closed';
+  else if (status === 'resolved') nextKey = 'confirm';
+  else if (status === 'in_progress') nextKey = 'working';
+  else nextKey = assigned ? 'assigned_waiting' : 'unassigned';
+  return {
+    steps: withState,
+    assignee: assigned ? (c.assignedToName || null) : null,
+    // An expected-by date only means something while work is still pending.
+    targetDate: ['open', 'in_progress'].includes(status) ? (c?.targetDate || null) : null,
+    reopened: status === 'in_progress' && !!c?.reopenNote,
+    nextKey
+  };
+}
+
+/** Whole minutes since a Firestore-style timestamp (or Date/ms), never negative. */
+export function minutesWaiting(createdAt, nowMs = Date.now()) {
+  const ms = createdAt?.toMillis ? createdAt.toMillis()
+    : createdAt?.seconds ? createdAt.seconds * 1000
+    : createdAt ? new Date(createdAt).getTime() : NaN;
+  if (!Number.isFinite(ms)) return null;
+  return Math.max(0, Math.floor((nowMs - ms) / 60000));
+}
+
+/** Does a payment's recorded tower/flat disagree with its member's CURRENT
+ *  tower/flat? Returns null when they agree, else { recorded, current } as
+ *  "T-flat" strings. A payment keeps its own copy of the flat (so receipts and
+ *  the Collection tower view don't need a members lookup) — which means that
+ *  copy goes stale if the member's flat is later corrected, unless the
+ *  correction also updates it. Voided payments are ignored: they no longer
+ *  count for anything. */
+export function paymentFlatMismatch(payment, member) {
+  if (!payment || !member || payment.status === 'voided') return null;
+  const n = (v) => String(v ?? '').trim();
+  if (n(payment.tower) === n(member.tower) && n(payment.flatNumber) === n(member.flatNumber)) return null;
+  return { recorded: `${n(payment.tower)}-${n(payment.flatNumber)}`, current: `${n(member.tower)}-${n(member.flatNumber)}` };
+}
+
+/** Is this Firebase Storage URL one of THIS member's own uploaded files
+ *  (their photos/<uid>/ or documents/<uid>/ folder)? Used as a guard before a
+ *  clean-up deletes anything — a stored URL that points anywhere else, or at
+ *  someone else's folder, is never deleted from here. */
+export function isOwnUploadUrl(url, uid) {
+  if (!url || !uid) return false;
+  try {
+    const path = decodeURIComponent(new URL(String(url)).pathname);
+    return path.includes(`/o/photos/${uid}/`) || path.includes(`/o/documents/${uid}/`);
+  } catch (e) { return false; }
+}
+
+/** A safe, readable filename for a downloaded document: the document's title
+ *  (stripped of characters filesystems reject), plus an extension taken from
+ *  the stored URL's path or, failing that, the file's MIME type. */
+export function downloadFileName(title, url, mimeType) {
+  const base = String(title ?? '')
+    .replace(/[\\/:*?"<>|\u0000-\u001f]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 80) || 'document';
+  let ext = '';
+  try {
+    const m = /\.([A-Za-z0-9]{2,5})$/.exec(decodeURIComponent(new URL(url).pathname));
+    if (m) ext = m[1].toLowerCase();
+  } catch (e) { /* not a parseable URL — fall through to the MIME type */ }
+  if (!ext && mimeType) {
+    ext = ({
+      'application/pdf': 'pdf', 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'text/plain': 'txt',
+      'application/msword': 'doc', 'application/vnd.ms-excel': 'xls',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx'
+    })[String(mimeType).split(';')[0].trim().toLowerCase()] || '';
+  }
+  return ext && !base.toLowerCase().endsWith('.' + ext) ? `${base}.${ext}` : base;
+}
+
+/** The word an inspection item/tank check is shown as in reports.
+ *  Checklist items store 'ok' | 'issue' | 'unchecked'; tank checks store
+ *  true | false | null. Anything that isn't an explicit OK or issue is
+ *  reported as NOT CHECKED — spelled out, rather than a bare dash that reads
+ *  the same as "not applicable" (this app has no N/A status). */
+export function inspectionStatusMark(status) {
+  if (status === 'ok' || status === true) return 'OK';
+  if (status === 'issue' || status === false) return 'ISSUE';
+  return 'NOT CHECKED';
+}
+
+/** The complaints that were raised from one inspection (flagged items and
+ *  failed tank checks become ordinary complaints, tagged with the id of the
+ *  inspection they came from). */
+export function complaintsForInspection(inspectionId, complaints) {
+  if (!inspectionId) return [];
+  return (complaints || []).filter((c) => c && c.source === 'inspection' && c.sourceInspectionId === inspectionId);
+}
+
+/** A short, readable reference for a Firestore id (first 8 chars, upper-case). */
+export function shortRef(id) {
+  return String(id ?? '').slice(0, 8).toUpperCase();
+}
+
+/* ---------------------------------------------------------------------- */
+/*  Inspection / complaint analytics helpers (admin)                        */
+/* ---------------------------------------------------------------------- */
+
+/* ---------------------------------------------------------------------- */
+/*  "Report a problem" — context that makes a report actionable              */
+/* ---------------------------------------------------------------------- */
+// Keep in step with CACHE_NAME in sw.js (a test checks they match).
+export const APP_VERSION = 'v156';
+
+const __recentErrors = [];
+function __noteError(text) {
+  const t = String(text || '').replace(/\?[^\s)]*/g, '').replace(/\s+/g, ' ').trim().slice(0, 200);   // no query strings / tokens
+  if (!t) return;
+  __recentErrors.push(t);
+  while (__recentErrors.length > 5) __recentErrors.shift();
+}
+if (typeof window !== 'undefined' && !window.__errorCollectorInstalled) {
+  window.__errorCollectorInstalled = true;
+  window.addEventListener('error', (e) => __noteError(`${e.message || 'Error'} @ ${String(e.filename || '').split('/').pop()}:${e.lineno || 0}`));
+  window.addEventListener('unhandledrejection', (e) => __noteError(`Unhandled: ${e.reason?.code || e.reason?.message || e.reason}`));
+}
+export function recentClientErrors() { return [...__recentErrors]; }
+
+/** The document saved for a problem report. `context` is what the person agreed to
+ *  send along (page, version, device, recent errors) — pass null when they unticked it.
+ *  Everything is trimmed to the limits firestore.rules enforces. */
+export function buildProblemReport({ message, member, uid, app = 'resident', context = null }) {
+  const clip = (v, n) => String(v ?? '').trim().slice(0, n);
+  const out = {
+    reporterUid: uid,
+    reporterName: clip(member?.name, 100),
+    flat: member?.tower ? clip(`${member.tower}-${member.flatNumber}`, 40) : '',
+    app: clip(app, 30),
+    message: clip(message, 1000),
+    status: 'new'
+  };
+  if (context) {
+    const details = JSON.stringify({
+      page: clip(context.page, 120), version: clip(context.version, 20), online: !!context.online,
+      screen: clip(context.screen, 20), device: clip(context.device, 200),
+      errors: (context.errors || []).slice(-5).map((x) => clip(x, 200))
+    });
+    out.details = details.length <= 3000 ? details : details.slice(0, 3000);
+  }
+  return out;
+}
+
+/** Is the society's backup healthy? `last` is a Date (or null), `kind` is how it
+ *  was taken ('github' = the nightly automatic job; anything else = someone did it
+ *  by hand). The automatic job runs every night, so 3 days of silence means it has
+ *  STOPPED (token expired, key deleted…) — while a manual backup is only expected
+ *  about monthly. */
+export function backupStatus(last, kind, now = Date.now()) {
+  if (!last || Number.isNaN(last.getTime?.())) return { state: 'none', days: null, auto: false, limit: null };
+  const days = Math.max(0, Math.floor((now - last.getTime()) / 86400000));
+  const auto = kind === 'github';
+  const limit = auto ? 3 : 30;
+  return { state: days >= limit ? 'stale' : 'ok', days, auto, limit };
+}
+
+/** File extension for a downloaded file, decided from what it REALLY is (its
+ *  MIME type) instead of assuming. A PNG saved as "photo.jpg" confuses viewers
+ *  and some phones refuse to preview it. */
+export function extensionForMime(mime, fallback = '') {
+  const m = String(mime || '').toLowerCase().split(';')[0].trim();
+  const map = { 'image/jpeg': '.jpg', 'image/jpg': '.jpg', 'image/png': '.png', 'image/webp': '.webp', 'image/gif': '.gif',
+                'image/heic': '.heic', 'image/heif': '.heif', 'application/pdf': '.pdf' };
+  return map[m] || fallback;
+}
+
+/** "Most active staff": group by who filed it (their user id), not by the name
+ *  typed in — two different people called "Ramesh" must not merge into one.
+ *  The display name comes from the staff directory when we have it. Old records
+ *  with no uid are grouped by name, separately. Returns [{ key, name, count }]. */
+export function topInspectors(inspections, staffList, limit = 5) {
+  const nameByUid = new Map((staffList || []).map((s) => [s.id, s.name]));
+  const groups = new Map();
+  (inspections || []).forEach((r) => {
+    const uid = r.createdByUid || '';
+    const label = (uid && nameByUid.get(uid)) || r.createdByName || '';
+    if (!uid && !label) return;
+    const key = uid || `name:${label}`;
+    const g = groups.get(key) || { key, name: label, count: 0 };
+    g.count++;
+    groups.set(key, g);
+  });
+  return [...groups.values()].sort((a, b) => b.count - a.count || a.name.localeCompare(b.name)).slice(0, limit);
+}
+
+/** Issues raised from inspections that keep coming back at the SAME place: same
+ *  tower + same item, within the last `days` days (default 30), seen at least
+ *  twice. Counting the title alone, across all history, called "Corridor Clean"
+ *  in Tower A and Tower D one location, forever. */
+export function recurringIssueLocations(complaints, inspections, { now = Date.now(), days = 30, limit = 5 } = {}) {
+  const towerById = new Map((inspections || []).map((r) => [r.id, r.tower || '']));
+  const since = now - days * 86400000;
+  const groups = new Map();
+  (complaints || []).forEach((c) => {
+    if (c.source !== 'inspection' || !c.title) return;
+    const at = c.createdAt?.seconds ? c.createdAt.seconds * 1000 : 0;
+    if (!at || at < since) return;
+    const tower = towerById.get(c.sourceInspectionId) || '';
+    const key = `${tower}|${c.title}`;
+    const g = groups.get(key) || { tower, title: c.title, count: 0 };
+    g.count++;
+    groups.set(key, g);
+  });
+  return [...groups.values()].filter((g) => g.count >= 2).sort((a, b) => b.count - a.count).slice(0, limit);
+}
+
+/** Two different clocks for a resolved complaint. Turnaround is what the
+ *  resident experienced (raised -> resolved). Handling is how long the person it
+ *  was assigned to took (assigned -> resolved) — a late assignment by the
+ *  committee must not make the staff member look slow. Null when not known. */
+export function complaintTimes(c) {
+  const created = c?.createdAt?.seconds, assigned = c?.assignedAt?.seconds, resolved = c?.resolvedAt?.seconds;
+  const hours = (a, b) => (Number.isFinite(a) && Number.isFinite(b) && b >= a) ? (b - a) / 3600 : null;
+  return { turnaroundHours: hours(created, resolved), handlingHours: hours(assigned, resolved) };
+}
+
+/** Rejected complaints (duplicates, not valid, out of scope) were never work to
+ *  be done, so they are left out of resolution rates — counting them as
+ *  "unresolved" punished staff and the society score for correct rejections. */
+export function scorableComplaints(list) {
+  return (list || []).filter((c) => c.status !== 'rejected');
+}
+
 /** OK / issue / unchecked counts for one saved inspection record — every
  *  checklist item in `sections` AND every terrace-tank check in `tankData`
  *  (true = OK, false = issue, null/missing = never checked). Staff
@@ -1508,6 +1781,25 @@ export async function generateRegistrationConfirmationPDF({ formData, membership
   return pdf;
 }
 
+/**
+ * Who a receipt is made out to. A receipt is a record of what was true when the
+ * money was taken, so it uses the name / tower / flat stored ON the payment. The
+ * member's CURRENT profile is only a fallback for old payments that never
+ * stored them. Otherwise a resident who later changed their name, or moved
+ * flats, would get an old receipt reprinted with details it never had (and one
+ * that no longer matches the QR-verified public copy).
+ * A flat correction already rewrites the payment, so corrected receipts follow.
+ */
+export function receiptIdentity(payment, member) {
+  const pick = (a, b) => (a !== undefined && a !== null && String(a).trim() !== '') ? a : b;
+  return {
+    name: pick(payment?.residentName, member?.name),
+    tower: pick(payment?.tower, member?.tower),
+    flatNumber: pick(payment?.flatNumber, member?.flatNumber),
+    memberID: pick(payment?.memberID, member?.memberID)
+  };
+}
+
 export async function generateReceiptPDF({ payment, member, society, logoDataUrl, save = true }) {
   await loadScript('./jspdf.umd.min.js');
   const { jsPDF } = window.jspdf;
@@ -1562,10 +1854,11 @@ export async function generateReceiptPDF({ payment, member, society, logoDataUrl
   kv('Receipt No.', payment.receiptNumber, marginX, y);
   kv('Date', fmtDate(payment.verifiedAt || payment.submittedAt), col2X, y);
   y += rowGap * 2;
-  kv('Resident Name', member?.name, marginX, y);
-  kv('Member ID', member?.memberID, col2X, y);
+  const who = receiptIdentity(payment, member);
+  kv('Resident Name', who.name, marginX, y);
+  kv('Member ID', who.memberID, col2X, y);
   y += rowGap * 2;
-  kv('Flat / Tower', `${member?.flatNumber || '—'} / ${member?.tower || '—'}`, marginX, y);
+  kv('Flat / Tower', `${who.flatNumber || '—'} / ${who.tower || '—'}`, marginX, y);
   kv('Financial Year', payment.financialYear, col2X, y);
   y += rowGap * 2;
   kv('Payment Mode', (payment.mode || '').toUpperCase(), marginX, y);
@@ -1748,6 +2041,17 @@ export async function generateStatementPDF({ payments, member, society, financia
   return pdf.output('blob');
 }
 
+/** Money received but not yet matched to a resident or purpose (verified
+ *  "suspense" entries) for a financial year. Kept out of the Income figures,
+ *  but the Income & Expenditure statement must SAY it is outside them — a
+ *  total read out at an AGM that silently leaves out received money would not
+ *  match the bank. */
+export function suspenseUnattributed(payments, financialYear) {
+  return (payments || [])
+    .filter(p => p.type === 'suspense' && p.status === 'verified' && p.financialYear === financialYear)
+    .reduce((t, p) => t + (Number(p.amount) || 0), 0);
+}
+
 /** Society-wide Income & Expenditure statement for a financial year — the
  * document a treasurer hands to the AGM or a CA, not a single resident's
  * receipt trail. Mirrors generateStatementPDF's exact visual language (same
@@ -1844,6 +2148,13 @@ export async function generateIncomeExpenditurePDF({ payments, expenses, society
   if (incomeRows.length) incomeRows.forEach(([label, amt]) => dataRow(label, amt));
   else dataRow('No verified income recorded for this FY', 0);
   subtotalRow('TOTAL INCOME', totalIncome);
+  const suspenseTotal = suspenseUnattributed(payments, financialYear);
+  if (suspenseTotal > 0) {
+    if (y > 760) { pdf.addPage(); y = 60; }
+    pdf.setFont('helvetica', 'italic'); pdf.setFontSize(8.5); pdf.setTextColor(124, 135, 156);
+    pdf.text(`Not included above: ${formatINR(suspenseTotal)} received in the bank but not yet matched to a resident (suspense).`, colLabel + 8, y + 2);
+    y += 22;
+  }
 
   // EXPENDITURE
   sectionHeading('EXPENDITURE');
@@ -2103,9 +2414,9 @@ export async function printReceipt({ payment, member, society, logoDataUrl }) {
       <div class="pr-grid">
         <div><b>Receipt No.</b>${escapeHtml(payment.receiptNumber || '—')}</div>
         <div><b>Date</b>${fmtDate(payment.verifiedAt || payment.submittedAt)}</div>
-        <div><b>Resident Name</b>${escapeHtml(member?.name || '—')}</div>
-        <div><b>Member ID</b>${escapeHtml(member?.memberID || '—')}</div>
-        <div><b>Flat / Tower</b>${escapeHtml(member?.flatNumber || '—')} / ${escapeHtml(member?.tower || '—')}</div>
+        <div><b>Resident Name</b>${escapeHtml(receiptIdentity(payment, member).name || '—')}</div>
+        <div><b>Member ID</b>${escapeHtml(receiptIdentity(payment, member).memberID || '—')}</div>
+        <div><b>Flat / Tower</b>${escapeHtml(receiptIdentity(payment, member).flatNumber || '—')} / ${escapeHtml(receiptIdentity(payment, member).tower || '—')}</div>
         <div><b>Financial Year</b>${escapeHtml(payment.financialYear || '—')}</div>
         <div><b>Payment Mode</b>${escapeHtml((payment.mode || '').toUpperCase())}</div>
         <div><b>Transaction / UTR No.</b>${escapeHtml(payment.utrOrChequeNo || '—')}</div>
@@ -2491,18 +2802,47 @@ function loadGis() {
     if (window.google?.accounts?.oauth2) return resolve();
     const s = document.createElement('script');
     s.src = 'https://accounts.google.com/gsi/client';
-    s.onload = resolve; s.onerror = () => reject(new Error('Google Identity Services load failed'));
+    // A blocked or stalled script request can end with neither onload nor
+    // onerror — without this the backup button would wait on it forever.
+    const timer = setTimeout(() => reject(new Error('Google sign-in could not be loaded (timed out) — check your connection and try again.')), 15000);
+    s.onload = () => { clearTimeout(timer); resolve(); };
+    s.onerror = () => { clearTimeout(timer); reject(new Error('Google sign-in could not be loaded — check your connection and try again.')); };
     document.head.appendChild(s);
   });
 }
 
-async function getDriveToken(clientId) {
+/** Turns Google Identity Services' failure codes (from either its callback's
+ *  `error` or its error_callback's `type`) into an Error with a message a
+ *  committee member can act on. */
+export function driveAuthError(code) {
+  const messages = {
+    popup_closed: 'The Google sign-in window was closed before it finished — nothing was backed up. Please try again.',
+    popup_failed_to_open: 'Your browser blocked the Google sign-in window. Allow pop-ups for this site and try again.',
+    access_denied: 'Google Drive access was not granted — nothing was backed up.'
+  };
+  const err = new Error(messages[code] || `Google sign-in failed${code ? ` (${code})` : ''} — nothing was backed up.`);
+  err.code = code || 'unknown';
+  return err;
+}
+
+export async function getDriveToken(clientId) {
   await loadGis();
   return new Promise((resolve, reject) => {
+    // Settles exactly once, whichever of the three paths gets there first.
+    let settled = false;
+    const finish = (fn, value) => { if (settled) return; settled = true; clearTimeout(timer); fn(value); };
+    // GIS's `callback` only runs for OAuth-level outcomes. A closed or
+    // blocked popup is reported ONLY through `error_callback` — it was never
+    // supplied, so closing the window left this promise pending forever and
+    // the Backup button stuck on its spinner (its `finally` never ran). The
+    // timeout is the last-resort backstop for a popup that goes silent.
+    const timer = setTimeout(() => finish(reject, new Error('Google sign-in did not finish in time — nothing was backed up. Please try again.')),
+      window.__DRIVE_AUTH_TIMEOUT_MS ?? 3 * 60 * 1000);
     const client = window.google.accounts.oauth2.initTokenClient({
       client_id: clientId,
       scope: 'https://www.googleapis.com/auth/drive.file',
-      callback: (resp) => (resp.error ? reject(resp) : resolve(resp.access_token))
+      callback: (resp) => (resp.error ? finish(reject, driveAuthError(resp.error)) : finish(resolve, resp.access_token)),
+      error_callback: (err) => finish(reject, driveAuthError(err?.type))
     });
     client.requestAccessToken({ prompt: '' });
   });
@@ -2771,7 +3111,7 @@ function petCardHTML(pet = {}) {
       ${url ? `<div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
         ${isImg ? `<img src="${escapeHtml(url)}" alt="" style="width:40px; height:40px; border-radius:8px; object-fit:cover; border:1px solid var(--line,#E2E6EF);">` : ''}
         <a href="${escapeHtml(url)}" target="_blank" rel="noopener" class="t-muted" style="font-size:12px; text-decoration:underline;">${isImg ? 'View current file' : 'View current certificate (PDF)'}</a>
-      </div>` : ''}
+      </div>` : '<div class="pet-view-only t-muted" style="display:none; font-size:12.5px; margin-bottom:6px;">Not provided.</div>'}
       <input type="file" class="${inputClass}" accept="image/*,application/pdf" data-existing-url="${escapeHtml(url || '')}">
     </div>`;
   };
@@ -2781,11 +3121,11 @@ function petCardHTML(pet = {}) {
       <b>🐾 Pet</b>
       <button type="button" class="fm-remove pet-remove" aria-label="Remove this pet">✕</button>
     </div>
-    <div class="field"><label>Pet Photo <span class="t-muted" style="font-weight:400;">(optional — helps security at the gate identify your pet)</span></label>
+    <div class="field"><label>Pet Photo <span class="t-muted pet-edit-only" style="font-weight:400;">(optional — helps security at the gate identify your pet)</span></label>
       ${pet.photoURL ? `<div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
         <img src="${escapeHtml(pet.photoURL)}" alt="" style="width:56px; height:56px; border-radius:10px; object-fit:cover; border:1px solid var(--line,#E2E6EF);">
-        <span class="t-muted" style="font-size:12px;">Current photo. <b>Change Photo:</b> choose a new file below to replace it.</span>
-      </div>` : '<div class="hint" style="margin-bottom:6px;">No photo yet — attach one below.</div>'}
+        <span class="t-muted pet-edit-only" style="font-size:12px;">Current photo. <b>Change Photo:</b> choose a new file below to replace it.</span>
+      </div>` : '<div class="hint pet-edit-only" style="margin-bottom:6px;">No photo yet — attach one below.</div><div class="pet-view-only t-muted" style="display:none; font-size:12.5px; margin-bottom:6px;">No photo on record.</div>'}
       <input type="file" class="pet-photo" accept="image/*">
     </div>
     <div class="form-2col">
@@ -3055,3 +3395,40 @@ export function waShareText(message) {
    a few hundred ID scans — and nothing called it, since admin.html has its own
    month-scoped version with progress reporting. Removed rather than left as a
    trap for the next person who goes looking for a bulk-export helper. */
+
+
+/** What is inside a (decrypted) backup file, for the "Check this backup" button:
+ *  works for the nightly automatic file ({collections:{name:[rows]}}) and for the
+ *  panel's own download ({name:[rows], …}). Returns { kind, created, rows:[[name,count]], total }
+ *  or null when it does not look like a backup at all. */
+export function summarizeBackup(obj) {
+  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return null;
+  const auto = obj.collections && typeof obj.collections === 'object' && !Array.isArray(obj.collections);
+  const source = auto ? obj.collections : obj;
+  const rows = Object.entries(source).filter(([, v]) => Array.isArray(v)).map(([k, v]) => [k, v.length]).sort((a, b) => a[0].localeCompare(b[0]));
+  if (!rows.length) return null;
+  const created = auto ? obj.createdAt : (obj.takenAt || obj.exportedAt || obj.createdAt || obj.timestamp || null);
+  return { kind: auto ? 'automatic' : 'manual', created: created || null, rows, total: rows.reduce((t, [, n]) => t + n, 0) };
+}
+
+
+/* ---- Two-person approval for large expenses -------------------------------
+   settings/expensePolicy = { dualApprovalAbove: <rupees> }; 0 / missing = off.
+   firestore.rules enforces the same rule — these helpers only let the screen
+   explain it BEFORE the person hits a "permission denied". */
+export function expenseNeedsSecondApprover(amount, policy) {
+  const limit = Number(policy?.dualApprovalAbove) || 0;
+  return limit > 0 && Number(amount) > limit;
+}
+/** Did `me` ({uid, email}) raise this expense? By uid when recorded, else by e-mail (case-insensitive). */
+export function expenseRaisedBy(expense, me) {
+  if (!expense || !me) return false;
+  if (expense.addedByUid && me.uid && expense.addedByUid === me.uid) return true;
+  const mail = String(me.email || '').trim().toLowerCase();
+  return !!mail && [expense.addedBy, expense.requestedBy].some((x) => String(x || '').trim().toLowerCase() === mail);
+}
+/** '' when `me` may approve the pending expense, otherwise the reason (shown to them). */
+export function expenseApprovalBlock(expense, me, policy) {
+  if (!expenseNeedsSecondApprover(expense?.amount, policy)) return '';
+  return expenseRaisedBy(expense, me) ? `Above ${'₹' + Number(policy.dualApprovalAbove).toLocaleString('en-IN')} a second person must approve — you raised this one.` : '';
+}

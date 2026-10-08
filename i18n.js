@@ -16,6 +16,21 @@
    ========================================================================== */
 
 export const HI = {
+  /* ---- Complaint progress / gate (added with the progress timeline) ---- */
+  'Submitted': 'दर्ज की गई',
+  'Assigned': 'सौंपी गई',
+  'In progress': 'कार्य जारी',
+  'Resolved': 'हल हो गई',
+  'Assigned to': 'ज़िम्मेदार',
+  'Expected by': 'अपेक्षित तिथि',
+  'Waiting': 'प्रतीक्षा में',
+  'Waiting for the committee to assign someone.': 'समिति द्वारा किसी को ज़िम्मेदारी सौंपे जाने की प्रतीक्षा है।',
+  'Assigned — work will start soon.': 'ज़िम्मेदारी सौंप दी गई है — काम जल्द शुरू होगा।',
+  'Work is in progress.': 'काम चल रहा है।',
+  'Staff marked it fixed — please confirm below.': 'स्टाफ ने इसे ठीक बताया है — कृपया नीचे पुष्टि करें।',
+  'Closed. Thank you for confirming.': 'बंद। पुष्टि के लिए धन्यवाद।',
+  'This complaint was closed without action — please contact the office if you have questions.': 'यह शिकायत बिना कार्रवाई के बंद की गई — प्रश्न हों तो कृपया कार्यालय से संपर्क करें।',
+  'You reopened this complaint — the staff will look at it again.': 'आपने यह शिकायत दोबारा खोली है — स्टाफ इसे फिर देखेगा।',
   /* ---- Header / nav ---- */
   'Registered Society': 'पंजीकृत सोसाइटी',
   'Follow us on Facebook': 'फेसबुक पर हमें फॉलो करें',
@@ -276,7 +291,23 @@ export const HI = {
 
   /* ---- Mobile tab bar ---- */
   'Home': 'होम',
-  'Pay': 'भुगतान'
+  'Pay': 'भुगतान',
+  'Payments': 'भुगतान',
+  'Complaints': 'शिकायतें',
+  'More': 'और',
+  'Pay Now': 'अभी भुगतान करें',
+  'Report a problem': 'समस्या बताएं',
+  'What happened?': 'क्या हुआ?',
+  'Send report': 'रिपोर्ट भेजें',
+  'Something not working?': 'कुछ काम नहीं कर रहा?',
+  'Send technical details too (helps us fix it faster)': 'तकनीकी जानकारी भी भेजें (जल्दी ठीक करने में मदद)',
+  'What exactly is sent?': 'क्या-क्या भेजा जाता है?',
+  'All paid ✓': 'सब चुकता ✓',
+  'At the Gate': 'गेट पर',
+  'Admin Panel': 'एडमिन पैनल',
+  'Bookings, Guests & Suggestions': 'बुकिंग, मेहमान और सुझाव',
+  'Profile, Vehicles, Family & Pets': 'प्रोफ़ाइल, वाहन, परिवार और पालतू',
+  'Maintenance due': 'मेंटेनेंस बकाया'
 };
 
 /* -------------------------------------------------------------------------

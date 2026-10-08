@@ -87,6 +87,14 @@
   .side-nav .icon{ width:18px; height:18px; display:grid; place-items:center; flex-shrink:0; }
   .nav-section-label{ font-size:10.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:rgba(255,255,255,.38); padding:14px 12px 5px; }
   .nav-section-label:first-child{ padding-top:2px; }
+  /* Pet details opened read-only: disabled fields should still read like plain
+     text (not greyed-out form controls), and the controls that only make sense
+     while editing — remove-card, file pickers — are hidden. */
+  #petAdminModalBackdrop.pet-readonly input:disabled, #petAdminModalBackdrop.pet-readonly select:disabled, #petAdminModalBackdrop.pet-readonly textarea:disabled{
+    opacity:1; color:var(--ink-900,#111827); -webkit-text-fill-color:currentColor; background:var(--paper,#FAF7F0); border-color:transparent; cursor:default; }
+  #petAdminModalBackdrop.pet-readonly select:disabled{ appearance:none; -webkit-appearance:none; }
+  #petAdminModalBackdrop.pet-readonly .pet-remove, #petAdminModalBackdrop.pet-readonly input[type="file"], #petAdminModalBackdrop.pet-readonly .hint, #petAdminModalBackdrop.pet-readonly .pet-edit-only{ display:none !important; }
+  #petAdminModalBackdrop.pet-readonly .pet-view-only{ display:block !important; }
   body.money-read-only #recordPaymentBtn, body.money-read-only #pendingBulkBar, body.money-read-only #pendingSelectAll, body.money-read-only .pending-pay-check{ display:none !important; }
   /* Pending-work count — Members (pending approvals) and Payments (pending
      verification). Hidden entirely at zero so an empty queue doesn't nag. */
@@ -96,6 +104,7 @@
     text-align:center; flex-shrink:0;
   }
   .side-nav .icon svg{ width:17px; height:17px; }
+  .nav-account-mobile{ display:none; }
   .sidebar-foot{ margin-top:auto; padding-top:16px; border-top:1px solid rgba(255,255,255,.12); }
   .admin-chip{ font-size:12px; color:rgba(255,255,255,.6); margin-bottom:10px; padding:0 8px; }
   .admin-chip b{ color:var(--white); display:block; font-size:13px; }
@@ -182,7 +191,13 @@
       display:flex; align-items:center; gap:10px;
     }
     .admin-chip{ display:none; }
+    .usearch-wrap{ order:2; flex:0 0 100%; padding:0; }   /* brand first, then a full-width search, then the view menu */
     .sidebar-foot .btn{ white-space:nowrap; width:auto; }
+    .sidebar-foot{ display:none; }   /* Change Password / Logout are at the bottom of the menu instead */
+    .nav-account-mobile{ display:block; margin-top:6px; border-top:1px solid rgba(255,255,255,.12); }
+    .nav-account-who{ padding:2px 12px 8px; font-size:13px; color:rgba(255,255,255,.8); }
+    .nav-account-who span{ opacity:.65; margin-left:6px; text-transform:capitalize; }
+    .nav-account-mobile .nav-logout{ color:#FF9C90; }
 
     /* The view-dropdown gets its OWN full-width row below — so its label
        ("Notices & Committee" etc.) shows in full and never clips. */
@@ -361,6 +376,15 @@
       <button data-view="settings"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-settings"/></svg></span> Settings &amp; Backup</button>
       <button data-view="adminUsers"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-adminUsers"/></svg></span> Admin Users</button>
       <button data-view="auditLog"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-auditLog"/></svg></span> Activity Log</button>
+      <!-- Phone only: the account controls live at the bottom of the menu instead
+           of crowding the top bar. They just click the real buttons in the
+           sidebar footer (which is hidden on a phone), so behaviour is in one place. -->
+      <div class="nav-account-mobile">
+        <div class="nav-section-label">Account</div>
+        <div class="nav-account-who" id="navAccountWho"></div>
+        <button type="button" data-proxy="changePasswordBtn">Change Password</button>
+        <button type="button" data-proxy="logoutBtn" class="nav-logout">Logout</button>
+      </div>
     </nav>
     <div class="sidebar-foot">
       <div class="admin-chip"><b id="adminName">—</b><span id="adminRole">—</span></div>
@@ -682,6 +706,7 @@
         <div class="toolbar"><span id="defaultersTotal" class="mono" style="font-size:12.5px; color:var(--ink-600);"></span></div>
         <div id="defaultersAging" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px;"></div>
         <div class="toolbar"><button class="btn btn-outline btn-sm" id="emailDefaultersBtn"><svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#a-mail"/></svg>Email All (BCC)</button>
+        <button class="btn btn-outline btn-sm" id="waQueueBtn">WhatsApp one by one</button>
         <span class="t-muted" style="font-size:12.5px;">for FY selected in Overview</span></div>
         <div class="table-wrap responsive">
           <table><thead><tr><th>Resident</th><th>Flat / Tower</th><th>Outstanding</th><th>Health</th><th>Remind</th><th></th></tr></thead>
@@ -1047,6 +1072,7 @@
           <div class="field"><label for="inspRptFrom">From (optional)</label><input type="date" id="inspRptFrom"></div>
           <div class="field"><label for="inspRptTo">To (optional)</label><input type="date" id="inspRptTo"></div>
         </div>
+        <div id="inspRptPreview" role="status" style="font-size:13px; line-height:1.5; margin-bottom:12px; padding:9px 12px; border-radius:10px; background:var(--paper, #FAF7F0); border:1px solid var(--line, #EAE6DC);"></div>
         <div style="display:flex; gap:8px; flex-wrap:wrap;">
           <button class="btn btn-primary btn-sm" id="inspReportPdfBtn">Download PDF</button>
           <button class="btn btn-outline btn-sm" id="inspReportXlsxBtn">Download Excel</button>
@@ -1309,6 +1335,14 @@
             <button class="btn btn-primary" type="submit">Save Payment Settings</button>
           </form>
         </div>
+        <div class="card card-pad" id="expensePolicyCard">
+          <h3 style="font-size:15px; margin-bottom:6px;">Two-person approval for large expenses</h3>
+          <p class="t-muted" style="font-size:12.8px; margin-bottom:12px;">Above this amount an expense is not counted until a <b>second</b> person (Treasurer or Super Admin) approves it — the person who entered it cannot approve it. Leave blank or 0 to switch this off. Only the Super Admin can change this.</p>
+          <form id="expensePolicyForm" style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap;">
+            <div class="field" style="margin:0; flex:1 1 200px;"><label for="expenseLimitInput">Approval limit (₹)</label><input type="number" id="expenseLimitInput" min="0" max="10000000" step="100" placeholder="e.g. 10000"></div>
+            <button class="btn btn-primary" type="submit" id="expenseLimitSaveBtn">Save limit</button>
+          </form>
+        </div>
         <div class="card card-pad">
           <h3 style="font-size:15px; margin-bottom:6px;">Maintenance Rate</h3>
           <p class="t-sub" style="font-size:12.8px; margin-bottom:14px;">
@@ -1356,7 +1390,9 @@
           <label class="checkbox-row" style="margin-bottom:12px;"><input type="checkbox" id="encryptBackupToggle"> Encrypt with Vault Passphrase (Document Security, above)</label>
           <p class="t-sub" style="font-size:12.4px; margin-bottom:16px;">
             This downloads a JSON file to your computer — no Drive setup needed.
-            Take one once a month and keep it somewhere safe. Encrypting it
+            Better still: switch on the <b>automatic nightly backup</b> (one-time, about 15 minutes — see
+            <span class="mono">BACKUP-SETUP.md</span>) and nobody has to remember. Until then, take one
+            once a month and keep it somewhere safe. Encrypting it
             means the file is unreadable without the passphrase — including to
             you, if the passphrase is ever lost, so keep it written down
             somewhere separate from the backup file itself.
@@ -1365,6 +1401,8 @@
             <summary style="cursor:pointer; font-size:13px; font-weight:600; color:var(--navy-800);">Decrypt a backup file</summary>
             <div style="margin-top:12px;">
               <div class="field"><label for="decryptBackupFile">Encrypted backup (.json.enc)</label><input type="file" id="decryptBackupFile" accept=".enc"></div>
+              <button class="btn btn-outline btn-block" type="button" id="checkBackupBtn" style="margin-bottom:8px;">Check what's inside (nothing is downloaded)</button>
+              <div id="checkBackupResult" class="t-muted" style="font-size:12.5px; margin-bottom:10px;"></div>
               <button class="btn btn-outline btn-block" type="button" id="decryptBackupBtn">Decrypt &amp; Download as JSON</button>
             </div>
           </details>
@@ -1799,6 +1837,23 @@
   </div>
 </div>
 
+<div class="modal-backdrop" id="waQueueModalBackdrop">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-head"><h3 style="font-size:16.5px;">WhatsApp reminders</h3><button class="icon-btn" id="closeWaQueue" aria-label="Close">✕</button></div>
+    <div class="modal-body">
+      <p class="t-muted" id="waQueueNote" style="font-size:12.8px; margin-bottom:10px;"></p>
+      <div id="waQueueList"></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="problemReportsModalBackdrop">
+  <div class="modal" style="max-width:560px;">
+    <div class="modal-head"><h3 style="font-size:16.5px;">App problems reported</h3><button class="icon-btn" id="closeProblemReports" aria-label="Close">✕</button></div>
+    <div class="modal-body" id="problemReportsBody"></div>
+  </div>
+</div>
+
 <div class="modal-backdrop" id="complaintDetailModalBackdrop">
   <div class="modal">
     <div class="modal-head"><h3 style="font-size:16.5px;">Complaint Details</h3><button class="icon-btn" id="closeComplaintDetailModal">✕</button></div>
@@ -1892,8 +1947,13 @@
       <label>Owner</label>
       <div id="petAdminOwnerText" style="font-weight:600; font-size:14px;"></div>
     </div>
-    <div id="petAdminEditorContainer"></div>
+    <!-- An existing pet opens READ-ONLY (this fieldset disabled); the Edit
+         button below is what unlocks it. -->
+    <fieldset id="petAdminFieldset" style="border:0; padding:0; margin:0; min-width:0;">
+      <div id="petAdminEditorContainer"></div>
+    </fieldset>
     <div style="display:flex; gap:10px; margin-top:14px;">
+      <button class="btn btn-primary btn-sm" id="editPetAdminBtn" style="display:none;">✎ Edit</button>
       <button class="btn btn-primary btn-sm" id="savePetAdminBtn">Save</button>
       <button class="btn btn-outline btn-sm" id="cancelPetAdminBtn">Cancel</button>
     </div>
@@ -2086,7 +2146,7 @@ import {
   generateMemberId, generateReceiptNumber, generateReceiptNumberAtomic, logAudit, flushAuditOutbox, generateReceiptPDF, generateIncomeExpenditurePDF, exportToExcel, parseExcelFile, PAYMENT_DEFAULTS, sanitizeUrl, safeStorageFilename, flatClaimId, findBlockingFlatClaim, generatePetId,
   encryptFile, decryptToBlob, backupToDrive, waLink, waShareText, serializeForExport,
   newPublicToken, publicKeyForMember,
-  TOWER_IDS, TOWER_PLAN, flatsForTower, isValidFlat, inspectionItemCounts, checkMemberFlatClaim, validateRentAgreementDates,
+  TOWER_IDS, TOWER_PLAN, flatsForTower, isValidFlat, inspectionItemCounts, backupStatus, summarizeBackup, expenseNeedsSecondApprover, expenseApprovalBlock, extensionForMime, topInspectors, recurringIssueLocations, complaintTimes, scorableComplaints, checkMemberFlatClaim, validateRentAgreementDates, inspectionStatusMark, complaintsForInspection, shortRef, paymentFlatMismatch, paymentStatusLabel,
   duesFor, DUES_LABEL, DUES_BADGE, maintenanceHealthStatus, membershipDue, membershipFeeAmount, eventDue,
   EXPENSE_CATEGORIES, EXPENSE_MODES, expenseSummary, fundPosition, treasurerDashboardStats, validateExpense,
   renderPager, skeletonTableRows, emptyState,
@@ -2357,7 +2417,7 @@ onAuthStateChanged(auth, async (user) => {
 
 function applyRoleNav() {
   const allowed = ROLE_NAV[currentAdmin.role] || ['overview'];
-  document.querySelectorAll('#sideNav button').forEach(btn => {
+  document.querySelectorAll('#sideNav button[data-view]').forEach(btn => {
     btn.style.display = allowed.includes(btn.dataset.view) ? 'flex' : 'none';
   });
   if (!allowed.includes('overview')) switchView(allowed[0] || 'overview');
@@ -2533,7 +2593,20 @@ document.querySelectorAll('#sideNav button').forEach(btn => btn.addEventListener
   if (!toggle || !nav) return;
 
   const closeMenu = () => { nav.classList.remove('menu-open'); toggle.setAttribute('aria-expanded', 'false'); };
-  const openMenu = () => { nav.classList.add('menu-open'); toggle.setAttribute('aria-expanded', 'true'); };
+  const who = document.getElementById('navAccountWho');
+  const openMenu = () => {
+    if (who) {
+      who.textContent = (document.getElementById('adminName')?.textContent || '').trim();
+      const role = document.createElement('span');
+      role.textContent = (document.getElementById('adminRole')?.textContent || '').trim();
+      who.appendChild(role);
+    }
+    nav.classList.add('menu-open'); toggle.setAttribute('aria-expanded', 'true');
+  };
+  nav.querySelectorAll('[data-proxy]').forEach(b => b.addEventListener('click', () => {
+    closeMenu();
+    document.getElementById(b.dataset.proxy)?.click();
+  }));
 
   toggle.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -2693,6 +2766,80 @@ function subscribeMembers() {
   });
 }
 
+// How many inspections are filed and still waiting for the manager's sign-off.
+// One small filtered query (not the whole inspections collection, which the
+// Facility Staff tab loads only when it is opened). A failure just leaves the
+// row off the list rather than showing a wrong number.
+async function loadPendingInspectionReviews() {
+  if (!can('approveMembers')) return;
+  try {
+    const snap = await getDocs(query(collection(db, 'inspections'), where('pendingManagerReview', '==', true)));
+    window.__pendingInspReviews = snap.docs.filter((d) => d.data().pendingManagerReview === true && !d.data().managerVerificationStatus).length;
+    renderOverview();
+  } catch (e) { console.warn('Pending inspection review count failed:', e?.code || e); }
+}
+
+// Reads settings/backup once so the Overview can warn when backups have stopped
+// (the nightly one is expected every day; a manual one about monthly).
+async function loadBackupStatus() {
+  if (!can('manageAdmins')) return;
+  try {
+    const snap = await getDoc(doc(db, 'settings', 'backup'));
+    const d = snap.exists() ? snap.data() : {};
+    window.__backupStatus = backupStatus(d.lastAt?.toDate ? d.lastAt.toDate() : null, d.lastKind || '');
+    renderOverview();
+  } catch (e) { console.warn('Backup status read failed:', e?.code || e); }
+}
+
+// Problems residents sent with "Report a problem". Newest 50; an error leaves
+// the row off rather than showing a wrong number.
+async function loadProblemReports() {
+  if (!can('approveMembers')) return;
+  try {
+    const snap = await getDocs(query(collection(db, 'problemReports'), orderBy('createdAt', 'desc'), limit(50)));
+    window.__problemReports = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    renderOverview();
+  } catch (e) { console.warn('Problem reports read failed:', e?.code || e); }
+}
+function openProblemReports() {
+  const body = document.getElementById('problemReportsBody');
+  const list = window.__problemReports || [];
+  const fmtDetails = (raw) => { try { const d = JSON.parse(raw); return `${d.page || ''} · ${d.version || ''} · ${d.screen || ''}${d.online === false ? ' · offline' : ''}\n${d.device || ''}${(d.errors || []).length ? '\nErrors:\n' + d.errors.join('\n') : ''}`; } catch { return String(raw || ''); } };
+  body.innerHTML = list.length ? list.map((r) => `
+    <div class="card card-pad" style="margin-bottom:10px; ${r.status === 'done' ? 'opacity:.6;' : ''}">
+      <div style="display:flex; justify-content:space-between; gap:8px; font-size:12.5px;" class="t-muted"><span><b>${escapeHtml(r.reporterName || 'Resident')}</b>${r.flat ? ` · ${escapeHtml(r.flat)}` : ''}</span><span>${fmtDate(r.createdAt)}</span></div>
+      <p style="margin:8px 0; white-space:pre-wrap; word-break:break-word; font-size:14px;">${escapeHtml(r.message)}</p>
+      ${r.details ? `<details><summary class="t-muted" style="font-size:12px; cursor:pointer;">Technical details</summary><pre style="font-size:11.5px; white-space:pre-wrap; word-break:break-word;">${escapeHtml(fmtDetails(r.details))}</pre></details>` : ''}
+      <div style="margin-top:8px;">${r.status === 'done' ? '<span class="badge badge-success">Done</span>' : `<button class="btn btn-secondary btn-sm" data-problem-done="${escapeHtml(r.id)}">Mark done</button>`}</div>
+    </div>`).join('') : '<p class="t-muted">No problems reported. 🎉</p>';
+  body.querySelectorAll('[data-problem-done]').forEach((b) => b.addEventListener('click', async () => {
+    b.disabled = true;
+    try {
+      await updateDoc(doc(db, 'problemReports', b.dataset.problemDone), { status: 'done', updatedAt: serverTimestamp() });
+      const r = (window.__problemReports || []).find((x) => x.id === b.dataset.problemDone);
+      if (r) r.status = 'done';
+      openProblemReports(); renderOverview();
+    } catch (e) { b.disabled = false; showToast(`Could not update${e?.code ? ` (${e.code})` : ''}.`, 'error'); }
+  }));
+  document.getElementById('problemReportsModalBackdrop').classList.add('open');
+}
+document.getElementById('closeProblemReports')?.addEventListener('click', () => document.getElementById('problemReportsModalBackdrop').classList.remove('open'));
+
+// Two-person approval limit (settings/expensePolicy). 0 = off.
+let expensePolicy = { dualApprovalAbove: 0 };
+async function loadExpensePolicy() {
+  try {
+    const snap = await getDoc(doc(db, 'settings', 'expensePolicy'));
+    expensePolicy = snap.exists() ? { dualApprovalAbove: Number(snap.data().dualApprovalAbove) || 0 } : { dualApprovalAbove: 0 };
+    const input = document.getElementById('expenseLimitInput');
+    if (input) input.value = expensePolicy.dualApprovalAbove || '';
+    renderExpenses();
+  } catch (e) { console.warn('Expense policy read failed:', e?.code || e); }
+}
+const myExpenseIdentity = () => ({ uid: auth.currentUser?.uid, email: currentAdmin?.email || auth.currentUser?.email });
+// '' when the signed-in admin may approve this pending expense, else the reason.
+const expenseBlockFor = (e) => expenseApprovalBlock(e, myExpenseIdentity(), expensePolicy);
+
 async function bootData() {
   const fySel = document.getElementById('fySelect');
   fySel.innerHTML = financialYearOptions().map(fy => `<option value="${fy}" ${fy === selectedFY ? 'selected' : ''}>FY ${fy}</option>`).join('');
@@ -2706,6 +2853,10 @@ async function bootData() {
   // defaulter count (which depends on expected dues) always reads zero.
   await loadMaintenance();
   populateEventFY();
+  loadPendingInspectionReviews();     // not awaited — fills in its row when it arrives
+  loadBackupStatus();
+  loadProblemReports();
+  loadExpensePolicy();
   renderOverview();
   renderMembersTable();
   renderPendingPayments();
@@ -2844,28 +2995,52 @@ function renderCommandCenter(pendingMemberCount, pendingPaymentCount) {
   const petVaxCount = allPets.filter(p => ['overdue', 'due_soon'].includes(petVaccinationStatus(p).status)).length;
   const rentAgreementCount = allMembers.filter(m => m.status === 'approved' && m.residentType === 'tenant' && ['expired', 'expiring_soon'].includes(rentAgreementStatus(m).status)).length;
   const openComplaintCount = allComplaints.filter(c => c.status === 'open').length;
+  // Past their deadline (same rule the complaint list's "breached" badge uses),
+  // across open AND in-progress ones — the complaints that need a decision now.
+  const overdueComplaintCount = allComplaints.filter(c => complaintUrgency(c) === 'breached').length;
+
+  // Filed by a supervisor, still waiting for the manager's sign-off (the manager
+  // does that in the staff app — committee can only see how many are queued).
+  const pendingInspectionCount = Number(window.__pendingInspReviews) || 0;
+  const bs = window.__backupStatus;
+  const backupNeedsAttention = !!bs && (bs.state === 'none' || bs.state === 'stale');
+  const backupHint = !bs ? '' : bs.state === 'none' ? 'No backup has ever been taken'
+    : bs.auto ? `Automatic backup stopped ${bs.days} days ago` : `Last backup ${bs.days} days ago`;
 
   const pills = [
-    { count: pendingPaymentCount, label: 'Payments Pending', show: can('verifyPayments'), go: () => { switchView('payments'); document.querySelector('[data-ptab="pending"]')?.click(); } },
-    { count: pendingMemberCount, label: 'Member Approvals', show: can('approveMembers'), go: () => { switchView('approvals'); document.getElementById('apMembersCard')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); } },
-    { count: pendingBookingCount, label: 'Booking Approvals', show: can('approveMembers'), go: () => { switchView('approvals'); document.getElementById('apBookingsCard')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); } },
-    { count: openComplaintCount, label: 'Open Complaints', show: can('approveMembers'), go: () => { switchView('complaints'); document.querySelector('[data-cptab="open"]')?.click(); } },
-    { count: pendingExpenseCount, label: 'Expense Approvals', show: can('recordExpenses'), go: () => { switchView('approvals'); document.getElementById('apExpensesCard')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); } },
-    { count: unmatchedBankCount, label: 'Bank Unmatched', show: can('verifyPayments'), go: () => { switchView('financials'); document.querySelector('[data-ftab="recon"]')?.click(); } },
+    { count: pendingPaymentCount, label: 'Payments Pending', hint: 'Verify UTR / cash received', show: can('verifyPayments'), go: () => { switchView('payments'); document.querySelector('[data-ptab="pending"]')?.click(); } },
+    { count: pendingMemberCount, label: 'Member Approvals', hint: 'New residents waiting to join', show: can('approveMembers'), go: () => { switchView('approvals'); document.getElementById('apMembersCard')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); } },
+    { count: pendingBookingCount, label: 'Booking Approvals', hint: 'Facility requests to approve', show: can('approveMembers'), go: () => { switchView('approvals'); document.getElementById('apBookingsCard')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); } },
+    { count: overdueComplaintCount, label: 'Overdue Complaints', hint: 'Past their target time', urgent: true, totalContribution: allComplaints.filter(c => complaintUrgency(c) === 'breached' && c.status !== 'open').length, show: can('approveMembers'), go: () => { switchView('complaints'); document.querySelector('[data-cptab="open"]')?.click(); } },
+    { count: openComplaintCount, label: 'Open Complaints', hint: 'Not assigned yet', show: can('approveMembers'), go: () => { switchView('complaints'); document.querySelector('[data-cptab="open"]')?.click(); } },
+    { count: pendingExpenseCount, label: 'Expense Approvals', hint: 'Bills waiting for approval', show: can('recordExpenses'), go: () => { switchView('approvals'); document.getElementById('apExpensesCard')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); } },
+    { count: unmatchedBankCount, label: 'Bank Unmatched', hint: 'Statement lines to match', show: can('verifyPayments'), go: () => { switchView('financials'); document.querySelector('[data-ftab="recon"]')?.click(); } },
     // Lives on Overview itself (not a separate tab), so this scrolls to it
     // instead of switching views — visible to any role that can see
     // Overview at all, since a pet-safety issue isn't a Treasurer-only or
     // President-only concern the way money/approvals are.
-    { count: petVaxCount, label: 'Pet Vaccinations', show: true, go: () => document.getElementById('petVaxCard')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) },
-    { count: rentAgreementCount, label: 'Rent Agreements Expiring', show: true, go: () => document.getElementById('rentAgreementCard')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }
-  ].filter(p => p.show && p.count > 0);
+    { count: petVaxCount, label: 'Pet Vaccinations', hint: 'Overdue or due soon', show: true, go: () => document.getElementById('petVaxCard')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) },
+    { count: rentAgreementCount, label: 'Rent Agreements Expiring', hint: 'Tenants to follow up', show: true, go: () => document.getElementById('rentAgreementCard')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) },
+    // Only the Super Admin can act on this. Shows when no backup was ever taken or
+    // the last one is older than it should be (see backupStatus()).
+    { count: backupNeedsAttention ? 1 : 0, numLabel: '!', urgent: true, label: 'Backup needs attention', hint: backupHint, show: can('manageAdmins'), go: () => { switchView('settings'); document.getElementById('backupCard')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); } },
+    { count: (window.__problemReports || []).filter((r) => r.status === 'new').length, label: 'App Problems Reported', hint: 'Sent by residents from the app', show: can('approveMembers'), go: () => openProblemReports() },
+    { count: pendingInspectionCount, label: 'Inspections Awaiting Manager Review', hint: 'Filed, not yet signed off', show: can('approveMembers'), go: () => { switchView('facilityStaff'); } }
+  ].filter(p => p.show && p.count > 0)
+   // Urgent (overdue) first — on a phone the row used to be a sideways scroll
+   // and the red pill, being 4th in the list, could sit off-screen.
+   .sort((x, y) => (y.urgent ? 1 : 0) - (x.urgent ? 1 : 0));
 
   window.__ccActions = pills.map(p => p.go);
-  strip.innerHTML = pills.map((p, i) => `
-    <button type="button" class="cc-pill" data-cc-idx="${i}">
-      <span class="cc-num">${p.count}</span>
-      <span class="cc-lbl">${escapeHtml(p.label)}</span>
-    </button>`).join('');
+  // One row per queue: the count, what it is, a one-line hint, and an Open
+  // arrow — a to-do list, not a wall of tiles.
+  strip.innerHTML = pills.length ? `
+    <div class="cc-head">Aaj ka kaam <span class="cc-head-sub">· Today's work</span></div>` + pills.map((p, i) => `
+    <button type="button" class="cc-pill${p.urgent ? ' cc-urgent' : ''}" data-cc-idx="${i}">
+      <span class="cc-num">${p.numLabel ?? p.count}</span>
+      <span class="cc-text"><span class="cc-lbl">${escapeHtml(p.label)}</span>${p.hint ? `<span class="cc-hint">${escapeHtml(p.hint)}</span>` : ''}</span>
+      <span class="cc-go" aria-hidden="true">Open &rsaquo;</span>
+    </button>`).join('') : '';
   strip.querySelectorAll('[data-cc-idx]').forEach(btn =>
     btn.addEventListener('click', () => window.__ccActions[Number(btn.dataset.ccIdx)]?.()));
 
@@ -2882,7 +3057,10 @@ function renderTodayLine(pills) {
   if (!el) return;
   const now = new Date();
   const dateStr = now.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' });
-  const totalPending = pills.reduce((s, p) => s + p.count, 0);
+  // An overdue complaint that is still 'open' is already inside the Open
+  // Complaints pill — counting it twice would overstate how much needs doing —
+  // so a pill can declare how much it adds that no other pill already has.
+  const totalPending = pills.reduce((s, p) => s + (p.totalContribution ?? p.count), 0);
   el.innerHTML = `
     <span class="tl-date">${escapeHtml(dateStr)}</span>
     ${totalPending > 0
@@ -2918,9 +3096,10 @@ async function renderHealthScore() {
 
   // Complaints: resolved+closed as a share of every complaint ever raised —
   // all-time, not FY-scoped, since a complaint isn't a financial record.
-  if (allComplaints.length > 0) {
-    const done = allComplaints.filter(c => c.status === 'resolved' || c.status === 'closed').length;
-    metrics.push({ label: 'Complaint Resolution', pct: Math.round((done / allComplaints.length) * 100), detail: `${done}/${allComplaints.length} resolved`, gotoView: 'complaints' });
+  const scorable = scorableComplaints(allComplaints);   // a correctly rejected complaint is not an unresolved one
+  if (scorable.length > 0) {
+    const done = scorable.filter(c => c.status === 'resolved' || c.status === 'closed').length;
+    metrics.push({ label: 'Complaint Resolution', pct: Math.round((done / scorable.length) * 100), detail: `${done}/${scorable.length} resolved`, gotoView: 'complaints' });
   }
 
   // Bank reconciliation: matched OR ignored — same "accounted for"
@@ -2951,7 +3130,11 @@ async function renderHealthScore() {
     metrics.push({ label: 'Backup Health', pct, detail: last ? `Last backup ${Math.round(hoursAgo)}h ago` : 'Never backed up', gotoView: 'settings' });
   } catch (e) { /* if this read itself fails, just omit the metric rather than guessing */ }
 
-  if (!metrics.length) { card.innerHTML = ''; return; }  // nothing measurable yet — stay out of the way rather than show an empty shell
+  // Fewer than three measured areas (a new society often has only "complaints"
+  // and "backups") makes the headline % swing to 0% or 100% on one number —
+  // alarming and meaningless. Stay out of the way until there is enough data.
+  if (metrics.length < 3) { card.innerHTML = ''; card.style.display = 'none'; return; }
+  card.style.display = '';
 
   const overall = Math.round(metrics.reduce((s, m) => s + m.pct, 0) / metrics.length);
   const colorFor = (p) => p >= 85 ? 'var(--success,#2E7D32)' : p >= 60 ? 'var(--warning,#B8860B)' : 'var(--danger,#C0392B)';
@@ -4051,7 +4234,7 @@ function renderExpenses() {
           </div>
         </div>
         <div style="display:flex; gap:6px; flex-shrink:0;">
-          <button class="btn btn-primary btn-sm" data-approve-exp="${e.id}">Approve</button>
+          ${expenseBlockFor(e) ? `<span class="t-muted" style="font-size:11.5px; max-width:200px; align-self:center;">${escapeHtml(expenseBlockFor(e))}</span>` : `<button class="btn btn-primary btn-sm" data-approve-exp="${e.id}">Approve</button>`}
           <button class="btn btn-danger btn-sm" data-reject-exp="${e.id}">Reject</button>
         </div>
       </div>`).join('');
@@ -4065,6 +4248,7 @@ function renderExpenses() {
 async function decideExpenseRequest(id, decision) {
   const e = allExpenses.find(x => x.id === id);
   const verb = decision === 'approved' ? 'Approve' : 'Reject';
+  if (decision === 'approved' && e && expenseBlockFor(e)) { showToast(expenseBlockFor(e), 'error'); return; }
   if (!confirm(`${decision === 'approved' ? 'Approve' : 'Reject'} "${e?.description}" (${formatINR(e?.amount)})?`)) return;
   try {
     await updateDoc(doc(db, 'expenses', id), {
@@ -4160,7 +4344,8 @@ document.getElementById('expenseForm')?.addEventListener('submit', async (e) => 
       // immediately (their existing, unchanged workflow); anyone else who
       // can reach this form at all can only ever create a pending request,
       // exactly what the rules on the server side also enforce.
-      const isDirect = can('recordExpenses');
+      const needsSecond = expenseNeedsSecondApprover(payload.amount, expensePolicy);
+      const isDirect = can('recordExpenses') && !needsSecond;
       await addDoc(collection(db, 'expenses'), {
         ...payload,
         reference: f.reference.value.trim(),
@@ -4168,10 +4353,10 @@ document.getElementById('expenseForm')?.addEventListener('submit', async (e) => 
         date: when, financialYear: fy,
         status: isDirect ? 'approved' : 'pending_approval',
         requestedBy: isDirect ? null : currentAdmin.email,
-        addedBy: currentAdmin.email, addedAt: serverTimestamp()
+        addedBy: currentAdmin.email, addedByUid: auth.currentUser.uid, addedAt: serverTimestamp()
       });
       await logAudit(auth.currentUser, isDirect ? 'add_expense' : 'request_expense', { ...payload, financialYear: fy });
-      showToast(isDirect ? `Expense added to FY ${fy}.` : 'Request sent — waiting for Treasurer approval.', 'success');
+      showToast(isDirect ? `Expense added to FY ${fy}.` : needsSecond ? `Saved — above ₹${expensePolicy.dualApprovalAbove.toLocaleString('en-IN')} a second person must approve it before it counts.` : 'Request sent — waiting for Treasurer approval.', 'success');
     }
     document.getElementById('expenseModalBackdrop').classList.remove('open');
     f.reset();
@@ -4685,10 +4870,15 @@ function renderMemberEditForm(m) {
         <div class="field"><label for="meTowerSelect">Tower</label><select name="tower" id="meTowerSelect" required></select></div>
         <div class="field"><label for="meFlatSelect">Flat Number</label><select name="flatNumber" id="meFlatSelect" required></select></div>
       </div>
-      <div class="field" id="meFlatCorrectionWrap" style="display:none;">
+      <div class="field" id="meFlatCorrectionWrap" style="display:none; padding:10px 12px; border:1px solid var(--gold-300, #E4D3A3); border-radius:10px; background:var(--paper, #FAF7F0);">
+        <div style="font-weight:600; font-size:13px; margin-bottom:6px;">Why is the Tower/Flat changing? <span style="color:var(--danger);">*</span></div>
+        <label style="display:flex; align-items:flex-start; gap:8px; font-weight:400; margin-bottom:6px;">
+          <input type="radio" name="flatChangeReason" value="correction" style="margin-top:3px;">
+          <span style="font-size:12.5px;"><b>Correcting a mistake</b> (wrong flat entered at registration, a typo…) — the flat is also fixed on all their past payments, receipts, complaints, bookings and guest entries, so Collection and receipts show the right flat.</span>
+        </label>
         <label style="display:flex; align-items:flex-start; gap:8px; font-weight:400;">
-          <input type="checkbox" id="meFixPastPayments" style="margin-top:3px;">
-          <span style="font-size:12.5px;">This Tower/Flat change is <b>correcting a mistake</b> (e.g. a typo at registration) — also update this flat on their past payment records. Leave unchecked if they genuinely moved flats; past payments should then keep showing where they lived at the time.</span>
+          <input type="radio" name="flatChangeReason" value="moved" style="margin-top:3px;">
+          <span style="font-size:12.5px;"><b>They actually moved flats</b> — past payments and receipts keep the flat where they lived at the time.</span>
         </label>
       </div>
       <div class="form-2col">
@@ -4780,7 +4970,7 @@ function renderMemberEditForm(m) {
     if (!wrap || !fSel) return;
     const changed = tSel.value !== (m.tower || '') || fSel.value !== (m.flatNumber || '');
     wrap.style.display = changed ? '' : 'none';
-    if (!changed) document.getElementById('meFixPastPayments').checked = false;
+    if (!changed) wrap.querySelectorAll('input[name="flatChangeReason"]').forEach((r) => { r.checked = false; });
   };
   tSel.addEventListener('change', () => setTimeout(updateFlatCorrectionVisibility, 0));
   document.getElementById('meFlatSelect').addEventListener('change', updateFlatCorrectionVisibility);
@@ -4793,6 +4983,73 @@ function renderMemberEditForm(m) {
   document.getElementById('meVehiclesAdd').addEventListener('click', () => addVehicleRow(meVehiclesEditor));
   document.getElementById('cancelMemberEdit').addEventListener('click', () => renderMemberDetailView(m));
   document.getElementById('memberEditForm').addEventListener('submit', (e) => submitMemberEdit(e, m));
+}
+
+// Brings a member's payments (and each verified payment's public receipt) in
+// line with the flat/name now on their member record. Payments and receipts
+// carry their OWN copy of tower/flat/name, so correcting the member alone
+// leaves them showing the old values. The rules only permit this exact change
+// (identity fields only, and only to values that match the member record), so
+// `member` must be the CURRENT member record. Reads the member's payments
+// fresh from Firestore rather than trusting the in-memory list, and can be
+// limited to specific payments. Resolves to how many payments were updated.
+async function syncPaymentsToMemberFlat(member, { onlyPaymentIds = null, auditFrom = null } = {}) {
+  const uid = member.uid || member.id;
+  if (!uid) return 0;
+  const snap = await getDocs(query(collection(db, 'payments'), where('memberUid', '==', uid)));
+  const norm = (v) => String(v ?? '').trim();
+  const targets = snap.docs
+    .map((d) => ({ id: d.id, ...d.data() }))
+    .filter((p) => p.memberUid === uid)                                   // defence in depth on the query
+    .filter((p) => !onlyPaymentIds || onlyPaymentIds.includes(p.id))
+    .filter((p) => norm(p.tower) !== norm(member.tower) || norm(p.flatNumber) !== norm(member.flatNumber) || norm(p.residentName) !== norm(member.name));
+  const CHUNK = 225;   // each payment can write 2 docs (payment + its receiptsPublic) — stays under the 500-per-batch limit
+  for (let i = 0; i < targets.length; i += CHUNK) {
+    const batch = writeBatch(db);
+    targets.slice(i, i + CHUNK).forEach((p) => {
+      batch.update(doc(db, 'payments', p.id), { tower: member.tower, flatNumber: member.flatNumber, residentName: member.name, updatedAt: serverTimestamp() });
+      if (p.publicToken) batch.update(doc(db, 'receiptsPublic', p.publicToken), { tower: member.tower, flatNumber: member.flatNumber, residentName: member.name });
+    });
+    await batch.commit();
+  }
+  if (targets.length) {
+    await logAudit(auth.currentUser, 'correct_payment_flat', {
+      memberId: member.id, uid, from: auditFrom || [...new Set(targets.map((p) => `${p.tower}-${p.flatNumber}`))].join(', '),
+      to: `${member.tower}-${member.flatNumber}`, paymentsUpdated: targets.length
+    });
+    await reloadPayments();
+  }
+  return targets.length;
+}
+
+// Same correction for the OTHER records that carry a copy of the member's
+// name/tower/flat: their complaints (staff go to that flat), facility
+// bookings, and expected-guest entries (the gate matches guests to a flat).
+// Only used when the admin says the flat change is a CORRECTION — a genuine
+// move leaves history where it happened. Resolves to how many were updated.
+async function syncRelatedRecordsToMemberFlat(member) {
+  const uid = member.uid || member.id;
+  if (!uid) return 0;
+  const norm = (v) => String(v ?? '').trim();
+  const specs = [['complaints', 'raisedByUid', 'raisedByName'], ['facilityBookings', 'memberUid', 'residentName'], ['expectedGuests', 'memberUid', 'residentName']];
+  const counts = {};
+  let total = 0;
+  for (const [coll, uidField, nameField] of specs) {
+    const snap = await getDocs(query(collection(db, coll), where(uidField, '==', uid)));
+    const stale = snap.docs.filter((d) => {
+      const r = d.data();
+      return r[uidField] === uid && (norm(r.tower) !== norm(member.tower) || norm(r.flatNumber) !== norm(member.flatNumber) || norm(r[nameField]) !== norm(member.name));
+    });
+    for (let i = 0; i < stale.length; i += 450) {
+      const batch = writeBatch(db);
+      stale.slice(i, i + 450).forEach((d) => batch.update(doc(db, coll, d.id), { [nameField]: member.name, tower: member.tower, flatNumber: member.flatNumber, updatedAt: serverTimestamp() }));
+      await batch.commit();
+    }
+    counts[coll] = stale.length;
+    total += stale.length;
+  }
+  if (total) await logAudit(auth.currentUser, 'correct_related_records_flat', { memberId: member.id, uid, to: `${member.tower}-${member.flatNumber}`, ...counts });
+  return total;
 }
 
 async function submitMemberEdit(e, original) {
@@ -4828,7 +5085,22 @@ async function submitMemberEdit(e, original) {
     updatedAt: serverTimestamp()
   };
 
+  // A different tower/flat on an approved member must say WHY, because the
+  // answer decides what happens to their past payments (see below). It used
+  // to be an optional checkbox that defaulted to "no" — so a correction made
+  // without noticing it left every earlier payment (and receipt) showing the
+  // old, wrong flat, and the Collection page kept listing it there.
+  const flatLocationChanged = original.status === 'approved' && (tower !== original.tower || flatNumber !== original.flatNumber);
+  const flatReason = f.querySelector('input[name="flatChangeReason"]:checked')?.value || null;
+  if (flatLocationChanged && original.uid && !flatReason) {
+    showToast('Please choose why the flat is changing — correcting a mistake, or they actually moved.', 'error');
+    document.getElementById('meFlatCorrectionWrap')?.scrollIntoView({ block: 'center' });
+    return;
+  }
+  const fixPastPayments = flatLocationChanged && flatReason === 'correction';
+
   btn.disabled = true;
+  let paymentSyncError = null;
   try {
     if (flatChanged) {
       // Moving an approved member's flat, OR switching which side (owner
@@ -4910,21 +5182,19 @@ async function submitMemberEdit(e, original) {
         }
       });
 
-      if (document.getElementById('meFixPastPayments')?.checked && original.uid) {
-        const theirPayments = (allPayments || []).filter((p) => p.memberUid === original.uid);
-        const CHUNK = 225; // each payment can write up to 2 docs now (payment + its receiptsPublic, if verified) — stays under the 500-per-batch limit even if every one has a receipt
-        for (let i = 0; i < theirPayments.length; i += CHUNK) {
-          const payBatch = writeBatch(db);
-          theirPayments.slice(i, i + CHUNK).forEach((p) => {
-            payBatch.update(doc(db, 'payments', p.id), { tower, flatNumber, residentName: patch.name, updatedAt: serverTimestamp() });
-            if (p.publicToken) {
-              payBatch.update(doc(db, 'receiptsPublic', p.publicToken), { tower, flatNumber, residentName: patch.name });
-            }
-          });
-          await payBatch.commit();
+      if (fixPastPayments && original.uid) {
+        // The member change above is already committed; if THIS part fails the
+        // member is correct but their payments are not — say so plainly
+        // (below) instead of letting a generic "could not save" hide it, and
+        // point at the repair tool that can finish the job.
+        try {
+          const corrected = { ...original, ...patch, id: original.id, uid: original.uid };
+          await syncPaymentsToMemberFlat(corrected, { auditFrom: `${original.tower}-${original.flatNumber}` });
+          await syncRelatedRecordsToMemberFlat(corrected);
+        } catch (syncErr) {
+          console.error('Past-payment flat correction failed:', syncErr);
+          paymentSyncError = syncErr;
         }
-        await logAudit(auth.currentUser, 'correct_payment_flat', { memberId: original.id, uid: original.uid, from: `${original.tower}-${original.flatNumber}`, to: `${tower}-${flatNumber}`, paymentsUpdated: theirPayments.length });
-        if (theirPayments.length) await reloadPayments();
       }
     } else {
       // members and membersPublic must move together — a bare updateDoc on
@@ -4959,7 +5229,11 @@ async function submitMemberEdit(e, original) {
       } catch (e) { console.warn('Pet denormalization sync failed (non-fatal):', e?.code || e); }
     }
 
-    showToast('Member details updated.', 'success');
+    if (paymentSyncError) {
+      showToast(`Member details were updated, but their past records (payments, complaints, bookings or guest entries) could NOT all be updated to the new flat${paymentSyncError.code ? ` (${paymentSyncError.code})` : ''}. Open Settings → Data Health Check and use "Update payments" to finish.`, 'error');
+    } else {
+      showToast('Member details updated.', 'success');
+    }
     document.getElementById('memberModalBackdrop').classList.remove('open');
     await reloadMembers(); renderMembersTable(); renderOverview(); populateTowerFilter();
   } catch (err) {
@@ -5366,7 +5640,7 @@ function renderAllPayments() {
     <tr>
       <td data-label="Resident"><a href="#" class="name-link" data-pay-detail="${p.id}">${escapeHtml(p.residentName)}</a></td><td data-label="Flat">${escapeHtml(p.tower || '')}-${escapeHtml(p.flatNumber)}</td><td data-label="Amount"><b>${formatINR(p.amount)}</b></td>
       <td data-label="Mode">${escapeHtml((p.mode || '').toUpperCase())}</td>
-      <td data-label="Status"><span class="badge ${badge[p.status] || 'badge-neutral'}">${escapeHtml((p.status || '').replace('_', ' '))}</span></td>
+      <td data-label="Status"><span class="badge ${badge[p.status] || 'badge-neutral'}">${escapeHtml(paymentStatusLabel(p.status))}</span></td>
       <td data-label="Receipt No." class="mono">${escapeHtml(p.receiptNumber || '—')}</td><td data-label="Date">${fmtDate(p.submittedAt)}</td>
     </tr>
   `).join('');
@@ -5509,10 +5783,24 @@ async function deletePetAdmin(petId) {
 }
 
 let petAdminEditingId = null;
+// 'view' = an existing pet, read-only; 'edit' = that pet unlocked via the Edit
+// button; 'add' = a brand-new pet (editable straight away — there is nothing
+// to protect yet). An existing pet used to open as a live form, so a stray tap
+// or keystroke while merely LOOKING at the details could change a record.
+let petAdminMode = 'add';
+function setPetAdminMode(mode) {
+  petAdminMode = mode;
+  const readOnly = mode === 'view';
+  document.getElementById('petAdminFieldset').disabled = readOnly;
+  document.getElementById('petAdminModalBackdrop').classList.toggle('pet-readonly', readOnly);
+  document.getElementById('petAdminModalTitle').textContent = mode === 'view' ? 'Pet Details' : mode === 'edit' ? 'Edit Pet' : 'Add Pet';
+  document.getElementById('editPetAdminBtn').style.display = readOnly ? '' : 'none';
+  document.getElementById('savePetAdminBtn').style.display = readOnly ? 'none' : '';
+  document.getElementById('cancelPetAdminBtn').textContent = readOnly ? 'Close' : 'Cancel';
+}
 function openPetAdminModal(petId = null) {
   petAdminEditingId = petId;
   const pet = petId ? allPets.find(p => p.id === petId) : null;
-  document.getElementById('petAdminModalTitle').textContent = pet ? 'Edit Pet' : 'Add Pet';
   const pickerWrap = document.getElementById('petAdminOwnerPicker');
   const displayWrap = document.getElementById('petAdminOwnerDisplay');
   const ownerUidField = document.getElementById('paOwnerUid');
@@ -5524,7 +5812,7 @@ function openPetAdminModal(petId = null) {
     pickerWrap.style.display = 'none';
     displayWrap.style.display = 'block';
     const owner = allMembers.find(m => (m.uid || m.id) === pet.ownerUid);
-    document.getElementById('petAdminOwnerText').textContent = `${pet.ownerName || owner?.name || '—'} — ${pet.tower}-${pet.flatNumber}`;
+    document.getElementById('petAdminOwnerText').textContent = `${pet.ownerName || owner?.name || '?'} · ${pet.tower}-${pet.flatNumber}`;
     ownerUidField.value = pet.ownerUid;
   } else {
     pickerWrap.style.display = 'block';
@@ -5537,11 +5825,32 @@ function openPetAdminModal(petId = null) {
   initPetsEditor(container, pet ? [pet] : []);
   if (!pet) addPetCard(container); // start with one blank card to fill in, matching the registration flow's own UX
 
-  document.getElementById('petAdminModalBackdrop').classList.add('open');
+  const backdrop = document.getElementById('petAdminModalBackdrop');
+  delete backdrop.dataset.dirty;
+  setPetAdminMode(pet ? 'view' : 'add');
+  backdrop.classList.add('open');
 }
 document.getElementById('addPetAdminBtn')?.addEventListener('click', () => openPetAdminModal());
 document.getElementById('closePetAdminModal')?.addEventListener('click', () => document.getElementById('petAdminModalBackdrop').classList.remove('open'));
-document.getElementById('cancelPetAdminBtn')?.addEventListener('click', () => document.getElementById('petAdminModalBackdrop').classList.remove('open'));
+document.getElementById('editPetAdminBtn')?.addEventListener('click', () => {
+  setPetAdminMode('edit');
+  document.querySelector('#petAdminEditorContainer .pet-name')?.focus();
+});
+document.getElementById('cancelPetAdminBtn')?.addEventListener('click', () => {
+  const backdrop = document.getElementById('petAdminModalBackdrop');
+  if (petAdminMode === 'edit') {
+    // Cancel while editing = throw the changes away and go back to the
+    // read-only details (not close), as it was before Edit was pressed.
+    const pet = allPets.find(p => p.id === petAdminEditingId);
+    if (pet) {
+      initPetsEditor(document.getElementById('petAdminEditorContainer'), [pet]);
+      delete backdrop.dataset.dirty;
+      setPetAdminMode('view');
+      return;
+    }
+  }
+  backdrop.classList.remove('open');
+});
 
 // Owner search-select for Add mode — same pattern as Record Payment's member
 // picker (rpMember), duplicated with its own element IDs rather than
@@ -5591,6 +5900,7 @@ document.getElementById('cancelPetAdminBtn')?.addEventListener('click', () => do
 })();
 
 document.getElementById('savePetAdminBtn')?.addEventListener('click', async () => {
+  if (petAdminMode === 'view') return;   // read-only: nothing to save
   const ownerUid = document.getElementById('paOwnerUid').value;
   if (!ownerUid) { showToast('Please select the pet\'s owner (resident).', 'error'); return; }
   const owner = allMembers.find(m => (m.uid || m.id) === ownerUid);
@@ -5689,6 +5999,11 @@ function openPaymentDetail(id) {
 
 function renderPaymentDetailView(p) {
   const body = document.getElementById('paymentDetailModalBody');
+  // A payment keeps its own copy of the flat. If the resident's flat was later
+  // corrected and this copy wasn't, say so right here — this is exactly where
+  // a stale "E-1101" is noticed — and offer the fix in one tap.
+  const payOwner = allMembers.find((m) => (m.uid || m.id) === p.memberUid);
+  const flatMismatch = can('approveMembers') ? paymentFlatMismatch(p, payOwner) : null;
   body.innerHTML = `
     <div class="vrow-list" style="font-size:13.5px;">
       <div class="vrow"><span class="t-muted">Resident</span><span>${escapeHtml(p.residentName)}</span></div>
@@ -5698,11 +6013,17 @@ function renderPaymentDetailView(p) {
       <div class="vrow"><span class="t-muted">UTR / Cheque No.</span><span class="mono">${escapeHtml(p.utrOrChequeNo || '—')}</span></div>
       ${p.transactionDate ? `<div class="vrow"><span class="t-muted">Transaction Date</span><span>${fmtDate(p.transactionDate)}</span></div>` : ''}
       <div class="vrow"><span class="t-muted">Financial Year</span><span>${escapeHtml(p.financialYear)}</span></div>
-      <div class="vrow"><span class="t-muted">Status</span><span>${escapeHtml((p.status || '').replace('_', ' '))}</span></div>
+      <div class="vrow"><span class="t-muted">Status</span><span>${escapeHtml(paymentStatusLabel(p.status))}</span></div>
       ${p.receiptNumber ? `<div class="vrow"><span class="t-muted">Receipt No.</span><span class="mono">${escapeHtml(p.receiptNumber)}</span></div>` : ''}
       ${p.remarks ? `<div class="vrow"><span class="t-muted">Remarks</span><span>${escapeHtml(p.remarks)}</span></div>` : ''}
       <div class="vrow"><span class="t-muted">Submitted</span><span>${fmtDateTime(p.submittedAt)}</span></div>
     </div>
+    ${flatMismatch ? `
+      <div id="payFlatMismatch" style="margin:12px 0; padding:10px 12px; border-radius:10px; background:rgba(184,134,11,.10); border:1px solid rgba(184,134,11,.35); font-size:12.5px; line-height:1.5;">
+        ⚠ This payment is recorded under <b>${escapeHtml(flatMismatch.recorded)}</b>, but ${escapeHtml(payOwner.name || 'the resident')}'s flat is now <b>${escapeHtml(flatMismatch.current)}</b>.
+        If the flat was entered wrongly and later corrected, update this payment (and its receipt) to match. If they genuinely moved, leave it as it is.
+        <div style="margin-top:8px;"><button class="btn btn-outline btn-sm" id="fixPayFlatBtn">Update payment to ${escapeHtml(flatMismatch.current)}</button></div>
+      </div>` : ''}
     ${p.paymentProofURL ? `<a href="${escapeHtml(p.paymentProofURL)}" target="_blank" class="btn btn-outline btn-sm" style="margin:14px 0; display:inline-flex;"><svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#a-clip"/></svg>View Payment Proof</a>` : ''}
     <div class="action-row" style="margin-top:8px; flex-wrap:wrap;">
       ${(p.status === 'pending_approval' || p.status === 'pending_verification') && can('verifyPayments') ? `
@@ -5715,6 +6036,21 @@ function renderPaymentDetailView(p) {
           : `<button class="btn btn-ghost btn-sm t-danger" id="deletePayBtn">🗑 Delete Entry</button>`}` : ''}
     </div>
   `;
+  document.getElementById('fixPayFlatBtn')?.addEventListener('click', async (ev) => {
+    const b = ev.currentTarget;
+    if (!confirm(`Change this payment${p.publicToken ? ' and its public receipt' : ''} from ${flatMismatch.recorded} to ${flatMismatch.current}?`)) return;
+    b.disabled = true;
+    try {
+      await syncPaymentsToMemberFlat(payOwner, { onlyPaymentIds: [p.id] });
+      showToast(`Payment updated to ${flatMismatch.current}.`, 'success');
+      const fresh = allPayments.find((x) => x.id === p.id);
+      if (fresh) renderPaymentDetailView(fresh);
+    } catch (err) {
+      console.error('Payment flat update failed:', err);
+      showToast(`Could not update the payment${err?.code ? ` (${err.code})` : ''}.`, 'error');
+      b.disabled = false;
+    }
+  });
   document.getElementById('verifyBtn')?.addEventListener('click', () => verifyPayment(p.id));
   document.getElementById('rejectPayBtn')?.addEventListener('click', () => rejectPayment(p.id));
   document.getElementById('editPayBtn')?.addEventListener('click', () => renderPaymentDetailEdit(p));
@@ -6393,6 +6729,34 @@ function defaulterReminderText(m, d) {
   ].join('\n');
 }
 
+// WhatsApp cannot be bulk-sent from a web page, so this is a checklist: each
+// defaulter gets a button that opens WhatsApp with the message ready, and the
+// row turns to "Sent ✓" once tapped (kept for this visit only). Flats marked
+// Disputed are left out on purpose, and so are people with no mobile number.
+const waSentIds = new Set();
+function openWaQueue() {
+  const all = outstandingMembers();
+  const queue = all.filter(({ m }) => maintenanceHealthStatus(m, allPayments, selectedFY, maintenanceSettings).level !== 'disputed' && String(m.mobile || '').replace(/\D/g, '').length >= 10);
+  const skipped = all.length - queue.length;
+  document.getElementById('waQueueNote').textContent = queue.length
+    ? `${queue.length} flats with dues for FY ${selectedFY}. Tap each name — WhatsApp opens with the message ready; just press send.${skipped ? ` (${skipped} left out: disputed or no mobile number.)` : ''}`
+    : 'No one to remind — nobody has dues, or those who do are disputed / have no mobile number.';
+  const list = document.getElementById('waQueueList');
+  list.innerHTML = queue.map(({ m, d }) => `
+    <a class="btn btn-outline btn-block" style="justify-content:space-between; margin-bottom:8px;" target="_blank" rel="noopener" data-wa-id="${escapeHtml(m.id)}"
+       href="${waLink(m.mobile, defaulterReminderText(m, d))}">
+      <span>${escapeHtml(m.tower)}-${escapeHtml(m.flatNumber)} · ${escapeHtml(m.name)}</span>
+      <span class="wa-state ${waSentIds.has(m.id) ? 't-success' : 't-danger'}">${waSentIds.has(m.id) ? 'Sent ✓' : formatINR(d.outstanding)}</span>
+    </a>`).join('');
+  list.querySelectorAll('[data-wa-id]').forEach((a) => a.addEventListener('click', () => {
+    waSentIds.add(a.dataset.waId);
+    const st = a.querySelector('.wa-state'); st.textContent = 'Sent ✓'; st.className = 'wa-state t-success';
+  }));
+  document.getElementById('waQueueModalBackdrop').classList.add('open');
+}
+document.getElementById('waQueueBtn')?.addEventListener('click', openWaQueue);
+document.getElementById('closeWaQueue')?.addEventListener('click', () => document.getElementById('waQueueModalBackdrop').classList.remove('open'));
+
 function renderDefaulters() {
   const rows = outstandingMembers();
   const body = document.getElementById('defaultersBody');
@@ -6542,7 +6906,7 @@ async function loadContentPanels() {
   const approvedCount = allMembers.filter(m => m.status === 'approved').length;
   document.getElementById('noticesEditList').innerHTML = notices.map((n, i) => `
     <div class="list-edit-item">
-      <div><b style="font-size:13.5px;">${escapeHtml(n.titleEn)}</b><div class="t-muted" style="font-size:12px;">${fmtDate(n.postedAt)}${readCounts[i] !== null ? ` · Read by ${readCounts[i]}${approvedCount ? ` of ${approvedCount}` : ''} residents` : ''}</div></div>
+      <div><b style="font-size:13.5px;">${escapeHtml(n.titleEn)}</b><div class="t-muted" style="font-size:12px;">${fmtDate(n.postedAt)}${readCounts[i] !== null ? ` · <span title="Counted when the notice was actually on a resident's screen for a couple of seconds — not proof that it was read or understood.">Seen by ${readCounts[i]}${approvedCount ? ` of ${approvedCount}` : ''} residents</span>` : ''}</div></div>
       <button class="btn btn-danger btn-sm" data-del-notice="${n.id}">Delete</button>
     </div>`).join('') || '<p class="t-muted" style="font-size:13px;">No notices yet.</p>';
   document.querySelectorAll('[data-del-notice]').forEach(b => b.addEventListener('click', async () => {
@@ -6882,7 +7246,7 @@ function renderApprovalCenter() {
           </div>
         </div>
         <div style="display:flex; gap:14px; flex-shrink:0; align-items:center;">
-          <button class="btn btn-primary btn-sm" data-ap-approve-exp="${e.id}">Approve</button>
+          ${expenseBlockFor(e) ? `<span class="t-muted" style="font-size:11.5px; max-width:200px;">${escapeHtml(expenseBlockFor(e))}</span>` : `<button class="btn btn-primary btn-sm" data-ap-approve-exp="${e.id}">Approve</button>`}
           <button class="btn btn-outline btn-sm" data-ap-reject-exp="${e.id}">Reject</button>
         </div>
       </div>`).join('');
@@ -7471,6 +7835,7 @@ async function loadFacilityStaffData() {
     console.warn('Facility staff load failed:', e?.code || e);
     if (errorBanner) errorBanner.style.display = 'block';
   }
+  updateInspectionReportPreview();
   // Staff Performance needs complaint-assignment data too — a committee
   // member may open Facility Staff before ever visiting Complaints, so
   // ensure it's here (same backfill pattern loadComplaints() already uses
@@ -7496,11 +7861,11 @@ async function loadFacilityStaffData() {
 // inspections themselves and the issues they raised (complaints tagged
 // source:'inspection'). Reuses the same jsPDF engine as receipts and the
 // same exportToExcel helper as the other admin exports.
-function inspectionsInRange() {
+function inspectionsInRange({ quiet = false } = {}) {
   const from = document.getElementById('inspRptFrom')?.value || '';
   const to = document.getElementById('inspRptTo')?.value || '';
   if (from && to && from > to) {
-    showToast('"From" date is after "To" date — please fix the range.', 'error');
+    if (!quiet) showToast('"From" date is after "To" date — please fix the range.', 'error');
     return null;
   }
   const ms = (r) => {
@@ -7626,6 +7991,25 @@ async function generateInspectionReportExcel() {
     showToast(/Could not load/i.test(err?.message || '') ? 'Could not load the Excel tool — check your connection and try again.' : 'Could not build the Excel file — please try again.', 'error');
   }
 }
+
+// A summary of exactly what the export will contain, shown BEFORE it is
+// downloaded: how many inspections and issues fall in the chosen range, what
+// the dates are matched on, and what the files do and don't include. Without
+// it the only way to find out a range was empty, or wider than meant, was to
+// download the file and open it.
+function updateInspectionReportPreview() {
+  const el = document.getElementById('inspRptPreview');
+  if (!el) return;
+  const range = inspectionsInRange({ quiet: true });
+  if (!range) { el.innerHTML = '<b style="color:var(--danger,#C0392B);">The "From" date is after the "To" date.</b> Please fix the range.'; return; }
+  const { insp, issues, from, to } = range;
+  const unchecked = insp.reduce((n, r) => n + (inspectionItemCounts(r).unchecked || 0), 0);
+  el.innerHTML = `
+    <div><b>${insp.length}</b> inspection${insp.length === 1 ? '' : 's'} · <b>${issues.length}</b> flagged issue${issues.length === 1 ? '' : 's'}${unchecked ? ` · <b>${unchecked}</b> item${unchecked === 1 ? '' : 's'} left unchecked` : ''}</div>
+    <div class="t-muted" style="font-size:12px;">Dates: ${escapeHtml(inspReportRangeLabel(from, to))} · matched on the <b>date of inspection</b> (the submission date for older records) · summary rows only — open an inspection for its full detailed PDF with photos.</div>
+    ${!insp.length && !issues.length ? '<div style="font-size:12px; color:var(--danger,#C0392B); margin-top:2px;">Nothing falls in this range — the downloads will be empty.</div>' : ''}`;
+}
+['inspRptFrom', 'inspRptTo'].forEach((id) => document.getElementById(id)?.addEventListener('input', updateInspectionReportPreview));
 
 document.getElementById('inspReportPdfBtn')?.addEventListener('click', generateInspectionReportPDF);
 document.getElementById('inspReportXlsxBtn')?.addEventListener('click', generateInspectionReportExcel);
@@ -7877,9 +8261,7 @@ function renderInspectionAnalytics() {
   const towerRows = Object.entries(byTower).sort((a, b) => b[1] - a[1]);
 
   // Top staff by submissions.
-  const byStaff = {};
-  rows.forEach(r => { if (r.createdByName) byStaff[r.createdByName] = (byStaff[r.createdByName] || 0) + 1; });
-  const staffRows = Object.entries(byStaff).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const staffRows = topInspectors(rows, allStaff, 5).map((g) => [g.name, g.count]);
 
   const stat = (num, label, color) => `
     <div style="flex:1; min-width:110px; background:var(--paper); border:1px solid var(--line); border-radius:12px; padding:12px 14px;">
@@ -7935,16 +8317,11 @@ function renderInspectionAnalytics() {
     })()}
 
     ${(() => {
-      // Same 30-day / 2-prior-occurrence signal as the Collection list's
-      // own 🔁 Recurring badge, rolled up here into a top-5 view instead of
-      // having to notice it one complaint at a time.
-      const inspComplaints = (allComplaints || []).filter((c) => c.source === 'inspection' && c.title);
-      const counts = {};
-      inspComplaints.forEach((c) => { counts[c.title] = (counts[c.title] || 0) + 1; });
-      const topLocations = Object.entries(counts).filter(([, n]) => n >= 2).sort((a, b) => b[1] - a[1]).slice(0, 5);
+      // Same tower + same item, within the last 30 days, seen at least twice.
+      const topLocations = recurringIssueLocations(allComplaints, allInspections).map((g) => [`${g.tower ? `Tower ${g.tower} — ` : ''}${g.title}`, g.count]);
       if (!topLocations.length) return '';
       return `
-        <div style="font-size:12px; font-weight:700; margin-bottom:6px;">Recurring Issue Locations</div>
+        <div style="font-size:12px; font-weight:700; margin-bottom:6px;">Recurring Issue Locations <span class="t-muted" style="font-weight:500;">· same tower &amp; item, last 30 days</span></div>
         <div>
           ${topLocations.map(([loc, n]) => `
             <div style="display:flex; justify-content:space-between; font-size:12.5px; padding:4px 0; border-bottom:1px solid var(--line);">
@@ -8003,13 +8380,15 @@ function renderStaffPerformance() {
     // unchecked are the only thing counted against a staff member here.
     const completionPct = (ok + issue + unchecked) ? Math.round(((ok + issue) / (ok + issue + unchecked)) * 100) : null;
 
-    const myComplaints = allComplaints.filter(c => c.assignedToUid === s.id);
+    // Rejected complaints are left out: they were never work to be done, so they
+    // must not count against the person they happened to be assigned to.
+    const myComplaints = scorableComplaints(allComplaints.filter(c => c.assignedToUid === s.id));
     const resolved = myComplaints.filter(c => ['resolved', 'closed'].includes(c.status));
-    const openCount = myComplaints.filter(c => !['resolved', 'closed', 'rejected'].includes(c.status)).length;
-    const resHours = resolved
-      .filter(c => c.createdAt?.seconds && c.resolvedAt?.seconds)
-      .map(c => (c.resolvedAt.seconds - c.createdAt.seconds) / 3600);
-    const avgResHours = resHours.length ? resHours.reduce((a, b) => a + b, 0) / resHours.length : null;
+    const openCount = myComplaints.filter(c => !['resolved', 'closed'].includes(c.status)).length;
+    const avgOf = (arr) => arr.length ? arr.reduce((x, y) => x + y, 0) / arr.length : null;
+    const times = resolved.map(complaintTimes);
+    const avgResHours = avgOf(times.map(t => t.turnaroundHours).filter(h => h !== null));       // raised -> resolved
+    const avgHandlingHours = avgOf(times.map(t => t.handlingHours).filter(h => h !== null));    // assigned -> resolved
     const resolutionPct = myComplaints.length ? Math.round((resolved.length / myComplaints.length) * 100) : null;
 
     const parts = [completionPct, resolutionPct].filter(v => v !== null);
@@ -8017,7 +8396,7 @@ function renderStaffPerformance() {
     const slotCount = allInspectionAssignments.filter(a => a.assignedToUid === s.id).length;
 
     return { staff: s, inspCount: myInsp.length, completionPct, issueCount: issue, complaintCount: myComplaints.length,
-             resolvedCount: resolved.length, openCount, avgResHours, score, slotCount };
+             resolvedCount: resolved.length, openCount, avgResHours, avgHandlingHours, score, slotCount };
   }).sort((a, b) => (b.score ?? -1) - (a.score ?? -1));
 
   const scoreColor = (v) => v === null ? 'var(--ink-400)' : v >= 85 ? 'var(--success)' : v >= 60 ? 'var(--warning)' : 'var(--danger)';
@@ -8028,7 +8407,7 @@ function renderStaffPerformance() {
       <table>
         <thead><tr>
           <th>Staff</th><th>Role</th><th>Assigned Slots</th><th>Inspections Filed</th>
-          <th>Completion</th><th>Issues Found</th><th>Complaints Handled</th><th>Resolved</th><th>Avg Resolution</th><th>Score</th>
+          <th>Completion</th><th>Issues Found</th><th>Complaints Handled</th><th>Resolved</th><th title="From the day the resident raised it to the day it was resolved">Avg Turnaround</th><th title="From the day it was assigned to this person to the day it was resolved">Avg Handling</th><th>Score</th>
         </tr></thead>
         <tbody>
           ${rows.map(r => `
@@ -8041,13 +8420,14 @@ function renderStaffPerformance() {
               <td data-label="Issues Found">${r.issueCount}</td>
               <td data-label="Complaints Handled">${r.complaintCount}</td>
               <td data-label="Resolved">${r.complaintCount ? `${r.resolvedCount}/${r.complaintCount}${r.openCount ? ` (${r.openCount} open)` : ''}` : '—'}</td>
-              <td data-label="Avg Resolution">${fmtHrs(r.avgResHours)}</td>
+              <td data-label="Avg Turnaround">${fmtHrs(r.avgResHours)}</td>
+              <td data-label="Avg Handling">${fmtHrs(r.avgHandlingHours)}</td>
               <td data-label="Score"><b style="color:${scoreColor(r.score)};">${r.score === null ? '—' : r.score}</b></td>
             </tr>`).join('')}
         </tbody>
       </table>
     </div>
-    <p class="t-muted" style="font-size:11.5px; margin-top:10px;">Score = average of Completion (% of checklist items actually checked, not left unchecked — finding issues doesn't lower this) and complaint resolution rate, over whichever of the two a person has data for. Issues Found is purely informational: more found is a sign of thorough, honest inspecting, never a penalty. A low score on very few filings/complaints is a small sample, not a verdict.</p>
+    <p class="t-muted" style="font-size:11.5px; margin-top:10px;">Score = average of Completion (% of checklist items actually checked, not left unchecked — finding issues doesn't lower this) and complaint resolution rate, over whichever of the two a person has data for. Issues Found is purely informational: more found is a sign of thorough, honest inspecting, never a penalty. Rejected complaints (duplicates, not valid) are not counted. Turnaround is raised → resolved (what the resident experienced); Handling is assigned → resolved (how long this person took). A low score on very few filings/complaints is a small sample, not a verdict.</p>
     <canvas id="chartStaffPerf" height="${Math.max(120, rows.length * 34)}" style="margin-top:14px;"></canvas>
   `;
   renderStaffPerfChart(rows);
@@ -8113,7 +8493,9 @@ function openInspectionDetail(id) {
   const statusPill = (status) => {
     if (status === 'ok' || status === true) return '<span class="badge badge-success" style="font-size:10.5px;">OK</span>';
     if (status === 'issue' || status === false) return '<span class="badge badge-danger" style="font-size:10.5px;">Issue</span>';
-    return '<span class="badge badge-neutral" style="font-size:10.5px;">—</span>';
+    // Spelled out: a bare dash reads as "not applicable" — this form has no
+    // N/A, so anything not marked OK or Issue simply wasn't checked.
+    return `<span class="badge badge-neutral" style="font-size:10.5px;">${inspectionStatusMark(status) === 'NOT CHECKED' ? 'Not checked' : '—'}</span>`;
   };
   // Every item gets its own row — not just a rolled-up count of what was
   // OK — so "what was actually checked on this floor / in this section"
@@ -8135,7 +8517,37 @@ function openInspectionDetail(id) {
       <div style="margin-top:6px;">${itemsHtml}</div>
     </div>`;
 
-  let html = (r.sections || []).map(sec => sectionCard(sec.title, sec.items.map(itemRow).join(''))).join('');
+  // What a reviewer needs first: what was found, and what was never looked
+  // at — then the full checklist below. Three different states, never one:
+  // issues found / items not checked / fully checked with no issues.
+  const attention = (() => {
+    const issues = [], skipped = [];
+    (r.sections || []).forEach((sec) => (sec.items || []).forEach((it) => {
+      if (it.status === 'issue') issues.push({ ...it, label: `${sec.title} — ${it.label}` });
+      else if (it.status !== 'ok') skipped.push(`${sec.title} — ${it.label}`);
+    }));
+    if (r.tankData && tpl?.tankChecks) {
+      Object.entries(r.tankData).forEach(([tower, checks]) => (checks || []).forEach((v, ci) => {
+        const label = `Terrace Tank, Tower ${tower} — ${tpl.tankChecks[ci] || `Check ${ci + 1}`}`;
+        if (v === false) issues.push({ label, status: 'issue' });
+        else if (v !== true) skipped.push(label);
+      }));
+    }
+    const c = inspectionItemCounts(r);
+    const headline = issues.length
+      ? `<b style="color:var(--danger);">⚠ ${issues.length} issue${issues.length === 1 ? '' : 's'} found</b>`
+      : skipped.length ? '<b>No issues found so far</b>' : '<b style="color:var(--success);">✓ Fully checked — no issues found</b>';
+    return `
+      <div class="card" style="margin-bottom:10px; padding:14px; border-left:4px solid ${issues.length ? 'var(--danger)' : skipped.length ? 'var(--warning, #B8860B)' : 'var(--success)'};">
+        <div style="font-size:13.5px;">${headline}</div>
+        <div class="t-muted" style="font-size:12px; margin-top:3px;">${c.ok} OK · ${c.issue} issue${c.issue === 1 ? '' : 's'} · ${c.unchecked} not checked</div>
+        ${issues.length ? `<div style="margin-top:8px;">${issues.map(itemRow).join('')}</div>` : ''}
+        ${skipped.length ? `<details style="margin-top:8px;"><summary style="font-size:12.5px; cursor:pointer;">${skipped.length} item${skipped.length === 1 ? ' was' : 's were'} not checked</summary>
+          <div class="t-muted" style="font-size:11.5px; margin-top:4px; line-height:1.6;">${skipped.map((s) => escapeHtml(s)).join('<br>')}</div></details>` : ''}
+      </div>`;
+  })();
+
+  let html = attention + (r.sections || []).map(sec => sectionCard(sec.title, sec.items.map(itemRow).join(''))).join('');
 
   // Saved on the record by staff.html but, until now, never shown anywhere
   // in the admin view — an admin reviewing a Weekly MEP or Club House
@@ -8194,6 +8606,27 @@ function openInspectionDetail(id) {
   document.getElementById('inspectionDetailPdfBtn').onclick = () => generateDetailedInspectionPDF(r);
 }
 
+// Fetches an evidence photo and re-encodes it as a small JPEG for embedding in
+// a PDF. Never throws — null means "couldn't be loaded" and the PDF says so
+// instead of silently omitting the evidence. Re-encoding through a canvas
+// (rather than handing the raw bytes to jsPDF) copes with PNG/WebP/HEIC-ish
+// sources alike and keeps a photo-heavy report to a sensible size.
+async function fetchPdfImage(url, maxPx = 520) {
+  try {
+    const resp = await fetch(url);
+    if (!resp.ok) return null;
+    const bmp = await createImageBitmap(await resp.blob());
+    const scale = Math.min(1, maxPx / Math.max(bmp.width, bmp.height));
+    const w = Math.max(1, Math.round(bmp.width * scale)), h = Math.max(1, Math.round(bmp.height * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h);
+    ctx.drawImage(bmp, 0, 0, w, h);
+    return { dataUrl: canvas.toDataURL('image/jpeg', 0.8), w, h };
+  } catch (e) { return null; }
+}
+
 // B14/I10 fix part 2: the bulk Summary export (unchanged, above) only ever
 // listed one row per inspection — type/tower/filed-by/issues/unchecked/date.
 // None of the actual checklist content (item-by-item status/notes, the
@@ -8234,6 +8667,38 @@ async function generateDetailedInspectionPDF(r) {
       }
       pdf.setTextColor(0);
     };
+    // Evidence: item photos live on the record; tank-check photos live on the
+    // complaint raised from that failed check. Fetched up front (capped) so
+    // the drawing code below stays synchronous.
+    const tankCheckLabels = INSPECTION_TYPES['weekly-mep']?.tankChecks || [];
+    const linkedComplaints = complaintsForInspection(r.id, allComplaints);
+    const tankComplaintTitle = (tower, i) => `Tower ${tower} Tank — ${tankCheckLabels[i] || `Check ${i + 1}`}`;
+    const complaintByTitle = (title) => linkedComplaints.find((c) => c.title === title) || null;
+    const MAX_PHOTOS = 24;
+    const photoUrls = [];
+    (r.sections || []).forEach((sec) => (sec.items || []).forEach((it) => { if (it.status === 'issue' && it.photoURL) photoUrls.push(it.photoURL); }));
+    Object.entries(r.tankData || {}).forEach(([tower, checks]) => (checks || []).forEach((v, i) => {
+      const c = v === false ? complaintByTitle(tankComplaintTitle(tower, i)) : null;
+      if (c?.photoURL) photoUrls.push(c.photoURL);
+    }));
+    const uniqueUrls = [...new Set(photoUrls)];
+    const embedUrls = uniqueUrls.slice(0, MAX_PHOTOS);
+    const images = new Map();
+    if (embedUrls.length) {
+      btn.textContent = 'Fetching photos…';
+      await Promise.all(embedUrls.map(async (u) => images.set(u, await fetchPdfImage(u))));
+      btn.textContent = 'Building…';
+    }
+    const drawPhoto = (url, x) => {
+      if (!images.has(url)) { writeLines(`Photo attached to this record (not embedded — only the first ${MAX_PHOTOS} photos are).`, x, fullW - (x - marginX), { gray: true }); return; }
+      const img = images.get(url);
+      if (!img) { writeLines('Photo attached to this record, but it could not be loaded for this PDF.', x, fullW - (x - marginX), { gray: true }); return; }
+      const sc = Math.min(170 / img.w, 125 / img.h);
+      const w = img.w * sc, h = img.h * sc;
+      ensureSpace(h + 6);
+      pdf.addImage(img.dataUrl, 'JPEG', x, y, w, h);
+      y += h + 4;
+    };
     const heading = (text) => {
       ensureSpace(44); // keep the heading together with at least its first line
       pdf.setFont('helvetica', 'bold'); pdf.setFontSize(12);
@@ -8241,18 +8706,24 @@ async function generateDetailedInspectionPDF(r) {
       pdf.text(titleLines, marginX, y); y += 12 * (titleLines.length - 1) + 6;
       pdf.setDrawColor(200); pdf.line(marginX, y, pageW - marginX, y); y += 14;
     };
-    const itemLine = (label, status, note) => {
-      const mark = status === 'ok' ? 'OK' : status === 'issue' ? 'ISSUE' : status === true ? 'OK' : status === false ? 'ISSUE' : '—';
-      const textW = pageW - marginX * 2 - 50;
+    const IND = 76;   // wide enough for the longest marker, "[NOT CHECKED]"
+    // extras: { tags, photoUrl, complaint } — everything the record holds
+    // about a flagged item, not just its status and note.
+    const itemLine = (label, status, note, extras = {}) => {
+      const mark = inspectionStatusMark(status);
+      const textW = pageW - marginX * 2 - IND;
       pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9);
       pdf.splitTextToSize(String(label), textW).forEach((line, idx) => {
         ensureSpace(11);
         pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9); pdf.setTextColor(0);
         if (idx === 0) pdf.text(`[${mark}]`, marginX, y);
-        pdf.text(line, marginX + 46, y);
+        pdf.text(line, marginX + IND, y);
         y += 11;
       });
-      if (note) writeLines(`Note: ${note}`, marginX + 46, textW, { gray: true });
+      if (note) writeLines(`Note: ${note}`, marginX + IND, textW, { gray: true });
+      if (extras.tags?.length) writeLines(`Tags: ${extras.tags.join(', ')}`, marginX + IND, textW, { gray: true });
+      if (extras.complaint) writeLines(`Complaint ref: #${shortRef(extras.complaint.id)} (${(extras.complaint.status || 'open').replace('_', ' ')})`, marginX + IND, textW, { gray: true });
+      if (extras.photoUrl) drawPhoto(extras.photoUrl, marginX + IND);
       y += 3;
     };
 
@@ -8276,22 +8747,32 @@ async function generateDetailedInspectionPDF(r) {
       writeLines(`Manager Review: ${r.managerVerificationStatus === 'verified' ? 'Verified' : 'Needs Correction'} by ${r.managerVerifiedBy || '—'}${r.managerVerifiedAt ? ' on ' + fmtDateTime(r.managerVerifiedAt) : ''}`, marginX, fullW, { lineH: 13 });
       if (r.managerRemarks) writeLines(`Manager Remarks: ${r.managerRemarks}`, marginX, fullW, { lineH: 13 });
     }
+    {
+      const c = inspectionItemCounts(r);
+      writeLines(`Checklist: ${c.ok} OK  ·  ${c.issue} issue${c.issue === 1 ? '' : 's'}  ·  ${c.unchecked} not checked`, marginX, fullW, { lineH: 13, bold: true });
+    }
     y += 10;
 
     (r.sections || []).forEach((sec) => {
       heading(sec.title);
-      (sec.items || []).forEach((it) => itemLine(it.label, it.status, it.note));
+      (sec.items || []).forEach((it) => itemLine(it.label, it.status, it.note, {
+        tags: it.tags,
+        photoUrl: it.status === 'issue' ? it.photoURL : null,
+        complaint: it.status === 'issue' ? complaintByTitle(it.label) : null
+      }));
       y += 6;
     });
 
     if (r.tankData) {
       heading('Terrace Water Tanks');
-      const tankCheckLabels = INSPECTION_TYPES['weekly-mep']?.tankChecks || [];
       Object.entries(r.tankData).forEach(([tower, checks]) => {
         ensureSpace(14);
         pdf.setFont('helvetica', 'bold'); pdf.setFontSize(9.5);
         pdf.text(`Tower ${tower}`, marginX, y); y += 12;
-        checks.forEach((v, i) => itemLine(tankCheckLabels[i] || `Check ${i + 1}`, v));
+        checks.forEach((v, i) => {
+          const c = v === false ? complaintByTitle(tankComplaintTitle(tower, i)) : null;
+          itemLine(tankCheckLabels[i] || `Check ${i + 1}`, v, null, { complaint: c, photoUrl: c?.photoURL || null });
+        });
       });
       y += 6;
     }
@@ -8316,11 +8797,29 @@ async function generateDetailedInspectionPDF(r) {
       y += 6;
     }
 
+    // Every complaint this inspection raised, in one place — the audit trail
+    // from "flagged on the checklist" to "tracked to resolution".
+    if (linkedComplaints.length || (r.issueCount || 0) > 0) {
+      heading('Complaints Raised From This Inspection');
+      if (!linkedComplaints.length) {
+        writeLines(`${r.issueCount} issue(s) were flagged, but no matching complaint records were found (they may have been deleted since).`, marginX, fullW, { gray: true });
+      }
+      linkedComplaints.forEach((c) => {
+        writeLines(`#${shortRef(c.id)}  ·  ${c.title || '—'}  ·  ${(c.priority || '—')} priority  ·  ${(c.status || 'open').replace('_', ' ')}`, marginX, fullW, { lineH: 12 });
+      });
+      y += 6;
+    }
+
+    ensureSpace(80);
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(10);
+    pdf.text('Inspector Signature', marginX, y); y += 8;
     if (r.signatureDataUrl) {
-      ensureSpace(80);
-      pdf.setFont('helvetica', 'bold'); pdf.setFontSize(10);
-      pdf.text('Inspector Signature', marginX, y); y += 8;
-      try { pdf.addImage(r.signatureDataUrl, 'PNG', marginX, y, 160, 50); y += 58; } catch (e) { /* non-fatal */ }
+      try { pdf.addImage(r.signatureDataUrl, 'PNG', marginX, y, 160, 50); y += 58; } catch (e) { writeLines('A signature is on this record but could not be drawn into the PDF.', marginX, fullW, { gray: true }); }
+    } else {
+      // Said outright rather than leaving the section off — a missing
+      // signature on an audit record should be visible as missing.
+      pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9);
+      writeLines('No signature was recorded on this inspection.', marginX, fullW, { gray: true });
     }
 
     pdf.save(`Inspection-${r.formType}${r.tower ? '-' + r.tower : ''}-${r.id.slice(0, 8)}.pdf`);
@@ -9850,8 +10349,9 @@ document.getElementById('zipExportBtn').addEventListener('click', async () => {
     const files = [];
     allMembers.forEach(mem => {
       if (inMonth(mem.createdAt)) {
-        if (mem.photoURL) files.push({ url: mem.photoURL, name: `Photos/${mem.memberID || mem.id}.jpg` });
-        if (mem.idDocURL) files.push({ url: mem.idDocURL, name: `IDDocs/${mem.memberID || mem.id}${mem.idDocEncrypted ? '.enc' : ''}` });
+        // The extension is decided after download, from the file's real type (extFromType).
+        if (mem.photoURL) files.push({ url: mem.photoURL, name: `Photos/${mem.memberID || mem.id}`, extFromType: true, fallbackExt: '.jpg' });
+        if (mem.idDocURL) files.push({ url: mem.idDocURL, name: `IDDocs/${mem.memberID || mem.id}`, extFromType: !mem.idDocEncrypted, fallbackExt: mem.idDocEncrypted ? '.enc' : '' });
       }
     });
     const verifiedThisMonth = allPayments.filter(p => p.status === 'verified' && inMonth(p.verifiedAt));
@@ -9891,7 +10391,8 @@ document.getElementById('zipExportBtn').addEventListener('click', async () => {
       try {
         const resp = await fetch(f.url);
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-        zip.file(f.name, await resp.blob());
+        const fileBlob = await resp.blob();
+        zip.file(f.extFromType ? `${f.name}${extensionForMime(fileBlob.type, f.fallbackExt)}` : `${f.name}${f.fallbackExt || ''}`, fileBlob);
       } catch (e) {
         // Kept out of the zip rather than aborting the whole export over one
         // broken file — but silently dropping it was the actual bug: the
@@ -10155,6 +10656,24 @@ document.getElementById('societySettingsForm').addEventListener('submit', async 
     if (btn) btn.disabled = false;
   }
 });
+document.getElementById('expensePolicyForm')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (!can('manageAdmins')) { showToast('Only the Super Admin can change this.', 'error'); return; }
+  const raw = document.getElementById('expenseLimitInput').value.trim();
+  const limit = raw === '' ? 0 : Number(raw);
+  if (!Number.isFinite(limit) || limit < 0 || limit > 10000000) { showToast('Enter an amount between 0 and 1,00,00,000 (0 = off).', 'error'); return; }
+  const btn = document.getElementById('expenseLimitSaveBtn');
+  btn.disabled = true;
+  try {
+    await setDoc(doc(db, 'settings', 'expensePolicy'), { dualApprovalAbove: limit, updatedBy: currentAdmin.email, updatedAt: serverTimestamp() });
+    await logAudit(auth.currentUser, 'expense_policy', { dualApprovalAbove: limit });
+    expensePolicy = { dualApprovalAbove: limit };
+    renderExpenses();
+    showToast(limit ? `Expenses above ₹${limit.toLocaleString('en-IN')} now need a second approver.` : 'Two-person approval is off.', 'success');
+  } catch (err) { showToast(`Could not save${err?.code ? ` (${err.code})` : ''}.`, 'error'); }
+  finally { btn.disabled = false; }
+});
+
 document.getElementById('paymentSettingsForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const f = e.target;
@@ -10403,6 +10922,7 @@ async function recordBackup(kind, detail) {
       { merge: true });
   } catch (e) { console.warn('Could not record the backup:', e); }
   renderBackupAge();
+  loadBackupStatus();
 }
 
 /* ---- Data Health Check ---------------------------------------------------
@@ -10490,6 +11010,28 @@ async function runDataHealthCheck() {
       const rentErr = validateRentAgreementDates(m.rentAgreementStart, m.rentAgreementEnd);
       if (rentErr) findings.push({ severity: 'warn', text: `${m.name || m.id} (Tower ${m.tower}, Flat ${m.flatNumber}): ${rentErr}` });
     }
+    // Payments carry their own copy of the flat. When a member's flat was
+    // corrected without that copy being updated, Collection keeps listing the
+    // payment under the old (wrong) tower. One finding per member, with the
+    // fix attached — a genuine mover's old payments can look the same, so
+    // this is the admin's call, never automatic.
+    {
+      const byUid = new Map(members.map((m) => [m.uid || m.id, m]));
+      const stale = new Map();
+      for (const p of payments) {
+        const m = byUid.get(p.memberUid);
+        const mm = paymentFlatMismatch(p, m);
+        if (mm) { if (!stale.has(m)) stale.set(m, []); stale.get(m).push(mm); }
+      }
+      for (const [m, list] of stale) {
+        const recorded = [...new Set(list.map((x) => x.recorded))].join(', ');
+        findings.push({
+          severity: 'warn',
+          text: `${m.name || m.id} is now Tower ${m.tower}, Flat ${m.flatNumber}, but ${list.length} of their payment${list.length === 1 ? ' is' : 's are'} still recorded under ${recorded}. If the flat was entered wrongly and later corrected, update them; if the resident genuinely moved, leave them.`,
+          fix: { memberId: m.id, label: `Update ${list.length} payment${list.length === 1 ? '' : 's'} to ${m.tower}-${m.flatNumber}` }
+        });
+      }
+    }
     // An approved member's publicToken should have a matching membersPublic
     // doc — that's what the QR on their membership card actually resolves.
     for (const m of members) {
@@ -10509,9 +11051,26 @@ async function runDataHealthCheck() {
           ${findings.map(f => `
             <div style="display:flex; gap:8px; padding:9px 11px; border-radius:8px; background:${f.severity === 'warn' ? 'rgba(192,57,43,.07)' : 'var(--paper)'}; border:1px solid ${f.severity === 'warn' ? 'rgba(192,57,43,.18)' : 'var(--line)'};">
               <span style="flex-shrink:0;">${f.severity === 'warn' ? '⚠️' : 'ℹ️'}</span>
-              <span style="font-size:12.5px; line-height:1.5;">${escapeHtml(f.text)}</span>
+              <span style="font-size:12.5px; line-height:1.5;">${escapeHtml(f.text)}${f.fix ? `<br><button type="button" class="btn btn-outline btn-sm" style="margin-top:6px;" data-fix-member-payments="${escapeHtml(f.fix.memberId)}">${escapeHtml(f.fix.label)}</button>` : ''}</span>
             </div>`).join('')}
         </div>`;
+      out.querySelectorAll('[data-fix-member-payments]').forEach((b) => b.addEventListener('click', async () => {
+        const m = allMembers.find((x) => x.id === b.dataset.fixMemberPayments);
+        if (!m) return;
+        const label = b.textContent;
+        if (!confirm(`${label}?\n\nThis also updates the flat on their public receipts, and on their complaints, bookings and guest entries.`)) return;
+        b.disabled = true; b.textContent = 'Updating…';
+        try {
+          const n = await syncPaymentsToMemberFlat(m);
+          await syncRelatedRecordsToMemberFlat(m);
+          b.textContent = `✓ ${n} updated`;
+          showToast(`${n} payment${n === 1 ? '' : 's'} updated to ${m.tower}-${m.flatNumber}.`, 'success');
+        } catch (err) {
+          console.error('Payment flat repair failed:', err);
+          showToast(`Could not update the payments${err?.code ? ` (${err.code})` : ''}.`, 'error');
+          b.disabled = false; b.textContent = label;
+        }
+      }));
     }
     await logAudit(auth.currentUser, 'data_health_check', { findingsCount: findings.length });
   } catch (err) {
@@ -10527,7 +11086,7 @@ document.getElementById('runHealthCheckBtn')?.addEventListener('click', runDataH
 async function renderBackupAge() {
   const el = document.getElementById('backupAge');
   if (!el) return;
-  let last = null, by = '', kind = '';
+  let last = null, by = '', kind = '', filesAt = null, filesDetail = '';
   let backupAgeLoadFailed = false;
   try {
     const snap = await getDoc(doc(db, 'settings', 'backup'));
@@ -10535,6 +11094,7 @@ async function renderBackupAge() {
       const d = snap.data();
       last = d.lastAt?.toDate ? d.lastAt.toDate() : null;
       by = d.lastBy || ''; kind = d.lastKind || '';
+      filesAt = d.filesLastAt?.toDate ? d.filesLastAt.toDate() : null; filesDetail = d.filesDetail || '';
     }
   } catch (e) { backupAgeLoadFailed = true; }
 
@@ -10553,14 +11113,19 @@ async function renderBackupAge() {
     return;
   }
 
-  const days = Math.floor((Date.now() - last.getTime()) / 86400000);
-  const stale = days >= 30;
+  const st = backupStatus(last, kind);
+  const days = st.days, stale = st.state === 'stale';
+  const kindLabel = kind === 'github' ? 'Automatic nightly backup' : kind === 'drive' ? 'To Google Drive' : 'File download';
+  const when = days === 0 ? 'today' : days === 1 ? 'yesterday' : days + ' days ago';
   el.innerHTML = `<div class="notice-banner" style="margin:0; ${stale ? '' : 'background:var(--success-bg); border-color:var(--success-line);'}">
     <svg viewBox="0 0 24 24" aria-hidden="true" ${stale ? '' : 'style="color:var(--success)"'}><use href="#a-cloud"/></svg>
     <div>
-      <b>${stale ? `Last backup was ${days} days ago.` : `Last backup was ${days === 0 ? 'today' : days + ' days ago'}.`}</b>
-      ${escapeHtml(kind === 'drive' ? 'To Google Drive' : 'File download')}${by ? ' &middot; ' + escapeHtml(by) : ''}
-      ${stale ? '<br>A backup should be taken at least once a month.' : ''}
+      <b>${stale ? `Last backup was ${days} days ago.` : `Last backup was ${when}.`}</b>
+      ${escapeHtml(kindLabel)}${by && kind !== 'github' ? ' &middot; ' + escapeHtml(by) : ''}
+      ${stale && st.auto ? '<br>The automatic backup has stopped. Open the <b>Actions</b> tab of the GitHub repository to see why — most often the access token has expired (BACKUP-SETUP.md, Step 7).' : ''}
+      ${stale && !st.auto ? '<br>A backup should be taken at least once a month — or set up the automatic nightly backup (BACKUP-SETUP.md).' : ''}
+      ${!stale && !st.auto ? '<br><span class="t-muted">Tip: the automatic nightly backup (BACKUP-SETUP.md) takes this off your hands.</span>' : ''}
+      ${st.auto ? `<br><span class="t-muted">Photos &amp; documents (Storage): ${filesAt ? `copied ${Math.floor((Date.now() - filesAt.getTime()) / 86400000)} day(s) ago${filesDetail ? ' · ' + escapeHtml(filesDetail) : ''}${Date.now() - filesAt.getTime() > 10 * 86400000 ? ' — <b>the weekly files backup seems to have stopped</b>' : ''}` : 'not backed up yet (BACKUP-SETUP.md, Part 2)'}</span>` : ''}
     </div>
   </div>`;
 }
@@ -10602,6 +11167,30 @@ document.getElementById('downloadBackupBtn')?.addEventListener('click', async ()
     }
   } catch (e) {
     showToast('Could not create backup.', 'error');
+  } finally { btn.disabled = false; }
+});
+
+// "Restore drill" in the browser: decrypt the chosen file and list how many
+// records of each kind it holds, so the committee can see that a backup is real
+// (and complete) without saving a plain-text copy of everyone's data.
+document.getElementById('checkBackupBtn')?.addEventListener('click', async () => {
+  const file = document.getElementById('decryptBackupFile')?.files?.[0];
+  const pass = document.getElementById('vaultPassphrase')?.value;
+  const out = document.getElementById('checkBackupResult');
+  if (!file) { showToast('Choose an encrypted backup file first.', 'error'); return; }
+  if (!pass) { showToast('Enter the Vault Passphrase (Document Security, above) first.', 'error'); return; }
+  const btn = document.getElementById('checkBackupBtn');
+  btn.disabled = true; out.textContent = 'Checking…';
+  try {
+    const text = await (await decryptToBlob(file, pass, 'application/json')).text();
+    const sum = summarizeBackup(JSON.parse(text));
+    if (!sum) { out.textContent = 'The file opened, but it does not look like an MHMRWS backup.'; return; }
+    const pick = (n) => (sum.rows.find(([k]) => k === n) || [n, 0])[1];
+    out.innerHTML = `<b style="color:var(--success);">Backup is readable ✓</b> — ${sum.kind === 'automatic' ? 'nightly automatic file' : 'file downloaded from this panel'}${sum.created ? `, made ${escapeHtml(new Date(sum.created).toLocaleString('en-IN'))}` : ''}.<br>
+      ${sum.total} records · members ${pick('members')} · payments ${pick('payments')} · expenses ${pick('expenses')} · complaints ${pick('complaints')}
+      <details style="margin-top:6px;"><summary style="cursor:pointer;">All ${sum.rows.length} collections</summary>${sum.rows.map(([k, n]) => `${escapeHtml(k)}: ${n}`).join(' · ')}</details>`;
+  } catch (e) {
+    out.textContent = 'Could not open it — the passphrase may be wrong, or this is not an encrypted MHMRWS backup.';
   } finally { btn.disabled = false; }
 });
 

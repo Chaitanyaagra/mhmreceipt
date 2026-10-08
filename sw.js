@@ -8,7 +8,7 @@
    Bump CACHE_NAME on any future structural change to force a clean cache.
    ========================================================================== */
 
-const CACHE_NAME = 'mhmrws-shell-v146';
+const CACHE_NAME = 'mhmrws-shell-v156';
 // Pinned Firebase SDK version used across every page (index/admin/staff/guard/
 // verify) — a specific version's content never changes, so caching these is
 // as safe as caching the vendored libraries below, and without this the app

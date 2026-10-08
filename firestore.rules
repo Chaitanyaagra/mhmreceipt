@@ -131,6 +131,25 @@ service cloud.firestore {
     function absentOrNull(data, field) {
       return !(field in data) || data[field] == null;
     }
+    // ---- Two-person approval for large expenses ---------------------------
+    // settings/expensePolicy.dualApprovalAbove = amount in rupees (0 or missing
+    // = off). Above it, the person who raised an expense cannot also approve it,
+    // and nobody can record it as already-approved in one step.
+    function expenseLimit() {
+      return exists(/databases/$(database)/documents/settings/expensePolicy)
+             && get(/databases/$(database)/documents/settings/expensePolicy).data.get('dualApprovalAbove', 0) is number
+        ? get(/databases/$(database)/documents/settings/expensePolicy).data.get('dualApprovalAbove', 0)
+        : 0;
+    }
+    function overExpenseLimit(amount) {
+      return expenseLimit() > 0 && amount is number && amount > expenseLimit();
+    }
+    // Did the signed-in person raise this expense? By uid when recorded, else by email.
+    function raisedByMe(data) {
+      return data.get('addedByUid', '') == request.auth.uid
+          || (request.auth.token.get('email', '') != ''
+              && data.get('addedBy', '').lower() == request.auth.token.get('email', '').lower());
+    }
     function isNonEmptyString(v, maxLen) {
       return v is string && v.size() > 0 && v.size() <= maxLen;
     }
@@ -985,6 +1004,18 @@ service cloud.firestore {
     // rating" an enforced fact rather than a UI convention a modified
     // client could ignore.
     match /complaints/{complaintId} {
+      // Complaints: an office-bearer correcting a member's flat (a wrong
+      // flat entered at registration) keeps the name/tower/flat copied onto
+      // this record in step with the member record. Identity fields ONLY, and
+      // only to exactly what the member's own record now says — the same
+      // narrow exception payments/{id} already has. Nothing else on the
+      // record can change through this path.
+      allow update: if canApproveMembers()
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['raisedByName', 'tower', 'flatNumber', 'updatedAt'])
+                    && exists(/databases/$(database)/documents/members/$(resource.data.raisedByUid))
+                    && request.resource.data.raisedByName == get(/databases/$(database)/documents/members/$(resource.data.raisedByUid)).data.name
+                    && request.resource.data.tower == get(/databases/$(database)/documents/members/$(resource.data.raisedByUid)).data.tower
+                    && request.resource.data.flatNumber == get(/databases/$(database)/documents/members/$(resource.data.raisedByUid)).data.flatNumber;
       allow read: if isAdmin()
                   || isManagerStaff()
                   || (isStaff() && resource.data.assignedToUid == request.auth.uid)
@@ -1351,7 +1382,9 @@ service cloud.firestore {
       allow read: if settingId == 'paymentPrivate' ? (isApprovedMember() || isAdmin())
                   : settingId == 'backup' ? isAdmin()
                   : true;
-      allow write: if canVerifyPayments();
+      // expensePolicy (the two-person approval limit) is the Super Admin's call —
+      // the Treasurer who records expenses must not be able to switch the check off.
+      allow write: if settingId == 'expensePolicy' ? isSuperAdmin() : canVerifyPayments();
     }
 
     // ---- Public receipt verification (where the receipt QR lands) ---------
@@ -1445,6 +1478,8 @@ service cloud.firestore {
         && request.resource.data.amount is number
         && request.resource.data.amount > 0
         && request.resource.data.amount <= 10000000
+        // Above the two-person limit nothing is recorded as already approved.
+        && (request.resource.data.status != 'approved' || !overExpenseLimit(request.resource.data.amount))
         // A locked FY is closed — a fresh expense landing in it would be
         // just as much a silent change to a reviewed year's numbers as
         // correcting or voiding one already there, which are both already
@@ -1473,6 +1508,15 @@ service cloud.firestore {
                     && (
                       !(absentOrNull(resource.data, 'status') || resource.data.status == 'approved')
                       || (unchanged('amount') && unchanged('category') && unchanged('description') && unchanged('financialYear') && unchanged('date') && unchanged('mode'))
+                    )
+                    // Two-person rule: moving a pending expense to 'approved' above the
+                    // limit (judged on the larger of the old and new amount) must be done
+                    // by someone other than the person who raised it.
+                    && (
+                      request.resource.data.status != 'approved'
+                      || (!absentOrNull(resource.data, 'status') && resource.data.status == 'approved')
+                      || !(overExpenseLimit(resource.data.amount) || overExpenseLimit(request.resource.data.amount))
+                      || !raisedByMe(resource.data)
                     )
                     // A still-pending expense being approved for the FIRST
                     // time is separate from the block above (only covers
@@ -1779,6 +1823,18 @@ service cloud.firestore {
     // for the same facility/date/slot can coexist; only one can ever
     // actually be approved, enforced by facilitySlots' create-uniqueness.
     match /facilityBookings/{bookingId} {
+      // Facility bookings: an office-bearer correcting a member's flat (a wrong
+      // flat entered at registration) keeps the name/tower/flat copied onto
+      // this record in step with the member record. Identity fields ONLY, and
+      // only to exactly what the member's own record now says — the same
+      // narrow exception payments/{id} already has. Nothing else on the
+      // record can change through this path.
+      allow update: if canApproveMembers()
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['residentName', 'tower', 'flatNumber', 'updatedAt'])
+                    && exists(/databases/$(database)/documents/members/$(resource.data.memberUid))
+                    && request.resource.data.residentName == get(/databases/$(database)/documents/members/$(resource.data.memberUid)).data.name
+                    && request.resource.data.tower == get(/databases/$(database)/documents/members/$(resource.data.memberUid)).data.tower
+                    && request.resource.data.flatNumber == get(/databases/$(database)/documents/members/$(resource.data.memberUid)).data.flatNumber;
       allow read: if isAdmin() || (isSignedIn() && resource.data.memberUid == request.auth.uid);
       // Every claim the client makes about who/what this booking is for is
       // now checked against the actual source-of-truth documents, not just
@@ -1887,6 +1943,18 @@ service cloud.firestore {
     // much larger Visitor Management feature this project has explicitly
     // scoped out of before. This is just a heads-up list.
     match /expectedGuests/{guestId} {
+      // Expected guests: an office-bearer correcting a member's flat (a wrong
+      // flat entered at registration) keeps the name/tower/flat copied onto
+      // this record in step with the member record. Identity fields ONLY, and
+      // only to exactly what the member's own record now says — the same
+      // narrow exception payments/{id} already has. Nothing else on the
+      // record can change through this path.
+      allow update: if canApproveMembers()
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['residentName', 'tower', 'flatNumber', 'updatedAt'])
+                    && exists(/databases/$(database)/documents/members/$(resource.data.memberUid))
+                    && request.resource.data.residentName == get(/databases/$(database)/documents/members/$(resource.data.memberUid)).data.name
+                    && request.resource.data.tower == get(/databases/$(database)/documents/members/$(resource.data.memberUid)).data.tower
+                    && request.resource.data.flatNumber == get(/databases/$(database)/documents/members/$(resource.data.memberUid)).data.flatNumber;
       allow read: if isAdmin() || (isSignedIn() && resource.data.memberUid == request.auth.uid);
       // Same identity check as facilityBookings.create: residentName/tower/
       // flatNumber are cross-verified against the caller's own members/{uid}
@@ -1924,6 +1992,34 @@ service cloud.firestore {
                     && unchanged('text')
                     && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'adminNote', 'updatedAt'])
                     && request.resource.data.status in ['submitted', 'under_review', 'considered', 'declined'];
+      allow delete: if isAdmin();
+    }
+
+    // ---- Problem reports ("Report a problem" button in the resident app) ---------
+    // Any signed-in person can send one (a resident stuck on a pending approval
+    // needs to be able to say so), but only as themselves, only these fields, and
+    // only as a brand-new report. Only the committee can read them; they can mark
+    // them seen/done and add a note, nothing else — the reporter's words never change.
+    // `details` is one capped string of technical context (page, app version, device,
+    // recent error messages) that the resident sees and agrees to before sending.
+    match /problemReports/{reportId} {
+      allow read: if canApproveMembers();
+      allow create: if isSignedIn()
+                    && request.resource.data.keys().hasOnly(['reporterUid', 'reporterName', 'flat', 'app', 'message', 'details', 'status', 'createdAt'])
+                    && request.resource.data.reporterUid == request.auth.uid
+                    && isNonEmptyString(request.resource.data.message, 1000)
+                    && isOptionalString(request.resource.data, 'reporterName', 100)
+                    && isOptionalString(request.resource.data, 'flat', 40)
+                    && isOptionalString(request.resource.data, 'app', 30)
+                    && isOptionalString(request.resource.data, 'details', 3000)
+                    && request.resource.data.status == 'new'
+                    && request.resource.data.createdAt is timestamp;
+      allow update: if canApproveMembers()
+                    && unchanged('reporterUid')
+                    && unchanged('message')
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'adminNote', 'updatedAt'])
+                    && request.resource.data.status in ['new', 'seen', 'done']
+                    && isOptionalString(request.resource.data, 'adminNote', 500);
       allow delete: if isAdmin();
     }
 

@@ -543,6 +543,24 @@ section{ padding:76px 0; position:relative; }
 .doc-meta .sub{ font-family:var(--font-mono); font-size:10.5px; letter-spacing:.07em; text-transform:uppercase; color:var(--ink-400); margin-top:3px; }
 .doc-item .go{ flex-shrink:0; color:var(--navy-700); }
 .doc-item .go svg{ width:18px; height:18px; }
+.cplt-steps{ display:grid; grid-template-columns:repeat(4, 1fr); width:100%; margin:8px 0 4px; }
+.cplt-step{ position:relative; text-align:center; font-size:12px; color:var(--ink-400); padding-top:20px; }
+.cplt-step::before{ content:''; position:absolute; top:7px; left:-50%; width:100%; height:2px; background:var(--line); }
+.cplt-step:first-child::before{ display:none; }
+.cplt-dot{ position:absolute; top:0; left:50%; transform:translateX(-50%); width:16px; height:16px; border-radius:50%; background:var(--white); border:2px solid var(--line); z-index:1; }
+.cplt-step.done{ color:var(--ink-600); }
+.cplt-step.done .cplt-dot{ background:var(--navy-900); border-color:var(--navy-900); }
+.cplt-step.done::before, .cplt-step.current::before{ background:var(--navy-900); }
+.cplt-step.current{ color:var(--navy-900); font-weight:700; }
+.cplt-step.current .cplt-dot{ border-color:var(--gold-500, #C9A227); box-shadow:0 0 0 3px var(--gold-glow, rgba(201,162,39,.22)); }
+.cplt-lbl{ display:block; }
+.cplt-dt{ display:block; font-size:11px; font-weight:400; color:var(--ink-400); margin-top:1px; }
+.cplt-meta{ font-size:13px; margin-top:2px; }
+.cplt-next{ font-size:13px; color:var(--ink-600); margin-top:2px; }
+.doc-item .doc-main{ display:flex; align-items:center; gap:14px; flex:1; min-width:0; color:inherit; text-decoration:none; }
+.doc-item .doc-download{ background:none; border:1px solid var(--line); border-radius:10px; padding:8px; cursor:pointer; display:inline-flex; }
+.doc-item .doc-download:hover{ border-color:var(--gold-300); }
+.doc-item .doc-download[disabled]{ opacity:.5; cursor:progress; }
 
 /* ---------- Committee ---------- */
 /* #committeeGrid is the outer wrapper for the 3 grouped sections (Core
@@ -754,6 +772,41 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
 }
 .tabbar-mobile a svg{ width:20px; height:20px; }
 .tabbar-mobile a.active{ color:var(--saffron-300); }
+.tabbar-mobile a svg{ flex-shrink:0; }
+
+/* ---------- "Dues + Pay Now" card at the very top of the resident home ----------
+   The one thing most residents open the app for, so it sits straight under the
+   welcome/status card (and under any visitor waiting at the gate). The fuller
+   ring-and-progress panel stays further down, next to the payment history. */
+.dues-hero{
+  margin-top:16px; padding:16px 18px; background:#fff; border:1px solid var(--line);
+  border-radius:16px; box-shadow:0 1px 2px rgba(10,27,51,.05), 0 6px 16px -10px rgba(10,27,51,.18);
+  display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+}
+.dues-hero .dh-main{ flex:1 1 150px; min-width:0; }
+.dues-hero .dh-lbl{ font-size:12.5px; font-weight:600; color:var(--ink-600); letter-spacing:.01em; }
+.dues-hero .dh-amt{ font-size:28px; font-weight:800; line-height:1.15; color:var(--navy-900); margin:2px 0 6px; }
+.dues-hero .dh-amt.is-clear{ color:var(--success, #1E7B4A); font-size:22px; }
+.dues-hero .dh-note{ font-size:12.5px; color:var(--ink-600); margin-top:6px; line-height:1.4; }
+.dues-hero .btn{ min-height:46px; padding-inline:22px; font-size:15px; flex-shrink:0; }
+@media (max-width:420px){ .dues-hero .btn{ width:100%; } }
+
+/* ---------- "More" sheet opened from the bottom bar ---------- */
+.more-list{ list-style:none; margin:0; padding:0; }
+.more-list li + li{ border-top:1px solid var(--line); }
+.more-item{
+  display:flex; align-items:center; gap:14px; width:100%; min-height:52px; padding:10px 4px;
+  background:none; border:0; font:inherit; font-size:15px; font-weight:600; color:var(--navy-900);
+  text-align:left; cursor:pointer; text-decoration:none;
+}
+.more-item .mi-ico{
+  width:44px; height:44px; border-radius:12px; flex-shrink:0; display:flex; align-items:center; justify-content:center;
+  background:var(--paper); border:1px solid var(--line);
+}
+.more-item .mi-ico svg{ width:22px; height:22px; color:var(--navy-900); }
+.more-item.is-danger{ color:var(--danger, #B3261E); }
+.more-item.is-danger .mi-ico svg{ color:var(--danger, #B3261E); }
+.dash-grid > .card, #notices, #downloads{ scroll-margin-top:76px; }
 
 /* =====================================================================
    RESPONSIVE — mobile is the priority target
@@ -767,6 +820,14 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
   nav.main-nav{ display:none; }
   body.logged-in .tabbar-mobile{ display:block; }
   body.logged-in{ padding-bottom:74px; }  /* clearance for the fixed tab bar */
+  /* Admin and Logout move into the bottom bar's "More" sheet once signed in,
+     leaving the header with just the seal, language toggle and the bell. */
+  body.logged-in .header-admin-btn, body.logged-in #navAuthBtn{ display:none; }
+  body.logged-in #dashboard{ padding-top:16px !important; }
+  body.logged-in #dashboard .section-head{ margin-bottom:14px !important; }
+  body.logged-in #dashboard .section-head .rule-gold, body.logged-in #dashboard .section-head .eyebrow{ display:none; }
+  body.logged-in #dashboard .section-head h2{ font-size:22px !important; }
+  .status-card{ padding:18px 16px; }
 
   .hero{ padding:44px 0 52px; }
   .hero-grid{ grid-template-columns:1fr; gap:30px; }
@@ -932,6 +993,10 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
     <g id="i-jog"><circle cx="14.5" cy="4.6" r="2.1" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M13.4 7.4L10 10.5l2.6 2.4.8 5.3M12.6 12.9L8.6 16l-1.4 4M15.4 9.2l3.4 1.7M4.5 11.5l3.4-1.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></g>
     <g id="i-yoga"><circle cx="12" cy="4.4" r="2" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M12 6.6v5M12 11.6l-4.6 2M12 11.6l4.6 2M4 19.5c2.4-2 5.2-3 8-3s5.6 1 8 3" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></g>
     <g id="i-power"><path d="M13 2.5L5 13.5h6l-1 8 8-11h-6z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></g>
+    <g id="i-door"><path d="M6 20.5V4.5a1 1 0 011-1h10a1 1 0 011 1v16M4 20.5h16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><circle cx="14.6" cy="12.4" r="1" fill="currentColor"/></g>
+    <g id="i-chat"><path d="M4 5.5h16v10.5H10.2L6 19.8V16H4z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M8 9.6h8M8 12.6h5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></g>
+    <g id="i-more"><circle cx="5.5" cy="12" r="1.7" fill="currentColor"/><circle cx="12" cy="12" r="1.7" fill="currentColor"/><circle cx="18.5" cy="12" r="1.7" fill="currentColor"/></g>
+    <g id="i-logout"><path d="M10 4H6.5a1.5 1.5 0 00-1.5 1.5v13A1.5 1.5 0 006.5 20H10M15 8l4 4-4 4M19 12H9.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></g>
     <g id="i-parking"><rect x="3.5" y="3.5" width="17" height="17" rx="3" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M9.5 17V7.5h3.2a2.9 2.9 0 010 5.8H9.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></g>
   </defs>
 </svg>
@@ -1530,11 +1595,30 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
 <nav class="tabbar-mobile no-print" id="tabbarMobile" aria-label="Primary">
   <ul>
     <li><a href="#top" data-tab="top" id="tabHomeBtn" class="active"><svg viewBox="0 0 24 24"><use href="#i-home"/></svg>Home</a></li>
-    <li><a href="#notices" data-tab="notices"><svg viewBox="0 0 24 24"><use href="#i-bell"/></svg>Notices</a></li>
-    <li><a href="#" data-tab="pay" id="tabPayBtn"><svg viewBox="0 0 24 24"><use href="#i-rupee"/></svg>Pay</a></li>
-    <li><a href="#portal" data-tab="account" id="tabAccountBtn"><svg viewBox="0 0 24 24"><use href="#i-user"/></svg>Account</a></li>
+    <li><a href="#" data-tab="payments" id="tabPaymentsBtn"><svg viewBox="0 0 24 24"><use href="#i-rupee"/></svg>Payments</a></li>
+    <li><a href="#" data-tab="complaints" id="tabComplaintsBtn"><svg viewBox="0 0 24 24"><use href="#i-chat"/></svg>Complaints</a></li>
+    <li><a href="#" data-tab="more" id="tabMoreBtn" aria-haspopup="dialog"><svg viewBox="0 0 24 24"><use href="#i-more"/></svg>More</a></li>
   </ul>
 </nav>
+
+<!-- "More" sheet from the bottom bar: everything that isn't a daily action, plus
+     Admin and Logout, which no longer crowd the phone header. -->
+<div class="modal-backdrop no-print" id="moreSheetBackdrop">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="moreSheetTitle" style="max-width:420px;">
+    <div class="modal-head"><h3 id="moreSheetTitle" style="font-size:17px;">More</h3><button class="icon-btn" id="closeMoreSheet" aria-label="Close" style="background:var(--paper); color:var(--ink-700); border-color:var(--line);">✕</button></div>
+    <div class="modal-body" style="padding-top:4px; padding-bottom:8px;">
+      <ul class="more-list">
+        <li><button type="button" class="more-item" data-more="notices"><span class="mi-ico"><svg viewBox="0 0 24 24"><use href="#i-bell"/></svg></span>Notices</button></li>
+        <li><button type="button" class="more-item" data-more="community"><span class="mi-ico"><svg viewBox="0 0 24 24"><use href="#i-home"/></svg></span>Bookings, Guests &amp; Suggestions</button></li>
+        <li><button type="button" class="more-item" data-more="profile"><span class="mi-ico"><svg viewBox="0 0 24 24"><use href="#i-user"/></svg></span>Profile, Vehicles, Family &amp; Pets</button></li>
+        <li><button type="button" class="more-item" data-more="report"><span class="mi-ico"><svg viewBox="0 0 24 24"><use href="#i-alert"/></svg></span>Report a problem</button></li>
+        <li><button type="button" class="more-item" data-more="documents"><span class="mi-ico"><svg viewBox="0 0 24 24"><use href="#i-file"/></svg></span>Documents</button></li>
+        <li><a class="more-item" href="admin.html"><span class="mi-ico"><svg viewBox="0 0 24 24"><use href="#i-shield"/></svg></span>Admin Panel</a></li>
+        <li><button type="button" class="more-item is-danger" data-more="logout"><span class="mi-ico"><svg viewBox="0 0 24 24"><use href="#i-logout"/></svg></span>Logout</button></li>
+      </ul>
+    </div>
+  </div>
+</div>
 
 <div class="modal-backdrop no-print" id="paymentModalBackdrop">
   <div class="modal">
@@ -1545,6 +1629,24 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
 
 <!-- Success celebration modal — shown with an animated tick + confetti after a
      successful registration or payment. Auto-closes; also closable manually. -->
+<!-- Shown just before a registration is sent: a wrong tower/flat is the most
+     common registration mistake, and one that is awkward to unwind later
+     (payments and receipts carry it too). Escape / tapping outside = "go back". -->
+<div class="modal-backdrop no-print" id="flatConfirmBackdrop">
+  <div class="modal" style="max-width:420px; text-align:center;">
+    <div class="modal-head"><h3 style="font-size:16.5px;">Apna flat check karein <span class="t-muted" style="font-weight:400; font-size:13px;">· Check your flat</span></h3></div>
+    <div class="modal-body">
+      <div id="flatConfirmFlat" style="font-family:var(--font-display, inherit); font-size:30px; font-weight:800; line-height:1.15; margin:6px 0 4px;"></div>
+      <div id="flatConfirmWho" class="t-muted" style="font-size:13.5px; margin-bottom:12px;"></div>
+      <p style="font-size:14px; line-height:1.5; margin-bottom:16px;">Aapka membership payment aur saare records isi flat ke naam par darj honge. Galat flat baad mein sudhaarna mushkil hota hai.<br><span class="t-muted" style="font-size:12.5px;">Your payment and all records will be saved under this flat. A wrong flat is hard to fix later.</span></p>
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        <button type="button" class="btn btn-primary" id="flatConfirmYes" style="min-height:48px;">Haan, yehi mera flat hai · Yes, this is correct</button>
+        <button type="button" class="btn btn-outline" id="flatConfirmNo" style="min-height:48px;">Nahi, badlunga · No, go back</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal-backdrop no-print" id="successModalBackdrop">
   <div class="modal" style="max-width:380px; text-align:center;">
     <div class="modal-body" id="successModalBody"></div>
@@ -1682,6 +1784,25 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
       <form id="suggestionForm">
         <div class="field"><label for="sg-text">Your suggestion</label><textarea name="text" id="sg-text" rows="4" required maxlength="1000" placeholder="An idea for the committee to consider..."></textarea></div>
         <button class="btn btn-primary btn-block" type="submit">Submit</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop no-print" id="reportModalBackdrop">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-head"><h3 style="font-size:16.5px;">Report a problem</h3><button class="icon-btn" id="closeReportModal" aria-label="Close">✕</button></div>
+    <div class="modal-body">
+      <form id="reportForm">
+        <p class="t-muted" style="font-size:12.8px; margin-bottom:12px;">Something not working, or looks wrong? Tell the committee — in Hindi or English. This is for app problems; for a problem in the society (lift, water…) use <b>Raise a Complaint</b>.</p>
+        <div class="field"><label for="rp-text">What happened?</label><textarea name="message" id="rp-text" rows="4" required maxlength="1000" placeholder="e.g. Pay Now dabane par kuch nahi hota"></textarea></div>
+        <label class="checkbox-row" style="margin-bottom:6px;"><input type="checkbox" id="rp-attach" checked> Send technical details too (helps us fix it faster)</label>
+        <details style="margin-bottom:14px;">
+          <summary class="t-muted" style="font-size:12.5px; cursor:pointer;">What exactly is sent?</summary>
+          <pre id="rp-preview" style="font-size:11.5px; white-space:pre-wrap; word-break:break-word; background:var(--paper); border:1px solid var(--line); border-radius:8px; padding:8px; margin-top:8px;"></pre>
+          <p class="t-muted" style="font-size:11.5px; margin-top:4px;">Your name and flat are sent with it. No password, no payment details, no photos.</p>
+        </details>
+        <button class="btn btn-primary btn-block" type="submit">Send report</button>
       </form>
     </div>
   </div>
@@ -2060,11 +2181,6 @@ window.__animateCount = (el) => {
     window.__goToPortal('login');
   });
 
-  const acct = document.getElementById('tabAccountBtn');
-  acct && acct.addEventListener('click', (e) => {
-    if (window.__loggedIn) { e.preventDefault(); const d = document.getElementById('dashboard'); if (d) d.scrollIntoView({ behavior: 'smooth' }); }
-  });
-
   // "Home" points at the marketing hero (#top), which — like #portal — is
   // hidden once logged in. Same redirect-to-dashboard fix as Account above:
   // without it, tapping Home after signing in visibly does nothing, since
@@ -2087,7 +2203,7 @@ import {
   doc, getDoc, setDoc, updateDoc, addDoc, collection, query, where, orderBy, getDocs, serverTimestamp, limit, writeBatch, onSnapshot, runTransaction
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 import {
-  ref as storageRef, uploadBytes, getDownloadURL
+  ref as storageRef, uploadBytes, getDownloadURL, deleteObject
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-storage.js";
 import { imgTag } from './html-helpers.js';
 import {
@@ -2096,7 +2212,7 @@ import {
   generateMembershipCard, duesFor, DUES_LABEL, DUES_BADGE,
   generateRegistrationConfirmationPDF,
   generateStatementPDF, skeletonList, emptyState, showFieldError, clearFieldErrors,
-  membershipDue, membershipFeeAmount, paymentDetails, eventDue, bookingSlotAvailability, validateRentAgreementDates,
+  membershipDue, membershipFeeAmount, paymentDetails, eventDue, bookingSlotAvailability, validateRentAgreementDates, downloadFileName, isOwnUploadUrl, complaintProgress, minutesWaiting, paymentStatusLabel, APP_VERSION, buildProblemReport, recentClientErrors,
   waShareText, downloadImageFromUrl,
   initFamilyMembersEditor, addFamilyMemberRow, collectFamilyMembers,
   initVehiclesEditor, addVehicleRow, collectVehicles,
@@ -2122,7 +2238,7 @@ const LOGO_DATA_URI = window.__MHM_LOGO;
 
 /* ---- Mobile tab bar: highlight the section currently on screen ---- */
 const tabLinks = [...document.querySelectorAll('.tabbar-mobile a')];
-const sectionForTab = { top: 'top', notices: 'notices', account: 'portal' };
+const sectionForTab = { top: 'top' };   // logged-in highlighting is done by trackActiveTab() below
 const observer = new IntersectionObserver((entries) => {
   entries.forEach(entry => {
     if (!entry.isIntersecting) return;
@@ -2545,15 +2661,82 @@ document.getElementById('stepSaveExit')?.addEventListener('click', saveDraft);
 if (!window.__goToStepForField) window.__goToStepForField = () => {};
 function goToStepForField(form, field) { window.__goToStepForField(field); }
 
-// __goToPortal, navAuthBtn and tabAccountBtn are wired in the Firebase-free
+// __goToPortal and navAuthBtn are wired in the Firebase-free
 // block so they work even if Firebase is down. Only the payment button needs
 // auth, so it stays here.
-document.getElementById('tabPayBtn').addEventListener('click', (e) => {
-  e.preventDefault();
-  if (!currentUser) { showToast('Please log in to make a payment.', 'error'); window.__goToPortal('login'); return; }
-  if (currentMember?.status !== 'approved') { showToast('Your registration is still awaiting approval.', 'error'); return; }
-  openPaymentModal();
-});
+/* ---- Bottom bar (signed-in, phone): Home · Payments · Complaints · More ---- */
+(() => {
+  const tabs = {
+    top: document.getElementById('tabHomeBtn'),
+    payments: document.getElementById('tabPaymentsBtn'),
+    complaints: document.getElementById('tabComplaintsBtn'),
+    more: document.getElementById('tabMoreBtn')
+  };
+  // After a tap, keep the tapped tab lit while the page is still gliding there.
+  let lockUntil = 0;
+  const setActive = (name, lock) => {
+    if (lock) lockUntil = Date.now() + 1000;
+    Object.entries(tabs).forEach(([k, a]) => a && a.classList.toggle('active', k === name));
+  };
+  const go = (el) => el && el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const needApproved = () => {
+    if (!currentUser) { showToast('Please log in first.', 'error'); window.__goToPortal('login'); return false; }
+    if (currentMember?.status !== 'approved') { showToast('Your registration is still awaiting approval.', 'error'); return false; }
+    return true;
+  };
+  const cardOf = (id) => document.getElementById(id)?.closest('.card');
+  const sheet = document.getElementById('moreSheetBackdrop');
+  const closeSheet = () => sheet.classList.remove('open');
+
+  tabs.payments?.addEventListener('click', (e) => { e.preventDefault(); if (needApproved()) { go(cardOf('duesPanel')); setActive('payments', true); } });
+  tabs.complaints?.addEventListener('click', (e) => { e.preventDefault(); if (needApproved()) { go(cardOf('myComplaintsList')); setActive('complaints', true); } });
+  tabs.more?.addEventListener('click', (e) => { e.preventDefault(); sheet.classList.add('open'); setActive('more'); });
+  document.getElementById('closeMoreSheet')?.addEventListener('click', closeSheet);
+  sheet?.addEventListener('click', (e) => { if (e.target === sheet) closeSheet(); });
+
+  sheet?.querySelectorAll('[data-more]').forEach((btn) => btn.addEventListener('click', () => {
+    const what = btn.dataset.more;
+    closeSheet();
+    if (what === 'logout') { document.getElementById('navAuthBtn')?.click(); return; }
+    // The page is not scrollable while a modal is open — let the sheet finish closing first.
+    setTimeout(() => {
+      if (what === 'report') { if (needApproved()) openReportModal(); }
+      else if (what === 'notices') go(document.getElementById('notices'));
+      else if (what === 'documents') go(document.getElementById('downloads'));
+      else if (what === 'community') {
+        if (!needApproved()) return;
+        document.querySelector('[data-cmrtab="book"]')?.click();
+        go(document.querySelector('[data-cmrtab]')?.closest('.card'));
+      } else if (what === 'profile') {
+        if (!needApproved()) return;
+        const d = document.querySelector('#dashboardContent details');
+        if (d) { d.open = true; go(d); }
+      }
+    }, 60);
+  }));
+
+  // Highlight the tab for whatever part of the page is on screen.
+  let ticking = false;
+  const trackActiveTab = () => {
+    ticking = false;
+    if (!document.body.classList.contains('logged-in') || sheet?.classList.contains('open') || Date.now() < lockUntil) return;
+    const line = 110;   // just under the sticky header: the section at the top of the screen is the current one
+    const marks = [
+      ['top', document.getElementById('dashboard')],
+      ['payments', cardOf('duesPanel')],
+      ['more', document.querySelector('#dashboardContent details')],
+      ['complaints', cardOf('myComplaintsList')],
+      ['more', document.querySelector('[data-cmrtab]')?.closest('.card')],
+      ['more', document.getElementById('notices')]
+    ];
+    let active = 'top';
+    for (const [name, el] of marks) if (el && el.getBoundingClientRect().top <= line) active = name;
+    setActive(active);
+  };
+  window.addEventListener('scroll', () => { if (!ticking) { ticking = true; requestAnimationFrame(trackActiveTab); } }, { passive: true });
+  // Closing the sheet by Escape / backdrop / Back leaves "More" lit — put it back.
+  new MutationObserver(() => { if (!sheet.classList.contains('open')) trackActiveTab(); }).observe(sheet, { attributes: true, attributeFilter: ['class'] });
+})();
 
 /* ---- Helpers ---- */
 function setLoading(btn, loading) {
@@ -2599,6 +2782,49 @@ async function uploadFile(path, file) {
     return null;
   }
 }
+/* ---------------------------------------------------------------------- */
+/*  Storage clean-up for the resident's own uploads.                       */
+/*  A replacement upload gets a brand-new unique path, so nothing ever     */
+/*  removed the file it replaced; and an upload that succeeded just before */
+/*  the record save failed was left behind with nothing pointing at it.    */
+/*  Deletes are best-effort and only ever touch this member's OWN folders. */
+/*  Any that fail (offline, transient error) are remembered in this        */
+/*  browser and retried the next time the resident signs in.               */
+/* ---------------------------------------------------------------------- */
+const pendingCleanupKey = (uid) => `mhmrws_pending_file_cleanup:${uid}`;
+function readPendingCleanup(uid) {
+  try { const v = JSON.parse(localStorage.getItem(pendingCleanupKey(uid)) || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; }
+}
+function writePendingCleanup(uid, list) {
+  try {
+    const unique = [...new Set(list)].slice(0, 50);
+    if (unique.length) localStorage.setItem(pendingCleanupKey(uid), JSON.stringify(unique));
+    else localStorage.removeItem(pendingCleanupKey(uid));
+  } catch (e) { /* storage unavailable — nothing more to do */ }
+}
+// Resolves to the URLs that could NOT be deleted and are worth retrying.
+async function deleteStoredFiles(uid, urls) {
+  const failed = [];
+  for (const url of [...new Set((urls || []).filter(Boolean))]) {
+    if (!isOwnUploadUrl(url, uid)) continue;               // never delete anything outside this member's folders
+    try { await deleteObject(storageRef(storage, url)); }
+    catch (e) {
+      if (e?.code === 'storage/object-not-found') continue;  // already gone — that's the goal
+      console.warn('Stored-file clean-up failed (will retry later):', e?.code || e);
+      failed.push(url);
+    }
+  }
+  return failed;
+}
+async function cleanupStoredFiles(uid, urls) {
+  const failed = await deleteStoredFiles(uid, urls);
+  if (failed.length) writePendingCleanup(uid, [...readPendingCleanup(uid), ...failed]);
+}
+async function runPendingFileCleanup(uid) {
+  const list = readPendingCleanup(uid);
+  if (!list.length) return;
+  writePendingCleanup(uid, await deleteStoredFiles(uid, list));
+}
 // Uploads a pet's photo + 4 certificate files (whichever were actually
 // selected), writing each resulting URL back onto the SAME pet object and
 // removing the raw File objects afterward (Firestore can't store a File).
@@ -2631,6 +2857,34 @@ function toDataUrl(url) {
   }));
 }
 
+// Resolves true only if the person explicitly confirms the tower/flat they
+// picked. Closing the dialog any other way (Escape, tap outside, Back) is
+// "go back and check" — never an accidental yes.
+function confirmFlatBeforeSubmit(f) {
+  return new Promise((resolve) => {
+    const bd = document.getElementById('flatConfirmBackdrop');
+    const typeLabel = { owner: 'Owner', jointowner: 'Joint Owner', tenant: 'Tenant' }[f.residentType?.value] || '';
+    document.getElementById('flatConfirmFlat').textContent = `Tower ${f.tower.value} · Flat ${f.flatNumber.value}`;
+    document.getElementById('flatConfirmWho').textContent = [f.name?.value?.trim(), typeLabel].filter(Boolean).join(' · ');
+    let settled = false;
+    const observer = new MutationObserver(() => { if (!bd.classList.contains('open')) finish(false); });
+    const finish = (answer) => {
+      if (settled) return;
+      settled = true;
+      observer.disconnect();
+      document.getElementById('flatConfirmYes').onclick = null;
+      document.getElementById('flatConfirmNo').onclick = null;
+      bd.classList.remove('open');
+      resolve(answer);
+    };
+    document.getElementById('flatConfirmYes').onclick = () => finish(true);
+    document.getElementById('flatConfirmNo').onclick = () => finish(false);
+    observer.observe(bd, { attributes: true, attributeFilter: ['class'] });
+    bd.classList.add('open');
+    setTimeout(() => document.getElementById('flatConfirmNo')?.focus(), 50);   // default focus is the safe choice
+  });
+}
+
 /* ---- Register ---- */
 registerForm.addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -2652,6 +2906,14 @@ registerForm.addEventListener('submit', async (e) => {
     } else {
       showToast(regError.message, 'error');
     }
+    return;
+  }
+  if (!(await confirmFlatBeforeSubmit(f))) {
+    // Take them straight back to the tower/flat field to change it.
+    goToStepForField(f, 'tower');
+    f.tower.closest('.field')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    // After the dialog's own focus-restore has run, or it would win.
+    setTimeout(() => { try { f.tower.focus({ preventScroll: true }); } catch (_) {} }, 120);
     return;
   }
   setLoading(btn, true);
@@ -3063,6 +3325,9 @@ onAuthStateChanged(auth, async (user) => {
   if (user && googleAuthCred && user.uid === googleAuthCred.user.uid) return;
   if (user) {
     window.__loggedIn = true;
+    // Notices may already be on screen from before sign-in resolved — re-arm
+    // seen-tracking so any that are in view now are recorded.
+    { const nl = document.getElementById('noticeList'); if (nl && window.__notices?.length) trackNoticesSeen(nl, window.__notices); }
     document.body.classList.add('logged-in');   // focus mode: hide marketing sections
     window.__setDynamicLabel(navBtn, 'Logout');
     navBtn.onclick = async () => { await signOut(auth); location.reload(); };
@@ -3225,7 +3490,7 @@ async function loadDashboard(uid) {
         </div>` : ''}
     </div>
     ${currentMember.status === 'approved' ? `<div id="gateCard"></div>` : ''}
-    
+    ${currentMember.status === 'approved' ? `<div id="duesHero"><div class="skeleton" style="height:96px; margin-top:16px; border-radius:16px;"></div></div>` : ''}
     ${currentMember.status === 'approved' ? `<div id="inspectionsCard"></div>` : ''}
     ${currentMember.status === 'approved' ? `<div id="expiryCenterCard" style="display:none;"></div>` : ''}
     ${currentMember.status === 'approved' ? `
@@ -3352,6 +3617,7 @@ async function loadDashboard(uid) {
           <button class="btn btn-primary btn-sm" id="fillProfileNudgeBtn">Fill Now</button>
         </div>
       </div>` : ''}
+      <div class="t-muted" style="grid-column:1/-1; text-align:center; font-size:12.5px; padding:6px 0 2px;">Something not working? <button type="button" class="link-btn" id="reportProblemLink">Report a problem</button></div>
     </div>` : ''}
   `;
 
@@ -3384,6 +3650,7 @@ async function loadDashboard(uid) {
     document.getElementById('editProfileBtnFamily')?.addEventListener('click', openProfileModal);
     document.getElementById('addPetBtn')?.addEventListener('click', () => openPetModal());
     document.getElementById('raiseComplaintBtn')?.addEventListener('click', openComplaintModal);
+    document.getElementById('reportProblemLink')?.addEventListener('click', openReportModal);
     document.getElementById('shortcutPay')?.addEventListener('click', () => document.getElementById('openPaymentBtn')?.click());
     document.getElementById('shortcutComplaint')?.addEventListener('click', () => document.getElementById('raiseComplaintBtn')?.click());
     const goToCommunityTab = (tab) => {
@@ -3425,6 +3692,7 @@ async function loadDashboard(uid) {
     subscribeComplaintUpdates(uid);
     subscribeBookingUpdates(uid);
     loadInspectionsCard();
+    runPendingFileCleanup(uid).catch(() => {});   // retry any earlier clean-up that couldn't finish
   }
 }
 
@@ -3798,6 +4066,15 @@ const COMPLAINT_CATEGORY_LABEL_R = {
   electrical: 'Electrical', plumbing: 'Plumbing', noise: 'Noise', parking: 'Parking', other: 'Other'
 };
 const COMPLAINT_STATUS_LABEL_R = { open: 'Open', in_progress: 'In Progress', resolved: 'Resolved', closed: 'Closed', rejected: 'Rejected' };
+// Plain-language "what happens next" for each stage (keys from complaintProgress).
+const COMPLAINT_NEXT_STEP_R = {
+  unassigned: 'Waiting for the committee to assign someone.',
+  assigned_waiting: 'Assigned — work will start soon.',
+  working: 'Work is in progress.',
+  confirm: 'Staff marked it fixed — please confirm below.',
+  closed: 'Closed. Thank you for confirming.',
+  rejected: 'This complaint was closed without action — please contact the office if you have questions.'
+};
 /* ======================= Community: Book a Facility ======================= */
 let allActiveFacilities = [];
 async function loadMyBookings(uid) {
@@ -3979,12 +4256,12 @@ function renderGateCard(rows) {
 
   el.innerHTML = `
     <div class="card card-pad"${pending.length ? ' style="border-color:var(--gold-500,#C9A227); background:var(--gold-glow,rgba(201,162,39,.06));"' : ''}>
-      <h3 style="font-size:15px; margin-bottom:10px;">🚪 At the Gate</h3>
+      <h3 style="font-size:15px; margin-bottom:10px; display:flex; align-items:center; gap:8px;"><svg viewBox="0 0 24 24" aria-hidden="true" style="width:20px; height:20px; flex-shrink:0;"><use href="#i-door"/></svg>At the Gate</h3>
       ${pending.length ? pending.map(r => `
         <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 0; border-bottom:1px solid var(--line,#EAE6DC);">
           <div style="min-width:0;">
             <b style="font-size:14px;">${escapeHtml(r.visitorName)}</b>
-            <div class="t-muted" style="font-size:12px; margin-top:2px;">${GATE_PURPOSE_LABEL[r.purpose] || escapeHtml(r.purpose || '')}${r.visitorPhone ? ' · ' + escapeHtml(r.visitorPhone) : ''}</div>
+            <div class="t-muted" style="font-size:12px; margin-top:2px;">${GATE_PURPOSE_LABEL[r.purpose] || escapeHtml(r.purpose || '')}${r.visitorPhone ? ' · ' + escapeHtml(r.visitorPhone) : ''}${(() => { const m = minutesWaiting(r.createdAt); return m === null ? '' : ` · <span>Waiting</span> ${m < 1 ? '<1' : m} min`; })()}</div>
           </div>
           <div style="display:flex; gap:6px; flex-shrink:0;">
             <button class="btn btn-primary btn-sm" data-gate-decide="${r.id}" data-gate-status="approved">Let In</button>
@@ -4411,6 +4688,42 @@ function renderMySuggestions() {
       ${s.adminNote ? `<div class="t-muted" style="font-size:12px; margin-top:4px;">Committee: ${escapeHtml(s.adminNote)}</div>` : ''}
     </div>`).join('');
 }
+/* ---- Report a problem ------------------------------------------------- */
+let lastReportAt = 0;
+function reportContext() {
+  return { page: `${location.pathname}${location.hash}`, version: APP_VERSION, online: navigator.onLine, screen: `${window.innerWidth}x${window.innerHeight}`, device: navigator.userAgent, errors: recentClientErrors() };
+}
+function refreshReportPreview() {
+  const pre = document.getElementById('rp-preview');
+  if (!pre) return;
+  const on = document.getElementById('rp-attach').checked;
+  pre.textContent = on ? JSON.stringify(reportContext(), null, 1) : '(nothing — only your message, name and flat)';
+}
+function openReportModal() {
+  document.getElementById('reportForm').reset();
+  refreshReportPreview();
+  document.getElementById('reportModalBackdrop').classList.add('open');
+}
+document.getElementById('rp-attach')?.addEventListener('change', refreshReportPreview);
+document.getElementById('closeReportModal')?.addEventListener('click', () => document.getElementById('reportModalBackdrop').classList.remove('open'));
+document.getElementById('reportForm')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (!currentUser) { showToast('Please log in first.', 'error'); return; }
+  if (Date.now() - lastReportAt < 30000) { showToast('Your last report was just sent — please wait a few seconds.', 'error'); return; }
+  const f = e.target;
+  const btn = f.querySelector('button[type=submit]');
+  setLoading(btn, true);
+  try {
+    const report = buildProblemReport({ message: f.message.value, member: currentMember, uid: currentUser.uid, context: document.getElementById('rp-attach').checked ? reportContext() : null });
+    if (!report.message) { showToast('Please describe the problem first.', 'error'); return; }
+    await addDoc(collection(db, 'problemReports'), { ...report, createdAt: serverTimestamp() });
+    lastReportAt = Date.now();
+    showToast('Report sent — thank you! The committee will look into it.', 'success');
+    document.getElementById('reportModalBackdrop').classList.remove('open');
+  } catch (err) { showToast(`Could not send the report${err?.code ? ` (${err.code})` : ''} — please try again.`, 'error'); }
+  finally { setLoading(btn, false); }
+});
+
 document.getElementById('closeSuggestionModal')?.addEventListener('click', () => document.getElementById('suggestionModalBackdrop').classList.remove('open'));
 document.getElementById('suggestionForm')?.addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -4463,6 +4776,18 @@ function renderMyComplaints() {
         <span><b>${escapeHtml(c.title)}</b> <span class="t-muted" style="font-size:11.5px;">(${escapeHtml(COMPLAINT_CATEGORY_LABEL_R[c.category] || c.category)})</span></span>
         <span class="t-muted" style="font-size:12px;">${escapeHtml(COMPLAINT_STATUS_LABEL_R[c.status] || c.status)}</span>
       </div>
+      ${(() => {
+        // Where it stands, who has it, when to expect it, and what happens
+        // next — not just a one-word status badge.
+        const prog = complaintProgress(c);
+        const dayOf = (d) => fmtDate(typeof d === 'string' ? new Date(d + 'T12:00:00') : d);
+        return `
+        <div class="cplt-steps" role="list" aria-label="Progress">
+          ${prog.steps.map((st) => `<div class="cplt-step ${st.state}" role="listitem"><span class="cplt-dot"></span><span class="cplt-lbl">${st.label}</span>${st.state === 'done' && st.at ? `<span class="cplt-dt">${dayOf(st.at)}</span>` : ''}</div>`).join('')}
+        </div>
+        ${prog.assignee || prog.targetDate ? `<div class="cplt-meta">${prog.assignee ? `<span>Assigned to</span> <b>${escapeHtml(prog.assignee)}</b>` : ''}${prog.assignee && prog.targetDate ? ' · ' : ''}${prog.targetDate ? `<span>Expected by</span> <b>${dayOf(prog.targetDate)}</b>` : ''}</div>` : ''}
+        <div class="cplt-next">${prog.reopened ? '<b>You reopened this complaint — the staff will look at it again.</b> ' : ''}<span>${COMPLAINT_NEXT_STEP_R[prog.nextKey]}</span></div>`;
+      })()}
       ${c.photoURL ? `${imgTag(c.photoURL, 'alt="" style="max-width:220px; border-radius:8px; margin-top:4px;"')}`
         : ['open', 'in_progress'].includes(c.status) ? `
           <div style="width:100%;">
@@ -4675,6 +5000,19 @@ document.getElementById('profileEditForm')?.addEventListener('submit', async (e)
   btn.disabled = true;
   let emailChangeBlocked = false;
   let authEmailChangedThisSubmit = false;
+  // The email change is its own outcome, kept apart from whether the rest of
+  // the profile saves: what happened to the email is only reported once the
+  // profile write has actually succeeded or failed. It used to announce
+  // "your other changes were still saved" the instant the email step failed —
+  // before anything had been written — so a later failure left that claim false.
+  let emailNotice = '';
+  // Files uploaded during THIS submit, and whether the profile record that
+  // points at them actually saved — together they decide what must be cleaned
+  // up (see cleanupStoredFiles): new uploads if the save failed, the files
+  // they replaced if it succeeded.
+  const uploadedThisSubmit = [];
+  const filesBefore = { photoURL: currentMember.photoURL, rentAgreementURL: currentMember.rentAgreementURL, idDocURL: currentMember.idDocURL };
+  let profileSaved = false;
   try {
     // The actual login credential lives on the Auth account, not Firestore
     // — updating only the Firestore field would let the two silently drift
@@ -4691,12 +5029,12 @@ document.getElementById('profileEditForm')?.addEventListener('submit', async (e)
         emailChangeBlocked = true;
         patch.email = currentMember.email || '';   // keep Firestore in sync with the Auth account that didn't change
         if (emailErr?.code === 'auth/requires-recent-login') {
-          showToast('For security, changing your email needs a recent sign-in. Please sign out and sign back in, then try again — your other changes below were still saved.', 'error');
+          emailNotice = 'Your email was not changed: for security, changing it needs a recent sign-in. Please sign out and sign back in, then try again.';
         } else if (emailErr?.code === 'auth/email-already-in-use') {
-          showToast('That email is already in use by another account — your other changes below were still saved.', 'error');
+          emailNotice = 'Your email was not changed: that email is already in use by another account.';
         } else {
           console.error('Email update failed:', emailErr);
-          showToast(`Could not change your email${emailErr?.code ? ` (${emailErr.code})` : ''} — your other changes below were still saved.`, 'error');
+          emailNotice = `Your email was not changed${emailErr?.code ? ` (${emailErr.code})` : ''}.`;
         }
       }
     }
@@ -4712,13 +5050,14 @@ document.getElementById('profileEditForm')?.addEventListener('submit', async (e)
     const raFile = f.rentAgreement?.files?.[0];
     if (raFile) {
       const url = await uploadFile(`documents/${currentUser.uid}/rentAgreement_${Date.now()}`, raFile);
-      if (url) patch.rentAgreementURL = url; else failedUploads.push('rent agreement');
+      if (url) { patch.rentAgreementURL = url; uploadedThisSubmit.push(url); } else failedUploads.push('rent agreement');
     }
     const idDocFile = f.idDoc?.files?.[0];
     if (idDocFile) {
       const url = await uploadFile(`documents/${currentUser.uid}/iddoc_${Date.now()}`, idDocFile);
       if (url) {
         patch.idDocURL = url;
+        uploadedThisSubmit.push(url);
         // A fresh upload is always plaintext, whatever the previous file's
         // state was — this is what makes the office's "Encrypt Pending
         // Uploads" tool pick it up again after a resident replaces an
@@ -4731,7 +5070,7 @@ document.getElementById('profileEditForm')?.addEventListener('submit', async (e)
     const photoFile = f.photo?.files?.[0];
     if (photoFile) {
       const newPhotoURL = await uploadFile(`photos/${currentUser.uid}/photo_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`, photoFile);
-      if (newPhotoURL) patch.photoURL = newPhotoURL; else failedUploads.push('photo');
+      if (newPhotoURL) { patch.photoURL = newPhotoURL; uploadedThisSubmit.push(newPhotoURL); } else failedUploads.push('photo');
     }
     if (authEmailChangedThisSubmit) {
       // The login email has already changed — this save absolutely must
@@ -4747,6 +5086,7 @@ document.getElementById('profileEditForm')?.addEventListener('submit', async (e)
             showToast(`Your login email changed to ${newEmail}, but we could not save that to your profile after several tries. Please try saving your profile again now, or contact the office if this keeps happening — your login and your records may show different emails until this is fixed.`, 'error');
             document.getElementById('profileModalBackdrop').classList.remove('open');
             btn.disabled = false;
+            await cleanupStoredFiles(currentUser.uid, uploadedThisSubmit);   // nothing points at these new uploads
             return;
           }
           await new Promise((resolve) => setTimeout(resolve, profileSaveAttempt * 500));
@@ -4755,18 +5095,38 @@ document.getElementById('profileEditForm')?.addEventListener('submit', async (e)
     } else {
       await updateDoc(doc(db, 'members', currentUser.uid), patch);
     }
+    profileSaved = true;
     Object.assign(currentMember, patch);
+    // The record now points at the new files — the ones they replaced are
+    // unreferenced and can go. (Not awaited: the resident shouldn't wait on
+    // Storage housekeeping; failures are queued for a later retry.)
+    cleanupStoredFiles(currentUser.uid, Object.keys(filesBefore)
+      .filter((k) => patch[k] && filesBefore[k] && filesBefore[k] !== patch[k])
+      .map((k) => filesBefore[k])).catch(() => {});
     if (failedUploads.length) {
       showToast(`Profile updated, but your ${failedUploads.join(' and ')} could not be uploaded — please check your connection and try selecting ${failedUploads.length > 1 ? 'them' : 'it'} again.`, 'error');
-    } else if (!emailChangeBlocked) {
+    }
+    if (emailChangeBlocked) {
+      // Said here, after the write succeeded, so "saved" is actually true.
+      showToast(`${emailNotice} Your other profile changes were saved.`, 'error');
+    } else if (!failedUploads.length) {
       showToast('Profile updated.', 'success');
     }
     document.getElementById('profileModalBackdrop').classList.remove('open');
-    await loadDashboard(currentUser.uid);
+    // A failure to REFRESH the screen is not a failure to SAVE — it used to
+    // fall into the catch below and report "Could not save profile" for a
+    // profile that had in fact saved.
+    try { await loadDashboard(currentUser.uid); }
+    catch (refreshErr) {
+      console.warn('Dashboard refresh after profile save failed:', refreshErr?.code || refreshErr);
+      showToast('Your profile was saved, but the page could not refresh itself — please reload to see the latest.', 'info');
+    }
   } catch (err) {
     console.error('Profile update failed:', err);
+    // The write did not land, so anything uploaded for it is now orphaned.
+    if (!profileSaved) cleanupStoredFiles(currentUser.uid, uploadedThisSubmit).catch(() => {});
     const code = err?.code || '';
-    showToast(`Could not save profile${code ? ` (${code})` : ''}.`, 'error');
+    showToast(`Could not save profile${code ? ` (${code})` : ''}.${emailNotice ? ` ${emailNotice}` : ''}`, 'error');
   } finally {
     btn.disabled = false;
   }
@@ -4926,7 +5286,35 @@ async function loadMaintenanceSettings() {
   } catch (e) { console.error('Maintenance settings read failed:', e?.code || e); return { ok: false, data: {} }; }
 }
 
+/* The compact "what do I owe, pay it now" card at the top of the home screen.
+   Fed by renderDues(), so it can never disagree with the detailed panel below. */
+function renderDuesHero(dues, financialYear) {
+  const el = document.getElementById('duesHero');
+  if (!el) return;
+  const showNothing = !dues || dues.status === 'no_rate' || currentMember?.maintenanceResponsible === false;
+  if (showNothing) { el.innerHTML = ''; return; }
+  const owes = dues.outstanding > 0;
+  const waiting = (allPaymentRows || []).filter((p) => p.status === 'pending_verification' || p.status === 'pending_approval');
+  const waitingSum = waiting.reduce((t, p) => t + (Number(p.amount) || 0), 0);
+  const notes = [];
+  if (waiting.length) notes.push(`${formatINR(waitingSum)} submitted — waiting for the committee to verify`);
+  if (currentMembership && currentMembership.outstanding > 0) notes.push(`Membership fee ${formatINR(currentMembership.outstanding)} is also pending`);
+  el.innerHTML = `
+    <div class="dues-hero">
+      <div class="dh-main">
+        <div class="dh-lbl">${owes ? 'Maintenance due' : 'Maintenance'} &middot; FY ${escapeHtml(financialYear)}</div>
+        <div class="dh-amt ${owes ? '' : 'is-clear'}">${owes ? formatINR(dues.outstanding) : 'All paid &#10003;'}</div>
+        <span class="badge ${DUES_BADGE[dues.status]}">${escapeHtml(DUES_LABEL[dues.status])}</span>
+        ${notes.map((n) => `<div class="dh-note">${escapeHtml(n)}</div>`).join('')}
+      </div>
+      ${owes ? '<button type="button" class="btn btn-primary" id="duesPayNowBtn">Pay Now</button>' : ''}
+    </div>`;
+  document.getElementById('duesPayNowBtn')?.addEventListener('click', openPaymentModal);
+  window.__translate?.(el);
+}
+
 function renderDues(dues, financialYear) {
+  renderDuesHero(dues, financialYear);
   const el = document.getElementById('duesPanel');
   if (!el) return;
 
@@ -5033,6 +5421,7 @@ async function loadPayments(uid, preserveShowCount) {
     showToast(`Could not load your payment${!paymentsResult.ok && !maintenanceResult.ok ? ' and rate' : !maintenanceResult.ok ? ' rate' : ''} details${e?.code ? ` (${e.code})` : ''} — please refresh the page and try again.`, 'error');
     const duesEl = document.getElementById('duesPanel');
     if (duesEl) { duesEl.innerHTML = emptyState('Could not load your dues', 'Please refresh the page and try again.', { compact: true }); window.__translate?.(duesEl); }
+    const heroEl = document.getElementById('duesHero'); if (heroEl) heroEl.innerHTML = '';
     list.innerHTML = emptyState('Could not load your payment history', 'Please refresh the page and try again.', { compact: true });
     window.__translate(list);
     // Stale data is worse than no data — a resident acting on a dues
@@ -5072,10 +5461,10 @@ async function loadPayments(uid, preserveShowCount) {
   const listRows = rows.slice(0, paymentListShowCount);
 
   const statusBadge = {
-    pending_approval: '<span class="badge badge-warning">Pending Approval</span>',
-    pending_verification: '<span class="badge badge-warning">Pending Verification</span>',
-    verified: '<span class="badge badge-success">Verified</span>',
-    rejected: '<span class="badge badge-danger">Rejected</span>'
+    pending_approval: `<span class="badge badge-warning">${paymentStatusLabel('pending_approval')}</span>`,
+    pending_verification: `<span class="badge badge-warning">${paymentStatusLabel('pending_verification')}</span>`,
+    verified: `<span class="badge badge-success">${paymentStatusLabel('verified')}</span>`,
+    rejected: `<span class="badge badge-danger">${paymentStatusLabel('rejected')}</span>`
   };
   // Node colour class from the payment status.
   const nodeClass = (s) => s === 'verified' ? 'is-verified'
@@ -5655,12 +6044,65 @@ function renderNotices() {
   // the notice list itself if it fails. Only for signed-in residents; the
   // public landing page (currentUser undefined) has nothing to attribute
   // the read to, and the create-rule requires isApprovedMember() anyway.
-  if (window.__loggedIn && currentUser?.uid) {
-    rows.forEach(n => {
-      setDoc(doc(db, 'notices', n.id, 'reads', currentUser.uid), { readAt: serverTimestamp() })
-        .catch(e => console.warn('Notice read-receipt failed:', e?.code || e));
+  // Always armed; whether a receipt can actually be written is decided at the
+  // moment a notice has been seen (recordNoticeSeen), not here at render time —
+  // the list can finish rendering before the sign-in state has resolved, and a
+  // render-time check meant no receipts at all for that whole session.
+  trackNoticesSeen(listEl, rows);
+}
+
+// A notice is recorded as "seen" only once it has genuinely been on screen:
+// at least half of it (or half the viewport, for one taller than the screen)
+// held for ~1.5 seconds. Rendering the list used to write a receipt for EVERY
+// notice immediately — including ones far below the fold, or in a tab nobody
+// had opened — so the admin's "read" count measured "the list was built", not
+// anyone seeing anything. It also re-tried every receipt on every re-render,
+// and since a receipt is create-only (the rules refuse updates) each retry on
+// an already-recorded notice was a rejected write plus a console warning.
+// Even now this is "seen", not proof of reading or understanding.
+const noticeSeenSent = new Set();
+let noticeSeenObserver = null;
+function recordNoticeSeen(n) {
+  if (noticeSeenSent.has(n.id)) return true;
+  // The public landing page shows notices too, but there is nobody to
+  // attribute a view to (and the rules only allow an approved member's own
+  // receipt). Not recorded, and left un-sent so it can still be recorded if
+  // they sign in while the notice is on screen.
+  if (!window.__loggedIn || !currentUser?.uid) return false;
+  noticeSeenSent.add(n.id);
+  setDoc(doc(db, 'notices', n.id, 'reads', currentUser.uid), { readAt: serverTimestamp() })
+    .catch((e) => {
+      // First receipt only, never updated: permission-denied normally just
+      // means one was already recorded — not worth a warning.
+      if (e?.code !== 'permission-denied') console.warn('Notice seen-receipt failed:', e?.code || e);
     });
-  }
+  return true;
+}
+function trackNoticesSeen(listEl, rows) {
+  noticeSeenObserver?.disconnect();
+  if (!('IntersectionObserver' in window)) { rows.forEach((n) => recordNoticeSeen(n)); return; }
+  const items = [...listEl.querySelectorAll('.notice-item')];
+  const pending = new Map();
+  noticeSeenObserver = new IntersectionObserver((entries) => {
+    for (const en of entries) {
+      const n = rows[items.indexOf(en.target)];
+      if (!n || noticeSeenSent.has(n.id)) continue;
+      const vh = en.rootBounds?.height || window.innerHeight;
+      const mostlyVisible = en.isIntersecting && (en.intersectionRatio >= 0.5 || en.intersectionRect.height >= vh * 0.5);
+      if (mostlyVisible) {
+        if (!pending.has(en.target)) {
+          pending.set(en.target, setTimeout(() => {
+            pending.delete(en.target);
+            if (recordNoticeSeen(n)) noticeSeenObserver?.unobserve(en.target);
+          }, 1500));
+        }
+      } else if (pending.has(en.target)) {
+        clearTimeout(pending.get(en.target));
+        pending.delete(en.target);
+      }
+    }
+  }, { threshold: [0, 0.25, 0.5, 0.75, 1] });
+  items.forEach((item) => noticeSeenObserver.observe(item));
 }
 
 const CAL_TYPE_ICON = { festival: '🎉', meeting: '🗓️', maintenance: '🔧', shutdown: '⚡', event: '🎊', other: '📌' };
@@ -5894,6 +6336,31 @@ window.addEventListener('mhm:langchange', () => {
   if (document.getElementById('noticeList')) renderNotices();
 });
 
+// Real download: fetch the file and hand the browser a blob it must save —
+// <a download> alone is ignored for a cross-origin URL (Firebase Storage), so
+// it would just open the file again. If the fetch is refused (CORS, offline)
+// the file is opened instead, which at least gets the resident the document.
+async function downloadDocument(btn) {
+  if (btn.disabled) return;
+  const url = btn.dataset.url, title = btn.dataset.title;
+  btn.disabled = true;
+  try {
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const blob = await resp.blob();
+    const href = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = href; a.download = downloadFileName(title, url, blob.type);
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(href), 15000);
+  } catch (e) {
+    console.warn('Direct download failed, opening the file instead:', e?.message || e);
+    showToast("Couldn't download directly — opening the file instead.", 'error');
+    window.open(url, '_blank', 'noopener');
+  } finally {
+    btn.disabled = false;
+  }
+}
 async function loadDownloads() {
   const el = document.getElementById('downloadsList');
   try {
@@ -5903,15 +6370,25 @@ async function loadDownloads() {
       el.innerHTML = emptyState('No documents yet', 'Bylaws, minutes, and forms will be published here.', { compact: true });
       window.__translate(el); return;
     }
+    // The card itself OPENS the file (a new tab / the device's viewer); the
+    // download icon is its own button that actually downloads it. The icon
+    // used to sit inside the same link, so it promised a download and only
+    // ever opened the file — on a phone, a viewer popping up read as a
+    // failed download.
     el.innerHTML = '<div class="doc-grid">' + rows.map(d => `
-      <a class="doc-item" href="${escapeHtml(d.url)}" target="_blank" rel="noopener">
-        <span class="doc-icon"><svg viewBox="0 0 24 24"><use href="#i-file"/></svg></span>
-        <span class="doc-meta">
-          <span class="nm">${escapeHtml(d.title)}</span>
-          <span class="sub">${escapeHtml(d.category || 'Document')}${d.addedAt ? ' &middot; ' + fmtDate(d.addedAt) : ''}</span>
-        </span>
-        <span class="go"><svg viewBox="0 0 24 24"><use href="#i-download"/></svg></span>
-      </a>`).join('') + '</div>';
+      <div class="doc-item">
+        <a class="doc-main" href="${escapeHtml(d.url)}" target="_blank" rel="noopener" aria-label="Open ${escapeHtml(d.title)}">
+          <span class="doc-icon"><svg viewBox="0 0 24 24"><use href="#i-file"/></svg></span>
+          <span class="doc-meta">
+            <span class="nm">${escapeHtml(d.title)}</span>
+            <span class="sub">${escapeHtml(d.category || 'Document')}${d.addedAt ? ' &middot; ' + fmtDate(d.addedAt) : ''}</span>
+          </span>
+        </a>
+        <button type="button" class="go doc-download" data-url="${escapeHtml(d.url)}" data-title="${escapeHtml(d.title)}" aria-label="Download ${escapeHtml(d.title)}" title="Download">
+          <svg viewBox="0 0 24 24"><use href="#i-download"/></svg>
+        </button>
+      </div>`).join('') + '</div>';
+    el.querySelectorAll('.doc-download').forEach(btn => btn.addEventListener('click', () => downloadDocument(btn)));
     window.__translate(el);
   } catch (e) {
     el.innerHTML = emptyState('Could not load documents', 'Please try again in a little while.', { compact: true });
