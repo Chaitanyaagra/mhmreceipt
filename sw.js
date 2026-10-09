@@ -8,7 +8,7 @@
    Bump CACHE_NAME on any future structural change to force a clean cache.
    ========================================================================== */
 
-const CACHE_NAME = 'mhmrws-shell-v170';
+const CACHE_NAME = 'mhmrws-shell-v177';
 // Pinned Firebase SDK version used across every page (index/admin/staff/guard/
 // verify) — a specific version's content never changes, so caching these is
 // as safe as caching the vendored libraries below, and without this the app
@@ -41,7 +41,7 @@ const SHELL_FILES = [
   './verify.html',
   './styles.css',
   './firebase-config.js',
-  './app-common.js?v=170',
+  './app-common.js?v=177',
   './avatar-placeholder.js',
   './premium.js',
   './ui-a11y.js',

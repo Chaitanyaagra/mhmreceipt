@@ -1153,7 +1153,7 @@ export function shortRef(id) {
 /*  "Report a problem" — context that makes a report actionable              */
 /* ---------------------------------------------------------------------- */
 // Keep in step with CACHE_NAME in sw.js (a test checks they match).
-export const APP_VERSION = 'v170';
+export const APP_VERSION = 'v177';
 
 const __recentErrors = [];
 function __noteError(text) {
@@ -2253,14 +2253,19 @@ export function skeletonTableRows(cols = 4, rows = 4) {
 /* A consistent empty state everywhere — the same small seal, a heading and a
    line of guidance — instead of the assortment of bare "No records" strings
    the panels grew independently. */
-export function emptyState(heading, detail = '', { compact = false } = {}) {
+export function emptyState(heading, detail = '', { compact = false, icon: iconName = '', action = null } = {}) {
   const seal = `<svg class="seal" width="40" height="40" viewBox="0 0 24 24" aria-hidden="true">
     <circle cx="12" cy="12" r="10.5" fill="none" stroke="var(--gold-500)" stroke-width="1.2"/>
     <circle cx="12" cy="12" r="7.5" fill="none" stroke="var(--line)" stroke-width="1"/>
     <path d="M8.5 12.2l2.4 2.4 4.6-4.8" fill="none" stroke="var(--gold-700)" stroke-width="1.4"
       stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-  return `<div class="empty${compact ? ' empty-sm' : ''}">${seal}
-    <h4>${escapeHtml(heading)}</h4>${detail ? `<p>${escapeHtml(detail)}</p>` : ''}</div>`;
+  // v171: a friendly "nothing here yet" names what will appear and, where it makes sense, offers the first step.
+  const art = iconName && ICON_NAMES.includes(iconName)
+    ? `<div class="empty-art" aria-hidden="true">${icon(iconName)}</div>` : seal;
+  const btn = action && action.label && action.click
+    ? `<button type="button" class="btn btn-outline btn-sm empty-cta" data-empty-click="${escapeHtml(action.click)}">${escapeHtml(action.label)}</button>` : '';
+  return `<div class="empty${compact ? ' empty-sm' : ''}">${art}
+    <h4>${escapeHtml(heading)}</h4>${detail ? `<p>${escapeHtml(detail)}</p>` : ''}${btn}</div>`;
 }
 
 /* Mark a form field as invalid with a message directly beneath it. Expects the
@@ -2537,145 +2542,205 @@ export async function sealOnWhiteDisc(logoDataUrl, size = 256) {
   }
 }
 
-export async function generateMembershipCard({ member, society, logoDataUrl, financialYear, officeAddress, familyMember = null }) {
+/** The two dates printed on the card: valid till (end of the financial year) and member since. */
+export function cardDates(member, financialYear) {
+  const MON = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+  let validTill = null;
+  const m = /^(\d{4})-(\d{2})$/.exec(String(financialYear || ''));
+  if (m) validTill = `31 MAR ${Number(m[1]) + 1}`;
+  let since = null;
+  const t = member?.approvedAt || member?.createdAt;
+  const d = t?.toDate ? t.toDate() : (t?.seconds ? new Date(t.seconds * 1000) : (t instanceof Date ? t : null));
+  if (d && !isNaN(d)) since = `${MON[d.getMonth()]} ${d.getFullYear()}`;
+  return { validTill, since };
+}
+
+/**
+ * The membership card as a PDF (ID-1 size, landscape, two pages: front and back).
+ *  print:false — the full-colour card for phones: saffron / navy / gold facets.
+ *  print:true  — the same layout in pale tints on white, so a print shop uses little ink.
+ * The QR on the front opens the public verification page.
+ */
+const CARD_PAL = {
+  saffron: [242, 123, 14], saffronLt: [255, 153, 51], gold: [255, 201, 120], navy: [31, 69, 133], navyDk: [15, 37, 71], magenta: [163, 19, 80],
+  // pale versions used by the print card
+  saffronT: [255, 226, 186], saffronLtT: [255, 238, 214], goldT: [255, 243, 214], navyT: [208, 222, 245], navyDkT: [176, 197, 232], magentaT: [240, 190, 212],
+  ink: [10, 27, 51], label: [92, 104, 128], rule: [217, 211, 198]
+};
+
+/** Draws the geometric facets in a box (x0,y0,w,h). dir 'v' = vertical side panel, 'h' = horizontal strip. */
+function cardFacets(pdf, x0, y0, w, h, tint, mirror = false) {
+  const P = CARD_PAL;
+  const c = tint ? { base: P.saffronLtT, a: P.saffronT, g: P.goldT, n: P.navyT, d: P.navyDkT, m: P.magentaT } : { base: P.saffronLt, a: P.saffron, g: P.gold, n: P.navy, d: P.navyDk, m: P.magenta };
+  const X = (x) => mirror ? x0 + w - x : x0 + x, Y = (y) => y0 + y;
+  const tri = (col, p, q, r) => { pdf.setFillColor(...col); pdf.triangle(X(p[0]), Y(p[1]), X(q[0]), Y(q[1]), X(r[0]), Y(r[1]), 'F'); };
+  pdf.setFillColor(...c.base); pdf.rect(x0, y0, w, h, 'F');
+  tri(c.a, [0, 0], [w * 0.78, 0], [0, h * 0.62]);
+  tri(c.g, [w, h * 0.16], [w, h * 0.7], [w * 0.25, h * 0.7]);
+  tri(c.n, [w * 0.45, h], [w, h * 0.45], [w, h]);
+  tri(c.d, [w * 0.75, h], [w, h * 0.78], [w, h]);
+  tri(c.m, [0, h * 0.74], [w * 0.3, h], [0, h]);
+}
+
+export async function generateMembershipCard({ member, society, logoDataUrl, financialYear, officeAddress, familyMember = null, print = false }) {
   await loadScript('./jspdf.umd.min.js');
   const { jsPDF } = window.jspdf;
   const pdf = new jsPDF({ unit: 'mm', format: [CARD_W, CARD_H], orientation: 'landscape' });
+  const P = CARD_PAL;
+  const W = CARD_W, H = CARD_H, M = 5;
+  const PANEL = 30;           // width of the facet panel on the left
+  const gx = PANEL + 4.5;     // left edge of the right-hand content
 
-  // --- backdrop: the building, heavily dimmed so text stays legible -------
-  pdf.setFillColor(15, 37, 71);
-  pdf.rect(0, 0, CARD_W, CARD_H, 'F');
-
-  const bg = await loadImage('mhm-card-bg.jpg');
-  if (bg) {
-    try {
-      // cover-fit: the source strip is wider than the card, so crop the sides
-      const srcRatio = bg.naturalWidth / bg.naturalHeight;
-      let dw = CARD_W, dh = CARD_W / srcRatio;
-      if (dh < CARD_H) { dh = CARD_H; dw = CARD_H * srcRatio; }
-      const dx = (CARD_W - dw) / 2, dy = (CARD_H - dh) / 2;
-      pdf.saveGraphicsState();
-      pdf.setGState(new pdf.GState({ opacity: 0.30 }));
-      pdf.addImage(imageToDataUrl(bg), 'JPEG', dx, dy, dw, dh);
-      pdf.restoreGraphicsState();
-    } catch (e) { /* keep the plain navy card if the image can't be composited */ }
-  }
-
-  // navy scrim over the left two-thirds, where all the text sits
-  pdf.saveGraphicsState();
-  pdf.setGState(new pdf.GState({ opacity: 0.55 }));
-  pdf.setFillColor(10, 27, 51);
-  pdf.rect(0, 0, CARD_W, CARD_H, 'F');
-  pdf.restoreGraphicsState();
-
-  // saffron top edge + gold hairline under the header
-  pdf.setFillColor(255, 153, 51);
-  pdf.rect(0, 0, CARD_W, 1.1, 'F');
-
-  const M = 5;   // margin
-
-  // --- header ------------------------------------------------------------
-  // The seal is flattened onto an opaque white disc first — see
-  // sealOnWhiteDisc() for why jsPDF cannot be handed the transparent original.
-  // Wrapped so a seal problem (e.g. a canvas-export quirk) leaves a plain card
-  // rather than failing the whole download.
   let sealImg = null;
   try { sealImg = await sealOnWhiteDisc(logoDataUrl); } catch (e) { sealImg = null; }
-  if (sealImg) {
-    try {
-      const cx = M + 3.6, cy = 7.4, r = 3.9;
-      pdf.setFillColor(255, 255, 255);
-      pdf.circle(cx, cy, r, 'F');                       // white backing disc
-      pdf.addImage(sealImg, 'JPEG', cx - r * 0.94, cy - r * 0.94, r * 1.88, r * 1.88);
-      pdf.setDrawColor(228, 199, 101); pdf.setLineWidth(0.28);
-      pdf.circle(cx, cy, r, 'S');                       // gold rim
-    } catch (e) {}
-  }
-  pdf.setTextColor(255, 255, 255);
+  const seal = (cx, cy, r) => {
+    pdf.setFillColor(255, 255, 255); pdf.circle(cx, cy, r, 'F');
+    if (sealImg) {
+      try {
+        pdf.saveGraphicsState(); pdf.circle(cx, cy, r, null); pdf.clip(); pdf.discardPath();
+        pdf.addImage(sealImg, 'JPEG', cx - r, cy - r, r * 2, r * 2);
+        pdf.restoreGraphicsState();
+      } catch (e) { try { pdf.restoreGraphicsState(); } catch (_) {} }
+    }
+    pdf.setDrawColor(...(print ? P.saffronLt : P.gold)); pdf.setLineWidth(0.3); pdf.circle(cx, cy, r, 'S');
+  };
+  // A panel with a slanted right edge, so it does not end in a flat line.
+  const panel = () => {
+    cardFacets(pdf, 0, 0, PANEL, H, print);
+    pdf.setFillColor(255, 255, 255);
+    pdf.triangle(PANEL + 0.4, -0.2, PANEL + 0.4, H + 0.2, PANEL - 6, H + 0.2, 'F');
+  };
+  const strip = (y) => cardFacets(pdf, 0, y, W, 2.6, print);
+
+  // ============================== FRONT ==================================
+  pdf.setFillColor(255, 255, 255); pdf.rect(0, 0, W, H, 'F');
+  panel();
+
+  // round photo on the panel
+  const pcx = 14.6, pcy = 21.5, pr = 10.2;
+  pdf.setFillColor(255, 255, 255); pdf.circle(pcx, pcy, pr + 1.3, 'F');
+  try {
+    pdf.saveGraphicsState(); pdf.circle(pcx, pcy, pr, null); pdf.clip(); pdf.discardPath();
+    pdf.addImage(member.photoDataUrl || AVATAR_PLACEHOLDER, 'JPEG', pcx - pr, pcy - pr, pr * 2, pr * 2);
+    pdf.restoreGraphicsState();
+  } catch (e) { try { pdf.restoreGraphicsState(); } catch (_) {} }
+  pdf.setDrawColor(...(print ? P.saffron : P.saffronLt)); pdf.setLineWidth(0.5); pdf.circle(pcx, pcy, pr + 0.4, 'S');
+
+  // owner / tenant / relation pill under the photo
+  const isTenant = !familyMember && /tenant/i.test(String(member.residentType || ''));
+  const status = (familyMember ? (familyMember.relation || 'Family') : (member.residentType || 'Member')).toUpperCase();
+  pdf.setFont('courier', 'bold'); pdf.setFontSize(5.2);
+  const pw = Math.min(pdf.getTextWidth(status) + 5, PANEL - 8);
+  pdf.setFillColor(...(isTenant ? [228, 237, 252] : [255, 240, 214]));
+  pdf.setDrawColor(...(isTenant ? P.navy : P.saffronLt)); pdf.setLineWidth(0.2);
+  pdf.roundedRect(pcx - pw / 2, 36.4, pw, 4.4, 2.2, 2.2, 'FD');
+  pdf.setTextColor(...(isTenant ? P.navy : [160, 70, 0]));
+  pdf.text(status, pcx, 39.5, { align: 'center' });
+
+  // header: seal + society name
+  seal(gx + 4.2, 8.2, 4.2);
+  pdf.setTextColor(...P.ink);
   pdf.setFont('helvetica', 'bold'); pdf.setFontSize(7.4);
-  pdf.text(society.name || 'Max Heights Majestic', M + 9.2, 6.9);
-  pdf.setFont('courier', 'normal'); pdf.setFontSize(4.4);
-  pdf.setTextColor(255, 201, 120);
-  pdf.text('RESIDENT WELFARE SOCIETY', M + 9.2, 9.6);
+  pdf.text('MAX HEIGHTS MAJESTIC', gx + 10.4, 7.5);
+  pdf.setFont('courier', 'bold'); pdf.setFontSize(4.4); pdf.setTextColor(...(print ? [160, 70, 0] : P.saffron));
+  pdf.text('RESIDENT WELFARE SOCIETY', gx + 10.4, 10.8);
+  pdf.setDrawColor(...P.rule); pdf.setLineWidth(0.2); pdf.line(gx, 14, W - M, 14);
 
-  pdf.setFont('courier', 'normal'); pdf.setFontSize(4);
-  pdf.setTextColor(190, 200, 215);
-  pdf.text('VALID FOR', CARD_W - M, 6.6, { align: 'right' });
-  pdf.setFontSize(6.4); pdf.setTextColor(255, 201, 120);
-  pdf.text(`FY ${financialYear}`, CARD_W - M, 9.6, { align: 'right' });
+  // name (shrinks to fit, ellipsis as a last resort)
+  {
+    let nm = String(familyMember?.name || member.name || '').trim();
+    const maxW = W - M - gx;
+    let sz = 9.6;
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(sz);
+    while (sz > 6.4 && pdf.getTextWidth(nm) > maxW) { sz -= 0.4; pdf.setFontSize(sz); }
+    if (pdf.getTextWidth(nm) > maxW) {
+      nm = nm.slice(0, -1).trimEnd() + '…';
+      while (nm.length > 2 && pdf.getTextWidth(nm) > maxW) nm = nm.slice(0, -2).trimEnd() + '…';
+    }
+    pdf.setTextColor(...P.ink);
+    pdf.text(nm, gx, 20.6);
+  }
 
-  pdf.setDrawColor(228, 199, 101); pdf.setLineWidth(0.2);
-  pdf.line(M, 12, CARD_W - M, 12);
+  // details (left of the QR)
+  const { validTill, since } = cardDates(member, financialYear);
+  const displayID = familyMember ? `${member.memberID || '—'}-${familyMember.suffix || 'F1'}` : String(member.memberID || '—');
+  const row = (lab, val, y, mono = false) => {
+    pdf.setFont('courier', 'normal'); pdf.setFontSize(4.3); pdf.setTextColor(...P.label); pdf.text(lab, gx, y);
+    pdf.setFont(mono ? 'courier' : 'helvetica', 'bold'); pdf.setFontSize(mono ? 7.8 : 7); pdf.setTextColor(...(mono ? P.magenta : P.ink));
+    pdf.text(String(val), gx, y + 3.4);
+  };
+  let ry = 25;
+  row('MEMBER ID', displayID, ry, true); ry += 6.5;
+  row('TOWER / FLAT', `${member.tower || '—'}  ·  ${member.flatNumber || '—'}`, ry); ry += 6.5;
+  row('VALID TILL', validTill || `FY ${financialYear}`, ry); ry += 6.5;
+  if (since && !familyMember) row('MEMBER SINCE', since, ry);
 
-  // --- photo -------------------------------------------------------------
-  const photoX = M, photoY = 15, photoW = 13, photoH = 16.5;
-  pdf.setFillColor(255, 255, 255);
-  pdf.setDrawColor(228, 199, 101); pdf.setLineWidth(0.25);
-  pdf.roundedRect(photoX, photoY, photoW, photoH, 1, 1, 'FD');
-  // Use the resident's photo if we have one, otherwise a neutral silhouette so
-  // the frame never looks broken or empty.
-  const photoImg = member.photoDataUrl || AVATAR_PLACEHOLDER;
-  try { pdf.addImage(photoImg, 'JPEG', photoX + 0.4, photoY + 0.4, photoW - 0.8, photoH - 0.8); }
-  catch (e) {}
-
-  // --- details -----------------------------------------------------------
-  const dx = photoX + photoW + 4;
-  const label = (t, y) => { pdf.setFont('courier','normal'); pdf.setFontSize(3.9); pdf.setTextColor(185,196,212); pdf.text(t, dx, y); };
-  const value = (t, y, size = 8) => { pdf.setFont('helvetica','bold'); pdf.setFontSize(size); pdf.setTextColor(255,255,255); pdf.text(t, dx, y); };
-
-  label('MEMBER NAME', 18);
-  value(String((familyMember?.name || member.name || '')).slice(0, 26), 22.4, 9);
-
-  label('TOWER / FLAT', 27.6);
-  value(`${member.tower || '—'}  ·  ${member.flatNumber || '—'}`, 31.6, 7.6);
-
-  pdf.setFont('courier','normal'); pdf.setFontSize(3.9); pdf.setTextColor(185,196,212);
-  pdf.text(familyMember ? 'RELATION' : 'STATUS', dx + 26, 27.6);
-  pdf.setFont('helvetica','bold'); pdf.setFontSize(7.6); pdf.setTextColor(255,255,255);
-  pdf.text((familyMember ? (familyMember.relation || '—') : (member.residentType || '—')).replace(/^\w/, c => c.toUpperCase()), dx + 26, 31.6);
-
-  // --- QR ----------------------------------------------------------------
+  // verification QR
   try {
     const qr = await generateQR(memberVerifyUrl(member), 320);
-    const qs = 15.5, qx = CARD_W - M - qs, qy = 15.5;
-    pdf.setFillColor(255, 255, 255);
-    pdf.roundedRect(qx - 0.8, qy - 0.8, qs + 1.6, qs + 1.6, 0.8, 0.8, 'F');
+    const qs = 17, qx = W - M - qs, qy = 24;
+    pdf.setFillColor(255, 255, 255); pdf.setDrawColor(...P.rule); pdf.setLineWidth(0.2);
+    pdf.roundedRect(qx - 0.9, qy - 0.9, qs + 1.8, qs + 1.8, 1, 1, 'FD');
     pdf.addImage(qr, 'PNG', qx, qy, qs, qs);
-    pdf.setFont('courier','normal'); pdf.setFontSize(3.4); pdf.setTextColor(190,200,215);
-    // A family member has no photo, QR, or verification record of their
-    // own — both the photo above and this QR are the primary member's.
-    // Saying so here (space allowing) keeps the card from implying an
-    // independent verification of the named person that doesn't exist.
-    pdf.text(familyMember ? `VIA ${String(member.name || '').toUpperCase()}` : 'SCAN TO VERIFY', qx + qs / 2, qy + qs + 2.6, { align: 'center' });
-  } catch (e) { /* card is still valid without the QR */ }
+    pdf.setFont('courier', 'normal'); pdf.setFontSize(4.3); pdf.setTextColor(...P.label);
+    pdf.text(familyMember ? 'VIA PRIMARY MEMBER' : 'SCAN TO VERIFY', qx + qs / 2, qy + qs + 3.6, { align: 'center' });
+  } catch (e) { /* the card is still valid without the QR */ }
 
-  // --- footer ------------------------------------------------------------
-  pdf.setDrawColor(255, 255, 255); pdf.setLineWidth(0.12);
-  pdf.line(M, CARD_H - 9.6, CARD_W - M, CARD_H - 9.6);
+  strip(H - 2.6);
 
-  pdf.setFont('courier','normal'); pdf.setFontSize(3.9); pdf.setTextColor(185,196,212);
-  pdf.text('MEMBER ID', M, CARD_H - 6.4);
-  pdf.setFont('courier','bold'); pdf.setFontSize(8); pdf.setTextColor(255, 201, 120);
-  const displayID = familyMember ? `${member.memberID || '—'}-${familyMember.suffix || 'F1'}` : String(member.memberID || '—');
-  pdf.text(displayID, M, CARD_H - 2.6);
+  // ============================== BACK ===================================
+  pdf.addPage([W, H], 'landscape');
+  pdf.setFillColor(255, 255, 255); pdf.rect(0, 0, W, H, 'F');
+  panel();
+  seal(pcx, 20, 9.2);
+  pdf.setTextColor(255, 255, 255);
+  // society name under the seal, on a white chip so it reads on any facet
+  pdf.setFillColor(255, 255, 255);
+  pdf.roundedRect(3.2, 32.6, PANEL - 9.4, 10.6, 1.2, 1.2, 'F');
+  pdf.setTextColor(...P.ink);
+  pdf.setFont('helvetica', 'bold'); pdf.setFontSize(5.4);
+  pdf.text('MAX HEIGHTS', 3.2 + (PANEL - 9.4) / 2, 36.6, { align: 'center' });
+  pdf.text('MAJESTIC', 3.2 + (PANEL - 9.4) / 2, 39.8, { align: 'center' });
+  if (society.regNumber) {
+    pdf.setFont('courier', 'normal'); pdf.setFontSize(4.2); pdf.setTextColor(...P.label);
+    pdf.text(`Reg. ${society.regNumber}`, 3.2 + (PANEL - 9.4) / 2, 42.4, { align: 'center' });
+  }
 
-  pdf.setFont('courier','normal'); pdf.setFontSize(3.3); pdf.setTextColor(165,178,196);
-  // Office address (or a short fallback) shown bottom-right so residents know
-  // where to visit or contact. Wrapped to two short lines to fit the footer.
-  const addr = (officeAddress || 'Grand Sikar Road, Jaipur').trim();
-  const addrLines = pdf.splitTextToSize(addr, 62).slice(0, 3);
-  let ay = CARD_H - 2.6 - (addrLines.length - 1) * 3.0;
-  if (society.regNumber) { pdf.text(`Reg. ${society.regNumber}`, CARD_W - M, ay - 3.2, { align: 'right' }); }
-  addrLines.forEach((ln) => { pdf.text(ln, CARD_W - M, ay, { align: 'right' }); ay += 3.0; });
+  pdf.setFont('courier', 'bold'); pdf.setFontSize(4.6); pdf.setTextColor(...P.magenta);
+  pdf.text('TERMS', gx, 8);
+  const terms = [
+    `This card shows the holder is a member of the society for FY ${financialYear}.`,
+    'It cannot be transferred. The guard may ask to see it at the gate.',
+    'Scan the QR on the front to check it is genuine and still valid.',
+    'If found, please return it to the society office.'
+  ];
+  pdf.setFont('helvetica', 'normal'); pdf.setFontSize(4.8); pdf.setTextColor(...P.ink);
+  let ty = 12;
+  terms.forEach((t) => {
+    const lines = pdf.splitTextToSize(t, W - M - gx - 2.4);
+    pdf.setFillColor(...P.saffronLt); pdf.circle(gx + 0.6, ty - 0.9, 0.5, 'F');
+    lines.forEach((ln) => { pdf.text(ln, gx + 2.4, ty); ty += 2.5; });
+    ty += 1.1;
+  });
+  pdf.setDrawColor(...P.rule); pdf.setLineWidth(0.2); pdf.line(gx, ty - 0.2, W - M, ty - 0.2);
+  pdf.setFont('courier', 'bold'); pdf.setFontSize(4.6); pdf.setTextColor(...P.magenta);
+  pdf.text('OFFICE', gx, ty + 3.2);
+  pdf.setFont('helvetica', 'normal'); pdf.setFontSize(4.8); pdf.setTextColor(...P.ink);
+  let al = pdf.splitTextToSize((officeAddress || 'Grand Sikar Road, Jaipur').trim(), W - M - gx);
+  if (al.length > 3) { al = al.slice(0, 3); al[2] = al[2].replace(/[\s,·]*$/, '').slice(0, -1) + '…'; }
+  al.forEach((ln, i) => pdf.text(ln, gx, ty + 6.4 + i * 2.5));
+
+  strip(H - 2.6);
 
   // Delivery. pdf.save() alone fails silently in many mobile and in-app
   // browsers (WhatsApp/Instagram webviews, some Android/iOS setups) — no
   // download prompt ever appears, which reads to the user as "nothing
   // happened". So build the file as a blob and hand it over the most reliable
   // way for the device: a real <a download> click, with a new-tab fallback.
+  const suffix = print ? '-print' : '';
   const filename = familyMember
-    ? `MHMRWS-Card-${member.memberID || 'member'}-${familyMember.suffix || 'F1'}.pdf`
-    : `MHMRWS-Card-${member.memberID || 'member'}.pdf`;
+    ? `MHMRWS-Card-${member.memberID || 'member'}-${familyMember.suffix || 'F1'}${suffix}.pdf`
+    : `MHMRWS-Card-${member.memberID || 'member'}${suffix}.pdf`;
   deliverPdf(pdf, filename);
 }
 
@@ -3562,6 +3627,9 @@ const ICON_SHAPES = {
   check: '<circle class="u" cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="9"/><path d="M8 12.3l2.8 2.8 5.4-5.6"/>',
   clock: '<circle class="u" cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="9"/><path d="M12 7.2V12l3.2 2"/>',
   mail: '<rect class="u" x="3.5" y="5.5" width="17" height="13" rx="2.5"/><rect x="3.5" y="5.5" width="17" height="13" rx="2.5"/><path d="M4.5 7.5l7.5 5.5 7.5-5.5"/>',
+  phone: '<path class="u" d="M5.5 3.8h3.4l1.7 4.3-2.1 1.3a11 11 0 0 0 5.1 5.1l1.3-2.1 4.3 1.7v3.4a1.9 1.9 0 0 1-2 1.9A15.9 15.9 0 0 1 3.6 5.8a1.9 1.9 0 0 1 1.9-2z"/><path d="M5.5 3.8h3.4l1.7 4.3-2.1 1.3a11 11 0 0 0 5.1 5.1l1.3-2.1 4.3 1.7v3.4a1.9 1.9 0 0 1-2 1.9A15.9 15.9 0 0 1 3.6 5.8a1.9 1.9 0 0 1 1.9-2z"/>',
+  eye: '<path class="u" d="M2.5 12s3.5-6.5 9.5-6.5 9.5 6.5 9.5 6.5-3.5 6.5-9.5 6.5S2.5 12 2.5 12z"/><path d="M2.5 12s3.5-6.5 9.5-6.5 9.5 6.5 9.5 6.5-3.5 6.5-9.5 6.5S2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.8"/>',
+  eyeoff: '<path class="u" d="M2.5 12s3.5-6.5 9.5-6.5 9.5 6.5 9.5 6.5-3.5 6.5-9.5 6.5S2.5 12 2.5 12z"/><path d="M2.5 12s3.5-6.5 9.5-6.5c1.7 0 3.2.5 4.5 1.2M21.5 12s-1 1.9-2.9 3.7M9.9 9.9a2.8 2.8 0 0 0 4.2 3.7M7 17.2C4 15.7 2.5 12 2.5 12M12 18.5c-.7 0-1.4-.1-2-.3M3.5 3.5l17 17"/>',
   lock: '<rect class="u" x="5" y="10.5" width="14" height="10" rx="2.5"/><rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5M12 14.5v2.2"/>',
   unlock: '<rect class="u" x="5" y="10.5" width="14" height="10" rx="2.5"/><rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 6.8-1.2M12 14.5v2.2"/>',
   search: '<circle class="u" cx="10.5" cy="10.5" r="6.5"/><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L20 20"/>',
@@ -3830,6 +3898,218 @@ export function markGuideSeen() {
 }
 export function shouldShowGuide({ approved, seen, modalOpen = false } = {}) {
   return !!approved && !seen && !modalOpen;
+}
+
+/* ---- v171: bottom-bar update dots ------------------------------------------
+   An item (from the notification list) belongs to one tab and counts as new
+   until the resident has opened that tab after it happened. */
+export const TAB_SEEN_KEY = 'mhmrws-tabseen';
+export function tabDots(items, seen = {}) {
+  const out = { home: false, payments: false, complaints: false };
+  for (const it of items || []) {
+    if (!it || !it.tab || !(it.tab in out)) continue;
+    if ((Number(it.time) || 0) > (Number(seen[it.tab]) || 0)) out[it.tab] = true;
+  }
+  return out;
+}
+export function readTabSeen() {
+  try { const v = JSON.parse(localStorage.getItem(TAB_SEEN_KEY) || '{}'); return v && typeof v === 'object' ? v : {}; } catch (_) { return {}; }
+}
+export function markTabSeen(tab, now = Date.now()) {
+  try { const v = readTabSeen(); v[tab] = now; localStorage.setItem(TAB_SEEN_KEY, JSON.stringify(v)); } catch (_) { /* fine */ }
+}
+
+/* ---- v171: payment-reference (UTR) and mobile typing helpers ------------------
+   Pasted references often carry spaces or dashes ("1234 5678 9012"); those are
+   removed rather than rejected. The live hint never blocks — the real checks are
+   in validatePayment() — because apps show different ids: a bank UTR is 12 digits,
+   but PhonePe/Paytm transaction ids are longer and carry letters. */
+export function cleanUtr(raw) {
+  return String(raw == null ? '' : raw).replace(/[\s\-_.]+/g, '').toUpperCase();
+}
+export function utrFeedback(raw, mode) {
+  const v = cleanUtr(raw);
+  if (!v) return { tone: '', text: '' };
+  if (/[^A-Z0-9]/.test(v)) return { tone: 'warn', text: 'Only letters and numbers, please.' };
+  if (/^\d+$/.test(v)) {
+    if (v.length === 12) return { tone: 'ok', text: 'Looks right — 12 digits.' };
+    if (mode === 'upi' && v.length < 12) return { tone: 'warn', text: `That is ${v.length} digits. A bank UTR has 12 — check it once.` };
+    if (v.length > 12 && v.length <= 22) return { tone: 'ok', text: `${v.length} digits.` };
+    if (v.length > 22) return { tone: 'warn', text: 'That looks too long — check it once.' };
+  }
+  if (v.length < 6) return { tone: 'warn', text: 'That looks too short for a reference number.' };
+  return { tone: 'ok', text: 'Looks fine.' };
+}
+export function cleanMobile(raw) {
+  let d = String(raw == null ? '' : raw).replace(/\D/g, '');
+  if (d.length > 10 && d.startsWith('91')) d = d.slice(2);
+  if (d.length > 10 && d.startsWith('0')) d = d.slice(1);
+  return d.slice(0, 10);
+}
+
+/* ---- v172: hide-amounts switch ----------------------------------------------
+   For people who open the app in a lift or a queue: blurs the rupee figures on
+   Home and Payments. A per-device preference, off by default. */
+export const HIDE_AMT_KEY = 'mhmrws-hide-amt';
+export function getHideAmounts() {
+  try { return localStorage.getItem(HIDE_AMT_KEY) === '1'; } catch (_) { return false; }
+}
+export function applyHideAmounts(on) {
+  if (typeof document === 'undefined' || !document.body) return;
+  document.body.classList.toggle('hide-amt', !!on);
+}
+export function setHideAmounts(on) {
+  try { localStorage.setItem(HIDE_AMT_KEY, on ? '1' : '0'); } catch (_) { /* fine */ }
+  applyHideAmounts(on);
+}
+if (typeof document !== 'undefined') {
+  const boot = () => applyHideAmounts(getHideAmounts());
+  if (document.body) boot(); else document.addEventListener('DOMContentLoaded', boot);
+}
+
+/* ---- v172: important numbers --------------------------------------------------
+   Emergency numbers are built in so the screen is useful on day one; the
+   committee adds the society's own (guard cabin, lift AMC, plumber…). */
+export const EMERGENCY_NUMBERS = [
+  { label: 'Emergency (all services)', phone: '112', group: 'emergency' },
+  { label: 'Police', phone: '100', group: 'emergency' },
+  { label: 'Fire', phone: '101', group: 'emergency' },
+  { label: 'Ambulance', phone: '102', group: 'emergency' }
+];
+export const NUMBER_GROUPS = [
+  { key: 'security', label: 'Security & office' },
+  { key: 'maintenance', label: 'Lift, water & power' },
+  { key: 'service', label: 'Plumber, electrician & helpers' },
+  { key: 'other', label: 'Other' }
+];
+/** Cleans a list typed by an admin: drops blank/invalid rows, trims, caps lengths. */
+export function normalizeImportantNumbers(items) {
+  const keys = new Set(NUMBER_GROUPS.map((g) => g.key));
+  const out = [];
+  for (const it of Array.isArray(items) ? items : []) {
+    const label = String(it?.label ?? '').trim().slice(0, 60);
+    const phone = String(it?.phone ?? '').replace(/[^\d+\-\s()]/g, '').trim().slice(0, 20);
+    if (!label || phone.replace(/\D/g, '').length < 3) continue;
+    out.push({ label, phone, group: keys.has(it?.group) ? it.group : 'other' });
+    if (out.length >= 40) break;
+  }
+  return out;
+}
+export function telHref(phone) {
+  const d = String(phone ?? '').replace(/[^\d+]/g, '');
+  return d ? `tel:${d}` : '';
+}
+/** Groups for display: emergency first, then each society group that has entries. */
+export function groupImportantNumbers(items) {
+  const clean = normalizeImportantNumbers(items);
+  const groups = [{ key: 'emergency', label: 'Emergency', rows: EMERGENCY_NUMBERS }];
+  for (const g of NUMBER_GROUPS) {
+    const rows = clean.filter((r) => r.group === g.key);
+    if (rows.length) groups.push({ key: g.key, label: g.label, rows });
+  }
+  return groups;
+}
+
+/* ---- v172: expected guests at the gate ------------------------------------------ */
+/** Today's announced guests that have not been let in yet, in tower/flat order. */
+export function guestsForGate(rows, todayISO, search = '') {
+  const q = String(search || '').trim().toLowerCase();
+  return (rows || [])
+    .filter((g) => g && g.status === 'expected' && g.expectedDate === todayISO)
+    .filter((g) => !q || `${g.guestName} ${g.tower} ${g.flatNumber} ${g.tower}-${g.flatNumber} ${g.residentName || ''}`.toLowerCase().includes(q))
+    .sort((a, b) => String(a.tower).localeCompare(String(b.tower)) || String(a.flatNumber).localeCompare(String(b.flatNumber), undefined, { numeric: true }) || String(a.guestName).localeCompare(String(b.guestName)));
+}
+/** The visitors/ fields for letting an announced guest in (timestamps are added by the caller). */
+export function visitorFieldsForGuest(g, guestId, guardUid) {
+  return {
+    visitorName: String(g.guestName || '').slice(0, 100),
+    visitorPhone: null,
+    purpose: 'guest',
+    tower: g.tower, flatNumber: g.flatNumber,
+    flatKey: `${g.tower}_${g.flatNumber}`,
+    createdByGuardUid: guardUid,
+    status: 'checked_in',
+    preApprovedGuestId: guestId
+  };
+}
+
+/* ---- v172: common-area issues ("Me too") ------------------------------------------ */
+/** The public copy of a complaint: title, category and area only. Never name, flat, photo or details. */
+export function issueCopyFromComplaint(c) {
+  const title = String(c?.title ?? '').trim().slice(0, 120);
+  const category = String(c?.category ?? '').trim().slice(0, 40);
+  const area = String(c?.area ?? c?.location ?? '').trim().slice(0, 80);
+  return { title, category, ...(area ? { area } : {}) };
+}
+export function meTooLabel(n) {
+  const k = Number(n) || 0;
+  if (k <= 0) return 'Be the first to say “me too”';
+  return k === 1 ? '1 neighbour says me too' : `${k} neighbours say me too`;
+}
+
+/* ---- v172: neighbours directory (opt-in) -------------------------------------------- */
+export function directoryEntryFor(member, { showMobile = false } = {}) {
+  return {
+    name: String(member?.name ?? ''), tower: String(member?.tower ?? ''), flatNumber: String(member?.flatNumber ?? ''),
+    mobile: showMobile ? String(member?.mobile ?? '') : ''
+  };
+}
+export function filterDirectory(rows, search = '') {
+  const q = String(search || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  return (rows || [])
+    .filter((r) => r && r.name)
+    .filter((r) => !q || `${r.name} ${r.tower} ${r.flatNumber} ${r.tower}-${r.flatNumber} ${r.tower} ${r.flatNumber}`.toLowerCase().includes(q))
+    .sort((a, b) => String(a.name).localeCompare(String(b.name)));
+}
+
+/* ---- v173: "Today" strip on Home + one-tap guest shortcuts -------------------------- */
+const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+/** What needs the resident's eye today — only things that exist, so a quiet day shows nothing. */
+export function todayStripItems({ guests = [], complaints = [], polls = [], unread = 0, todayISO = '' } = {}) {
+  const items = [];
+  const expected = (guests || []).filter((g) => g && g.status === 'expected' && g.expectedDate === todayISO).length;
+  const arrived = (guests || []).filter((g) => g && g.status === 'arrived' && g.expectedDate === todayISO).length;
+  if (expected) items.push({ key: 'guests', icon: 'door', text: `${plural(expected, 'guest', 'guests')} expected today`, goto: 'community' });
+  if (arrived) items.push({ key: 'arrived', icon: 'check', text: `${plural(arrived, 'guest', 'guests')} arrived`, goto: 'community' });
+  const open = (complaints || []).filter((c) => c && ['open', 'in_progress'].includes(c.status)).length;
+  if (open) items.push({ key: 'complaints', icon: 'chat', text: `${plural(open, 'open complaint', 'open complaints')}`, goto: 'complaints' });
+  const p = (polls || []).length;
+  if (p) items.push({ key: 'polls', icon: 'chart', text: `${plural(p, 'poll', 'polls')} open to vote`, goto: 'community' });
+  const u = Number(unread) || 0;
+  if (u) items.push({ key: 'unread', icon: 'bell', text: `${plural(u, 'new update', 'new updates')}`, goto: 'bell' });
+  return items;
+}
+/** Chips for logging a guest for today in one tap: Delivery, Cab, then people announced before. */
+export function quickGuestChips(guests, todayISO, max = 6) {
+  const addedToday = new Set((guests || []).filter((g) => g && g.expectedDate === todayISO && g.status !== 'cancelled').map((g) => String(g.guestName || '').trim().toLowerCase()));
+  const chips = [];
+  const seen = new Set();
+  const push = (label, guestName, purpose) => {
+    const k = guestName.trim().toLowerCase();
+    if (!k || seen.has(k) || addedToday.has(k)) return;
+    seen.add(k); chips.push({ label, guestName: guestName.trim().slice(0, 100), purpose });
+  };
+  push('Delivery', 'Delivery', 'Delivery');
+  push('Cab', 'Cab', 'Cab');
+  const recent = [...(guests || [])].filter((g) => g && g.guestName).sort((a, b) => String(b.expectedDate || '').localeCompare(String(a.expectedDate || '')));
+  for (const g of recent) {
+    if (chips.length >= max) break;
+    if (['delivery', 'cab'].includes(String(g.guestName).trim().toLowerCase())) continue;
+    push(String(g.guestName).trim(), String(g.guestName), g.purpose || null);
+  }
+  return chips.slice(0, max);
+}
+
+/* ---- v175: "I have read this" on notices ------------------------------------------- */
+/** Who has confirmed a notice, among approved residents only (others are not expected to). */
+export function noticeAckSummary(members, ackUids) {
+  const acked = new Set(ackUids || []);
+  const approved = (members || []).filter((m) => m && m.status === 'approved');
+  const key = (m) => m.uid || m.id;
+  const pending = approved.filter((m) => !acked.has(key(m)))
+    .map((m) => ({ tower: String(m.tower || ''), flat: String(m.flatNumber || ''), name: String(m.name || '') }))
+    .sort((a, b) => a.tower.localeCompare(b.tower) || a.flat.localeCompare(b.flat, undefined, { numeric: true }) || a.name.localeCompare(b.name));
+  return { total: approved.length, confirmed: approved.length - pending.length, pending };
 }
 
 ensureIconSprite();

@@ -293,6 +293,7 @@
   .rp-member-option:hover, .rp-member-option:focus-visible{ background:var(--paper); }
   .rp-member-option .rp-flat{ color:var(--ink-500); font-size:12.5px; margin-left:6px; }
   .rp-member-empty{ padding:12px 14px; font-size:12.5px; color:var(--ink-500); }
+  @media (max-width:560px){ .num-edit-row{ grid-template-columns:1fr 1fr !important; } }
 </style>
 <script>
 /* Boot guard — if the page's main script cannot start (typically a half-updated cache: a new
@@ -901,6 +902,12 @@
           <div class="spread" style="margin-bottom:6px;"><h3 style="font-size:15px;">Documents &amp; Forms</h3><button class="btn btn-primary btn-sm" id="addDocBtn">+ Add Document</button></div>
           <p class="t-sub" style="font-size:12.5px; margin-bottom:14px;">Bylaws, AGM minutes, audited accounts, NOC forms — residents will see these in the Downloads section.</p>
           <div id="docsEditList"></div>
+        </div>
+        <div class="card card-pad">
+          <div class="spread" style="margin-bottom:6px;"><h3 style="font-size:15px;">Important numbers</h3><button class="btn btn-outline btn-sm" id="addNumberRowBtn" type="button">+ Add number</button></div>
+          <p class="t-sub" style="font-size:12.5px; margin-bottom:12px;">Security cabin, lift AMC, plumber, electrician — residents see these under Know your RWA. Police, fire and ambulance are always shown.</p>
+          <div id="numbersEditor"></div>
+          <button class="btn btn-primary btn-sm" id="saveNumbersBtn" type="button" style="margin-top:12px;">Save numbers</button>
         </div>
         <div class="card card-pad">
           <div class="spread" style="margin-bottom:14px;">
@@ -2275,8 +2282,8 @@ import {
   initPetsEditor, addPetCard, collectPets, petVaccinationStatus, rentAgreementStatus, tsMillis, todayLocalISO, dateToLocalISO,
   todaysCelebrations, upcomingCelebrations, celebrationWishMessage, INSPECTION_TYPES, INSPECTION_SCHEDULE, STAFF_TRADES,
   receiptWhatsAppMessage, isRecentSignIn, loginLockRemainingMs, nextLoginFailState, LOGIN_MAX_FAILS,
-  pollFlatId, pollTally, pollResultText, getTextSize, setTextSize
-} from './app-common.js?v=170';
+  pollFlatId, pollTally, pollResultText, getTextSize, setTextSize, noticeAckSummary, NUMBER_GROUPS, EMERGENCY_NUMBERS, normalizeImportantNumbers
+} from './app-common.js?v=177';
 
 /* ---------------------------------------------------------------------- */
 /*  State                                                                  */
@@ -3721,6 +3728,14 @@ async function loadComplaints() {
       allStaff = (await getDocs(collection(db, 'staff'))).docs.map(d => ({ id: d.id, ...d.data() }));
     } catch (e) { console.warn('Staff list for assignment failed:', e?.code || e); }
   }
+  window.__meToo = {};
+  try {
+    const open = (await getDocs(query(collection(db, 'issues'), where('status', 'in', ['open', 'in_progress'])))).docs.slice(0, 30);
+    await Promise.all(open.map(async (d) => {
+      const n = (await getDocs(collection(db, 'issues', d.id, 'supporters'))).size;
+      if (n > 0) window.__meToo[d.id] = n;
+    }));
+  } catch (e) { console.warn('Me-too counts failed:', e?.code || e); }
   renderComplaints();
   renderOverview();
 }
@@ -3744,7 +3759,7 @@ function renderComplaints() {
       <td data-label="Flat">${escapeHtml(c.tower || '—')}-${escapeHtml(c.flatNumber || '—')}</td>
       <td data-label="Category">${escapeHtml(COMPLAINT_CATEGORY_LABEL[c.category] || c.category || '—')}</td>
       <td data-label="Title">${escapeHtml(c.title)}</td>
-      <td data-label="Status"><span class="badge ${COMPLAINT_STATUS_BADGE[c.status] || 'badge-neutral'}">${escapeHtml(COMPLAINT_STATUS_LABEL[c.status] || c.status)}</span>${sla && SLA_BADGE[sla] ? SLA_BADGE[sla] : ''}${recurringCount(c) >= 2 ? '<span class="badge badge-warning" style="margin-left:6px;" title="Recurring — same issue reported before within 30 days">🔁 Recurring</span>' : ''}</td>
+      <td data-label="Status"><span class="badge ${COMPLAINT_STATUS_BADGE[c.status] || 'badge-neutral'}">${escapeHtml(COMPLAINT_STATUS_LABEL[c.status] || c.status)}</span>${sla && SLA_BADGE[sla] ? SLA_BADGE[sla] : ''}${(window.__meToo || {})[c.id] ? `<span class="badge badge-info" style="margin-left:6px;" title="Neighbours who tapped Me too on this common-area issue">👥 +${(window.__meToo || {})[c.id]} Me too</span>` : ''}${recurringCount(c) >= 2 ? '<span class="badge badge-warning" style="margin-left:6px;" title="Recurring — same issue reported before within 30 days">🔁 Recurring</span>' : ''}</td>
       <td data-label="Raised On">${fmtDate(c.createdAt)}</td>
     </tr>`;
   }).join('') || `<tr><td colspan="6" class="t-muted">No complaints.</td></tr>`;
@@ -3902,6 +3917,13 @@ function openComplaintDetail(id) {
 document.getElementById('closeComplaintDetailModal')?.addEventListener('click', () =>
   document.getElementById('complaintDetailModalBackdrop').classList.remove('open'));
 
+// A common-area complaint the resident chose to share has a public copy in
+// issues/{sameId}. Keep its status in step; best-effort — a complaint that
+// was never shared has no copy, and that is fine.
+function mirrorIssueStatus(id, status) {
+  updateDoc(doc(db, 'issues', id), { status, updatedAt: serverTimestamp() }).catch(() => {});
+}
+
 async function updateComplaintStatus(id, newStatus, note, photoFile, previousStatus) {
   try {
     const patch = { status: newStatus, updatedAt: serverTimestamp() };
@@ -3917,6 +3939,7 @@ async function updateComplaintStatus(id, newStatus, note, photoFile, previousSta
     if (newStatus === 'resolved' && previousStatus !== 'resolved') patch.resolvedAt = serverTimestamp();
     if (newStatus === 'closed') patch.closedAt = serverTimestamp();
     await updateDoc(doc(db, 'complaints', id), patch);
+    mirrorIssueStatus(id, newStatus);
     await logAudit(auth.currentUser, 'update_complaint_status', { complaintId: id, newStatus });
     showToast('Complaint status updated.', 'success');
     document.getElementById('complaintDetailModalBackdrop').classList.remove('open');
@@ -7211,7 +7234,57 @@ document.getElementById('emailDefaultersBtn').addEventListener('click', () => {
 /* ---------------------------------------------------------------------- */
 /*  Content: Notices + Committee                                          */
 /* ---------------------------------------------------------------------- */
+/* ---- v172: Important numbers editor ---- */
+function numberRowHtml(r = {}) {
+  return `<div class="num-edit-row" style="display:grid; grid-template-columns:1.3fr 1fr 1fr auto; gap:8px; margin-bottom:8px; align-items:center;">
+    <input type="text" class="ne-label" maxlength="60" placeholder="e.g. Security cabin" aria-label="Name" value="${escapeHtml(r.label || '')}">
+    <input type="tel" class="ne-phone" maxlength="20" placeholder="Phone number" aria-label="Phone number" value="${escapeHtml(r.phone || '')}">
+    <select class="ne-group" aria-label="Group">${NUMBER_GROUPS.map(g => `<option value="${g.key}" ${r.group === g.key ? 'selected' : ''}>${escapeHtml(g.label)}</option>`).join('')}</select>
+    <button type="button" class="btn btn-outline btn-sm ne-del" aria-label="Remove this number">✕</button>
+  </div>`;
+}
+async function loadNumbersEditor() {
+  const box = document.getElementById('numbersEditor');
+  if (!box) return;
+  let items = [];
+  try {
+    const snap = await getDoc(doc(db, 'settings', 'importantNumbers'));
+    if (snap.exists()) items = snap.data().items || [];
+  } catch (e) { console.warn('Important numbers read failed:', e?.code || e); }
+  const clean = normalizeImportantNumbers(items);
+  box.innerHTML = clean.map(numberRowHtml).join('') || '<p class="t-muted" id="numbersEmpty" style="font-size:13px;">No numbers added yet.</p>';
+}
+document.getElementById('addNumberRowBtn')?.addEventListener('click', () => {
+  const box = document.getElementById('numbersEditor');
+  document.getElementById('numbersEmpty')?.remove();
+  box.insertAdjacentHTML('beforeend', numberRowHtml({ group: 'maintenance' }));
+  box.lastElementChild.querySelector('.ne-label').focus();
+});
+document.getElementById('numbersEditor')?.addEventListener('click', (e) => {
+  const d = e.target.closest?.('.ne-del');
+  if (d) d.closest('.num-edit-row').remove();
+});
+document.getElementById('saveNumbersBtn')?.addEventListener('click', async (e) => {
+  const btn = e.currentTarget;
+  const raw = [...document.querySelectorAll('#numbersEditor .num-edit-row')].map(r => ({
+    label: r.querySelector('.ne-label').value, phone: r.querySelector('.ne-phone').value, group: r.querySelector('.ne-group').value
+  }));
+  const items = normalizeImportantNumbers(raw);
+  if (raw.length > items.length && !confirm(`${raw.length - items.length} row(s) with a missing name or number will be skipped. Save anyway?`)) return;
+  btn.disabled = true;
+  try {
+    await setDoc(doc(db, 'settings', 'importantNumbers'), { items, updatedAt: serverTimestamp() });
+    await logAudit(auth.currentUser, 'update_important_numbers', { count: items.length });
+    showToast('Important numbers saved.', 'success');
+    await loadNumbersEditor();
+  } catch (err) {
+    console.error('Save numbers failed:', err);
+    showToast(`Could not save${err?.code ? ` (${err.code})` : ''}.`, 'error');
+  } finally { btn.disabled = false; }
+});
+
 async function loadContentPanels() {
+  loadNumbersEditor();
   let notices = [];
   try {
     notices = (await getDocs(query(collection(db, 'notices'), orderBy('postedAt', 'desc')))).docs.map(d => ({ id: d.id, ...d.data() }));
@@ -7222,9 +7295,16 @@ async function loadContentPanels() {
     getDocs(collection(db, 'notices', n.id, 'reads')).then(s => s.size).catch(() => null)
   ));
   const approvedCount = allMembers.filter(m => m.status === 'approved').length;
+  // Explicit "I have read this" confirmations, one doc per resident.
+  const ackSummaries = await Promise.all(notices.map(n =>
+    getDocs(collection(db, 'notices', n.id, 'acks')).then(s => noticeAckSummary(allMembers, s.docs.map(d => d.id))).catch(() => null)
+  ));
   document.getElementById('noticesEditList').innerHTML = notices.map((n, i) => `
     <div class="list-edit-item">
-      <div><b style="font-size:13.5px;">${escapeHtml(n.titleEn)}</b><div class="t-muted" style="font-size:12px;">${fmtDate(n.postedAt)}${readCounts[i] !== null ? ` · <span title="Counted when the notice was actually on a resident's screen for a couple of seconds — not proof that it was read or understood.">Seen by ${readCounts[i]}${approvedCount ? ` of ${approvedCount}` : ''} residents</span>` : ''}</div></div>
+      <div><b style="font-size:13.5px;">${escapeHtml(n.titleEn)}</b><div class="t-muted" style="font-size:12px;">${fmtDate(n.postedAt)}${readCounts[i] !== null ? ` · <span title="Counted when the notice was actually on a resident's screen for a couple of seconds — not proof that it was read or understood.">Seen by ${readCounts[i]}${approvedCount ? ` of ${approvedCount}` : ''} residents</span>` : ''}</div>
+        ${ackSummaries[i] ? `<div style="font-size:12.5px; margin-top:4px;"><b>Confirmed "I have read this": ${ackSummaries[i].confirmed} of ${ackSummaries[i].total}</b>
+          ${ackSummaries[i].pending.length ? `<details style="margin-top:4px;"><summary style="cursor:pointer; color:var(--navy-700);">Not yet confirmed (${ackSummaries[i].pending.length})</summary><div class="t-muted" style="font-size:12px; margin-top:4px; max-height:160px; overflow:auto; line-height:1.6;">${ackSummaries[i].pending.map(p => `${escapeHtml(p.tower)}-${escapeHtml(p.flat)} ${escapeHtml(p.name)}`).join('<br>')}</div></details>` : ''}</div>` : ''}
+      </div>
       <button class="btn btn-danger btn-sm" data-del-notice="${n.id}">Delete</button>
     </div>`).join('') || '<p class="t-muted" style="font-size:13px;">No notices yet.</p>';
   document.querySelectorAll('[data-del-notice]').forEach(b => b.addEventListener('click', async () => {
@@ -7236,7 +7316,8 @@ async function loadContentPanels() {
       // acknowledged this notice) and any Storage attachment both used to
       // survive the notice itself, permanently orphaned.
       const readsSnap = await getDocs(collection(db, 'notices', noticeId, 'reads'));
-      await deleteRefsInChunks(readsSnap.docs.map(d => d.ref));
+      const acksSnap = await getDocs(collection(db, 'notices', noticeId, 'acks')).catch(() => ({ docs: [] }));
+      await deleteRefsInChunks([...readsSnap.docs, ...acksSnap.docs].map(d => d.ref));
       await deleteDoc(doc(db, 'notices', noticeId));
       if (n?.attachmentURL) {
         try { await deleteObject(storageRef(storage, n.attachmentURL)); } catch (e) { console.warn('Notice attachment delete failed:', e?.code || e); }
@@ -11245,6 +11326,12 @@ async function collectBackupBundle() {
       return readsSnap.docs.map((d) => ({ id: d.id, noticeId: n.id, ...d.data() }));
     }));
     noticeReads = noticeReadResults.flat();
+    // The explicit "I have read this" confirmations travel in the same list, marked as such.
+    const noticeAckResults = await Promise.all(notices.map(async (n) => {
+      const s = await getDocs(collection(db, 'notices', n.id, 'acks'));
+      return s.docs.map((d) => ({ id: d.id, noticeId: n.id, kind: 'confirmed', ...d.data() }));
+    }));
+    noticeReads = noticeReads.concat(noticeAckResults.flat());
   } catch (e) { console.error('Backup: notice reads failed to load', e?.code || e); failures.push('noticeReads'); }
 
   let settingsDocs = [];

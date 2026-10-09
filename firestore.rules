@@ -826,6 +826,18 @@ service cloud.firestore {
         allow update: if false;
         allow delete: if isAdmin();
       }
+
+      // "I have read this" — an explicit one-tap confirmation by the resident
+      // (unlike reads/, which is only "it was on screen"). Doc ID = own uid, so
+      // one per resident per notice; create-only, nothing else can be stored.
+      match /acks/{uid} {
+        allow read: if isAdmin() || isOwner(uid);
+        allow create: if isOwner(uid) && isApprovedMember()
+                      && request.resource.data.keys().hasOnly(['at'])
+                      && request.resource.data.at == request.time;
+        allow update: if false;
+        allow delete: if isAdmin();
+      }
     }
 
     // ---- Society calendar (festivals, meetings, maintenance work,
@@ -1438,6 +1450,13 @@ service cloud.firestore {
       // so it also needs a fresh password (see recentSignIn).
       allow write: if settingId == 'expensePolicy' ? isSuperAdmin()
                     : (settingId == 'payment' || settingId == 'paymentPrivate') ? (canVerifyPayments() && recentSignIn())
+                    // Important numbers (security cabin, lift AMC, plumber…): any office-bearer
+                    // may keep the list current, not only the Treasurer. Shape-checked so a
+                    // slip cannot turn it into an unbounded blob.
+                    : settingId == 'importantNumbers' ? (isAdmin()
+                        && request.resource.data.keys().hasOnly(['items', 'updatedAt'])
+                        && request.resource.data.items is list
+                        && request.resource.data.items.size() <= 40)
                     : canVerifyPayments();
     }
 
@@ -2026,7 +2045,14 @@ service cloud.firestore {
                     && request.resource.data.residentName == get(/databases/$(database)/documents/members/$(resource.data.memberUid)).data.name
                     && request.resource.data.tower == get(/databases/$(database)/documents/members/$(resource.data.memberUid)).data.tower
                     && request.resource.data.flatNumber == get(/databases/$(database)/documents/members/$(resource.data.memberUid)).data.flatNumber;
-      allow read: if isAdmin() || (isSignedIn() && resource.data.memberUid == request.auth.uid);
+      // A guard needs today's list at the gate to match who is arriving.
+      allow read: if isAdmin() || isGuard() || (isSignedIn() && resource.data.memberUid == request.auth.uid);
+      // The gate lets an expected guest in: one strict step, expected -> arrived.
+      // (The visitors/ entry is written in the same batch; see visitors.create.)
+      allow update: if isGuard()
+                    && resource.data.status == 'expected'
+                    && request.resource.data.status == 'arrived'
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'arrivedAt', 'updatedAt']);
       // Same identity check as facilityBookings.create: residentName/tower/
       // flatNumber are cross-verified against the caller's own members/{uid}
       // record, not just type-checked — a modified client could otherwise
@@ -2225,7 +2251,18 @@ service cloud.firestore {
                     // flat's dashboard while the real flat never sees it.
                     && request.resource.data.flatKey == request.resource.data.tower + '_' + request.resource.data.flatNumber
                     && request.resource.data.createdByGuardUid == request.auth.uid
-                    && request.resource.data.status == 'pending';
+                    && (request.resource.data.status == 'pending'
+                        // A guest the resident already announced is let straight in — but only
+                        // if that announcement really exists, is for THIS flat, and is unused.
+                        || (request.resource.data.status == 'checked_in'
+                            && request.resource.data.purpose == 'guest'
+                            && request.resource.data.preApprovedGuestId is string
+                            && exists(/databases/$(database)/documents/expectedGuests/$(request.resource.data.preApprovedGuestId))
+                            && get(/databases/$(database)/documents/expectedGuests/$(request.resource.data.preApprovedGuestId)).data.status == 'expected'
+                            && get(/databases/$(database)/documents/expectedGuests/$(request.resource.data.preApprovedGuestId)).data.tower == request.resource.data.tower
+                            && get(/databases/$(database)/documents/expectedGuests/$(request.resource.data.preApprovedGuestId)).data.flatNumber == request.resource.data.flatNumber
+                            && request.resource.data.decidedAt == request.time
+                            && request.resource.data.checkedInAt == request.time));
 
       // Three update shapes, each a strict one-step state transition:
       //  (a) the matching resident approves or rejects a still-pending entry.
@@ -2279,6 +2316,63 @@ service cloud.firestore {
                       && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'cancelledBy', 'updatedAt'])
                     );
       allow delete: if false;
+    }
+
+    // ---- Common-area issues with "Me too" (v172) -----------------------------
+    // A resident who raises a complaint about something shared (lift, lights,
+    // water) may also publish a PRIVACY-SAFE copy: title, category and an area
+    // label only — never their name, flat, photo or description. The doc id is
+    // the complaint's own id, so ownership is checkable. Neighbours add "me too".
+    match /issues/{issueId} {
+      allow read: if isApprovedMember() || isAdmin();
+      allow create: if isApprovedMember()
+                    && request.resource.data.keys().hasOnly(['title', 'category', 'area', 'status', 'createdAt', 'ownerUid'])
+                    && request.resource.data.ownerUid == request.auth.uid
+                    && exists(/databases/$(database)/documents/complaints/$(issueId))
+                    && get(/databases/$(database)/documents/complaints/$(issueId)).data.raisedByUid == request.auth.uid
+                    && isNonEmptyString(request.resource.data.title, 120)
+                    && isOptionalString(request.resource.data, 'category', 40)
+                    && isOptionalString(request.resource.data, 'area', 80)
+                    && request.resource.data.status == 'open'
+                    && request.resource.data.createdAt == request.time;
+      // The committee mirrors the complaint's progress onto the public copy.
+      allow update: if isAdmin()
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
+                    && request.resource.data.status in ['open', 'in_progress', 'resolved', 'closed', 'rejected'];
+      allow delete: if isAdmin() || (isSignedIn() && resource.data.ownerUid == request.auth.uid);
+
+      match /supporters/{supporterUid} {
+        allow read: if isApprovedMember() || isAdmin();
+        allow create: if isApprovedMember()
+                      && supporterUid == request.auth.uid
+                      && request.resource.data.keys().hasOnly(['at'])
+                      && request.resource.data.at == request.time
+                      && get(/databases/$(database)/documents/issues/$(issueId)).data.status in ['open', 'in_progress'];
+        allow update: if false;
+        allow delete: if isSignedIn() && supporterUid == request.auth.uid;
+      }
+    }
+
+    // ---- Neighbours directory (v172) — strictly opt-in -------------------------
+    // A resident adds THEMSELVES (name, tower, flat, optionally their mobile).
+    // The values must match their own member record. Only residents who have
+    // joined can see the list, so nobody reads others without being listed.
+    match /directory/{dirUid} {
+      allow read: if isAdmin()
+                  || (isApprovedMember()
+                      && (request.auth.uid == dirUid
+                          || exists(/databases/$(database)/documents/directory/$(request.auth.uid))));
+      allow create, update: if isApprovedMember()
+                    && dirUid == request.auth.uid
+                    && request.resource.data.keys().hasOnly(['name', 'tower', 'flatNumber', 'mobile', 'updatedAt'])
+                    && request.resource.data.name == get(/databases/$(database)/documents/members/$(request.auth.uid)).data.name
+                    && request.resource.data.tower == get(/databases/$(database)/documents/members/$(request.auth.uid)).data.tower
+                    && request.resource.data.flatNumber == get(/databases/$(database)/documents/members/$(request.auth.uid)).data.flatNumber
+                    && (request.resource.data.mobile == null
+                        || request.resource.data.mobile == ''
+                        || request.resource.data.mobile == get(/databases/$(database)/documents/members/$(request.auth.uid)).data.mobile)
+                    && request.resource.data.updatedAt == request.time;
+      allow delete: if isAdmin() || (isSignedIn() && dirUid == request.auth.uid);
     }
 
     // NOTE: no catch-all rule is needed here. Firestore denies by default —

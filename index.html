@@ -44,7 +44,7 @@
 ">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Max Heights Majestic RWA — Digital Membership Portal</title>
-<script>try{if(localStorage.getItem('mhmrws-text-size')==='large')document.documentElement.dataset.textSize='large';}catch(e){}</script>
+<script>try{if(localStorage.getItem('mhmrws-text-size')==='large')document.documentElement.dataset.textSize='large';if(localStorage.getItem('mhmrws-returning')==='1')document.documentElement.classList.add('returning');}catch(e){}</script>
 <meta name="description" content="Register, pay and download QR-verified receipts for Max Heights Majestic Resident Welfare Society.">
 <meta name="theme-color" content="#0A1B33">
 <link rel="manifest" href="manifest.json">
@@ -56,8 +56,27 @@
 <meta name="color-scheme" content="light">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&family=Noto+Sans+Devanagari:wght@400;500;600;700&family=Noto+Serif+Devanagari:wght@500;600;700&display=swap">
 <link rel="stylesheet" href="styles.css">
+<!-- After the stylesheet (which paints the first screen), start the big downloads now instead of after the page has been parsed, at low priority so they never delay it: the app code and the
+     Firebase SDK files it imports. (A module's imports are otherwise only discovered once the
+     module itself has arrived, one slow round trip after another.) The URLs must match the
+     imports exactly — the ?v= below is the release number the tests keep in step. -->
+<link rel="modulepreload" fetchpriority="low" href="./app-common.js?v=177">
+<link rel="modulepreload" fetchpriority="low" href="./firebase-config.js">
+<link rel="modulepreload" fetchpriority="low" href="https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js">
+<link rel="modulepreload" fetchpriority="low" href="https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js">
+<link rel="modulepreload" fetchpriority="low" href="https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js">
+<link rel="modulepreload" fetchpriority="low" href="https://www.gstatic.com/firebasejs/12.18.0/firebase-storage.js">
+<link rel="modulepreload" fetchpriority="low" href="https://www.gstatic.com/firebasejs/12.18.0/firebase-app-check.js">
+<link rel="modulepreload" fetchpriority="low" href="./avatar-placeholder.js">
+<link rel="modulepreload" fetchpriority="low" href="./tower-plan.js">
+<link rel="modulepreload" fetchpriority="low" href="./i18n.js">
+<link rel="modulepreload" fetchpriority="low" href="./ui-a11y.js">
+<link rel="modulepreload" fetchpriority="low" href="./logo-data.js">
+<link rel="modulepreload" fetchpriority="low" href="./html-helpers.js">
+<link rel="modulepreload" fetchpriority="low" href="./premium.js">
+<link rel="modulepreload" fetchpriority="low" href="./install-prompt.js">
 <!-- Third-party libraries — bundled locally (same-origin), not from a CDN.
      Same-origin scripts can't be tampered with by a third party, need no SRI
      hash, keep working even if a CDN is blocked, and are cached by the service
@@ -341,6 +360,19 @@ section{ padding:76px 0; position:relative; }
 .committee-card{ display:flex; align-items:center; gap:12px; text-align:left; background:var(--white); border:1px solid var(--line); border-radius:var(--radius-md); padding:10px 14px; }
 .committee-card img{ width:44px; height:44px; flex:0 0 44px; border-radius:50%; margin:0; object-fit:cover; border:2px solid var(--magenta-100); }
 .committee-card .nm{ font-weight:600; font-size:14px; line-height:1.25; }
+  .committee-card .cc-txt{ min-width:0; flex:1 1 0; }
+  .committee-card .nm{ overflow-wrap:anywhere; }
+  .committee-card .role{ color:#9B1D5B; }
+  /* Know your RWA (v171) */
+  .rwa-card{ display:flex; align-items:center; gap:14px; background:linear-gradient(160deg,#14305C,#0A1B33); color:#fff; border-radius:20px; padding:18px; }
+  .rwa-card .logo-disc{ width:56px; height:56px; flex:0 0 56px; }
+  .rwa-card h2{ font-size:19px; line-height:1.2; color:#fff; margin:0 0 4px; }
+  .rwa-card p{ margin:0; font-size:13px; color:rgba(255,255,255,.78); }
+  .rwa-facts{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; margin:12px 0; }
+  .rwa-facts div{ background:var(--white); border:1px solid var(--line); border-radius:14px; padding:12px 6px; text-align:center; }
+  .rwa-facts b{ display:block; font-size:20px; color:var(--ink-900,#0A1B33); }
+  .rwa-facts span{ font-size:12px; color:var(--ink-600); }
+  .rwa-note{ font-size:12.5px; line-height:1.5; }
 .committee-card .role{ font-family:var(--font-mono); font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--magenta-500); margin-top:2px; }
 
 /* ---------- Portal (login/register) ---------- */
@@ -412,15 +444,15 @@ optgroup, option[disabled]{ color:var(--ink-400); font-style:italic; }
 .dues-head .amt{ font-family:var(--font-display); font-size:28px; font-weight:600; color:var(--navy-950); line-height:1.1; font-variant-numeric:tabular-nums; margin:3px 0 8px; }
 .dues-head .lbl{ font-family:var(--font-mono); font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-400); }
 .dues-split{ display:flex; }
-.dues-split > div{ flex:1; padding:11px 16px; border-right:1px solid var(--line); font-size:13px; }
-.dues-split b{ font-variant-numeric:tabular-nums; }
+.dues-split > div{ flex:1 1 0; min-width:0; padding:11px 10px; border-right:1px solid var(--line); font-size:13px; }
+.dues-split b{ font-variant-numeric:tabular-nums; white-space:nowrap; }
 .dues-split > div:last-child{ border-right:none; }
 .upi-launch{ margin:4px 0 18px; padding:14px; border-radius:var(--radius-md); background:rgba(31,69,133,.05); border:1px solid rgba(31,69,133,.18); }
 .upi-launch .hint{ margin-top:8px; }
 .upi-ios-row{ display:flex; gap:8px; }
 .upi-ios-row .btn{ flex:1 1 0; padding-inline:8px; }
 .upi-note{ margin-top:10px; padding:9px 11px; border-radius:10px; background:rgba(245,166,35,.12); border:1px solid rgba(245,166,35,.35); font-size:12.5px; line-height:1.45; }
-.dues-split b{ display:block; font-size:14.5px; color:var(--navy-950); margin-top:2px; }
+.dues-split b{ display:block; font-size:clamp(12.5px,4.1vw,14.5px); color:var(--navy-950); margin-top:2px; }
 /* ---------- Dues ring ----------
    This is the number a resident opens the app to find, and it used to be a
    sentence plus a 5px bar. A ring answers "am I clear or not" before any
@@ -628,13 +660,17 @@ details.card[open] > summary::after{ transform:rotate(180deg); }
   body.logged-in[data-view="community"] [data-v]:not([data-v~="community"]),
   body.logged-in[data-view="profile"] [data-v]:not([data-v~="profile"]),
   body.logged-in[data-view="info"] [data-v]:not([data-v~="info"]),
+  body.logged-in[data-view="rwa"] [data-v]:not([data-v~="rwa"]),
+  body.logged-in[data-view="neighbours"] [data-v]:not([data-v~="neighbours"]),
   body.logged-in[data-view="more"] [data-v]:not([data-v~="more"]){ display:none !important; }
   body.logged-in[data-view="more"] #moreView{ display:block; }
   body.logged-in #dashboard{ background:#F6F3EC !important; }
   body.logged-in #dashboard .card{ border-radius:20px; border-color:#E7E2D6; box-shadow:0 2px 8px rgba(10,27,51,.04); }
   body.logged-in:not([data-view="home"]) #viewTitle{ display:block; margin:0; font-size:22px; }
   body.logged-in #dashboard .section-head{ margin-bottom:12px !important; }
-  body.logged-in[data-view="info"] section{ padding:20px 0; }
+  body.logged-in[data-view="info"] section, body.logged-in[data-view="rwa"] section, body.logged-in[data-view="neighbours"] section{ padding:20px 0; }
+  /* Scroll-reveal is for the public landing page. Inside the signed-in app a screen must never open blank. */
+  body.logged-in .reveal{ opacity:1; transform:none; }
 
 
 
@@ -1071,12 +1107,49 @@ details.card[open] > summary::after{ transform:rotate(180deg); }
   </div>
 </section>
 
-<section id="committee" data-v="info" style="background:var(--paper);">
+<section id="rwaIntro" data-v="rwa">
+  <div class="wrap">
+    <div class="rwa-card">
+      <img id="rwaLogo" class="logo-disc" alt="" width="56" height="56">
+      <div class="rwa-card-txt">
+        <h2 data-no-translate>Max Heights Majestic RWA</h2>
+        <p>Resident Welfare Society · Jaipur</p>
+      </div>
+    </div>
+    <div class="rwa-facts">
+      <div><b>7</b><span>Towers</span></div>
+      <div><b>454</b><span>Flats</span></div>
+      <div><b>JDA</b><span>Approved</span></div>
+    </div>
+    <p class="t-muted rwa-note">The committee below is elected by the members. For anything about the app, use More → Report a problem; for a problem in the society, raise a complaint.</p>
+  </div>
+</section>
+
+<section id="rwaNumbers" data-v="rwa">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <div class="rule-gold"></div>
+      <div class="eyebrow">Keep handy</div>
+      <h2>Important numbers</h2>
+    </div>
+    <div id="numbersList"></div>
+  </div>
+</section>
+
+<section id="neighbours" data-v="neighbours">
+  <div class="wrap">
+    <div class="card card-pad" id="dirJoinCard"></div>
+    <div id="dirListWrap" style="margin-top:14px;"></div>
+  </div>
+</section>
+
+<section id="committee" data-v="rwa" style="background:var(--paper);">
   <div class="wrap">
     <div class="section-head reveal">
       <div class="rule-gold"></div>
       <div class="eyebrow">Governance</div>
       <h2>Your committee</h2>
+      <p class="t-muted" style="font-size:13.5px;margin-top:6px;">The people who run the society on your behalf.</p>
     </div>
     <div id="committeeGrid">
       <div class="empty" style="grid-column:1/-1;">
@@ -1367,7 +1440,7 @@ details.card[open] > summary::after{ transform:rotate(180deg); }
   </div>
 </section>
 
-<section id="contact" data-v="info">
+<section id="contact" data-v="info rwa">
   <div class="wrap">
     <div class="section-head reveal">
       <div class="rule-gold"></div>
@@ -1379,7 +1452,21 @@ details.card[open] > summary::after{ transform:rotate(180deg); }
         <div class="skeleton" style="height:130px;"></div>
       </div>
       <div class="map-embed">
-        <iframe id="mapFrame" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="https://www.google.com/maps?q=Max%20Heights%20Majestic&output=embed" title="Society location"></iframe>
+        <iframe id="mapFrame" loading="lazy" referrerpolicy="no-referrer-when-downgrade" data-src="https://www.google.com/maps?q=Max%20Heights%20Majestic&output=embed" title="Society location"></iframe>
+        <script>
+        /* The map is the heaviest thing on the page and is only wanted when someone actually scrolls to it
+           (or opens Documents & Contact). Elements that are not displayed never "intersect", so a signed-in
+           resident who never opens that screen never downloads it. */
+        (function () {
+          var f = document.getElementById('mapFrame'), url = f && f.getAttribute('data-src'), shown = false;
+          window.__mapLazy = function (u) { url = u; if (f && shown) f.src = u; };
+          if (!f) return;
+          if (!('IntersectionObserver' in window)) { shown = true; f.src = url; return; }
+          new IntersectionObserver(function (es, o) {
+            if (es.some(function (e) { return e.isIntersecting; })) { shown = true; f.src = url; o.disconnect(); }
+          }, { rootMargin: '200px' }).observe(f);
+        })();
+        </script>
       </div>
     </div>
   </div>
@@ -1428,7 +1515,9 @@ details.card[open] > summary::after{ transform:rotate(180deg); }
   <a href="#" data-dview="complaints"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-chat"/></svg>Complaints</a>
   <a href="#" data-dview="community"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-building"/></svg>Bookings, Guests &amp; Suggestions</a>
   <a href="#" data-dview="profile"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-user"/></svg>Profile &amp; Family</a>
-  <a href="#" data-dview="info"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-file"/></svg>Documents &amp; Committee</a>
+  <a href="#" data-dview="rwa"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-shield"/></svg>Know your RWA</a>
+  <a href="#" data-dview="neighbours"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-users"/></svg>Neighbours</a>
+  <a href="#" data-dview="info"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-file"/></svg>Documents &amp; Contact</a>
   <div class="sd-foot"><a href="#" data-more="guide"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-bulb"/></svg>How to use this app</a><a href="#" data-more="report"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-alert"/></svg>Report a problem</a></div>
 </nav>
 
@@ -1472,6 +1561,7 @@ details.card[open] > summary::after{ transform:rotate(180deg); }
   <div class="modal" style="max-width:380px; text-align:center;">
     <div class="modal-body" id="successModalBody"></div>
     <button class="btn btn-primary btn-block" id="successModalOk" style="margin-top:6px;">Got it</button>
+    <button class="btn btn-outline btn-block" id="successModalSecondary" style="margin-top:8px;" hidden></button>
   </div>
 </div>
 
@@ -1494,7 +1584,7 @@ details.card[open] > summary::after{ transform:rotate(180deg); }
           <input type="file" name="photo" id="pf-photo" accept="image/*">
         </div>
         <div class="form-2col">
-          <div class="field"><label for="pf-mobile">Mobile Number</label><input name="mobile" id="pf-mobile" type="tel" maxlength="10" required></div>
+          <div class="field"><label for="pf-mobile">Mobile Number</label><input name="mobile" id="pf-mobile" type="tel" inputmode="numeric" autocomplete="tel-national" maxlength="10" required></div>
           <div class="field"><label for="pf-email">Contact Email <span class="t-muted" style="font-weight:400;">(for notices, not for login)</span></label><input name="email" id="pf-email" type="email" required><div class="hint">Changing this updates where the office reaches you — it does not change your login email or password.</div></div>
         </div>
         <div class="field"><label for="pf-occupation">Occupation</label><input name="occupation" id="pf-occupation" maxlength="100"></div>
@@ -1671,6 +1761,7 @@ details.card[open] > summary::after{ transform:rotate(180deg); }
         </div>
         <div class="field"><label for="cplt-title">Short title</label><input name="title" id="cplt-title" required maxlength="200" placeholder="e.g. Kitchen tap leaking"></div>
         <div class="field"><label for="cplt-desc">Describe the problem</label><textarea name="description" id="cplt-desc" required rows="4" maxlength="2000" placeholder="Aap yahan type karke apni problem bata sakte hain…"></textarea></div>
+        <label class="checkbox-row" id="cplt-share-row" style="display:none; margin-bottom:12px;"><input type="checkbox" id="cplt-share" checked> <span>Let neighbours add “me too”. Only the title and category are shown — never your name, flat, photo or details.</span></label>
         <div class="field"><label for="cplt-photo">Photo <span class="t-muted" style="font-weight:400;">(optional — problem ki photo laga sakte hain)</span></label><input type="file" name="photo" id="cplt-photo" accept="image/*"></div>
         <button class="btn btn-primary btn-block" type="submit">Submit Complaint</button>
       </form>
@@ -1754,7 +1845,7 @@ window.__translate = translateSubtree;
 window.__setDynamicLabel = setDynamicLabel;   // used by the Firebase block for the auth button
 window.__HI = HI;
 
-['brandLogo','heroLogo','footLogo'].forEach(id => {
+['brandLogo','heroLogo','footLogo','rwaLogo'].forEach(id => {
   const el = document.getElementById(id);
   if (el) el.src = LOGO_DATA_URI;
 });
@@ -1782,8 +1873,8 @@ window.__renderCommittee = (rows) => {
   const cardHTML = (m) => `
     <div class="committee-card">
       ${imgTag(m.photoURL || LOGO_DATA_URI, 'alt=""')}
-      <div class="nm" data-no-translate>${esc(m.name)}</div>
-      <div class="role">${esc(m.role)}</div>
+      <div class="cc-txt"><div class="nm" data-no-translate>${esc(m.name)}</div>
+      <div class="role">${esc(m.role)}</div></div>
     </div>`;
 
   // Grouping is driven primarily by ROLE, so it's correct even for members
@@ -2012,7 +2103,7 @@ window.__animateCount = (el) => {
   const VIEW_TITLES = {
     payments: 'Payments', complaints: 'Complaints',
     community: 'Bookings, Guests & Suggestions', profile: 'Profile, Vehicles, Family & Pets',
-    info: 'Documents & Committee', more: 'More'
+    info: 'Documents & Contact', rwa: 'Know your RWA', neighbours: 'Neighbours', more: 'More'
   };
   const TAB_FOR = { home: 'tabHomeBtn', payments: 'tabPaymentsBtn', complaints: 'tabComplaintsBtn' };
   window.__setView = (v) => {
@@ -2028,6 +2119,7 @@ window.__animateCount = (el) => {
     document.querySelectorAll('#sideDesk [data-dview]').forEach((a) => a.classList.toggle('active', a.dataset.dview === v));
     const t = document.getElementById('viewTitle');
     if (t) { t.textContent = VIEW_TITLES[v] || ''; if (window.__translate) window.__translate(t); }
+    try { window.__onViewShown?.(v); } catch (_) { /* never break navigation */ }
     return v;
   };
 })();
@@ -2041,7 +2133,7 @@ import {
   signOut, sendPasswordResetEmail, deleteUser, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, sendEmailVerification, updateEmail
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
 import {
-  doc, getDoc, setDoc, updateDoc, addDoc, collection, query, where, orderBy, getDocs, serverTimestamp, limit, writeBatch, onSnapshot, runTransaction, getCountFromServer
+  doc, getDoc, setDoc, updateDoc, addDoc, collection, query, where, orderBy, getDocs, serverTimestamp, limit, writeBatch, onSnapshot, runTransaction, getCountFromServer, deleteDoc
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 import {
   ref as storageRef, uploadBytes, getDownloadURL, deleteObject
@@ -2054,11 +2146,11 @@ import {
   generateRegistrationConfirmationPDF,
   generateStatementPDF, skeletonList, emptyState, showFieldError, clearFieldErrors,
   membershipDue, membershipFeeAmount, paymentDetails, eventDue, bookingSlotAvailability, validateRentAgreementDates, downloadFileName, isOwnUploadUrl, complaintProgress, minutesWaiting, paymentStatusLabel, APP_VERSION, buildProblemReport, recentClientErrors, buildUpiLinks, upiNote, upiPlatform, isValidUpiId,
-  waShareText, verifyUrlFor, downloadImageFromUrl, icon, GUIDE_STEPS, guideSeen, markGuideSeen, shouldShowGuide, duesReminderText, pollFlatId, pollTally, pollTimeLeft, paymentSteps, getTextSize, setTextSize, installPullToRefresh, totalFlats,
+  waShareText, verifyUrlFor, downloadImageFromUrl, icon, getHideAmounts, setHideAmounts, noticeAckSummary, todayStripItems, quickGuestChips, groupImportantNumbers, telHref, issueCopyFromComplaint, meTooLabel, directoryEntryFor, filterDirectory, tabDots, readTabSeen, markTabSeen, cleanUtr, utrFeedback, cleanMobile, GUIDE_STEPS, guideSeen, markGuideSeen, shouldShowGuide, duesReminderText, pollFlatId, pollTally, pollTimeLeft, paymentSteps, getTextSize, setTextSize, installPullToRefresh, totalFlats,
   initFamilyMembersEditor, addFamilyMemberRow, collectFamilyMembers,
   initVehiclesEditor, addVehicleRow, collectVehicles,
   initPetsEditor, addPetCard, collectPets, petVaccinationStatus, profileCompleteness, flatClaimId, findBlockingFlatClaim, generatePetId, rentAgreementStatus, flatKey, INSPECTION_TYPES, todayLocalISO
-} from './app-common.js?v=170';
+} from './app-common.js?v=177';
 import { installAppInstallPrompt } from './install-prompt.js';
 
 // The "install this app" prompt runs from here (not the branding block above)
@@ -2530,7 +2622,7 @@ function goToStepForField(form, field) { window.__goToStepForField(field); }
     const v = a.dataset.dview;
     if (v === 'home') show('home'); else if (v === 'community') { window.__showView('community'); document.querySelector('[data-cmrtab="book"]')?.click(); }
     else if (v === 'profile') { window.__showView('profile'); const d = document.querySelector('#dashboardContent details'); if (d) d.open = true; }
-    else if (v === 'info') show('info'); else window.__showView(v);
+    else if (v === 'info') show('info'); else if (v === 'rwa') show('rwa'); else if (v === 'neighbours') window.__showView('neighbours'); else window.__showView(v);
   });
   tabs.payments?.addEventListener('click', (e) => { e.preventDefault(); window.__showView('payments'); });
   tabs.complaints?.addEventListener('click', (e) => { e.preventDefault(); window.__showView('complaints'); });
@@ -2546,7 +2638,10 @@ function goToStepForField(form, field) { window.__goToStepForField(field); }
     if (what === 'guide') { e.preventDefault?.(); window.__openGuide?.(); return; }
     if (what === 'notices') { show('home'); document.getElementById('notices')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
     if (what === 'documents') { show('info'); return; }
+    if (what === 'rwa') { show('rwa'); return; }
+    if (what === 'numbers') { show('rwa'); setTimeout(() => document.getElementById('rwaNumbers')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60); return; }
     if (!needApproved()) return;
+    if (what === 'neighbours') { show('neighbours'); return; }
     if (what === 'community') { show('community'); document.querySelector('[data-cmrtab="book"]')?.click(); }
     else if (what === 'profile') { show('profile'); const d = document.querySelector('#dashboardContent details'); if (d) d.open = true; }
   });
@@ -2558,6 +2653,9 @@ function goToStepForField(form, field) { window.__goToStepForField(field); }
     const what = b.dataset.goto;
     if (what === 'complaints') window.__showView('complaints');
     else if (what === 'community') { if (needApproved()) { show('community'); document.querySelector('[data-cmrtab="book"]')?.click(); } }
+    else if (what === 'guests') { if (needApproved()) { show('community'); document.querySelector('[data-cmrtab="guest"]')?.click(); } }
+    else if (what === 'polls') { document.getElementById('activePolls')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+    else if (what === 'bell') { document.getElementById('notifBellBtn')?.click(); }
     else if (what === 'profile') { if (needApproved()) { show('profile'); const d = document.querySelector('#dashboardContent details'); if (d) d.open = true; } }
   });
 
@@ -3210,6 +3308,7 @@ onAuthStateChanged(auth, async (user) => {
     // seen-tracking so any that are in view now are recorded.
     { const nl = document.getElementById('noticeList'); if (nl && window.__notices?.length) trackNoticesSeen(nl, window.__notices); }
     document.body.classList.add('logged-in');   // focus mode: hide marketing sections
+    try { localStorage.setItem('mhmrws-returning', '1'); } catch (_) { /* fine */ }   // next visit: skip the landing-page photo
     window.__setDynamicLabel(navBtn, 'Logout');
     navBtn.onclick = async () => { await signOut(auth); location.reload(); };
     portal.style.display = 'none';
@@ -3238,6 +3337,7 @@ onAuthStateChanged(auth, async (user) => {
     } catch (_) { /* fine */ }
   } else {
     window.__loggedIn = false;
+    try { localStorage.removeItem('mhmrws-returning'); } catch (_) { /* fine */ }
     document.body.classList.remove('logged-in', 'not-approved');
     window.__setView?.('home');
     currentMember = null;
@@ -3259,12 +3359,32 @@ onAuthStateChanged(auth, async (user) => {
 // Celebratory success: animated checkmark in a small modal, plus a confetti
 // burst. Used only for genuine milestones (registration submitted, payment
 // recorded) — not for routine confirmations, which keep the plain toast.
-function showSuccess(title, message, { celebrate = true } = {}) {
+function paymentStepsHtml(p) {
+  const st = paymentSteps(p);
+  return `<div class="pay-steps" role="img" aria-label="${escapeHtml(st.map((x) => `${x.label}: ${x.state === 'done' ? 'done' : x.state === 'current' ? 'in progress' : x.state === 'bad' ? 'stopped' : 'not yet'}`).join(', '))}">`
+    + st.map((x, i) => `${i ? `<span class="ps-line ${st[i - 1].state === 'done' ? 'done' : ''}"></span>` : ''}<span class="ps ${x.state}"><span class="ps-dot"></span>${escapeHtml(x.label)}</span>`).join('')
+    + `</div>`;
+}
+let successSecondary = null;
+function showSuccess(title, message, { celebrate = true, detailHtml = '', secondaryLabel = '', onSecondary = null } = {}) {
   const body = document.getElementById('successModalBody');
-  if (body && window.__successHTML) body.innerHTML = window.__successHTML(title, message);
+  if (body && window.__successHTML) body.innerHTML = window.__successHTML(title, message) + (detailHtml || '');
+  const sec = document.getElementById('successModalSecondary');
+  successSecondary = onSecondary;
+  if (sec) { sec.hidden = !secondaryLabel; sec.textContent = secondaryLabel || ''; }
   document.getElementById('successModalBackdrop').classList.add('open');
+  if (body) window.__translate?.(body);
+  if (sec && secondaryLabel) window.__translate?.(sec);
   if (celebrate && window.__confetti) window.__confetti();
 }
+document.addEventListener('click', (e) => {
+  const b = e.target.closest?.('[data-empty-click]');
+  if (b) document.querySelector(b.dataset.emptyClick)?.click();
+});
+document.getElementById('successModalSecondary')?.addEventListener('click', () => {
+  document.getElementById('successModalBackdrop').classList.remove('open');
+  const fn = successSecondary; successSecondary = null; if (fn) fn();
+});
 document.getElementById('successModalOk')?.addEventListener('click',
   () => document.getElementById('successModalBackdrop').classList.remove('open'));
 
@@ -3371,6 +3491,7 @@ async function loadDashboard(uid) {
         <div class="id-row">
           <div class="member-id-chip">${escapeHtml(currentMember.memberID)}</div>
           <button class="btn btn-outline btn-sm" id="downloadCardBtn">Download Membership Card</button>
+          <button class="btn btn-outline btn-sm" id="downloadCardPrintBtn" title="Pale tints on white, uses little ink — for a print shop">Print version</button>
         </div>` : ''}
       ${statusExtra}
       ${showVerifyReminder ? `
@@ -3379,6 +3500,7 @@ async function loadDashboard(uid) {
           <button type="button" class="link-btn" id="resendVerifyBtn" style="margin-left:4px;">Resend email</button>
         </div>` : ''}
     </div>
+    ${currentMember.status === 'approved' ? `<div id="todayStrip" class="today-strip" data-v="home" hidden></div>` : ''}
     ${currentMember.status === 'approved' ? `<div id="gateCard" data-v="home"></div>` : ''}
     ${currentMember.status === 'approved' ? `<div id="duesHero" data-v="home"><div class="skeleton" style="height:96px; margin-top:16px; border-radius:16px;"></div></div>` : ''}
     ${currentMember.status === 'approved' ? `<div id="inspectionsCard" data-v="home"></div>` : ''}
@@ -3411,7 +3533,10 @@ async function loadDashboard(uid) {
       <div class="more-group-label">Society</div>
       <div class="more-group"><ul class="more-list">
         <li><button type="button" class="more-item" data-more="notices"><span class="mi-ico t-gold"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-bell"/></svg></span>Notices<span class="hl-go" aria-hidden="true">›</span></button></li>
-        <li><button type="button" class="more-item" data-more="documents"><span class="mi-ico t-blue"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-file"/></svg></span>Documents &amp; Committee<span class="hl-go" aria-hidden="true">›</span></button></li>
+        <li><button type="button" class="more-item" data-more="rwa"><span class="mi-ico t-purple"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-shield"/></svg></span>Know your RWA<span class="hl-go" aria-hidden="true">›</span></button></li>
+        <li><button type="button" class="more-item" data-more="numbers"><span class="mi-ico t-red"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-siren"/></svg></span>Important numbers<span class="hl-go" aria-hidden="true">›</span></button></li>
+        <li><button type="button" class="more-item" data-more="neighbours"><span class="mi-ico t-green"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-users"/></svg></span>Neighbours<span class="hl-go" aria-hidden="true">›</span></button></li>
+        <li><button type="button" class="more-item" data-more="documents"><span class="mi-ico t-blue"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-file"/></svg></span>Documents &amp; Contact<span class="hl-go" aria-hidden="true">›</span></button></li>
         <li><button type="button" class="more-item" data-more="community"><span class="mi-ico t-green"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-building"/></svg></span>Bookings, Guests &amp; Suggestions<span class="hl-go" aria-hidden="true">›</span></button></li>
       </ul></div>
       <div class="more-group-label">My home</div>
@@ -3517,6 +3642,11 @@ async function loadDashboard(uid) {
         </div>
         <div id="myComplaintsList"><p class="t-muted" style="font-size:13px;">Loading…</p></div>
       </div>
+      <div class="card card-pad" data-v="complaints" id="commonIssuesCard" style="display:none;">
+        <h3 style="font-size:16px; margin-bottom:4px;">Problems neighbours reported</h3>
+        <p class="t-muted" style="font-size:12.5px; margin-bottom:10px;">Seeing the same thing? Tap “Me too” instead of raising it again — the committee sees how many are affected.</p>
+        <div id="commonIssuesList"></div>
+      </div>
       <div class="card card-pad" data-v="community" style="grid-column:1/-1;">
         <h3 style="font-size:16px; margin-bottom:12px;">Community</h3>
         <div class="tab-strip" style="margin-bottom:14px;">
@@ -3526,12 +3656,17 @@ async function loadDashboard(uid) {
         </div>
 
         <div id="cmrPanel-book">
+          <div class="avail-card">
+            <div class="avail-headrow"><b>What is free</b><label class="avail-datewrap"><span class="sr-only">Date</span><input type="date" id="avail-date" aria-label="Date to check"></label></div>
+            <div id="availList"><div class="skeleton" style="height:44px;"></div></div>
+          </div>
           <div class="spread" style="margin-bottom:10px;"><span class="t-muted" style="font-size:12.5px;">Request to use a shared facility — the committee approves each booking.</span><button class="btn btn-outline btn-sm" id="newBookingBtn">+ New Request</button></div>
           <div id="myBookingsList"><p class="t-muted" style="font-size:13px;">Loading…</p></div>
         </div>
 
         <div id="cmrPanel-guest" style="display:none;">
           <div class="spread" style="margin-bottom:10px;"><span class="t-muted" style="font-size:12.5px;">Let the office know ahead of time — not a security check-in system.</span><button class="btn btn-outline btn-sm" id="newGuestBtn">+ Log a Guest</button></div>
+          <div id="quickGuests" class="quick-guests" hidden></div>
           <div id="myGuestsList"><p class="t-muted" style="font-size:13px;">Loading…</p></div>
         </div>
 
@@ -3547,7 +3682,8 @@ async function loadDashboard(uid) {
 
   if (currentMember.status === 'approved') {
     document.getElementById('openPaymentBtn').addEventListener('click', openPaymentModal);
-    document.getElementById('downloadCardBtn')?.addEventListener('click', downloadCard);
+    document.getElementById('downloadCardBtn')?.addEventListener('click', () => downloadCard(false));
+    document.getElementById('downloadCardPrintBtn')?.addEventListener('click', () => downloadCard(true));
     document.getElementById('resendVerifyBtn')?.addEventListener('click', async (e) => {
       const btn = e.target;
       btn.disabled = true;
@@ -3598,7 +3734,8 @@ async function loadDashboard(uid) {
     // as "the whole dashboard feels slow" even though every individual tab
     // (Home/Notices/Pay/Account) is just a same-page scroll once this has
     // actually finished.
-    await Promise.allSettled([loadPayments(uid), loadMyPets(uid), loadMyComplaints(uid), loadMyBookings(uid), loadMyGuests(uid), loadMySuggestions(uid)]);
+    await Promise.allSettled([loadPayments(uid), loadMyPets(uid), loadMyComplaints(uid), loadMyBookings(uid), loadMyGuests(uid), loadMySuggestions(uid), loadCommonIssues(), refreshNoticeAcks()]);
+    renderTodayStrip();
     subscribeGateVisitors(currentMember);
     subscribePaymentUpdates(uid);
     subscribeComplaintUpdates(uid);
@@ -3638,21 +3775,26 @@ async function loadNotificationCenter() {
   (allPaymentRows || []).forEach(p => {
     const t = toMs(p.verifiedAt) || toMs(p.updatedAt);
     if (!t || t <= cutoff) return;
-    if (p.status === 'verified') items.push({ icon: icon('check'), text: `Payment of ${formatINR(p.amount)} was verified.`, time: t });
-    else if (p.status === 'rejected') items.push({ icon: icon('alert'), text: `Payment of ${formatINR(p.amount)} was rejected${p.rejectionReason ? `: ${p.rejectionReason}` : '.'}`, time: t });
+    if (p.status === 'verified') items.push({ icon: icon('check'), text: `Payment of ${formatINR(p.amount)} was verified.`, time: t, tab: 'payments' });
+    else if (p.status === 'rejected') items.push({ icon: icon('alert'), text: `Payment of ${formatINR(p.amount)} was rejected${p.rejectionReason ? `: ${p.rejectionReason}` : '.'}`, time: t, tab: 'payments' });
   });
 
   (window.__myComplaints || []).forEach(c => {
     const t = toMs(c.updatedAt);
     if (!t || t <= cutoff || !['resolved', 'in_progress', 'rejected', 'closed'].includes(c.status)) return;
-    items.push({ icon: icon('chat'), text: `Complaint "${c.title}" is now ${COMPLAINT_STATUS_LABEL_R[c.status] || c.status}.`, time: t });
+    items.push({ icon: icon('chat'), text: `Complaint "${c.title}" is now ${COMPLAINT_STATUS_LABEL_R[c.status] || c.status}.`, time: t, tab: 'complaints' });
+  });
+
+  (window.__myGuests || []).forEach(g => {
+    const t = toMs(g.arrivedAt);
+    if (g.status === 'arrived' && t && t > cutoff) items.push({ icon: icon('door'), text: `Your guest ${g.guestName} has arrived at the gate.`, time: t, tab: 'community' });
   });
 
   try {
     const rows = (await getDocs(query(collection(db, 'notices'), where('postedAt', '>', new Date(cutoff)), orderBy('postedAt', 'desc'), limit(50)))).docs.map(d => d.data());
     rows.forEach(n => {
       const t = toMs(n.postedAt);
-      if (t && t > cutoff) items.push({ icon: icon('bell'), text: `New notice: ${n.titleEn}`, time: t });
+      if (t && t > cutoff) items.push({ icon: icon('bell'), text: `New notice: ${n.titleEn}`, time: t, tab: 'home' });
     });
   } catch (e) { console.warn('Notification notices check failed:', e?.code || e); }
 
@@ -3664,7 +3806,7 @@ async function loadNotificationCenter() {
     const owed = window.__duesOwed || {};
     const text = duesReminderText(owed);
     if (sentMs && text && sentMs > Date.now() - 14 * 86400000) {
-      items.push({ icon: icon('rupee'), text, time: sentMs });
+      items.push({ icon: icon('rupee'), text, time: sentMs, tab: 'payments' });
       if (window.__latestReminderMs !== sentMs) {
         window.__latestReminderMs = sentMs;
         if (window.__heroArgs) renderDuesHero(window.__heroArgs.dues, window.__heroArgs.financialYear);
@@ -3685,10 +3827,41 @@ async function loadNotificationCenter() {
   items.sort((a, b) => b.time - a.time);
   window.__notificationItems = items;
   renderNotificationBell(items, lastSeen);
+  renderTabDots();
 }
+
+/* Small dots on the bottom bar (and the desktop sidebar) for tabs with something new.
+   A dot clears when that tab is opened; Home's clears once the notice board has been on screen. */
+const DOT_TABS = { home: ['tabHomeBtn', 'home'], payments: ['tabPaymentsBtn', 'payments'], complaints: ['tabComplaintsBtn', 'complaints'] };
+function renderTabDots() {
+  const current = document.body.dataset.view || 'home';
+  if (current === 'payments' || current === 'complaints') markTabSeen(current);
+  const dots = tabDots(window.__notificationItems || [], readTabSeen());
+  for (const [tab, [id, dview]] of Object.entries(DOT_TABS)) {
+    const on = !!dots[tab] && !(tab === current && tab !== 'home');
+    const a = document.getElementById(id);
+    const label = a?.dataset.label || (a ? a.textContent.trim() : '');
+    if (a) {
+      if (a.dataset.label === undefined) a.dataset.label = label;
+      a.classList.toggle('has-dot', on);
+      if (on) a.setAttribute('aria-label', `${label}, something new`); else a.removeAttribute('aria-label');
+    }
+    document.querySelector(`#sideDesk [data-dview="${dview}"]`)?.classList.toggle('has-dot', on);
+  }
+}
+window.__onViewShown = (v) => { if (v === 'payments' || v === 'complaints') { markTabSeen(v); renderTabDots(); } };
+(function watchNoticeBoard() {
+  const el = document.getElementById('notices');
+  if (!el || !('IntersectionObserver' in window)) return;
+  new IntersectionObserver((entries) => {
+    if (entries.some((e) => e.isIntersecting) && document.body.dataset.view === 'home' && document.body.classList.contains('logged-in')) { markTabSeen('home'); renderTabDots(); }
+  }, { threshold: 0.35 }).observe(el);
+})();
 
 function renderNotificationBell(items, lastSeen) {
   const unreadCount = items.filter(i => i.time > lastSeen).length;
+  window.__unreadCount = unreadCount;
+  renderTodayStrip();
   const badge = document.getElementById('notifBadge');
   if (unreadCount > 0) { badge.textContent = unreadCount > 9 ? '9+' : String(unreadCount); badge.style.display = 'grid'; }
   else { badge.style.display = 'none'; }
@@ -4020,6 +4193,7 @@ async function loadMyBookings(uid) {
     rows.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
     window.__myBookings = rows;
     renderMyBookings();
+    renderAvailability();
   } catch (e) {
     console.warn('Bookings load failed:', e?.code || e);
     el.innerHTML = emptyState('Could not load bookings', 'Please refresh the page and try again.', { compact: true });
@@ -4388,7 +4562,7 @@ function renderMyBookings() {
   const el = document.getElementById('myBookingsList');
   if (!el) return;
   const rows = window.__myBookings || [];
-  if (!rows.length) { el.innerHTML = emptyState('No requests yet', 'Request a facility using the button above.', { compact: true }); window.__translate(el); return; }
+  if (!rows.length) { el.innerHTML = emptyState('No requests yet', 'Clubhouse, hall or court — ask for a slot and the committee will confirm.', { compact: true, icon: 'calendar', action: { label: 'New request', click: '#newBookingBtn' } }); window.__translate(el); return; }
   el.innerHTML = rows.map(b => `
     <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--line);">
       <div>
@@ -4547,17 +4721,19 @@ async function loadMyGuests(uid) {
   }
 }
 function renderMyGuests() {
+  renderQuickGuests();
+  renderTodayStrip();
   const el = document.getElementById('myGuestsList');
   if (!el) return;
   const rows = (window.__myGuests || []).filter(g => g.status !== 'cancelled');
-  if (!rows.length) { el.innerHTML = emptyState('No guests logged', 'Log an expected guest using the button above.', { compact: true }); window.__translate(el); return; }
+  if (!rows.length) { el.innerHTML = emptyState('No guests logged', 'Tell the office who is coming so the gate is ready.', { compact: true, icon: 'door', action: { label: 'Log a guest', click: '#newGuestBtn' } }); window.__translate(el); return; }
   el.innerHTML = rows.map(g => `
     <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--line);">
       <div>
         <b style="font-size:13.5px;">${escapeHtml(g.guestName)}</b>
         <div class="t-muted" style="font-size:12px; margin-top:2px;">${fmtDate(g.expectedDate)}${g.purpose ? ` · ${escapeHtml(g.purpose)}` : ''}</div>
       </div>
-      <button class="btn btn-outline btn-sm" data-cancel-guest="${g.id}">Remove</button>
+      ${g.status === 'arrived' ? '<span class="badge badge-success">Arrived</span>' : `<button class="btn btn-outline btn-sm" data-cancel-guest="${g.id}">Remove</button>`}
     </div>`).join('');
   el.querySelectorAll('[data-cancel-guest]').forEach(btn => btn.addEventListener('click', () => cancelMyGuest(btn.dataset.cancelGuest)));
   window.__translate?.(el);
@@ -4608,7 +4784,7 @@ function renderMySuggestions() {
   const el = document.getElementById('mySuggestionsList');
   if (!el) return;
   const rows = window.__mySuggestions || [];
-  if (!rows.length) { el.innerHTML = emptyState('No suggestions yet', 'Share an idea using the button above.', { compact: true }); window.__translate(el); return; }
+  if (!rows.length) { el.innerHTML = emptyState('No suggestions yet', 'Have an idea for the society? The committee reads every one.', { compact: true, icon: 'bulb', action: { label: 'Share an idea', click: '#newSuggestionBtn' } }); window.__translate(el); return; }
   el.innerHTML = rows.map(s => `
     <div style="padding:10px 0; border-bottom:1px solid var(--line);">
       <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px;">
@@ -4629,6 +4805,283 @@ function refreshReportPreview() {
   const on = document.getElementById('rp-attach').checked;
   pre.textContent = on ? JSON.stringify(reportContext(), null, 1) : '(nothing — only your message, name and flat)';
 }
+/* ======================= v172: neighbours, numbers, issues, availability ======================= */
+
+/* ---- Important numbers (Know your RWA) ---- */
+async function loadImportantNumbers() {
+  const box = document.getElementById('numbersList');
+  if (!box) return;
+  let items = [];
+  try {
+    const snap = await getDoc(doc(db, 'settings', 'importantNumbers'));
+    if (snap.exists()) items = snap.data().items || [];
+  } catch (e) { console.warn('Important numbers load failed:', e?.code || e); }
+  box.innerHTML = groupImportantNumbers(items).map((g) => `
+    <div class="num-group${g.key === 'emergency' ? ' num-emergency' : ''}">
+      <h3 class="num-title">${escapeHtml(g.label)}</h3>
+      <ul class="num-list">${g.rows.map((r) => `
+        <li><span class="num-lbl">${escapeHtml(r.label)}</span>
+          <a class="num-call" href="${escapeHtml(telHref(r.phone))}" aria-label="Call ${escapeHtml(r.label)} on ${escapeHtml(r.phone)}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-phone"/></svg><span class="num-no" data-no-translate>${escapeHtml(r.phone)}</span></a></li>`).join('')}
+      </ul>
+    </div>`).join('');
+  window.__translate?.(box);
+}
+
+/* ---- Common-area issues: "Me too" ---- */
+let commonIssuesToken = 0;
+async function loadCommonIssues() {
+  const card = document.getElementById('commonIssuesCard');
+  const list = document.getElementById('commonIssuesList');
+  if (!card || !list || !currentUser) return;
+  const token = ++commonIssuesToken;
+  let rows = [];
+  try {
+    rows = (await getDocs(query(collection(db, 'issues'), where('status', 'in', ['open', 'in_progress'])))).docs.map((d) => ({ id: d.id, ...d.data() })).filter((r) => r.title);
+    rows.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+    rows = rows.slice(0, 15);
+    await Promise.all(rows.map(async (r) => {
+      try {
+        const [cnt, mine] = await Promise.all([
+          getCountFromServer(collection(db, 'issues', r.id, 'supporters')),
+          getDoc(doc(db, 'issues', r.id, 'supporters', currentUser.uid))
+        ]);
+        r.count = cnt.data().count; r.mine = mine.exists();
+      } catch (_) { r.count = 0; r.mine = false; }
+    }));
+  } catch (e) {
+    console.warn('Common issues load failed:', e?.code || e);
+    card.style.display = 'none';
+    return;
+  }
+  if (token !== commonIssuesToken) return;
+  window.__commonIssues = rows;
+  if (!rows.length) { card.style.display = 'none'; return; }
+  card.style.display = '';
+  const statusLbl = { open: 'Reported', in_progress: 'Being fixed' };
+  list.innerHTML = rows.map((r) => `
+    <div class="issue-row" data-issue-id="${escapeHtml(r.id)}">
+      <div class="issue-main">
+        <b>${escapeHtml(r.title)}</b>
+        <div class="t-muted issue-sub">${escapeHtml(COMPLAINT_CATEGORY_LABEL_R[r.category] || r.category || '')}${r.category ? ' · ' : ''}${escapeHtml(statusLbl[r.status] || r.status)}</div>
+        <div class="issue-count">${escapeHtml(meTooLabel(r.count))}</div>
+      </div>
+      ${r.ownerUid === currentUser.uid
+        ? '<span class="badge badge-neutral">Your report</span>'
+        : `<button type="button" class="btn ${r.mine ? 'btn-primary' : 'btn-outline'} btn-sm" data-metoo="${escapeHtml(r.id)}" aria-pressed="${r.mine}">${r.mine ? '✓ Me too' : 'Me too'}</button>`}
+    </div>`).join('');
+  window.__translate?.(list);
+}
+document.addEventListener('click', async (e) => {
+  const b = e.target.closest?.('[data-metoo]');
+  if (!b || !currentUser) return;
+  const id = b.dataset.metoo;
+  const on = b.getAttribute('aria-pressed') !== 'true';
+  b.disabled = true;
+  try {
+    const ref = doc(db, 'issues', id, 'supporters', currentUser.uid);
+    if (on) await setDoc(ref, { at: serverTimestamp() }); else await deleteDoc(ref);
+    await loadCommonIssues();
+  } catch (err) {
+    console.warn('Me too failed:', err?.code || err);
+    showToast('Could not save that — it may have just been resolved.', 'error');
+    b.disabled = false;
+  }
+});
+document.getElementById('cplt-location')?.addEventListener('change', (e) => {
+  document.getElementById('cplt-share-row').style.display = e.target.value === 'common' ? '' : 'none';
+});
+
+/* ---- Neighbours directory (opt-in) ---- */
+let myDirectoryDoc = null;
+async function loadDirectory() {
+  const join = document.getElementById('dirJoinCard');
+  const wrap = document.getElementById('dirListWrap');
+  if (!join || !wrap || !currentUser || !currentMember) return;
+  try {
+    const mine = await getDoc(doc(db, 'directory', currentUser.uid));
+    myDirectoryDoc = mine.exists() ? mine.data() : null;
+  } catch (e) { console.warn('Directory check failed:', e?.code || e); myDirectoryDoc = null; }
+  const joined = !!myDirectoryDoc;
+  join.innerHTML = joined ? `
+    <div class="dir-head"><span class="dir-ico">${icon('users')}</span>
+      <div><b>You are in the neighbours list</b><div class="t-muted" style="font-size:12.5px;">Other residents who have joined can see your name and flat.</div></div></div>
+    <label class="checkbox-row" style="margin:12px 0 10px;"><input type="checkbox" id="dirShowMobile" ${myDirectoryDoc.mobile ? 'checked' : ''}> <span>Also show my mobile number so neighbours can call</span></label>
+    <button type="button" class="btn btn-outline btn-sm" id="dirLeaveBtn">Remove me from the list</button>` : `
+    <div class="dir-head"><span class="dir-ico">${icon('users')}</span>
+      <div><b>Meet your neighbours</b><div class="t-muted" style="font-size:12.5px;">Join to see who lives where. Only residents who join can see the list, and you decide whether your mobile number is shown. Nothing is shown unless you join.</div></div></div>
+    <label class="checkbox-row" style="margin:12px 0 10px;"><input type="checkbox" id="dirShowMobile"> <span>Also show my mobile number so neighbours can call</span></label>
+    <button type="button" class="btn btn-primary btn-sm" id="dirJoinBtn">Add me to the list</button>`;
+  window.__translate?.(join);
+  if (!joined) {
+    wrap.innerHTML = '<p class="t-muted" style="font-size:13px; text-align:center; padding:14px;">Join the list above to see your neighbours.</p>';
+    window.__translate?.(wrap);
+    return;
+  }
+  wrap.innerHTML = '<div class="skeleton" style="height:56px; margin-bottom:10px;"></div><div class="skeleton" style="height:56px;"></div>';
+  let rows = [];
+  try { rows = (await getDocs(collection(db, 'directory'))).docs.map((d) => ({ id: d.id, ...d.data() })); }
+  catch (e) { console.warn('Directory load failed:', e?.code || e); wrap.innerHTML = emptyState('Could not load the list', 'Please try again in a little while.', { compact: true }); window.__translate?.(wrap); return; }
+  window.__directoryRows = rows;
+  wrap.innerHTML = `<div class="field" style="margin-bottom:10px;"><input type="search" id="dirSearch" placeholder="Search by name or flat, e.g. A 101" autocomplete="off" aria-label="Search neighbours"></div><div id="dirList"></div>`;
+  paintDirectory('');
+  document.getElementById('dirSearch').addEventListener('input', (ev) => paintDirectory(ev.target.value));
+  window.__translate?.(wrap);
+}
+function paintDirectory(q) {
+  const el = document.getElementById('dirList');
+  if (!el) return;
+  const rows = filterDirectory(window.__directoryRows || [], q);
+  if (!rows.length) { el.innerHTML = emptyState('Nobody found', (window.__directoryRows || []).length ? 'Try a different name or flat.' : 'You are the first one here. Neighbours will appear as they join.', { compact: true, icon: 'users' }); window.__translate?.(el); return; }
+  el.innerHTML = rows.map((r) => {
+    const wa = r.mobile ? `https://wa.me/91${String(r.mobile).replace(/\D/g, '').slice(-10)}` : '';
+    return `<div class="dir-row">
+      <span class="dir-av" aria-hidden="true" data-no-translate>${escapeHtml((r.name || '?').trim().charAt(0).toUpperCase())}</span>
+      <div class="dir-main"><b data-no-translate>${escapeHtml(r.name)}${r.id === currentUser.uid ? ' (you)' : ''}</b><div class="t-muted" style="font-size:12.5px;">Tower ${escapeHtml(r.tower)} · Flat ${escapeHtml(r.flatNumber)}</div></div>
+      ${r.mobile && r.id !== currentUser.uid ? `<a class="dir-act" href="tel:${escapeHtml(String(r.mobile).replace(/[^\d+]/g, ''))}" aria-label="Call ${escapeHtml(r.name)}">${icon('phone')}</a><a class="dir-act" href="${escapeHtml(wa)}" target="_blank" rel="noopener" aria-label="WhatsApp ${escapeHtml(r.name)}">${icon('chat')}</a>` : ''}
+    </div>`; }).join('');
+  window.__translate?.(el);
+}
+document.addEventListener('click', async (e) => {
+  const join = e.target.closest?.('#dirJoinBtn');
+  const leave = e.target.closest?.('#dirLeaveBtn');
+  if (!join && !leave) return;
+  const btn = join || leave;
+  btn.disabled = true;
+  try {
+    if (join) {
+      const showMobile = !!document.getElementById('dirShowMobile')?.checked;
+      await setDoc(doc(db, 'directory', currentUser.uid), { ...directoryEntryFor(currentMember, { showMobile }), updatedAt: serverTimestamp() });
+      showToast('You are in the neighbours list.', 'success');
+    } else {
+      await deleteDoc(doc(db, 'directory', currentUser.uid));
+      showToast('Removed from the neighbours list.', 'success');
+    }
+    await loadDirectory();
+  } catch (err) {
+    console.warn('Directory update failed:', err?.code || err);
+    showToast(`Could not update${err?.code ? ` (${err.code})` : ''} — please try again.`, 'error');
+    btn.disabled = false;
+  }
+});
+document.addEventListener('change', async (e) => {
+  if (e.target?.id !== 'dirShowMobile' || !myDirectoryDoc) return;      // only an existing entry reacts live
+  try {
+    await setDoc(doc(db, 'directory', currentUser.uid), { ...directoryEntryFor(currentMember, { showMobile: e.target.checked }), updatedAt: serverTimestamp() });
+    showToast(e.target.checked ? 'Your number is now shown.' : 'Your number is hidden.', 'success');
+    await loadDirectory();
+  } catch (err) { showToast('Could not update — please try again.', 'error'); e.target.checked = !e.target.checked; }
+});
+
+/* ---- Facility availability for a chosen day ---- */
+let availToken = 0;
+async function renderAvailability() {
+  const box = document.getElementById('availList');
+  const dateEl = document.getElementById('avail-date');
+  if (!box || !dateEl) return;
+  if (!dateEl.value) dateEl.value = todayLocalISO();
+  const date = dateEl.value;
+  const facilities = (allActiveFacilities || []).slice(0, 12);
+  if (!facilities.length) { box.innerHTML = '<p class="t-muted" style="font-size:12.5px;">No facilities to show yet.</p>'; return; }
+  const token = ++availToken;
+  box.innerHTML = '<div class="skeleton" style="height:44px; margin-bottom:8px;"></div><div class="skeleton" style="height:44px;"></div>';
+  const slots = Object.keys(BOOKING_SLOT_LABELS);
+  let rows;
+  try {
+    rows = await Promise.all(facilities.map(async (f) => {
+      const snaps = await Promise.all(slots.map((sl) => getDoc(doc(db, 'facilitySlots', `${f.id}_${date}_${sl}`))));
+      return { f, unavailable: bookingSlotAvailability(slots.filter((_, i) => snaps[i].exists())) };
+    }));
+  } catch (e) {
+    if (token !== availToken) return;
+    console.warn('Availability lookup failed:', e?.code || e);
+    box.innerHTML = '<p class="t-muted" style="font-size:12.5px;">Could not check availability right now.</p>';
+    window.__translate?.(box);
+    return;
+  }
+  if (token !== availToken) return;
+  box.innerHTML = rows.map(({ f, unavailable }) => {
+    const free = slots.filter((sl) => !unavailable[sl]);
+    return `<div class="avail-row">
+      <div class="avail-name"><b>${escapeHtml(f.name)}</b></div>
+      <div class="avail-chips">${slots.map((sl) => `<span class="avail-chip ${unavailable[sl] ? 'is-booked' : 'is-free'}">${escapeHtml(BOOKING_SLOT_LABELS[sl])} · ${unavailable[sl] ? 'Booked' : 'Free'}</span>`).join('')}</div>
+      ${free.length ? `<button type="button" class="btn btn-outline btn-sm" data-avail-book="${escapeHtml(f.id)}">Request</button>` : ''}
+    </div>`; }).join('');
+  window.__translate?.(box);
+}
+document.getElementById('avail-date')?.addEventListener('change', renderAvailability);
+document.addEventListener('click', (e) => {
+  const b = e.target.closest?.('[data-avail-book]');
+  if (!b) return;
+  document.getElementById('newBookingBtn')?.click();
+  setTimeout(() => {
+    const fac = document.getElementById('bk-facility'), dt = document.getElementById('bk-date');
+    if (fac) { fac.value = b.dataset.availBook; }
+    if (dt) { dt.value = document.getElementById('avail-date')?.value || dt.value; }
+    refreshBookingAvailability();
+  }, 30);
+});
+
+/* ---- Hide amounts ---- */
+document.addEventListener('click', (e) => {
+  const b = e.target.closest?.('[data-hide-amt]');
+  if (!b) return;
+  setHideAmounts(!getHideAmounts());
+  document.querySelectorAll('[data-hide-amt]').forEach((x) => { x.setAttribute('aria-pressed', String(getHideAmounts())); x.setAttribute('aria-label', getHideAmounts() ? 'Show amounts' : 'Hide amounts'); x.innerHTML = icon(getHideAmounts() ? 'eyeoff' : 'eye'); });
+});
+
+/* Entering a screen refreshes what it needs. */
+const prevOnView = window.__onViewShown;
+window.__onViewShown = (v) => {
+  try { prevOnView?.(v); } catch (_) { /* ignore */ }
+  if (!currentUser || !currentMember) return;
+  if (v === 'rwa') loadImportantNumbers();
+  else if (v === 'neighbours') loadDirectory();
+  else if (v === 'complaints') loadCommonIssues();
+  else if (v === 'community') { loadMyGuests(currentUser.uid); renderAvailability(); }
+};
+
+/* ======================= v173: Today strip + quick guests ======================= */
+function renderTodayStrip() {
+  const el = document.getElementById('todayStrip');
+  if (!el) return;
+  const items = todayStripItems({ guests: window.__myGuests || [], complaints: window.__myComplaints || [], polls: window.__activePolls || [], unread: window.__unreadCount || 0, todayISO: todayLocalISO() });
+  if (!items.length) { el.hidden = true; el.innerHTML = ''; return; }
+  const goto = { guests: 'guests', arrived: 'guests', complaints: 'complaints', polls: 'polls', unread: 'bell' };
+  el.hidden = false;
+  el.innerHTML = `<div class="ts-label">Today</div><div class="ts-chips">${items.map((i) => `<button type="button" class="ts-chip ts-${i.key}" data-goto="${goto[i.key] || 'community'}">${icon(i.icon)}<span>${escapeHtml(i.text)}</span></button>`).join('')}</div>`;
+  window.__translate?.(el);
+}
+function renderQuickGuests() {
+  const el = document.getElementById('quickGuests');
+  if (!el) return;
+  const chips = quickGuestChips(window.__myGuests || [], todayLocalISO());
+  if (!chips.length) { el.hidden = true; el.innerHTML = ''; return; }
+  el.hidden = false;
+  el.innerHTML = `<div class="qg-label">Expecting someone today? One tap:</div><div class="qg-chips">${chips.map((c, i) => `<button type="button" class="qg-chip" data-quick-guest="${i}"><span class="qg-plus" aria-hidden="true">+</span><span ${['Delivery', 'Cab'].includes(c.label) ? '' : 'data-no-translate'}>${escapeHtml(c.label)}</span></button>`).join('')}</div>`;
+  window.__quickChips = chips;
+  window.__translate?.(el);
+}
+document.addEventListener('click', async (e) => {
+  const b = e.target.closest?.('[data-quick-guest]');
+  if (!b || !currentUser || !currentMember) return;
+  const c = (window.__quickChips || [])[Number(b.dataset.quickGuest)];
+  if (!c) return;
+  b.disabled = true;
+  try {
+    await addDoc(collection(db, 'expectedGuests'), {
+      memberUid: currentUser.uid, guestName: c.guestName, expectedDate: todayLocalISO(),
+      purpose: c.purpose || null, residentName: currentMember.name, tower: currentMember.tower,
+      flatNumber: currentMember.flatNumber, status: 'expected', createdAt: serverTimestamp()
+    });
+    showToast(`${c.guestName} added for today — the gate will see it.`, 'success');
+    await loadMyGuests(currentUser.uid);
+  } catch (err) {
+    console.warn('Quick guest failed:', err?.code || err);
+    showToast(`Could not add${err?.code ? ` (${err.code})` : ''} — please try again.`, 'error');
+    b.disabled = false;
+  }
+});
+
 /* ---- First-time guide (v170) ------------------------------------------- */
 let guideIdx = 0;
 function renderGuide(dir) {
@@ -4736,7 +5189,7 @@ function renderMyComplaints() {
   const hn = document.getElementById('homeOpenComplaints');
   if (hn) { hn.textContent = openN ? `${openN} open` : ''; window.__translate?.(hn); }
   if (!rows.length) {
-    el.innerHTML = '<p class="t-muted" style="font-size:13px;">No complaints yet.</p>';
+    el.innerHTML = emptyState('No complaints', 'Nothing is pending. If something needs fixing, raise a complaint with a photo.', { compact: true, icon: 'check', action: { label: 'Raise a complaint', click: '#raiseComplaintBtn' } });
     window.__translate?.(el);
     return;
   }
@@ -4863,6 +5316,7 @@ async function submitComplaintRating(complaintId, rating) {
 
 function openComplaintModal() {
   document.getElementById('complaintForm')?.reset();
+  document.getElementById('cplt-share-row').style.display = 'none';
   document.getElementById('complaintModalBackdrop').classList.add('open');
 }
 document.getElementById('closeComplaintModal')?.addEventListener('click', () =>
@@ -4883,17 +5337,24 @@ document.getElementById('complaintForm')?.addEventListener('submit', async (e) =
       photoURL = await uploadFile(`complaintPhotos/${currentUser.uid}/complaint_${Date.now()}_${Math.random().toString(36).slice(2,8)}`, f.photo.files[0]);
       if (!photoURL) { photoURL = ''; photoUploadFailed = true; }
     }
-    await addDoc(collection(db, 'complaints'), {
+    const complaintRef = await addDoc(collection(db, 'complaints'), {
       raisedByUid: currentUser.uid, raisedByName: currentMember.name,
       tower: currentMember.tower, flatNumber: currentMember.flatNumber,
       category: f.category.value, location: f.location.value || null, title, description, photoURL,
       status: 'open', createdAt: serverTimestamp(), updatedAt: serverTimestamp()
     });
+    // Common-area problems can also be shared (privacy-safe copy) so neighbours can say "me too".
+    if (f.location.value === 'common' && document.getElementById('cplt-share')?.checked && complaintRef?.id) {
+      try {
+        await setDoc(doc(db, 'issues', complaintRef.id), { ...issueCopyFromComplaint({ title, category: f.category.value }), status: 'open', createdAt: serverTimestamp(), ownerUid: currentUser.uid });
+      } catch (shareErr) { console.warn('Could not share the issue with neighbours:', shareErr?.code || shareErr); }
+    }
     showToast(photoUploadFailed
       ? 'Complaint submitted, but your photo could not be uploaded — please check your connection and try adding it again later if needed.'
       : 'Complaint submitted. The committee will review it shortly.', photoUploadFailed ? 'error' : 'success');
     document.getElementById('complaintModalBackdrop').classList.remove('open');
     await loadMyComplaints(currentUser.uid);
+    loadCommonIssues();
   } catch (err) {
     console.error('Submit complaint failed:', err);
     const code = err?.code || '';
@@ -5157,8 +5618,8 @@ async function downloadStatement(e) {
 }
 
 /* ---- Membership card ---- */
-async function downloadCard() {
-  const btn = document.getElementById('downloadCardBtn');
+async function downloadCard(print = false) {
+  const btn = document.getElementById(print ? 'downloadCardPrintBtn' : 'downloadCardBtn');
   setLoading(btn, true);
   try {
     let society = { name: SOCIETY.fullName, regNumber: SOCIETY.regNumber };
@@ -5195,7 +5656,8 @@ async function downloadCard() {
       society,
       logoDataUrl,
       financialYear: currentFinancialYear(),
-      officeAddress
+      officeAddress,
+      print
     });
   } catch (e) {
     console.error('Membership card error:', e);
@@ -5339,6 +5801,7 @@ function renderDuesHero(dues, financialYear) {
     </div>`;
   }
   el.innerHTML = html;
+  el.querySelector('.dh-top')?.insertAdjacentHTML('beforeend', `<button type="button" class="dh-eye" data-hide-amt aria-pressed="${getHideAmounts()}" aria-label="${getHideAmounts() ? 'Show amounts' : 'Hide amounts'}">${icon(getHideAmounts() ? 'eyeoff' : 'eye')}</button>`);
   document.getElementById('duesPayNowBtn')?.addEventListener('click', openPaymentModal);
   const rb = document.getElementById('duesReceiptBtn');
   if (rb && latest) rb.addEventListener('click', () => {
@@ -5477,7 +5940,7 @@ async function loadPayments(uid, preserveShowCount) {
   renderDues(currentDues, currentFinancialYear());
 
   if (!rows.length) {
-    list.innerHTML = emptyState('No payments yet', 'Your verified payments and receipts will appear here.', { compact: true });
+    list.innerHTML = emptyState('No payments yet', 'Once you pay, you can follow it here and download the receipt.', { compact: true, icon: 'receipt', action: { label: 'Make a payment', click: '#openPaymentBtn' } });
     window.__translate(list); return;
   }
 
@@ -5502,12 +5965,7 @@ async function loadPayments(uid, preserveShowCount) {
 
   // Submitted → Verified → Receipt, so a resident can see where THIS payment is
   // without asking the committee.
-  const stepsHtml = (p) => {
-    const st = paymentSteps(p);
-    return `<div class="pay-steps" role="img" aria-label="${escapeHtml(st.map((x) => `${x.label}: ${x.state === 'done' ? 'done' : x.state === 'current' ? 'in progress' : x.state === 'bad' ? 'stopped' : 'not yet'}`).join(', '))}">`
-      + st.map((x, i) => `${i ? `<span class="ps-line ${st[i - 1].state === 'done' ? 'done' : ''}"></span>` : ''}<span class="ps ${x.state}"><span class="ps-dot"></span>${escapeHtml(x.label)}</span>`).join('')
-      + `</div>`;
-  };
+  const stepsHtml = paymentStepsHtml;
 
   list.innerHTML = `<ul class="pay-timeline">` + listRows.map(p => `
     <li class="tl-item">
@@ -5884,7 +6342,8 @@ function renderPayDetailForm(mode, paySettings, payContext) {
       ${upiLaunchHtml}
       ${!isOffline ? `<div class="field">
         <label for="payUtr">UTR / Transaction ID</label>
-        <input id="payUtr" required autocapitalize="characters">
+        <input id="payUtr" data-mode="${mode}" required autocapitalize="characters" autocomplete="off" autocorrect="off" spellcheck="false" maxlength="40" enterkeyhint="done">
+        <div class="utr-live" id="payUtrLive" aria-live="polite"></div>
         <div class="hint">Whichever your payment app shows you — the bank's UTR/RRN number, or your UPI app's own Transaction ID. Either is fine.</div>
       </div>
       <div class="field"><label for="payProof">Payment Screenshot <span class="t-muted" style="font-weight:400;">(optional)</span></label><input type="file" id="payProof" accept="image/*"></div>` : ''}
@@ -5971,11 +6430,24 @@ function renderPayDetailForm(mode, paySettings, payContext) {
 }
 
 let paymentInFlight = false; window.__appBusy = false;   // re-entrancy lock: a payment is a financial record, never submit twice
+document.addEventListener('input', (e) => {
+  const t = e.target;
+  if (t?.id === 'payUtr') {
+    const clean = cleanUtr(t.value);
+    if (clean !== t.value.toUpperCase().trim() && /[\s\-_.]/.test(t.value)) t.value = clean;   // pasted "1234 5678 9012"
+    const mode = t.dataset.mode || 'upi';
+    const fb = utrFeedback(t.value, mode);
+    const live = document.getElementById('payUtrLive');
+    if (live) { live.textContent = fb.text; live.dataset.tone = fb.tone; window.__translate?.(live); }
+  } else if (t?.id === 'pf-mobile') {
+    const c = cleanMobile(t.value); if (c !== t.value) t.value = c;
+  }
+});
 async function submitPayment(mode) {
   const btn = document.getElementById('submitPaymentBtn');
   const amount = Number(document.getElementById('payAmount').value);
   const isOffline = mode === 'cash' || mode === 'cheque';
-  let utr = isOffline ? '' : document.getElementById('payUtr').value.trim();
+  let utr = isOffline ? '' : cleanUtr(document.getElementById('payUtr').value);
   let proofURL = '';
 
   // A double-tap on a slow network must not create two payment records. The
@@ -6071,9 +6543,22 @@ async function submitPayment(mode) {
     }
 
     document.getElementById('paymentModalBackdrop').classList.remove('open');
-    showSuccess('Thank You!', isOffline
-      ? 'Thanks for letting us know — your payment now shows as Pending Approval on your dashboard. Once the office confirms it, it will update to Verified with a receipt.'
-      : 'Thanks for your payment — it now shows as Pending Verification on your dashboard. Once it\'s verified, it will update to Verified with a receipt.');
+    {
+      const forWhat = paymentData.type === 'membership' ? 'Membership fee'
+        : paymentData.type === 'event' ? (paymentData.eventName || 'Event')
+        : `Maintenance · FY ${paymentData.financialYear}`;
+      const row = (k, v) => `<div class="sx-row"><span>${k}</span><b>${escapeHtml(v)}</b></div>`;
+      const detailHtml = `<div class="sx-card">
+        <div class="sx-amt">${formatINR(amount)}</div>
+        ${row('For', forWhat)}${row('Paid by', String(mode || '').toUpperCase())}${utr ? row('Reference', utr) : ''}
+        ${paymentStepsHtml(paymentData)}
+        <div class="sx-next">Next: the committee matches it with the bank record. Your receipt appears under Payments once it is verified.</div>
+      </div>`;
+      showSuccess('Thank You!', isOffline
+        ? 'Thanks for letting us know — your payment now shows as Pending Approval on your dashboard. Once the office confirms it, it will update to Verified with a receipt.'
+        : 'Thanks for your payment — it now shows as Pending Verification on your dashboard. Once it\'s verified, it will update to Verified with a receipt.',
+        { detailHtml, secondaryLabel: 'View my payments', onSecondary: () => window.__showView?.('payments') });
+    }
     await loadPayments(currentUser.uid);
   } catch (e) {
     showToast('Something went wrong — please try again.', 'error');
@@ -6096,6 +6581,39 @@ async function loadNotices() {
     window.__translate(listEl);
   }
 }
+/* One-tap "I have read this": a create-only receipt at notices/{id}/acks/{uid}. */
+window.__noticeAcks = window.__noticeAcks || new Set();
+function noticeAckHtml(n) {
+  if (!window.__loggedIn || !currentUser || currentMember?.status !== 'approved') return '';
+  return window.__noticeAcks.has(n.id)
+    ? '<span class="notice-ack is-done"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-check"/></svg>You confirmed you have read this</span>'
+    : `<button type="button" class="notice-ack" data-ack-notice="${escapeHtml(n.id)}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-check"/></svg>I have read this</button>`;
+}
+async function refreshNoticeAcks() {
+  const rows = window.__notices;
+  if (!rows?.length || !currentUser) return;
+  try {
+    const snaps = await Promise.all(rows.map((n) => getDoc(doc(db, 'notices', n.id, 'acks', currentUser.uid))));
+    rows.forEach((n, i) => { if (snaps[i].exists()) window.__noticeAcks.add(n.id); });
+    renderNotices();
+  } catch (e) { console.warn('Notice confirmations check failed:', e?.code || e); }
+}
+document.addEventListener('click', async (e) => {
+  const b = e.target.closest?.('[data-ack-notice]');
+  if (!b || !currentUser) return;
+  const id = b.dataset.ackNotice;
+  b.disabled = true;
+  try {
+    await setDoc(doc(db, 'notices', id, 'acks', currentUser.uid), { at: serverTimestamp() });
+    window.__noticeAcks.add(id);
+    renderNotices();
+    showToast('Thanks — the committee can see you have read it.', 'success');
+  } catch (err) {
+    console.warn('Notice confirm failed:', err?.code || err);
+    showToast(`Could not save${err?.code ? ` (${err.code})` : ''} — please try again.`, 'error');
+    b.disabled = false;
+  }
+});
 function renderNotices() {
   const listEl = document.getElementById('noticeList');
   listEl.dataset.loaded = '1';
@@ -6104,7 +6622,7 @@ function renderNotices() {
   // Guard: without this, switching language on a society with no notices
   // yet would blank the box instead of keeping the empty-state message.
   if (!rows || !rows.length) {
-    listEl.innerHTML = emptyState('No notices yet', 'New notices from the committee will appear here.', { compact: true });
+    listEl.innerHTML = emptyState('No notices yet', 'New notices from the committee will appear here.', { compact: true, icon: 'bell' });
     window.__translate(listEl);
     return;
   }
@@ -6122,6 +6640,7 @@ function renderNotices() {
           <p data-no-translate>${escapeHtml(lang === 'hi' ? (n.bodyHi || n.bodyEn) : n.bodyEn)}</p>
           ${n.attachmentURL ? `<a href="${escapeHtml(n.attachmentURL)}" target="_blank" rel="noopener" style="font-size:12.5px; text-decoration:underline; display:inline-block; margin-top:7px;" class="t-sub">Download attachment</a>` : ''}
           <div class="notice-actions">
+            ${noticeAckHtml(n)}
             <a class="notice-share" target="_blank" rel="noopener"
                href="${waShareText(noticeShareText(n, lang))}"
                aria-label="Share this notice on WhatsApp">
@@ -6283,6 +6802,7 @@ async function loadPolls() {
       end: p.endTime?.toDate ? p.endTime.toDate() : new Date(p.endTime)
     });
     window.__activePolls = rows.filter(p => { const { start, end } = span(p); return now >= start && now <= end; });
+    try { renderTodayStrip(); } catch (_) { /* strip is a nicety */ }
     // Residents keep seeing the FINAL result for 60 days after a poll closes —
     // before v167 a poll simply vanished the moment voting ended, so nobody
     // outside the committee ever learned the outcome.
@@ -6628,7 +7148,7 @@ async function loadSettingsPublic() {
       </div>
     `;
     window.__translate(document.getElementById('contactDetails'));
-    if (s.address) document.getElementById('mapFrame').src = `https://www.google.com/maps?q=${encodeURIComponent(s.address)}&output=embed`;
+    if (s.address) window.__mapLazy(`https://www.google.com/maps?q=${encodeURIComponent(s.address)}&output=embed`);
   } catch (e) {}
 }
 

@@ -63,13 +63,34 @@
   @media (min-width:900px){
     #screen-main .g-header{ padding:20px max(28px, calc((100% - 860px) / 2)) 26px; }
     .g-body{ width:100%; max-width:900px; margin:0 auto; padding:28px; }
-    .purpose-btn{ padding:22px 8px 18px; font-size:14px; }
+    .purpose-btn{ padding:22px 8px 18px; font-size:18px; }
   }
   .g-body{ flex:1; overflow-y:auto; padding:16px; padding-bottom:32px; }
 
-  .purpose-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-bottom:22px; }
+  .exp-card{ color:#10192B; background:#fff; border:1px solid var(--line,#e5e7eb); border-radius:14px; padding:14px; margin-bottom:18px; }
+  .exp-head{ display:flex; align-items:center; gap:8px; font-size:15px; }
+  .exp-n{ background:#1B7A4D; color:#fff; border-radius:999px; font-size:12px; font-weight:700; padding:1px 9px; }
+  .exp-sub{ color:#5C6880; font-size:12.5px; margin:2px 0 8px; }
+  .exp-search{ width:100%; padding:10px 12px; border:1px solid #D9D3C6; border-radius:10px; font-size:15px; margin-bottom:6px; }
+  .exp-row{ display:flex; align-items:center; gap:10px; padding:10px 0; border-top:1px solid #EAE6DC; }
+  .exp-main{ flex:1; min-width:0; display:flex; flex-direction:column; }
+  .exp-main b{ font-size:15px; overflow-wrap:anywhere; }
+  .exp-main span{ color:#5C6880; font-size:12.5px; overflow-wrap:anywhere; }
+  .exp-go{ min-height:44px; min-width:84px; border:0; border-radius:10px; background:#1B7A4D; color:#fff; font-weight:700; font-size:14px; }
+  .exp-go:disabled{ opacity:.5; }
+  .purpose-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:12px; margin-bottom:22px; }
+  @media (min-width:700px){ .purpose-grid{ grid-template-columns:repeat(4,1fr); } }
   .purpose-btn{ background:linear-gradient(180deg,#12294F,#0F2547); border:1px solid rgba(255,255,255,.10); border-radius:18px; padding:16px 4px 13px; color:#fff; text-align:center; font-size:12.5px; font-weight:600; box-shadow:0 6px 16px rgba(0,0,0,.25); }
-  .purpose-btn:active{ background:var(--navy-800); }
+  .purpose-btn:active{ background:var(--navy-800); transform:scale(.97); }
+  /* Big, colour-coded, readable at arm's length in daylight. */
+  .purpose-btn{ min-height:104px; font-size:18px; font-weight:700; letter-spacing:.01em; border-width:1.5px; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+  .purpose-btn .ico{ width:56px; height:56px; }
+  .purpose-btn .ico svg{ width:34px; height:34px; }
+  .purpose-btn[data-purpose="guest"]{ border-color:rgba(52,211,153,.6); } .purpose-btn[data-purpose="guest"] .ico{ background:rgba(52,211,153,.18); color:#6ee7b7; }
+  .purpose-btn[data-purpose="delivery"]{ border-color:rgba(251,191,36,.6); } .purpose-btn[data-purpose="delivery"] .ico{ background:rgba(251,191,36,.18); color:#fcd34d; }
+  .purpose-btn[data-purpose="cab"]{ border-color:rgba(96,165,250,.6); } .purpose-btn[data-purpose="cab"] .ico{ background:rgba(96,165,250,.18); color:#93c5fd; }
+  .purpose-btn[data-purpose="service"]{ border-color:rgba(192,132,252,.6); } .purpose-btn[data-purpose="service"] .ico{ background:rgba(192,132,252,.18); color:#d8b4fe; }
+  .exp-go{ min-height:52px; min-width:96px; font-size:16px; }
   .purpose-btn .ico{ display:flex; justify-content:center; margin-bottom:6px; }
   .purpose-btn .ico svg{ width:30px; height:30px; }
   .purpose-btn .ico{ width:48px; height:48px; margin:0 auto 8px; border-radius:15px; background:rgba(255,201,120,.10); align-items:center; }
@@ -184,6 +205,8 @@
       <button class="purpose-btn" data-purpose="service" data-label="Service"><span class="ico"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-tool"/></svg></span>Service</button>
     </div>
 
+    <div id="expectedWrap"></div>
+
     <div id="queueWrap"><p class="q-empty">Loading…</p></div>
   </div>
 </div>
@@ -239,9 +262,9 @@ import {
   signInWithEmailAndPassword, onAuthStateChanged, signOut
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
 import {
-  doc, getDoc, addDoc, updateDoc, collection, query, where, onSnapshot, serverTimestamp
+  doc, getDoc, addDoc, updateDoc, collection, query, where, onSnapshot, serverTimestamp, writeBatch
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { showToast, escapeHtml, TOWER_IDS, flatsForTower, flatKey, getTextSize, setTextSize } from './app-common.js?v=170';
+import { showToast, escapeHtml, TOWER_IDS, flatsForTower, flatKey, getTextSize, setTextSize, todayLocalISO, guestsForGate, visitorFieldsForGuest } from './app-common.js?v=177';
 import { installAppInstallPrompt } from './install-prompt.js';
 
 window.__moduleBooted = true; { var __bg = document.getElementById('bootGuard'); if (__bg) __bg.remove(); }
@@ -249,6 +272,7 @@ installAppInstallPrompt({ appName: 'MHMRWS Gate', showToast });
 
 let currentGuard = null;
 let unsubscribeVisitors = null;
+let unsubscribeExpected = null;
 
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -293,6 +317,7 @@ document.getElementById('logoutBtn').addEventListener('click', () => signOut(aut
 
 onAuthStateChanged(auth, async (user) => {
   if (unsubscribeVisitors) { unsubscribeVisitors(); unsubscribeVisitors = null; }
+  if (unsubscribeExpected) { unsubscribeExpected(); unsubscribeExpected = null; }
   if (!user) {
     currentGuard = null;
     document.getElementById('loginPin').value = '';
@@ -320,6 +345,7 @@ onAuthStateChanged(auth, async (user) => {
     showScreen('screen-main');
     populateTowerSelect();
     subscribeVisitors();
+    subscribeExpected();
   } catch (err) {
     console.error('Guard profile load failed:', err);
     const errEl = document.getElementById('loginError');
@@ -422,6 +448,69 @@ document.getElementById('entryForm').addEventListener('submit', async (e) => {
 /*  uses for every list that isn't a single straight equality+orderBy.    */
 /* ---------------------------------------------------------------------- */
 const PURPOSE_LABEL = { guest: 'Guest', delivery: 'Delivery', cab: 'Cab', service: 'Service', other: 'Other' };
+
+/* ---------------------------------------------------------------------- */
+/*  Expected today — guests a resident announced for today. One tap lets   */
+/*  them in (checked_in straight away) and marks the announcement arrived. */
+/* ---------------------------------------------------------------------- */
+let expectedRows = [];
+let expectedDay = '';
+let expectedSearch = '';
+function subscribeExpected() {
+  if (unsubscribeExpected) { unsubscribeExpected(); unsubscribeExpected = null; }
+  expectedDay = todayLocalISO();
+  unsubscribeExpected = onSnapshot(
+    query(collection(db, 'expectedGuests'), where('expectedDate', '==', expectedDay)),
+    (snap) => { expectedRows = snap.docs.map(d => ({ id: d.id, ...d.data() })); renderExpected(); },
+    (err) => { console.warn('Expected guests listener failed:', err?.code || err); expectedRows = []; renderExpected(); }
+  );
+}
+// Past midnight the "today" query is stale: pick up the new day.
+setInterval(() => { if (currentGuard && expectedDay && expectedDay !== todayLocalISO()) subscribeExpected(); }, 60000);
+
+function renderExpected() {
+  const wrap = document.getElementById('expectedWrap');
+  if (!wrap) return;
+  const all = guestsForGate(expectedRows, expectedDay, '');
+  if (!all.length) { wrap.innerHTML = ''; return; }
+  const list = guestsForGate(expectedRows, expectedDay, expectedSearch);
+  wrap.innerHTML = `<div class="exp-card">
+    <div class="exp-head"><b>Expected today</b><span class="exp-n">${all.length}</span></div>
+    <div class="exp-sub">Announced by residents — tap Let in when they arrive.</div>
+    ${all.length > 4 ? `<input type="search" id="expSearch" class="exp-search" placeholder="Search name or flat" value="${escapeHtml(expectedSearch)}" autocomplete="off" aria-label="Search expected guests">` : ''}
+    ${list.map(g => `<div class="exp-row">
+      <div class="exp-main"><b>${escapeHtml(g.guestName)}</b><span>${escapeHtml(g.tower)} · ${escapeHtml(g.flatNumber)}${g.residentName ? ` · ${escapeHtml(g.residentName)}` : ''}${g.purpose ? ` · ${escapeHtml(g.purpose)}` : ''}</span></div>
+      <button type="button" class="exp-go" data-let-in="${escapeHtml(g.id)}">Let in</button>
+    </div>`).join('') || '<div class="exp-sub" style="padding:8px 0;">Nobody matches that search.</div>'}
+  </div>`;
+  const inp = document.getElementById('expSearch');
+  if (inp) {
+    inp.addEventListener('input', (e) => { expectedSearch = e.target.value; const pos = e.target.selectionStart; renderExpected(); const n = document.getElementById('expSearch'); if (n) { n.focus(); try { n.setSelectionRange(pos, pos); } catch (_) {} } });
+  }
+}
+document.getElementById('expectedWrap')?.addEventListener('click', async (e) => {
+  const b = e.target.closest?.('[data-let-in]');
+  if (!b || !currentGuard) return;
+  const g = expectedRows.find(x => x.id === b.dataset.letIn);
+  if (!g) return;
+  b.disabled = true;
+  try {
+    const batch = writeBatch(db);
+    batch.set(doc(collection(db, 'visitors')), {
+      ...visitorFieldsForGuest(g, g.id, currentGuard.uid),
+      createdAt: serverTimestamp(), decidedAt: serverTimestamp(), checkedInAt: serverTimestamp()
+    });
+    batch.update(doc(db, 'expectedGuests', g.id), { status: 'arrived', arrivedAt: serverTimestamp(), updatedAt: serverTimestamp() });
+    await batch.commit();
+    expectedRows = expectedRows.map(x => x.id === g.id ? { ...x, status: 'arrived' } : x);
+    renderExpected();
+    showToast(`${g.guestName} let in.`, 'success');
+  } catch (err) {
+    console.error('Let in failed:', err);
+    showToast(`Could not let in${err?.code ? ` (${err.code})` : ''} — send for approval instead.`, 'error');
+    b.disabled = false;
+  }
+});
 
 function subscribeVisitors() {
   // Any active guard can now read any visitor (shift handover: a visitor
