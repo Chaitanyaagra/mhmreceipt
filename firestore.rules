@@ -54,6 +54,16 @@ service cloud.firestore {
     function isSuperAdmin() {
       return isAdmin() && adminRole() == 'superadmin';
     }
+    // STEP-UP: the caller must have typed their password within the last 10
+    // minutes (auth_time is when the ID token's sign-in actually happened, and
+    // is refreshed by re-authenticating). Required for the few actions that
+    // could redirect money or hand out admin power — a stolen, still-open
+    // session cannot do those without the password.
+    function recentSignIn() {
+      return isSignedIn()
+             && request.auth.token.auth_time != null
+             && request.time.toMillis() - request.auth.token.auth_time * 1000 < 600000;
+    }
     // Only the Treasurer (and Super Admin) may touch money.
     function canVerifyPayments() {
       return isAdmin() && adminRole() in ['superadmin', 'treasurer'];
@@ -425,10 +435,10 @@ service cloud.firestore {
       allow read: if isAdmin();
       // Role must be one of the recognised committee posts — this is what
       // stops anyone from inventing a role string to widen their own access.
-      allow create, update: if isSuperAdmin()
+      allow create, update: if isSuperAdmin() && recentSignIn()
                             && request.resource.data.role in
                                ['superadmin','president','secretary','jointsecretary','treasurer'];
-      allow delete: if isSuperAdmin();
+      allow delete: if isSuperAdmin() && recentSignIn();
     }
 
     // ---- Payments -------------------------------------------------------
@@ -1223,6 +1233,25 @@ service cloud.firestore {
       let poll = get(/databases/$(database)/documents/polls/$(pollId)).data;
       return option in poll.options;
     }
+    // v167 — one vote per FLAT. A poll made with perFlat:true also needs a
+    // polls/{id}/flatVotes/{tower_flat} document, created in the SAME batch as
+    // the vote. That document's ID is rebuilt below from the voter's OWN member
+    // record (tower and flat can't be changed by the member — see members/),
+    // so a second family member of the same flat hits "already exists" and the
+    // whole transaction — vote and tally included — is refused. Old polls have
+    // no perFlat field and keep their one-vote-per-member behaviour.
+    function pollIsPerFlat(pollId) {
+      let poll = get(/databases/$(database)/documents/polls/$(pollId)).data;
+      return poll.get('perFlat', false) == true;
+    }
+    function myFlatVoteId() {
+      let m = get(/databases/$(database)/documents/members/$(request.auth.uid)).data;
+      return m.tower + '_' + m.flatNumber;
+    }
+    function flatVotePaired(pollId) {
+      let ref = /databases/$(database)/documents/polls/$(pollId)/flatVotes/$(myFlatVoteId());
+      return existsAfter(ref);
+    }
     // The actual fix for the tally-inflation gap: a standalone tally
     // increment, called repeatedly with nothing else, always satisfied
     // !exists(votes/{uid}) — that check only proves the caller HASN'T
@@ -1258,7 +1287,10 @@ service cloud.firestore {
                     && request.resource.data.options.size() <= 10
                     && request.resource.data.startTime is timestamp
                     && request.resource.data.endTime is timestamp
-                    && request.resource.data.endTime > request.resource.data.startTime;
+                    && request.resource.data.endTime > request.resource.data.startTime
+                    && (!('perFlat' in request.resource.data) || request.resource.data.perFlat is bool)
+                    && (!('description' in request.resource.data)
+                        || (request.resource.data.description is string && request.resource.data.description.size() <= 600));
       allow delete: if canApproveMembers();
 
       // A public per-option tally, kept in step with votes/ by the same
@@ -1295,6 +1327,22 @@ service cloud.firestore {
         allow delete: if isAdmin();
       }
 
+      // Who has voted — by FLAT only, never what they voted for and never which
+      // family member. Readable by approved members (it is the turnout figure,
+      // like an AGM attendance count) and by the committee (who chase the rest).
+      match /flatVotes/{flatId} {
+        allow read: if isApprovedMember() || isAdmin();
+        allow create: if isApprovedMember()
+                      && pollIsOpen(pollId)
+                      && pollIsPerFlat(pollId)
+                      && flatId == myFlatVoteId()
+                      && request.resource.data.keys().hasOnly(['votedAt'])
+                      && request.resource.data.votedAt == request.time
+                      && existsAfter(/databases/$(database)/documents/polls/$(pollId)/votes/$(request.auth.uid));
+        allow update: if false;
+        allow delete: if isAdmin();
+      }
+
       match /votes/{voterUid} {
         // Only the voter's own read and admin tallying are allowed — any
         // signed-in resident being able to read this previously meant one
@@ -1309,7 +1357,8 @@ service cloud.firestore {
                       && isApprovedMember()
                       && request.resource.data.option is string
                       && optionIsValid(pollId, request.resource.data.option)
-                      && pollIsOpen(pollId);
+                      && pollIsOpen(pollId)
+                      && (!pollIsPerFlat(pollId) || flatVotePaired(pollId));
         allow update: if false;
         // Delete stays blocked for the voter (a cast vote is final — they
         // can never un-vote or change it), but admin needs this for genuine
@@ -1384,7 +1433,29 @@ service cloud.firestore {
                   : true;
       // expensePolicy (the two-person approval limit) is the Super Admin's call —
       // the Treasurer who records expenses must not be able to switch the check off.
-      allow write: if settingId == 'expensePolicy' ? isSuperAdmin() : canVerifyPayments();
+      // payment / paymentPrivate hold the UPI ID and bank account residents pay
+      // into — changing them is the one edit that could quietly redirect money,
+      // so it also needs a fresh password (see recentSignIn).
+      allow write: if settingId == 'expensePolicy' ? isSuperAdmin()
+                    : (settingId == 'payment' || settingId == 'paymentPrivate') ? (canVerifyPayments() && recentSignIn())
+                    : canVerifyPayments();
+    }
+
+    // ---- Dues reminders ------------------------------------------------------
+    // ONE small document per "send reminder" press — not one per resident. Each
+    // resident's app reads the latest one and shows a reminder only if THEY
+    // currently owe something, so there is nothing to clean up and no personal
+    // data in it. Only the Treasurer / Super Admin can send one.
+    match /reminders/{reminderId} {
+      allow read: if isApprovedMember() || isAdmin();
+      allow create: if canVerifyPayments()
+                    && request.resource.data.keys().hasOnly(['type', 'fy', 'sentAt', 'sentBy', 'count'])
+                    && request.resource.data.type == 'dues'
+                    && request.resource.data.sentAt == request.time
+                    && request.resource.data.sentBy == request.auth.token.email
+                    && request.resource.data.count is int
+                    && request.resource.data.fy is string && request.resource.data.fy.size() <= 12;
+      allow update, delete: if false;
     }
 
     // ---- Public receipt verification (where the receipt QR lands) ---------

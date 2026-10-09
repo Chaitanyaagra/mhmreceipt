@@ -242,3 +242,37 @@ export function installPasswordToggles(root = document) {
     });
   });
 }
+
+
+/* Give every form control an accessible name. Many fields use only a
+   placeholder (or sit under a visual label that is not wired with for=), which
+   screen readers announce as a bare "edit text". This derives a name from the
+   nearest sensible source and keeps doing so for fields that are rendered later. */
+export function installAutoLabels(root = document) {
+  const SKIP = 'input[type=hidden],input[type=checkbox],input[type=radio],input[type=submit],input[type=button]';
+  const clean = (t) => (t || '').replace(/\s+/g, ' ').replace(/[*:]+$/g, '').trim();
+  function nameFor(el) {
+    if (el.getAttribute('aria-label') || el.getAttribute('aria-labelledby') || el.title) return '';
+    if (el.id && root.querySelector(`label[for="${CSS.escape(el.id)}"]`)) return '';
+    if (el.closest('label')) return '';
+    const field = el.closest('.field, .g-field, .login-field, .form-row');
+    const lbl = field && field.querySelector('label');
+    if (lbl && clean(lbl.textContent)) return clean(lbl.textContent);
+    const prev = el.previousElementSibling;
+    if (prev && prev.tagName === 'LABEL' && clean(prev.textContent)) return clean(prev.textContent);
+    if (el.placeholder) return clean(el.placeholder);
+    if (el.tagName === 'SELECT' && el.options && el.options[0] && clean(el.options[0].textContent)) return clean(el.options[0].textContent);
+    if (el.type === 'file') return 'Choose a file';
+    if (el.name) return clean(el.name.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/[-_]+/g, ' '));
+    return '';
+  }
+  function run() {
+    root.querySelectorAll(`input:not(${SKIP.split(',').join('):not(')}),select,textarea`).forEach((el) => {
+      const n = nameFor(el);
+      if (n) el.setAttribute('aria-label', n);
+    });
+  }
+  run();
+  let t = null;
+  new MutationObserver(() => { clearTimeout(t); t = setTimeout(run, 150); }).observe(document.body, { childList: true, subtree: true });
+}

@@ -32,7 +32,7 @@
 
   --gold-300:#E4C765;
   --gold-500:#C9A227;
-  --gold-700:#8F7115;
+  --gold-700:#7D6410;   /* v168: 4.4:1 -> 5.4:1 on the ivory page */
 
   /* Sampled from the society's own brochure — this is the magenta the
      "Majestic" script is set in, and the accent colour used throughout
@@ -53,7 +53,7 @@
   --ink-900:#10192B;
   --ink-700:#2B3448;
   --ink-600:#465066;
-  --ink-400:#7C879C;
+  --ink-400:#5C6880;   /* v168: was #7C879C = 3.4:1 on the ivory page; this is 5.3:1 (WCAG AA needs 4.5) */
   --ink-200:#C4CBD8;
 
   --line:#EAE6DC;           /* warm hairline to match ivory (was cool grey) */
@@ -143,7 +143,7 @@ ul{ margin:0; padding:0; list-style:none; }
 
 /* --- Eyebrow / micro label ---------------------------------------------- */
 .eyebrow{
-  font-family:var(--font-mono); font-size:11.5px; font-weight:500; letter-spacing:.14em;
+  font-family:var(--font-mono); font-size:12.5px; font-weight:500; letter-spacing:.14em;
   text-transform:uppercase; color:var(--gold-700);
 }
 .eyebrow.on-dark{ color:var(--saffron-300); }
@@ -244,7 +244,7 @@ ul{ margin:0; padding:0; list-style:none; }
 }
 .badge-dot{ width:6px; height:6px; border-radius:50%; background:currentColor; }
 .badge-success{ background:var(--success-bg); color:var(--success); border-color:var(--success-line); }
-.badge-warning{ background:var(--warning-bg); color:var(--warning); border-color:var(--warning-line); }
+.badge-warning{ background:var(--warning-bg); color:#855600; border-color:var(--warning-line); }   /* v168: #B5760A was 3.4:1 on its own tint; this is 5.7:1 */
 .badge-danger{ background:var(--danger-bg); color:var(--danger); border-color:var(--danger-line); }
 .badge-info{ background:var(--info-bg); color:var(--info); border-color:var(--info-line); }
 .badge-gold{ background:#FBF3DC; color:var(--gold-700); border-color:var(--gold-300); }
@@ -283,13 +283,13 @@ input[type="file"]{ padding:9px; font-size:13px; }
 .checkbox-row{ display:flex; align-items:flex-start; gap:10px; font-size:13.5px; color:var(--ink-700); }
 .checkbox-row input{ width:auto; margin-top:3px; accent-color:var(--navy-800); }
 fieldset{ border:1px solid var(--line); border-radius:var(--radius-md); padding:18px; margin:0 0 18px; }
-legend{ font-family:var(--font-mono); font-size:11.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-400); padding:0 8px; }
+legend{ font-family:var(--font-mono); font-size:12.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-400); padding:0 8px; }
 
 /* --- Tables ----------------------------------------------------------------- */
 .table-wrap{ overflow-x:auto; border:1px solid var(--line); border-radius:var(--radius-md); background:var(--white); }
 table{ width:100%; border-collapse:collapse; font-size:13.5px; min-width:640px; }
 thead th{
-  text-align:left; font-family:var(--font-mono); font-size:11px; letter-spacing:.08em; text-transform:uppercase;
+  text-align:left; font-family:var(--font-mono); font-size:12px; letter-spacing:.08em; text-transform:uppercase;
   color:var(--ink-400); padding:12px 14px; border-bottom:1px solid var(--line); background:var(--paper); white-space:nowrap;
 }
 /* Proportional digits make a column of rupee figures unreadable: 1 is narrow,
@@ -334,7 +334,7 @@ tbody tr:hover{ background:#FAFBFD; }
   .table-wrap.responsive td:last-child{ border-bottom:none; }
   .table-wrap.responsive td::before{
     content:attr(data-label);
-    font-family:var(--font-mono); font-size:10px; letter-spacing:.07em; text-transform:uppercase;
+    font-family:var(--font-mono); font-size:11px; letter-spacing:.07em; text-transform:uppercase;
     color:var(--ink-400); flex-shrink:0; text-align:left;
   }
   /* A row's action cell becomes a full-width, thumb-sized button. */
@@ -356,7 +356,7 @@ tbody tr:hover{ background:#FAFBFD; }
   display:none; align-items:center; justify-content:center; padding:20px; z-index:80;
 }
 .modal-backdrop.open{ display:flex; animation:modal-veil .18s ease both; }
-.modal{ background:var(--white); border-radius:var(--radius-lg); max-width:560px; width:100%; max-height:88vh; overflow-y:auto; box-shadow:var(--shadow-pop); }
+.modal{ background:var(--white); border-radius:var(--radius-lg); max-width:560px; width:100%; max-height:calc(88 * var(--vh1)); overflow-y:auto; box-shadow:var(--shadow-pop); }
 
 /* The backdrop is toggled by adding/removing .open, which flips `display` —
    and display is not animatable, so the modal used to appear in a single
@@ -377,7 +377,7 @@ tbody tr:hover{ background:#FAFBFD; }
    already is, and matches what every native app on the device does. */
 @media (max-width: 640px){
   .modal-backdrop{ align-items:flex-end; padding:0; }
-  .modal{ max-width:none; border-radius:var(--radius-lg) var(--radius-lg) 0 0; max-height:92vh;
+  .modal{ max-width:none; border-radius:var(--radius-lg) var(--radius-lg) 0 0; max-height:calc(92 * var(--vh1));
           padding-bottom:env(safe-area-inset-bottom); }
   .modal-backdrop.open .modal{ animation:modal-sheet .26s cubic-bezier(.2,.7,.3,1) both; }
   @keyframes modal-sheet{ from{ transform:translateY(100%); } }
@@ -400,12 +400,12 @@ tbody tr:hover{ background:#FAFBFD; }
 .install-banner .ib-icon img{ display:block; border-radius:9px; }
 .install-banner .ib-text{ flex:1; min-width:0; display:flex; flex-direction:column; gap:1px; }
 .install-banner .ib-text b{ font-size:13.5px; }
-.install-banner .ib-text span{ font-size:11.5px; color:rgba(255,255,255,.72); }
+.install-banner .ib-text span{ font-size:12.5px; color:rgba(255,255,255,.72); }
 .install-banner .ib-actions{ display:flex; flex-direction:column; gap:5px; flex-shrink:0; }
 .install-banner .ib-install{ background:var(--saffron-500,#FF9933); color:#0F2547; border:none; font-weight:700; font-size:12.5px; padding:7px 14px; border-radius:8px; cursor:pointer; }
-.install-banner .ib-dismiss{ background:transparent; color:rgba(255,255,255,.6); border:none; font-size:11px; padding:2px; cursor:pointer; }
+.install-banner .ib-dismiss{ background:transparent; color:rgba(255,255,255,.6); border:none; font-size:12px; padding:2px; cursor:pointer; }
 @media (max-width:600px){ .install-banner{ bottom:76px; } }
-.toast{
+.toast{ cursor:pointer;
   background:var(--navy-950); color:var(--white); padding:13px 16px; border-radius:var(--radius-md);
   font-size:13.5px; box-shadow:var(--shadow-pop); display:flex; align-items:flex-start; gap:10px;
   animation:toast-in .25s ease;
@@ -476,7 +476,7 @@ tbody tr:hover{ background:#FAFBFD; }
 .pay-detail-box{ text-align:left; margin-top:4px; border:1px solid var(--line); border-radius:var(--radius-md); overflow:hidden; }
 .pay-detail-box .pdl{ display:flex; justify-content:space-between; gap:14px; padding:7px 12px; font-size:12.8px; border-bottom:1px solid var(--line); }
 .pay-detail-box .pdl:last-child{ border-bottom:none; }
-.pay-detail-box .pdl span:first-child{ color:var(--ink-400); font-family:var(--font-mono); font-size:10.5px; letter-spacing:.04em; text-transform:uppercase; white-space:nowrap; padding-top:2px; }
+.pay-detail-box .pdl span:first-child{ color:var(--ink-400); font-family:var(--font-mono); font-size:11.5px; letter-spacing:.04em; text-transform:uppercase; white-space:nowrap; padding-top:2px; }
 .pay-detail-box .pdl span:last-child{ text-align:right; font-weight:600; color:var(--navy-950); font-variant-numeric:tabular-nums; }
 
 /* --- Payment type toggle (membership vs maintenance) -------------------------- */
@@ -484,7 +484,7 @@ tbody tr:hover{ background:#FAFBFD; }
 .paytype{ flex:1; padding:12px; border:1.5px solid var(--line); border-radius:var(--radius-md);
   background:var(--white); cursor:pointer; text-align:left; transition:border-color .15s ease, background .15s ease; }
 .paytype.selected{ border-color:var(--saffron-500); background:var(--paper); }
-.paytype .pt-top{ font-size:11px; color:var(--ink-400); font-family:var(--font-mono); letter-spacing:.04em; text-transform:uppercase; }
+.paytype .pt-top{ font-size:12px; color:var(--ink-400); font-family:var(--font-mono); letter-spacing:.04em; text-transform:uppercase; }
 .paytype .pt-amt{ font-size:15px; font-weight:700; color:var(--navy-950); font-variant-numeric:tabular-nums; margin-top:2px; }
 
 /* --- Maintenance invoice (payment modal) -------------------------------------- */
@@ -495,7 +495,7 @@ tbody tr:hover{ background:#FAFBFD; }
    arithmetic — the whole point of the feature. */
 .invoice-card{ border:1px solid var(--line); border-radius:var(--radius-md); overflow:hidden; margin-bottom:16px; }
 .invoice-head{ background:var(--navy-950); color:#fff; padding:12px 14px; display:flex; align-items:center; justify-content:space-between; }
-.invoice-head .lbl{ font-family:var(--font-mono); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--gold-500); }
+.invoice-head .lbl{ font-family:var(--font-mono); font-size:11.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--gold-500); }
 .invoice-head .fy{ font-size:12px; color:rgba(255,255,255,.75); }
 .invoice-rows{ padding:6px 14px; }
 .invoice-rows .r{ display:flex; justify-content:space-between; padding:8px 0; font-size:13.5px; border-bottom:1px solid var(--line); font-variant-numeric:tabular-nums; }
@@ -511,7 +511,7 @@ tbody tr:hover{ background:#FAFBFD; }
 .amount-preset{ flex:1; min-width:120px; padding:11px 12px; border:1.5px solid var(--line); border-radius:var(--radius-md);
   background:var(--white); cursor:pointer; text-align:left; transition:border-color .15s ease, background .15s ease; }
 .amount-preset.selected{ border-color:var(--saffron-500); background:var(--paper); }
-.amount-preset .pa-top{ font-size:11px; color:var(--ink-400); font-family:var(--font-mono); letter-spacing:.04em; text-transform:uppercase; }
+.amount-preset .pa-top{ font-size:12px; color:var(--ink-400); font-family:var(--font-mono); letter-spacing:.04em; text-transform:uppercase; }
 .amount-preset .pa-amt{ font-size:16px; font-weight:700; color:var(--navy-950); font-variant-numeric:tabular-nums; margin-top:2px; }
 .amount-preset.locked-note{ cursor:default; }
 
@@ -538,7 +538,7 @@ tbody tr:hover{ background:#FAFBFD; }
   font:inherit; text-align:left; cursor:pointer; color:inherit;
 }
 .name-link{
-  color:var(--gold-700, #8F7115); font-weight:600; text-decoration:none; cursor:pointer;
+  color:var(--gold-700, #7D6410); font-weight:600; text-decoration:none; cursor:pointer;
 }
 .name-link:hover{ text-decoration:underline; }
 
@@ -585,7 +585,7 @@ tbody tr:hover{ background:#FAFBFD; }
   font-family:var(--font-mono); font-size:13px; font-weight:600;
   background:var(--paper); color:var(--ink-400); border:1.5px solid var(--line); transition:all .25s ease;
 }
-.step-dot .lbl{ font-size:10.5px; font-weight:600; letter-spacing:.03em; text-transform:uppercase; color:var(--ink-400); transition:color .25s ease; }
+.step-dot .lbl{ font-size:11.5px; font-weight:600; letter-spacing:.03em; text-transform:uppercase; color:var(--ink-400); transition:color .25s ease; }
 .step-dot.active .num{ background:var(--gradient-saffron); color:#fff; border-color:transparent; }
 .step-dot.active .lbl{ color:var(--navy-950); }
 .step-dot.done .num{ background:var(--navy-950); color:#fff; border-color:transparent; }
@@ -634,15 +634,15 @@ tbody tr:hover{ background:#FAFBFD; }
 .print-receipt .pr-head{ display:flex; align-items:center; gap:16px; border-bottom:2px solid #0A1B33; padding-bottom:16px; margin-bottom:20px; }
 .print-receipt .pr-head img{ width:56px; height:56px; }
 .print-receipt .pr-head h1{ font-size:18px; margin:0; }
-.print-receipt .pr-head p{ font-size:11px; color:#444; margin:2px 0 0; }
-.print-receipt .pr-title{ margin-left:auto; text-align:right; font-size:11px; }
+.print-receipt .pr-head p{ font-size:12px; color:#444; margin:2px 0 0; }
+.print-receipt .pr-title{ margin-left:auto; text-align:right; font-size:12px; }
 .print-receipt .pr-grid{ display:grid; grid-template-columns:1fr 1fr; gap:14px 24px; margin-bottom:20px; font-size:13px; }
-.print-receipt .pr-grid b{ display:block; font-size:9.5px; text-transform:uppercase; letter-spacing:.05em; color:#666; font-weight:600; margin-bottom:2px; }
+.print-receipt .pr-grid b{ display:block; font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:#666; font-weight:600; margin-bottom:2px; }
 .print-receipt .pr-amount{ border:1px solid #ccc; border-radius:8px; padding:14px 16px; display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; }
 .print-receipt .pr-amount .num{ font-size:22px; font-weight:700; }
 .print-receipt .pr-qr{ text-align:center; }
 .print-receipt .pr-qr img{ width:90px; height:90px; }
-.print-receipt .pr-foot{ font-size:10px; color:#666; border-top:1px solid #ccc; padding-top:12px; margin-top:10px; }
+.print-receipt .pr-foot{ font-size:11px; color:#666; border-top:1px solid #ccc; padding-top:12px; margin-top:10px; }
 
 @media print{
   .no-print{ display:none !important; }
@@ -676,7 +676,7 @@ tbody tr:hover{ background:#FAFBFD; }
 }
 #appLoader .al-sub{
   color:var(--gold-300,#E4C765); font-family:var(--font-mono, monospace);
-  font-size:10.5px; letter-spacing:.28em; text-transform:uppercase; margin-top:-14px;
+  font-size:11.5px; letter-spacing:.28em; text-transform:uppercase; margin-top:-14px;
 }
 #appLoader .al-bar{
   width:120px; height:3px; border-radius:3px; overflow:hidden;
@@ -801,8 +801,6 @@ tbody tr:hover{ background:#FAFBFD; }
    ============================================================================ */
 body.logged-in #top,
 body.logged-in #about,
-body.logged-in #benefits,
-body.logged-in #community,
 body.logged-in #portal{
   display:none !important;
 }
@@ -811,7 +809,7 @@ body.logged-in #portal{
 body.logged-in .main-nav{ display:none; }
 body.logged-in .site-header{ position:sticky; top:0; z-index:40; }
 /* Give the dashboard a little breathing room now that it stands alone. */
-body.logged-in #dashboard{ min-height:calc(100vh - 66px); padding-top:26px; }
+body.logged-in #dashboard{ min-height:calc(calc(100 * var(--vh1)) - 66px); padding-top:26px; }
 /* The mobile bottom tab-bar stays useful (Home / Pay / Account), so keep it. */
 
 /* ============================================================================
@@ -889,7 +887,7 @@ body.logged-in #dashboard{ min-height:calc(100vh - 66px); padding-top:26px; }
    ============================================================================ */
 .fm-editor{ display:flex; flex-direction:column; gap:8px; margin-bottom:6px; }
 .fm-row-wrap{ display:flex; flex-direction:column; gap:4px; }
-.fm-minor-badge{ font-size:11.5px; color:#8A5A00; background:#FFF3D6; border:1px solid #F0D089; border-radius:5px; padding:2px 8px; align-self:flex-start; }
+.fm-minor-badge{ font-size:12.5px; color:#8A5A00; background:#FFF3D6; border:1px solid #F0D089; border-radius:5px; padding:2px 8px; align-self:flex-start; }
 .fm-row{ display:grid; grid-template-columns:1fr 130px 150px 34px; gap:8px; align-items:center; }
 .fm-row input, .fm-row select{ margin:0; }
 .vehicle-editor{ display:flex; flex-direction:column; gap:8px; margin-bottom:6px; }
@@ -970,7 +968,7 @@ body.logged-in #dashboard{ min-height:calc(100vh - 66px); padding-top:26px; }
 .usearch-wrap input:focus{ outline:2px solid var(--gold-500,#C9A227); outline-offset:1px; background:rgba(255,255,255,.1); }
 .usearch-results{ display:none; margin-top:8px; max-height:340px; overflow-y:auto; border-radius:10px; background:rgba(255,255,255,.04); }
 .usearch-results.open{ display:block; }
-.usearch-group-label{ padding:8px 10px 4px; font-size:10.5px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:rgba(255,255,255,.4); }
+.usearch-group-label{ padding:8px 10px 4px; font-size:11.5px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:rgba(255,255,255,.4); }
 .usearch-item{
   display:block; width:100%; text-align:left; background:none; border:none; cursor:pointer;
   padding:8px 10px; color:rgba(255,255,255,.85); font-size:12.5px; font-family:inherit;
@@ -978,7 +976,7 @@ body.logged-in #dashboard{ min-height:calc(100vh - 66px); padding-top:26px; }
 }
 .usearch-item:hover, .usearch-item:focus{ background:rgba(255,255,255,.08); }
 .usearch-item b{ color:var(--white); font-weight:600; }
-.usearch-item .usearch-sub{ display:block; color:rgba(255,255,255,.5); font-size:11px; margin-top:1px; }
+.usearch-item .usearch-sub{ display:block; color:rgba(255,255,255,.5); font-size:12px; margin-top:1px; }
 .usearch-empty{ padding:12px 10px; font-size:12px; color:rgba(255,255,255,.45); text-align:center; }
 
 /* Poll options editor — a simpler sibling of .fm-row (which is built for
@@ -995,9 +993,9 @@ body.logged-in #dashboard{ min-height:calc(100vh - 66px); padding-top:26px; }
 .td-tile[role="button"], .health-metric[role="button"], .ms-item[role="button"]{ transition:transform .15s ease, box-shadow .15s ease; }
 .td-tile[role="button"]:hover, .health-metric[role="button"]:hover, .ms-item[role="button"]:hover{ transform:translateY(-2px); box-shadow:0 4px 14px rgba(0,0,0,.1); }
 .td-tile[role="button"]:focus-visible, .health-metric[role="button"]:focus-visible, .ms-item[role="button"]:focus-visible{ outline:2px solid var(--gold-500,#C9A227); outline-offset:2px; }
-.td-tile .td-label{ font-size:11px; color:var(--ink-500,#6B7385); text-transform:uppercase; letter-spacing:.03em; margin-bottom:4px; }
+.td-tile .td-label{ font-size:12px; color:var(--ink-500,#6B7385); text-transform:uppercase; letter-spacing:.03em; margin-bottom:4px; }
 .td-tile .td-value{ font-size:17px; font-weight:700; color:var(--ink-900,#101B2B); }
-.td-tile .td-note{ font-size:11px; color:var(--ink-500,#6B7385); margin-top:2px; }
+.td-tile .td-note{ font-size:12px; color:var(--ink-500,#6B7385); margin-top:2px; }
 @media (max-width:900px){ .td-grid{ grid-template-columns:repeat(2,1fr); } }
 
 /* Command Center — a row of clickable "needs attention" pills. Navy
@@ -1045,8 +1043,8 @@ body.logged-in #dashboard{ min-height:calc(100vh - 66px); padding-top:26px; }
   border:1px solid var(--line,#E2E6EF);
 }
 .health-metric .hm-pct{ font-size:19px; font-weight:700; font-family:var(--font-mono); }
-.health-metric .hm-lbl{ font-size:11.5px; color:var(--ink-600); margin-top:2px; }
-.health-metric .hm-detail{ font-size:10.5px; color:var(--ink-400,#8891A3); margin-top:1px; }
+.health-metric .hm-lbl{ font-size:12.5px; color:var(--ink-600); margin-top:2px; }
+.health-metric .hm-detail{ font-size:11.5px; color:var(--ink-400,#8891A3); margin-top:1px; }
 
 /* Pet registration cards — each pet gets its own bordered card (unlike the
    compact single-row family-member editor, a pet carries too many fields —
@@ -1087,3 +1085,193 @@ body.logged-in #dashboard{ min-height:calc(100vh - 66px); padding-top:26px; }
 }
 
 
+
+
+/* ---------- Duotone icons (v164): sprite lives in app-common.js, ids ic-* ----------
+   Colour of the line = text colour; the soft accent shape = --duo (default saffron).
+   Tint classes colour a tile and its icon together. */
+.t-gold{ background:#FFF1D6; --duo:#FFC978; } .t-blue{ background:#E8EEF9; --duo:#9DB8E8; } .t-green{ background:#E6F6EE; --duo:#8FD3AE; }
+.t-purple{ background:#F1EAF9; --duo:#C7A8EA; } .t-coral{ background:#FDEBE3; --duo:#F5B596; } .t-red{ background:#FBE9E7; --duo:#F2A9A2; color:#B3261E; }
+svg.ic{ width:22px; height:22px; fill:none; flex:none; vertical-align:middle; }
+.btn svg.ic, .link-btn svg.ic{ width:18px; height:18px; margin-right:6px; vertical-align:-4px; }
+h3 svg.ic{ width:20px; height:20px; margin-right:6px; vertical-align:-4px; }
+.inline-ic{ width:18px !important; height:18px !important; margin-right:6px; vertical-align:-4px; }
+.btn svg.ic{ width:18px; height:18px; }
+
+
+/* ==========================================================================
+   v165 — shared "professional app" login hero (staff + gate apps)
+   ========================================================================== */
+.pl-wrap{ min-height:calc(100 * var(--vh1)); display:flex; flex-direction:column; background:linear-gradient(170deg,#14305C,#0A1B33 70%); position:relative; overflow:hidden; }
+.pl-wrap::before{ content:''; position:absolute; left:50%; top:20px; width:360px; height:360px; margin-left:-180px; border-radius:50%; background:radial-gradient(circle,rgba(255,201,120,.20),rgba(255,201,120,0) 65%); pointer-events:none; }
+.pl-hero{ position:relative; text-align:center; padding:56px 20px 30px; color:#fff; }
+.pl-seal{ display:block; margin:0 auto; width:92px; height:92px; border-radius:50%; background:#fff; object-fit:cover; box-shadow:0 0 0 4px rgba(255,201,120,.55), 0 14px 30px rgba(0,0,0,.35); }
+.pl-hero h1{ margin:16px 0 0; font-family:var(--font-display, Georgia, serif); font-weight:700; font-size:25px; letter-spacing:-.01em; color:#fff; }
+.pl-hero p{ margin:4px 0 0; font-size:13.5px; color:#C9D1E0; }
+.pl-pill{ margin:14px auto 0; display:inline-flex; align-items:center; gap:6px; font-size:12.5px; font-weight:600; color:#FFC978; background:rgba(255,201,120,.12); border:1px solid rgba(255,201,120,.28); padding:5px 12px 5px 8px; border-radius:999px; --duo:rgba(255,201,120,.35); }
+.pl-pill svg.ic{ width:18px; height:18px; }
+.pl-sheet{ position:relative; flex:1; width:100%; max-width:480px; margin:0 auto; background:var(--paper,#F6F3EC); color:#10192B; border-radius:28px 28px 0 0; padding:26px 22px 34px; box-shadow:0 -10px 30px rgba(10,27,51,.18); }
+.pl-sheet h2{ margin:0; font-family:var(--font-display, Georgia, serif); font-size:22px; color:#10192B; }
+.pl-sheet .pl-sub{ margin:4px 0 18px; font-size:13.5px; color:#465066; }
+/* avatar chip used in the staff / gate headers */
+.app-av{ width:40px; height:40px; border-radius:50%; flex:none; display:grid; place-items:center; font-weight:700; font-size:16px; color:#0A1B33; background:linear-gradient(135deg,#FFC978,#F27B0E); box-shadow:0 0 0 2px rgba(255,201,120,.35); }
+
+/* ==========================================================================
+   v165 — one form system for every page (resident, admin, staff, gate)
+   Same fields, labels, buttons and dialogs everywhere, so the whole product
+   feels like one professional app. Appended last on purpose: same-specificity
+   rules above are overridden, page-specific rules (.toolbar input, .g-field
+   input, ...) keep winning where they are more specific.
+   ========================================================================== */
+input, select, textarea{
+  border:1.5px solid #D9D3C6; border-radius:14px; padding:12px 14px; min-height:48px; font-size:15px;
+  background-color:#fff;
+}
+textarea{ min-height:96px; line-height:1.5; resize:vertical; }
+input::placeholder, textarea::placeholder{ color:#6B7385; }
+input:focus, select:focus, textarea:focus{ border-color:#F27B0E; box-shadow:0 0 0 4px rgba(242,123,14,.14); }
+input[type="checkbox"], input[type="radio"], input[type="file"], input[type="range"], input[type="color"]{ min-height:0; }
+input[type="checkbox"], input[type="radio"]{ accent-color:#0F2547; }
+input[type="file"]{ padding:11px 12px; border-style:dashed; background:#FBF9F4; }
+input[type="file"]::file-selector-button{ border:0; border-radius:10px; padding:8px 12px; margin-right:10px; background:#0F2547; color:#fff; font-weight:600; font-size:13px; cursor:pointer; }
+select:not([multiple]){
+  -webkit-appearance:none; appearance:none; padding-right:40px;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%230F2547' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat:no-repeat; background-position:right 14px center; background-size:16px;
+}
+select[multiple]{ min-height:0; padding:8px; }
+input:disabled, select:disabled, textarea:disabled{ background-color:#F3EFE6; color:#6B6558; }
+.field label, label.lbl{ font-size:12.8px; font-weight:600; color:#2B3448; }
+.field .hint{ font-size:12px; color:#6B7488; }
+.field.has-error input, .field.has-error select, .field.has-error textarea{ border-color:#B3261E; box-shadow:0 0 0 4px rgba(179,38,30,.10); }
+
+/* Buttons: one rounded-rect shape, roomy tap targets. */
+.btn{ border-radius:14px; min-height:46px; padding:11px 20px; }
+.btn-sm{ min-height:38px; padding:7px 14px; border-radius:12px; }
+.btn-block{ min-height:52px; border-radius:15px; font-size:16px; }
+.btn-primary{ box-shadow:0 8px 18px -6px rgba(242,123,14,.45); }
+.btn-outline{ border-width:1.5px; background:#fff; }
+
+/* Dialogs: rounded sheet, sticky title bar with a saffron rule, round close. */
+.modal{ border-radius:24px; }
+@media (max-width: 640px){ .modal{ border-radius:24px 24px 0 0; } }
+.modal-head{
+  position:sticky; top:0; z-index:2; background:#fff; border-bottom:1px solid #EAE6DC; padding:18px 22px;
+  border-radius:24px 24px 0 0;
+}
+.modal-head::before{ content:''; position:absolute; left:22px; top:0; width:44px; height:3px; border-radius:0 0 3px 3px; background:linear-gradient(90deg,#FFC978,#F27B0E); }
+.modal-head h3, .modal-head h2{ margin:0; font-family:var(--font-display, Georgia, serif); font-size:18px; color:#10192B; }
+.modal-head .icon-btn{ width:38px; height:38px; min-width:38px; min-height:38px; border-radius:50%; display:grid; place-items:center; padding:0; background:#F3EFE6 !important; color:#2B3448 !important; border:none !important; font-size:15px; }
+.modal-body{ padding:22px; }
+.modal .btn-primary[type="submit"]{ min-height:50px; }
+
+/* Section titles inside long forms read as groups, not loose text. */
+.form-section, .field-group-title{ font-size:12.5px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:#6B7488; margin:22px 0 10px; }
+
+/* on-dark buttons must stay transparent (the v165 .btn-outline default is white) */
+.btn-outline.on-dark{ background:transparent; color:var(--white); }
+.btn-outline.on-dark:hover{ background:rgba(255,255,255,.08); box-shadow:none; }
+
+/* v165 QA: the 5-step registration indicator must fit a 320px phone. */
+@media (max-width:360px){
+  .step-dot{ flex:1 1 0; min-width:0; }
+  .step-dot .lbl{ font-size:10.5px; letter-spacing:0; }
+}
+
+/* ============================================================================
+   v168 — larger text option, status steps, poll chips, motion
+   ============================================================================ */
+/* "Large" text: one switch for the whole app. The sizes here are px values (many
+   of them inline), so zoom is the only lever that scales every one of them. */
+html[data-text-size="large"] body{ zoom:1.15; }
+
+/* Screens ease in when you switch tabs — 0.24s, and off for reduce-motion users
+   (the global reduce-motion rule above zeroes every animation duration). */
+@keyframes viewIn{ from{ opacity:0; transform:translateY(8px); } to{ opacity:1; transform:none; } }
+body[data-view] [data-v]{ animation:viewIn .24s ease both; }
+.view-panel.active, .screen.active{ animation:viewIn .22s ease both; }
+.btn{ transition:transform .12s ease, box-shadow .15s ease, background-color .15s ease; }
+.btn:active:not(:disabled){ transform:scale(.97); }
+
+/* Payment: Submitted → Verified → Receipt */
+.pay-steps{ display:flex; align-items:flex-start; margin:12px 0 2px; }
+.pay-steps .ps{ display:flex; flex-direction:column; align-items:center; gap:4px; flex:0 0 auto; min-width:62px; font-size:12px; color:var(--ink-400); text-align:center; }
+.pay-steps .ps-dot{ width:20px; height:20px; border-radius:50%; border:2px solid var(--line); background:var(--white,#fff); display:grid; place-items:center; font-size:11px; font-weight:700; line-height:1; }
+.pay-steps .ps.done{ color:var(--ink-700); }
+.pay-steps .ps.done .ps-dot{ background:var(--success); border-color:var(--success); color:#fff; }
+.pay-steps .ps.done .ps-dot::after{ content:'✓'; }
+.pay-steps .ps.current{ color:var(--ink-900); font-weight:600; }
+.pay-steps .ps.current .ps-dot{ border-color:var(--warning,#C9A227); animation:psPulse 1.8s ease-in-out infinite; }
+.pay-steps .ps.bad{ color:var(--danger); font-weight:600; }
+.pay-steps .ps.bad .ps-dot{ background:var(--danger); border-color:var(--danger); color:#fff; }
+.pay-steps .ps.bad .ps-dot::after{ content:'✕'; }
+.pay-steps .ps-line{ flex:1; height:2px; background:var(--line); margin:9px 2px 0; border-radius:2px; }
+.pay-steps .ps-line.done{ background:var(--success); }
+@keyframes psPulse{ 0%,100%{ box-shadow:0 0 0 0 rgba(201,162,39,.45); } 50%{ box-shadow:0 0 0 6px rgba(201,162,39,0); } }
+
+/* Poll cards: time-left chip, turnout bar, "voted" confirmation */
+.poll-chip{ white-space:nowrap; flex-shrink:0; }
+.poll-turnout-res{ margin:10px 0 2px; }
+.poll-turnout-res .pt-top{ display:flex; justify-content:space-between; gap:8px; font-size:12.5px; color:var(--ink-600); margin-bottom:4px; }
+.poll-turnout-res .pt-bar{ height:6px; background:var(--line); border-radius:4px; overflow:hidden; }
+.poll-turnout-res .pt-bar i{ display:block; height:100%; background:var(--success); border-radius:4px; transition:width .7s ease; }
+@keyframes votePop{ 0%{ transform:scale(.85); opacity:0; } 60%{ transform:scale(1.05); opacity:1; } 100%{ transform:scale(1); opacity:1; } }
+.vote-done{ display:inline-flex; align-items:center; gap:6px; color:var(--success); font-weight:600; animation:votePop .38s ease both; }
+
+/* Pull to refresh */
+.ptr-ind{ position:fixed; top:0; left:50%; z-index:9990; width:40px; height:40px; border-radius:50%; background:var(--white,#fff); box-shadow:0 4px 14px rgba(16,25,43,.2); display:grid; place-items:center; pointer-events:none; }
+.ptr-ind .ptr-dot{ width:18px; height:18px; border-radius:50%; border:2.5px solid var(--ink-200); border-top-color:var(--saffron-500); }
+.ptr-ind.ready .ptr-dot{ border-top-color:var(--success); }
+.ptr-ind.spin .ptr-dot{ animation:ptrSpin .7s linear infinite; }
+@keyframes ptrSpin{ to{ transform:rotate(360deg); } }
+@media (pointer:coarse){ html{ overscroll-behavior-y:contain; } }
+
+/* Text-size control (More screen and headers) */
+.ts-seg{ display:inline-flex; border:1.5px solid var(--line); border-radius:999px; overflow:hidden; background:var(--white,#fff); }
+.ts-seg button{ border:0; background:transparent; min-height:40px; min-width:52px; padding:6px 14px; font-weight:700; color:var(--ink-700); cursor:pointer; }
+.ts-seg button[aria-pressed="true"]{ background:var(--navy-900,#0F2547); color:#fff; }
+.ts-seg button.ts-a-lg{ font-size:18px; }
+.ts-seg button.ts-a-sm{ font-size:13px; }
+.ts-row{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 14px; }
+.ts-row .ts-lbl{ font-weight:600; color:var(--ink-900); }
+.ts-row .ts-sub{ font-size:12.5px; color:var(--ink-400); margin-top:2px; }
+.ts-aa{ min-width:44px; min-height:44px; border-radius:999px; border:1.5px solid currentColor; background:transparent; color:inherit; font-weight:800; cursor:pointer; }
+
+.past-polls{ margin-top:6px; }
+.past-polls > summary.past-summary{ cursor:pointer; font-weight:600; font-size:13px; color:var(--ink-600); padding:10px 2px; min-height:44px; display:flex; align-items:center; }
+
+/* v168: on Home the notice board and polls follow the dashboard, so it must not
+   reserve a full screen of empty space (it was a ~380px blank band on phones). */
+body.logged-in[data-view="home"] #dashboard{ min-height:0; }
+
+/* v168: with the large-text zoom, a "88vh" is drawn 15% taller than the screen
+   (the zoom multiplies it), which pushed modal titles off the top. --vh1 is one
+   viewport-height percent with that zoom divided back out. */
+:root{ --vh1:1vh; }
+html[data-text-size="large"]{ --vh1:calc(1vh / 1.15); }
+/* A receipt or statement printed from the large-text view must not come out zoomed. */
+@media print{ html[data-text-size="large"] body{ zoom:1; } }
+
+/* v170 — first-time guide */
+.guide-card{ max-width:440px; }
+.guide-card .guide-body{ padding:6px 22px 8px; text-align:center; }
+.guide-ico{ width:64px; height:64px; margin:6px auto 14px; border-radius:20px; display:grid; place-items:center; background:rgba(201,162,39,.16); color:var(--gold-700); }
+.guide-ico .ic{ width:32px; height:32px; }
+.guide-card h3{ font-size:20px; margin-bottom:6px; }
+.guide-lead{ color:var(--ink-600); font-size:14.5px; margin-bottom:14px; }
+.guide-points{ list-style:none; padding:0; margin:0 0 6px; text-align:left; display:grid; gap:10px; }
+.guide-points li{ position:relative; padding:10px 12px 10px 38px; background:var(--paper); border:1px solid var(--line); border-radius:12px; font-size:14px; line-height:1.45; color:var(--ink-700); }
+.guide-points li::before{ content:'✓'; position:absolute; left:12px; top:10px; width:18px; height:18px; border-radius:50%; background:var(--success); color:#fff; font-size:11px; font-weight:700; display:grid; place-items:center; }
+.guide-dots{ display:flex; justify-content:center; gap:7px; margin:12px 0 4px; }
+.guide-dots i{ width:8px; height:8px; border-radius:50%; background:var(--ink-200); transition:width .2s ease, background .2s ease; }
+.guide-dots i.on{ width:22px; border-radius:6px; background:var(--saffron-500); }
+.guide-foot{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:12px 22px 20px; }
+.guide-foot .btn{ min-height:44px; }
+.guide-foot .guide-skip{ background:none; border:0; color:var(--ink-600); font-weight:600; padding:10px 6px; min-height:44px; cursor:pointer; }
+@keyframes guideSlide{ from{ opacity:0; transform:translateX(14px); } to{ opacity:1; transform:none; } }
+.guide-body.slide{ animation:guideSlide .22s ease both; }
+.guide-card{ display:flex; flex-direction:column; max-height:calc(92 * var(--vh1)); }
+.guide-card .guide-body{ flex:1 1 auto; min-height:0; overflow-y:auto; overscroll-behavior:contain; }
+.guide-card .modal-head, .guide-card .guide-dots, .guide-card .guide-foot{ flex:0 0 auto; }
+.guide-foot [hidden], .guide-foot[hidden]{ display:none !important; }
+#guideTitle:focus, #guideTitle:focus-visible{ outline:none; }

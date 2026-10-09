@@ -85,7 +85,7 @@ document.getElementById('verifyLogo').src = LOGO_DATA_URI;
 <script type="module">
 import { db } from './firebase-config.js';
 import { doc, getDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { escapeHtml, fmtDate, formatINR } from './app-common.js';
+import { escapeHtml, fmtDate, formatINR } from './app-common.js?v=170';
 
 /* The QR codes now carry an unguessable token (?r= / ?m=) instead of the
    sequential receipt or member number, so the public records cannot be walked

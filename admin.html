@@ -44,6 +44,7 @@
 ">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Admin Panel — MHMRWS Digital Portal</title>
+<script>try{if(localStorage.getItem('mhmrws-text-size')==='large')document.documentElement.dataset.textSize='large';}catch(e){}</script>
 <meta name="robots" content="noindex">
 <meta name="theme-color" content="#0A1B33">
 <link rel="manifest" href="manifest-admin.json">
@@ -71,21 +72,22 @@
 <script src="./back-button-handler.js" defer></script>
 <style>
   body{ background:var(--paper); }
-  .login-screen{ min-height:100vh; display:grid; place-items:center; background:var(--gradient-navy); padding:20px; }
+  .login-screen{ min-height:calc(100 * var(--vh1)); display:grid; place-items:center; background:var(--gradient-navy); padding:20px; }
   .login-card{ width:100%; max-width:400px; }
   .login-card .seal{ margin:0 auto 18px; }
 
   .app-shell{ display:none; }
-  .app-shell.active{ display:grid; grid-template-columns:246px minmax(0, 1fr); min-height:100vh; }
-  .sidebar{ background:var(--navy-950); color:var(--white); padding:22px 14px; position:sticky; top:0; height:100vh; overflow-y:auto; display:flex; flex-direction:column; }
+  .app-shell.active{ display:grid; grid-template-columns:246px minmax(0, 1fr); min-height:calc(100 * var(--vh1)); }
+  .sidebar{ background:var(--navy-950); color:var(--white); padding:22px 14px; position:sticky; top:0; height:calc(100 * var(--vh1)); overflow-y:auto; display:flex; flex-direction:column; }
   .sidebar-brand{ display:flex; gap:10px; align-items:center; padding:0 8px 22px; }
   .sidebar-brand .full{ font-family:var(--font-display); font-size:14.5px; line-height:1.2; }
-  .sidebar-brand .eyebrow{ color:var(--saffron-300); font-size:10px; }
+  .sidebar-brand .eyebrow{ color:var(--saffron-300); font-size:11px; }
   .side-nav button{ display:flex; align-items:center; gap:10px; width:100%; text-align:left; background:none; border:none; color:rgba(255,255,255,.72); padding:11px 12px; border-radius:10px; font-size:13.3px; font-weight:500; cursor:pointer; margin-bottom:2px; }
+  .side-nav button{ --duo:rgba(255,255,255,.14); }
   .side-nav button:hover{ background:rgba(255,255,255,.06); color:var(--white); }
-  .side-nav button.active{ background:rgba(255,255,255,.13); color:var(--white); }
+  .side-nav button.active{ background:rgba(255,201,120,.14); color:#FFC978; --duo:rgba(255,201,120,.38); }
   .side-nav .icon{ width:18px; height:18px; display:grid; place-items:center; flex-shrink:0; }
-  .nav-section-label{ font-size:10.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:rgba(255,255,255,.38); padding:14px 12px 5px; }
+  .nav-section-label{ font-size:11.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:rgba(255,255,255,.62); padding:14px 12px 5px; }
   .nav-section-label:first-child{ padding-top:2px; }
   /* Pet details opened read-only: disabled fields should still read like plain
      text (not greyed-out form controls), and the controls that only make sense
@@ -100,7 +102,7 @@
      verification). Hidden entirely at zero so an empty queue doesn't nag. */
   .nav-badge{
     margin-left:auto; min-width:19px; height:19px; padding:0 5px; border-radius:999px;
-    background:#E4483C; color:#fff; font-size:11px; font-weight:700; line-height:19px;
+    background:#E4483C; color:#fff; font-size:12px; font-weight:700; line-height:19px;
     text-align:center; flex-shrink:0;
   }
   .side-nav .icon svg{ width:17px; height:17px; }
@@ -135,14 +137,14 @@
      the yearly stat cards. Gives the committee a single-glance monthly picture. */
   .month-summary{ margin-bottom:20px; background:linear-gradient(120deg,#0F2547,#163a70); color:#fff; border:none; }
   .month-summary .ms-head{ display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:16px; }
-  .month-summary .ms-eyebrow{ font-family:var(--font-mono,monospace); font-size:10.5px; letter-spacing:.18em; text-transform:uppercase; color:var(--gold-300,#E4C765); }
+  .month-summary .ms-eyebrow{ font-family:var(--font-mono,monospace); font-size:11.5px; letter-spacing:.18em; text-transform:uppercase; color:var(--gold-300,#E4C765); }
   .month-summary .ms-month{ font-family:var(--font-display,Georgia,serif); font-size:20px; margin-top:2px; }
   .month-summary .ms-grid{ display:grid; grid-template-columns:repeat(5,1fr); gap:14px; }
   .month-summary .ms-item{ background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.10); border-radius:14px; padding:14px 12px; }
   .month-summary .ms-num{ font-family:var(--font-display,Georgia,serif); font-size:22px; font-weight:600; }
   .month-summary .ms-num.ms-warn{ color:var(--gold-300,#E4C765); }
   .month-summary .ms-num.ms-danger{ color:#FF9B8A; }
-  .month-summary .ms-lbl{ font-size:11px; color:rgba(255,255,255,.65); margin-top:3px; }
+  .month-summary .ms-lbl{ font-size:12px; color:rgba(255,255,255,.65); margin-top:3px; }
   .month-summary #msWhatsAppBtn{ border-color:rgba(255,255,255,.35); color:#fff; }
   .month-summary #msWhatsAppBtn:hover{ background:rgba(255,255,255,.10); box-shadow:none; }
   @media (max-width:820px){ .month-summary .ms-grid{ grid-template-columns:repeat(2,1fr); } }
@@ -214,18 +216,21 @@
     .side-nav{
       display:none; order:4; width:100%; flex:0 0 100%;
       background:var(--navy-900); border:1px solid rgba(255,255,255,.12);
-      border-radius:12px; padding:8px; margin-top:2px; max-height:70vh; overflow-y:auto;
+      border-radius:12px; padding:8px; margin-top:2px; max-height:calc(70 * var(--vh1)); overflow-y:auto;
       box-shadow:0 12px 30px rgba(10,27,51,.35);
     }
     .side-nav.menu-open{ display:block; }
     .side-nav button{ width:100%; text-align:left; padding:12px 12px; font-size:14px; white-space:normal; }
-    .nav-section-label{ display:block; font-size:10.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:rgba(255,255,255,.4); padding:12px 12px 4px; }
+    .nav-section-label{ display:block; font-size:11.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:rgba(255,255,255,.62); padding:12px 12px 4px; }
 
     .main-area{ padding:18px 16px 50px; }
     .topbar{ flex-direction:column; align-items:flex-start; gap:10px; }
     .stat-cards{ grid-template-columns:1fr 1fr; gap:10px; }
-    .chart-grid{ grid-template-columns:1fr; }
-    .settings-grid{ grid-template-columns:1fr; }
+    .chart-grid{ grid-template-columns:minmax(0,1fr); }
+    .settings-grid{ grid-template-columns:minmax(0,1fr); }
+    .app-shell.active{ align-content:start; }
+    .main-area .card{ min-width:0; max-width:100%; }
+    .main-area .table-wrap{ overflow-x:auto; max-width:100%; -webkit-overflow-scrolling:touch; }
     .card-pad{ padding:18px; }
   }
   /* On desktop the sidebar is the always-visible vertical column, so the
@@ -234,11 +239,45 @@
     .nav-menu-toggle{ display:none; }
   }
   @media (max-width: 480px){
-    .stat-cards{ grid-template-columns:1fr; }
+    .stat-cards{ grid-template-columns:minmax(0,1fr); }
     .view-title{ font-size:19px; }
     .stat-card .num{ font-size:22px; }
     .toolbar{ flex-direction:column; align-items:stretch; }
     .toolbar input, .toolbar select{ width:100%; }
+  }
+
+  /* ---------- Professional mobile shell (v165): floating bottom tab bar ---------- */
+  .a-tabbar{ display:none; }
+  @media (max-width: 980px){
+    :root{ --toast-bottom-gap:96px; }
+    .a-tabbar{
+      display:block; position:fixed; left:12px; right:12px; bottom:calc(12px + env(safe-area-inset-bottom)); z-index:75;
+      background:#0A1B33; border-radius:24px; padding:6px; box-shadow:0 14px 30px rgba(10,27,51,.40);
+    }
+    .a-tabbar ul{ display:flex; gap:2px; list-style:none; margin:0; padding:0; }
+    .a-tabbar li{ flex:1 1 0; min-width:0; }
+    .a-tabbar button{
+      width:100%; display:flex; flex-direction:column; align-items:center; gap:2px; padding:6px 2px; border-radius:18px;
+      background:none; border:none; color:#AEB8CC; font:inherit; font-size:12px; font-weight:600; min-height:54px; justify-content:center; cursor:pointer;
+      --duo:rgba(255,255,255,.12); transition:background .15s ease, color .15s ease; position:relative;
+    }
+    @media (max-width:380px){ .a-tabbar button{ font-size:11px; padding:6px 0; letter-spacing:-.01em; } }
+    .a-tabbar button svg{ width:24px; height:24px; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
+    .a-tabbar button svg .u{ fill:var(--duo); stroke:none; }
+    .a-tabbar button.active{ color:#FFC978; background:rgba(255,201,120,.14); --duo:rgba(255,201,120,.38); font-weight:700; }
+    .a-tabbar .a-dot{ position:absolute; top:5px; right:calc(50% - 20px); min-width:16px; height:16px; padding:0 4px; border-radius:999px; background:#E4483C; color:#fff; font-size:11px; line-height:16px; text-align:center; font-weight:700; }
+    .main-area{ padding-bottom:110px; }
+    /* Slim header: brand + search only; the view picker moves to the bottom bar's Menu. */
+    .nav-menu-toggle{ display:none !important; }
+    .sidebar{ border-radius:0 0 20px 20px; padding:12px 14px 14px; }
+    .usearch-wrap input{ height:42px; border-radius:12px; }
+    /* The full menu opens as a sheet above the tab bar. */
+    .side-nav.menu-open{
+      position:fixed; left:12px; right:12px; bottom:calc(84px + env(safe-area-inset-bottom)); top:auto; width:auto;
+      max-height:calc(68 * var(--vh1)); z-index:80; border-radius:20px; box-shadow:0 18px 40px rgba(10,27,51,.45);
+    }
+    .view-title{ font-size:22px; }
+    .sidebar-brand::after{ display:none; }
   }
   .rp-member-dropdown{
     display:none; position:absolute; left:0; right:0; top:100%; z-index:50;
@@ -252,9 +291,49 @@
   }
   .rp-member-option:last-child{ border-bottom:none; }
   .rp-member-option:hover, .rp-member-option:focus-visible{ background:var(--paper); }
-  .rp-member-option .rp-flat{ color:var(--ink-500); font-size:11.5px; margin-left:6px; }
+  .rp-member-option .rp-flat{ color:var(--ink-500); font-size:12.5px; margin-left:6px; }
   .rp-member-empty{ padding:12px 14px; font-size:12.5px; color:var(--ink-500); }
 </style>
+<script>
+/* Boot guard — if the page's main script cannot start (typically a half-updated cache: a new
+   page next to an old script), a login form would otherwise just reload itself, blank, with
+   no message. This turns that into a clear message and a one-tap repair. */
+(function () {
+  window.__moduleBooted = false;
+  function show() {
+    if (window.__moduleBooted || document.getElementById('bootGuard')) return;
+    var d = document.createElement('div');
+    d.id = 'bootGuard'; d.setAttribute('role', 'alert');
+    d.style.cssText = 'position:fixed;left:0;right:0;top:0;z-index:2147483647;background:#B3261E;color:#fff;padding:12px 16px;font:15px/1.4 system-ui,sans-serif;text-align:center';
+    d.innerHTML = 'The app did not load completely (an old copy is stored on this phone). ';
+    var b = document.createElement('button');
+    b.textContent = 'Tap here to fix and reload';
+    b.style.cssText = 'margin-left:8px;padding:8px 14px;border:0;border-radius:8px;background:#fff;color:#B3261E;font-weight:700;font-size:15px';
+    b.onclick = function () {
+      b.disabled = true; b.textContent = 'Fixing…';
+      var done = function () { location.replace(location.pathname + '?r=' + Date.now()); };
+      Promise.all([
+        (navigator.serviceWorker && navigator.serviceWorker.getRegistrations ? navigator.serviceWorker.getRegistrations().then(function (rs) { return Promise.all(rs.map(function (r) { return r.unregister(); })); }) : Promise.resolve()),
+        (window.caches ? caches.keys().then(function (ks) { return Promise.all(ks.map(function (k) { return caches.delete(k); })); }) : Promise.resolve())
+      ]).then(done, done);
+    };
+    d.appendChild(b);
+    (document.body || document.documentElement).appendChild(d);
+  }
+  window.__showBootGuard = show;
+  window.addEventListener('error', function (e) {
+    var m = String((e && e.message) || '');
+    if (/does not provide an export|Unexpected token|Failed to fetch dynamically|error loading dynamically|Importing a module script failed|SyntaxError|is not defined/i.test(m)) show();
+  });
+  document.addEventListener('submit', function (e) {
+    if (window.__moduleBooted) return;
+    e.preventDefault();
+    if (document.readyState === 'complete') show();
+    else alert('The page is still loading — please wait a moment and try again.');
+  }, true);
+  window.addEventListener('load', function () { setTimeout(function () { if (!window.__moduleBooted) show(); }, 10000); });
+})();
+</script>
 </head>
 <body data-admin-view="overview">
 <!-- Elegant loading screen (society seal). Removed by __hideAppLoader(). -->
@@ -347,35 +426,35 @@
       <span class="nav-menu-toggle-caret">▾</span>
     </button>
     <nav class="side-nav" id="sideNav">
-      <button data-view="overview" class="active"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-overview"/></svg></span> Overview</button>
-      <button data-view="approvals"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-approvals"/></svg></span> Approval Center<span class="nav-badge" id="navBadgeApprovals" style="display:none;">0</span></button>
+      <button data-view="overview" class="active"><span class="icon"><svg viewBox="0 0 24 24"><use href="#ic-home"/></svg></span> Overview</button>
+      <button data-view="approvals"><span class="icon"><svg viewBox="0 0 24 24"><use href="#ic-check"/></svg></span> Approval Center<span class="nav-badge" id="navBadgeApprovals" style="display:none;">0</span></button>
 
       <div class="nav-section-label">Community</div>
-      <button data-view="members"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-members"/></svg></span> Members<span class="nav-badge" id="navBadgeMembers" style="display:none;">0</span></button>
-      <button data-view="pets"><span class="icon" style="font-size:16px; display:flex; align-items:center; justify-content:center;">🐾</span> Pets</button>
-      <button data-view="complaints"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-complaints"/></svg></span> Complaints</button>
-      <button data-view="community"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-community"/></svg></span> Community<span class="nav-badge" id="navBadgeCommunity" style="display:none;">0</span></button>
-      <button data-view="content"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-content"/></svg></span> Notices &amp; Committee</button>
-      <button data-view="calendar"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-calendar"/></svg></span> Calendar</button>
-      <button data-view="polls"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-polls"/></svg></span> Polls</button>
+      <button data-view="members"><span class="icon"><svg viewBox="0 0 24 24"><use href="#ic-users"/></svg></span> Members<span class="nav-badge" id="navBadgeMembers" style="display:none;">0</span></button>
+      <button data-view="pets"><span class="icon" style="font-size:16px; display:flex; align-items:center; justify-content:center;"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-paw"/></svg></span> Pets</button>
+      <button data-view="complaints"><span class="icon"><svg viewBox="0 0 24 24"><use href="#ic-chat"/></svg></span> Complaints</button>
+      <button data-view="community"><span class="icon"><svg viewBox="0 0 24 24"><use href="#ic-building"/></svg></span> Community<span class="nav-badge" id="navBadgeCommunity" style="display:none;">0</span></button>
+      <button data-view="content"><span class="icon"><svg viewBox="0 0 24 24"><use href="#ic-file"/></svg></span> Notices &amp; Committee</button>
+      <button data-view="calendar"><span class="icon"><svg viewBox="0 0 24 24"><use href="#ic-calendar"/></svg></span> Calendar</button>
+      <button data-view="polls"><span class="icon"><svg viewBox="0 0 24 24"><use href="#ic-chart"/></svg></span> Polls</button>
 
       <div class="nav-section-label">Finance</div>
-      <button data-view="payments"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-payments"/></svg></span> Collection<span class="nav-badge" id="navBadgePayments" style="display:none;">0</span></button>
-      <button data-view="expenses"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-expenses"/></svg></span> Expenses</button>
-      <button data-view="events"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-events"/></svg></span> Events</button>
-      <button data-view="financials"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-financials"/></svg></span> Financials</button>
+      <button data-view="payments"><span class="icon"><svg viewBox="0 0 24 24"><use href="#ic-rupee"/></svg></span> Collection<span class="nav-badge" id="navBadgePayments" style="display:none;">0</span></button>
+      <button data-view="expenses"><span class="icon"><svg viewBox="0 0 24 24"><use href="#ic-receipt"/></svg></span> Expenses</button>
+      <button data-view="events"><span class="icon"><svg viewBox="0 0 24 24"><use href="#ic-bell"/></svg></span> Events</button>
+      <button data-view="financials"><span class="icon"><svg viewBox="0 0 24 24"><use href="#ic-chart"/></svg></span> Financials</button>
 
       <div class="nav-section-label">Operations</div>
-      <button data-view="gateSecurity"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-gate"/></svg></span> Gate Security</button>
-      <button data-view="facilityStaff"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-staff"/></svg></span> Facility Staff</button>
-      <button data-view="vendors"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-vendors"/></svg></span> Vendors</button>
-      <button data-view="operations"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-operations"/></svg></span> Operations<span class="nav-badge" id="navBadgeOperations" style="display:none;">0</span></button>
+      <button data-view="gateSecurity"><span class="icon"><svg viewBox="0 0 24 24"><use href="#ic-door"/></svg></span> Gate Security</button>
+      <button data-view="facilityStaff"><span class="icon"><svg viewBox="0 0 24 24"><use href="#ic-idcard"/></svg></span> Facility Staff</button>
+      <button data-view="vendors"><span class="icon"><svg viewBox="0 0 24 24"><use href="#ic-tool"/></svg></span> Vendors</button>
+      <button data-view="operations"><span class="icon"><svg viewBox="0 0 24 24"><use href="#ic-lift"/></svg></span> Operations<span class="nav-badge" id="navBadgeOperations" style="display:none;">0</span></button>
 
       <div class="nav-section-label">Administration</div>
-      <button data-view="importExport"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-importExport"/></svg></span> Import / Export</button>
-      <button data-view="settings"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-settings"/></svg></span> Settings &amp; Backup</button>
-      <button data-view="adminUsers"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-adminUsers"/></svg></span> Admin Users</button>
-      <button data-view="auditLog"><span class="icon"><svg viewBox="0 0 24 24"><use href="#a-auditLog"/></svg></span> Activity Log</button>
+      <button data-view="importExport"><span class="icon"><svg viewBox="0 0 24 24"><use href="#ic-download"/></svg></span> Import / Export</button>
+      <button data-view="settings"><span class="icon"><svg viewBox="0 0 24 24"><use href="#ic-gear"/></svg></span> Settings &amp; Backup</button>
+      <button data-view="adminUsers"><span class="icon"><svg viewBox="0 0 24 24"><use href="#ic-shield"/></svg></span> Admin Users</button>
+      <button data-view="auditLog"><span class="icon"><svg viewBox="0 0 24 24"><use href="#ic-search"/></svg></span> Activity Log</button>
       <!-- Phone only: the account controls live at the bottom of the menu instead
            of crowding the top bar. They just click the real buttons in the
            sidebar footer (which is hidden on a phone), so behaviour is in one place. -->
@@ -389,6 +468,7 @@
     <div class="sidebar-foot">
       <div class="admin-chip"><b id="adminName">—</b><span id="adminRole">—</span></div>
       <button class="link-btn" id="changePasswordBtn" style="display:block; text-align:center; color:rgba(255,255,255,.72); margin-bottom:8px; width:100%;">Change Password</button>
+      <button class="btn btn-outline on-dark btn-sm btn-block" id="textSizeBtn" type="button" style="margin-bottom:8px;">Larger text</button>
       <button class="btn btn-outline on-dark btn-sm btn-block" id="logoutBtn">Logout</button>
     </div>
   </aside>
@@ -399,7 +479,7 @@
          document uploads silently do nothing, so the committee needs to know
          before they invite residents in. -->
     <div id="storageWarning" class="notice-banner" style="display:none;">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#a-cloud"/></svg>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-cloud"/></svg>
       <div>
         <b>Firebase Storage is not set up yet.</b>
         Registration, payments, and receipts will all work — but <b>photo and payment screenshot uploads won't</b>.
@@ -467,7 +547,7 @@
            this project doesn't have yet (a bank-statement feed, and a
            recurring-expense schedule respectively). -->
       <div class="card card-pad" id="treasurerDashCard" style="display:none; margin-bottom:20px;">
-        <h3 style="font-size:15px; margin-bottom:4px;">💰 Treasurer Dashboard</h3>
+        <h3 style="font-size:15px; margin-bottom:4px;"><svg class="ic inline-ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-rupee"/></svg>Treasurer Dashboard</h3>
         <p class="t-muted" style="font-size:12px; margin-bottom:16px;">Financial position, at a glance.</p>
         <div class="td-grid" id="treasurerDashGrid"></div>
       </div>
@@ -496,7 +576,7 @@
            Populated by renderCelebrations(). Hidden entirely when there's
            nothing to celebrate today, so it never sits there empty. -->
       <div class="card card-pad celeb-card" id="celebCard" style="display:none;">
-        <h3 style="font-size:14.5px; margin-bottom:4px;">🎉 Aaj Birthday / Anniversary</h3>
+        <h3 style="font-size:14.5px; margin-bottom:4px;"><svg class="ic inline-ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-calendar"/></svg>Aaj Birthday / Anniversary</h3>
         <p class="t-muted" style="font-size:12px; margin-bottom:10px;">Send a wish via the RWA WhatsApp in one click.</p>
         <div class="celeb-list" id="celebList"></div>
       </div>
@@ -505,7 +585,7 @@
            message can be arranged ahead of time instead of same-day. Hidden
            entirely when nothing is coming up, same as the "today" card. -->
       <div class="card card-pad celeb-card" id="celebUpcomingCard" style="display:none;">
-        <h3 style="font-size:14.5px; margin-bottom:4px;">📅 Next 7 Days</h3>
+        <h3 style="font-size:14.5px; margin-bottom:4px;"><svg class="ic inline-ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-calendar"/></svg>Next 7 Days</h3>
         <p class="t-muted" style="font-size:12px; margin-bottom:10px;">So you can plan ahead.</p>
         <div class="celeb-list" id="celebUpcomingList"></div>
       </div>
@@ -518,13 +598,13 @@
            urgently than one still on time). Sorted soonest/most-overdue
            first via petVaccinationStatus()'s daysUntil. -->
       <div class="card card-pad celeb-card" id="petVaxCard" style="display:none;">
-        <h3 style="font-size:14.5px; margin-bottom:4px;">💉 Pet Vaccination Reminders</h3>
+        <h3 style="font-size:14.5px; margin-bottom:4px;"><svg class="ic inline-ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-paw"/></svg>Pet Vaccination Reminders</h3>
         <p class="t-muted" style="font-size:12px; margin-bottom:10px;">Overdue and due within the next 30 days.</p>
         <div class="celeb-list" id="petVaxList"></div>
       </div>
 
       <div class="card card-pad celeb-card" id="rentAgreementCard" style="display:none;">
-        <h3 style="font-size:14.5px; margin-bottom:4px;">📄 Rent Agreements Expiring</h3>
+        <h3 style="font-size:14.5px; margin-bottom:4px;"><svg class="ic inline-ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-file"/></svg>Rent Agreements Expiring</h3>
         <p class="t-muted" style="font-size:12px; margin-bottom:10px;">Expired or expiring within the next 30 days.</p>
         <div class="celeb-list" id="rentAgreementList"></div>
       </div>
@@ -551,7 +631,7 @@
             <h3 style="font-size:14.5px; margin-bottom:4px;">Income &amp; Expenditure Statement</h3>
             <p class="t-muted" style="font-size:12.5px;">For the AGM or your CA — the full year's collection vs expenses, in one PDF.</p>
           </div>
-          <button class="btn btn-navy btn-sm" id="downloadIncomeExpBtn"><svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#a-doc"/></svg>Download PDF (Selected FY)</button>
+          <button class="btn btn-navy btn-sm" id="downloadIncomeExpBtn"><svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-file"/></svg>Download PDF (Selected FY)</button>
         </div>
       </div>
     </div>
@@ -603,9 +683,9 @@
       <div class="topbar"><h2 class="view-title">Members</h2>
         <div class="action-row">
           <button class="btn btn-primary btn-sm" id="registerResidentBtn">+ Register Resident</button>
-          <button class="btn btn-outline btn-sm" id="householdViewBtn">🏠 View by Household</button>
-          <button class="btn btn-outline btn-sm" id="bloodGroupSearchBtn">🩸 Blood Group Search</button>
-          <button class="btn btn-outline btn-sm" id="exportMembersBtn">⬇ Export Excel</button>
+          <button class="btn btn-outline btn-sm" id="householdViewBtn"><svg class="ic inline-ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-home"/></svg>View by Household</button>
+          <button class="btn btn-outline btn-sm" id="bloodGroupSearchBtn"><svg class="ic inline-ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-drop"/></svg>Blood Group Search</button>
+          <button class="btn btn-outline btn-sm" id="exportMembersBtn"><svg class="ic inline-ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-download"/></svg>Export Excel</button>
         </div>
       </div>
       <div class="toolbar card card-pad">
@@ -668,7 +748,7 @@
       <div class="topbar"><h2 class="view-title">Collection</h2>
         <div class="action-row">
           <button class="btn btn-primary btn-sm" id="recordPaymentBtn">+ Record Collection</button>
-          <button class="btn btn-outline btn-sm" id="exportPaymentsBtn">⬇ Export Excel</button>
+          <button class="btn btn-outline btn-sm" id="exportPaymentsBtn"><svg class="ic inline-ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-download"/></svg>Export Excel</button>
         </div>
       </div>
       <div class="tab-strip">
@@ -705,8 +785,9 @@
       <div id="paymentsDefaultersPanel" style="display:none;">
         <div class="toolbar"><span id="defaultersTotal" class="mono" style="font-size:12.5px; color:var(--ink-600);"></span></div>
         <div id="defaultersAging" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px;"></div>
-        <div class="toolbar"><button class="btn btn-outline btn-sm" id="emailDefaultersBtn"><svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#a-mail"/></svg>Email All (BCC)</button>
+        <div class="toolbar"><button class="btn btn-outline btn-sm" id="emailDefaultersBtn"><svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-mail"/></svg>Email All (BCC)</button>
         <button class="btn btn-outline btn-sm" id="waQueueBtn">WhatsApp one by one</button>
+        <button class="btn btn-outline btn-sm" id="sendReminderBtn" title="Shows a reminder in every resident's app who still owes dues"><svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-bell"/></svg>Remind in app</button>
         <span class="t-muted" style="font-size:12.5px;">for FY selected in Overview</span></div>
         <div class="table-wrap responsive">
           <table><thead><tr><th>Resident</th><th>Flat / Tower</th><th>Outstanding</th><th>Health</th><th>Remind</th><th></th></tr></thead>
@@ -732,7 +813,7 @@
            Hidden for view-only roles (e.g. President) by renderEvents(). -->
       <div class="card card-pad" id="eventCreateCard" style="margin-bottom:20px;">
         <h3 style="font-size:14.5px; margin-bottom:14px;">Create New Event / Fee</h3>
-        <p id="eventLockNote" class="t-sub" style="font-size:12px; display:none; margin-bottom:8px;">🔒 This event's demand has already gone out to residents — the name and fee are locked (some may have already paid based on these). Note and FY can still be edited.</p>
+        <p id="eventLockNote" class="t-sub" style="font-size:12px; display:none; margin-bottom:8px;"><svg class="ic inline-ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-lock"/></svg>This event's demand has already gone out to residents — the name and fee are locked (some may have already paid based on these). Note and FY can still be edited.</p>
         <form id="eventForm" class="form-grid">
           <input type="hidden" name="eventId">
           <div class="field"><label for="ev-name">Event Name</label><input id="ev-name" name="name" placeholder="e.g. Diwali Celebration 2026" required></div>
@@ -870,7 +951,7 @@
     <!-- ---------------- COMPLAINTS ---------------- -->
     <div class="view-panel" id="view-complaints">
       <div class="topbar"><h2 class="view-title">Complaints</h2></div>
-      <div class="card" style="margin-bottom:16px;">
+      <div class="card card-pad" style="margin-bottom:16px;">
         <h3 style="font-size:15px; margin-bottom:4px;">This Week's Performance</h3>
         <p class="t-muted" style="font-size:12px;">Complaints raised and resolved this week, with a rating based on how many got resolved.</p>
         <div id="complaintWeeklyReport" style="margin-top:12px;"><p class="t-muted" style="font-size:12.5px;">Loading…</p></div>
@@ -899,7 +980,7 @@
       </div>
 
       <div id="cmPanel-facilities">
-        <div class="card" style="margin-bottom:16px;">
+        <div class="card card-pad" style="margin-bottom:16px;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
             <h3 style="font-size:15.5px;">Bookable Facilities</h3>
             <button class="btn btn-primary btn-sm" id="addFacilityBtn">+ Add Facility</button>
@@ -907,7 +988,7 @@
           <div id="facilitiesList" class="t-muted">Loading…</div>
         </div>
 
-        <div class="card" style="margin-bottom:16px;">
+        <div class="card card-pad" style="margin-bottom:16px;">
           <h3 style="font-size:15.5px; margin-bottom:10px;">Pending Booking Requests</h3>
           <div class="table-wrap responsive">
             <table>
@@ -917,7 +998,7 @@
           </div>
         </div>
 
-        <div class="card">
+        <div class="card card-pad">
           <div class="spread" style="margin-bottom:10px;">
             <h3 style="font-size:15.5px;">Upcoming Approved Bookings</h3>
             <div class="tab-strip" style="margin:0;">
@@ -936,7 +1017,7 @@
       </div>
 
       <div id="cmPanel-guests" style="display:none;">
-        <div class="card">
+        <div class="card card-pad">
           <p class="t-muted" style="font-size:12.5px; margin-bottom:14px;">A resident's heads-up that a guest is expected — relay this to the gate/watchman verbally. This is not a check-in system.</p>
           <div class="table-wrap responsive">
             <table>
@@ -960,7 +1041,7 @@
     <!-- ---------------- VENDORS ---------------- -->
     <div class="view-panel" id="view-vendors">
       <div class="topbar"><h2 class="view-title">Vendor Directory</h2></div>
-      <div class="card" style="margin-bottom:16px;">
+      <div class="card card-pad" style="margin-bottom:16px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
           <h3 style="font-size:15.5px;">Vendors</h3>
           <button class="btn btn-primary btn-sm" id="addVendorBtn">+ Add Vendor</button>
@@ -984,7 +1065,7 @@
          resident's own dashboard in real time. -->
     <div class="view-panel" id="view-gateSecurity">
       <div class="topbar"><h2 class="view-title">Gate Security</h2></div>
-      <div class="card" style="margin-bottom:16px;">
+      <div class="card card-pad" style="margin-bottom:16px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
           <h3 style="font-size:15.5px;">Guard Accounts</h3>
           <button class="btn btn-primary btn-sm" id="addGuardBtn">+ Add Guard</button>
@@ -998,7 +1079,7 @@
         </table>
       </div>
 
-      <div class="card" style="margin-bottom:12px;">
+      <div class="card card-pad" style="margin-bottom:12px;">
         <h3 style="font-size:15.5px; margin-bottom:4px;">Visitor Log</h3>
         <p class="t-muted" style="font-size:12px;">Every gate entry, most recent first — read-only here. Approvals happen on the resident's own dashboard.</p>
       </div>
@@ -1022,7 +1103,7 @@
         Could not load some facility-staff data — what's shown below may be incomplete or out of date.
         <button type="button" class="btn btn-outline btn-sm" id="facilityStaffRetryBtn" style="margin-left:8px;">Retry</button>
       </div>
-      <div class="card" style="margin-bottom:16px;">
+      <div class="card card-pad" style="margin-bottom:16px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
           <h3 style="font-size:15.5px;">Staff Accounts</h3>
           <button class="btn btn-primary btn-sm" id="addStaffBtn">+ Add Staff</button>
@@ -1042,19 +1123,19 @@
         <div id="staffPerformance"><p class="t-muted" style="font-size:12.5px;">Loading…</p></div>
       </div>
 
-      <div class="card" style="margin-bottom:12px;">
+      <div class="card card-pad" style="margin-bottom:12px;">
         <h3 style="font-size:15.5px; margin-bottom:4px;">Today's Inspection Schedule</h3>
         <p class="t-muted" style="font-size:12px;">What's expected today and this week, and what's still pending.</p>
         <div id="inspectionSchedule" style="margin-top:12px;"><p class="t-muted" style="font-size:12.5px;">Loading…</p></div>
       </div>
 
-      <div class="card" style="margin-bottom:12px;">
+      <div class="card card-pad" style="margin-bottom:12px;">
         <h3 style="font-size:15.5px; margin-bottom:4px;">Inspection Analytics</h3>
         <p class="t-muted" style="font-size:12px;">A snapshot across every filed inspection — totals, activity, and where the issues are.</p>
         <div id="inspectionAnalytics" style="margin-top:12px;"><p class="t-muted" style="font-size:12.5px;">Loading…</p></div>
       </div>
 
-      <div class="card" style="margin-bottom:12px;">
+      <div class="card card-pad" style="margin-bottom:12px;">
         <h3 style="font-size:15.5px; margin-bottom:4px;">Inspection Log</h3>
         <p class="t-muted" style="font-size:12px;">Every checklist filed by staff, most recent first — read-only here.</p>
       </div>
@@ -1065,8 +1146,8 @@
         </table>
       </div>
 
-      <div class="card" style="margin-top:16px;">
-        <h3 style="font-size:15.5px; margin-bottom:4px;">📄 Inspection Report Builder</h3>
+      <div class="card card-pad" style="margin-top:16px;">
+        <h3 style="font-size:15.5px; margin-bottom:4px;"><svg class="ic inline-ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-file"/></svg>Inspection Report Builder</h3>
         <p class="t-muted" style="font-size:12px; margin-bottom:12px;">Export filed inspections and flagged issues for an RWA meeting or records. Leave dates blank for everything.</p>
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;">
           <div class="field"><label for="inspRptFrom">From (optional)</label><input type="date" id="inspRptFrom"></div>
@@ -1077,7 +1158,7 @@
           <button class="btn btn-primary btn-sm" id="inspReportPdfBtn">Download PDF</button>
           <button class="btn btn-outline btn-sm" id="inspReportXlsxBtn">Download Excel</button>
         </div>
-        <p class="t-muted" style="font-size:11px; margin-top:8px;">PDF needs internet the first time to load the PDF engine.</p>
+        <p class="t-muted" style="font-size:12px; margin-top:8px;">PDF needs internet the first time to load the PDF engine.</p>
       </div>
     </div>
 
@@ -1092,7 +1173,7 @@
       </div>
 
       <div id="opPanel-assets">
-        <div class="card" style="margin-bottom:16px;">
+        <div class="card card-pad" style="margin-bottom:16px;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
             <h3 style="font-size:15.5px;">Assets</h3>
             <button class="btn btn-primary btn-sm" id="addAssetBtn">+ Add Asset</button>
@@ -1108,7 +1189,7 @@
       </div>
 
       <div id="opPanel-moves" style="display:none;">
-        <div class="card" style="margin-bottom:16px;">
+        <div class="card card-pad" style="margin-bottom:16px;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
             <h3 style="font-size:15.5px;">Move-In / Move-Out Requests</h3>
             <button class="btn btn-primary btn-sm" id="addMoveBtn">+ Log a Move</button>
@@ -1123,7 +1204,7 @@
       </div>
 
       <div id="opPanel-parking" style="display:none;">
-        <div class="card" style="margin-bottom:16px;">
+        <div class="card card-pad" style="margin-bottom:16px;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
             <h3 style="font-size:15.5px;">Parking Slots</h3>
             <button class="btn btn-primary btn-sm" id="addParkingSlotBtn">+ Add Slot</button>
@@ -1139,7 +1220,7 @@
       </div>
 
       <div id="opPanel-ownership" style="display:none;">
-        <div class="card" style="margin-bottom:16px;">
+        <div class="card card-pad" style="margin-bottom:16px;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
             <h3 style="font-size:15.5px;">Ownership Change History</h3>
             <button class="btn btn-primary btn-sm" id="addOwnershipLogBtn">+ Log Ownership Change</button>
@@ -1168,6 +1249,8 @@
               <div class="fm-editor" id="pollOptionsEditor"></div>
               <button type="button" class="btn btn-outline btn-sm fm-add-btn" id="pollOptionAdd">+ Add Option</button>
             </div>
+            <div class="field"><label for="poll-desc">Details <span class="t-muted" style="font-weight:400;">(optional — cost, reason, what happens next)</span></label><textarea name="description" id="poll-desc" rows="3" maxlength="600" placeholder="e.g. Quote is ₹1.2 lakh for the main gate repaint; paid from the maintenance fund."></textarea></div>
+            <div class="field"><label class="checkbox-row"><input type="checkbox" name="perFlat" id="poll-perflat" checked> One vote per flat <span class="t-muted" style="font-weight:400;">(recommended for AGM decisions — otherwise every registered member votes)</span></label></div>
             <div class="form-2col">
               <div class="field"><label for="poll-start">Start</label><input type="datetime-local" name="start" id="poll-start" required></div>
               <div class="field"><label for="poll-end">End</label><input type="datetime-local" name="end" id="poll-end" required></div>
@@ -1199,7 +1282,7 @@
           <div class="card card-pad stat-card"><div class="num" id="reconUnmatchedCount">—</div><div class="lbl">Unmatched</div></div>
         </div>
         <div class="card card-pad" id="suspenseCard" style="margin-bottom:20px; display:none;">
-          <h3 style="font-size:14.5px; margin-bottom:4px;">🗂 Suspense Account</h3>
+          <h3 style="font-size:14.5px; margin-bottom:4px;"><svg class="ic inline-ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-archive"/></svg>Suspense Account</h3>
           <p class="t-muted" style="font-size:12px; margin-bottom:12px;">Money that's genuinely arrived but isn't attributed to a resident yet. Assign each one once you've identified whose payment it was.</p>
           <div id="suspenseList"></div>
         </div>
@@ -1289,7 +1372,7 @@
           <h3 style="font-size:15px; margin-bottom:6px;">Bulk Document Export (ZIP)</h3>
           <p class="t-sub" style="font-size:13px; margin-bottom:14px;">Packages photos, ID documents and receipts for residents registered / payments verified in the chosen month.</p>
           <div class="field"><label for="zipMonth">Month</label><input type="month" id="zipMonth"></div>
-          <button class="btn btn-navy" id="zipExportBtn"><svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#a-archive"/></svg>Build ZIP</button>
+          <button class="btn btn-navy" id="zipExportBtn"><svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-archive"/></svg>Build ZIP</button>
           <div id="zipStatus" class="t-sub" style="font-size:12.5px; margin-top:10px;"></div>
         </div>
       </div>
@@ -1299,6 +1382,13 @@
     <div class="view-panel" id="view-settings">
       <div class="topbar"><h2 class="view-title">Settings &amp; Backup</h2></div>
       <div class="settings-grid">
+        <div class="card card-pad" id="systemCheckCard" style="display:none; grid-column:1/-1;">
+          <h3 style="font-size:15px; margin-bottom:6px;">System check</h3>
+          <p class="t-muted" style="font-size:12.8px; margin-bottom:12px;">When something does not work (a login that will not go through, a button that does nothing), start here. It checks this device, the website and the database — and shows what to tell whoever helps you.</p>
+          <button class="btn btn-outline btn-sm" type="button" id="systemCheckBtn">Run check</button>
+          <button class="btn btn-outline btn-sm" type="button" id="systemClearBtn" title="Removes the copy of the app stored on this device and reloads — your login and data are not affected">Clear stored copy &amp; reload</button>
+          <div id="systemCheckResult" style="margin-top:12px; font-size:13px;"></div>
+        </div>
         <div class="card card-pad">
           <h3 style="font-size:15px; margin-bottom:14px;">Society Info</h3>
           <form id="societySettingsForm">
@@ -1379,7 +1469,7 @@
           <p class="t-sub" style="font-size:12.8px; margin-bottom:14px;">Access to Aadhaar/PAN uploads is always restricted to Admins by Storage rules. This adds an optional AES-256 encryption layer on top — see SETUP-GUIDE.md for the key-management trade-off before relying on this.</p>
           <div class="field"><label for="vaultPassphrase">Vault Passphrase (session only — never stored)</label><input type="password" id="vaultPassphrase" autocomplete="off"></div>
           <div class="field" id="vaultPassphraseConfirmWrap"><label for="vaultPassphraseConfirm">Confirm Passphrase <span class="t-muted" style="font-weight:400;">(only checked when encrypting — a typo here is a typo you'd need forever)</span></label><input type="password" id="vaultPassphraseConfirm" autocomplete="off"></div>
-          <button class="btn btn-outline btn-block" id="encryptPendingBtn"><svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#a-lock"/></svg>Encrypt All Pending Aadhaar/PAN Uploads</button>
+          <button class="btn btn-outline btn-block" id="encryptPendingBtn"><svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-lock"/></svg>Encrypt All Pending Aadhaar/PAN Uploads</button>
         </div>
         <div class="card card-pad" id="backupCard">
           <h3 style="font-size:15px; margin-bottom:6px;">Backup</h3>
@@ -1407,10 +1497,16 @@
             </div>
           </details>
           <hr style="border:none; border-top:1px solid var(--line); margin:0 0 16px;">
-          <h3 style="font-size:15px; margin-bottom:6px;">Google Drive Backup</h3>
-          <p class="t-sub" style="font-size:12.8px; margin-bottom:14px;">Exports Members, Payments, Notices &amp; Committee as JSON to <span class="mono">MHMRWS/Database</span> in your Google Drive. Requires one-time OAuth setup — see SETUP-GUIDE.md Step 5.</p>
-          <button class="btn btn-primary btn-block" id="backupNowBtn"><svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#a-cloud"/></svg>Backup Now</button>
-          <div id="backupStatus" class="t-sub" style="font-size:12.5px; margin-top:12px;"></div>
+          <details id="driveBackupDetails">
+            <summary style="cursor:pointer; font-size:13px; font-weight:600; color:var(--navy-800);">Google Drive backup (optional, needs a one-time Google Cloud setup)</summary>
+            <div style="margin-top:12px;">
+              <h3 style="font-size:15px; margin-bottom:6px;">Google Drive Backup</h3>
+              <p class="t-sub" style="font-size:12.8px; margin-bottom:10px;">Exports Members, Payments, Notices &amp; Committee as JSON to <span class="mono">MHMRWS/Database</span> in your Google Drive. Requires one-time OAuth setup — see SETUP-GUIDE.md Step 5. Most societies do not need this: the <b>automatic nightly backup</b> (BACKUP-SETUP.md) and the encrypted download above are enough.</p>
+              <p class="t-sub" style="font-size:12.3px; margin-bottom:14px;">If Google shows <b>"Access blocked … Error 400: origin_mismatch"</b>: in Google Cloud Console → APIs &amp; Services → Credentials → your OAuth client → <b>Authorized JavaScript origins</b>, add <b class="mono" id="driveOriginHint"></b> and save.</p>
+              <button class="btn btn-primary btn-block" id="backupNowBtn"><svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-cloud"/></svg>Backup Now</button>
+              <div id="backupStatus" class="t-sub" style="font-size:12.5px; margin-top:12px;"></div>
+            </div>
+          </details>
         </div>
         <div class="card card-pad" id="dataHealthCard">
           <h3 style="font-size:15px; margin-bottom:6px;">Data Health Check</h3>
@@ -1492,9 +1588,32 @@
     </div>
 
   </main>
+  <nav class="a-tabbar no-print" id="aTabbar" aria-label="Primary">
+    <ul>
+      <li><button type="button" data-go="overview" class="active"><svg viewBox="0 0 24 24"><use href="#ic-home"/></svg>Overview</button></li>
+      <li><button type="button" data-go="members"><svg viewBox="0 0 24 24"><use href="#ic-users"/></svg>Members</button></li>
+      <li><button type="button" data-go="payments"><svg viewBox="0 0 24 24"><use href="#ic-rupee"/></svg>Collection</button></li>
+      <li><button type="button" data-go="complaints"><svg viewBox="0 0 24 24"><use href="#ic-chat"/></svg>Complaints</button></li>
+      <li><button type="button" data-go="__menu"><svg viewBox="0 0 24 24"><use href="#ic-grid"/></svg>Menu</button></li>
+    </ul>
+  </nav>
 </div>
 
 <!-- ============================= MODALS ============================= -->
+<div class="modal-backdrop" id="stepUpBackdrop" role="dialog" aria-modal="true" aria-labelledby="stepUpTitle">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-head"><h3 id="stepUpTitle">Confirm it's you</h3><button type="button" class="icon-btn" id="stepUpClose" aria-label="Cancel">✕</button></div>
+    <div class="modal-body">
+      <p class="t-muted" style="font-size:13px; margin-bottom:14px;">For safety, please enter your password again before changing payment details or admin accounts.</p>
+      <form id="stepUpForm" autocomplete="off">
+        <div class="field"><label for="stepUpPw">Your password</label><input type="password" id="stepUpPw" autocomplete="current-password" required></div>
+        <div id="stepUpErr" role="alert" style="display:none; color:var(--danger); font-size:12.5px; margin-bottom:10px;"></div>
+        <button type="submit" class="btn btn-primary btn-block">Confirm</button>
+      </form>
+    </div>
+  </div>
+</div>
+
 <div class="modal-backdrop" id="memberModalBackdrop">
   <div class="modal">
     <div class="modal-head"><h3 style="font-size:16.5px;">Member Details</h3><button class="icon-btn" id="closeMemberModal">✕</button></div>
@@ -1618,7 +1737,7 @@
       </div>
       <button class="icon-btn" id="closeInspectionDetailModal">✕</button>
     </div>
-    <div class="modal-body" id="inspectionDetailBody" style="max-height:70vh; overflow-y:auto;"></div>
+    <div class="modal-body" id="inspectionDetailBody" style="max-height:calc(70 * var(--vh1)); overflow-y:auto;"></div>
     <div style="padding:12px 20px; border-top:1px solid var(--line);">
       <button class="btn btn-outline btn-sm btn-block" id="inspectionDetailPdfBtn">Download Detailed PDF</button>
     </div>
@@ -1698,7 +1817,7 @@
 
 <div class="modal-backdrop" id="waPromptModalBackdrop">
   <div class="modal" style="max-width:380px;">
-    <div class="modal-head"><h3 style="font-size:15.5px;">📲 Notify on WhatsApp?</h3><button class="icon-btn" id="closeWaPromptModal">✕</button></div>
+    <div class="modal-head"><h3 style="font-size:15.5px;"><svg class="ic inline-ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-share"/></svg>Notify on WhatsApp?</h3><button class="icon-btn" id="closeWaPromptModal">✕</button></div>
     <div class="modal-body">
       <p class="t-muted" style="font-size:12.5px; margin-bottom:10px;" id="waPromptSubtitle"></p>
       <div style="background:var(--paper,#FAF8F4); border:1px solid var(--line,#E2E6EF); border-radius:8px; padding:10px 12px; font-size:12.5px; white-space:pre-wrap; margin-bottom:16px;" id="waPromptPreview"></div>
@@ -1726,7 +1845,7 @@
      to help another resident who does), so the fewer steps the better. -->
 <div class="modal-backdrop" id="bloodGroupModalBackdrop">
   <div class="modal">
-    <div class="modal-head"><h3 style="font-size:16.5px;">🩸 Blood Group Search</h3><button class="icon-btn" id="closeBloodGroupModal">✕</button></div>
+    <div class="modal-head"><h3 style="font-size:16.5px;"><svg class="ic inline-ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-drop"/></svg>Blood Group Search</h3><button class="icon-btn" id="closeBloodGroupModal">✕</button></div>
     <div class="modal-body">
       <p class="t-muted" style="font-size:12.5px; margin-bottom:12px;">For emergencies — find residents by blood group to request or offer help. Only residents who've added their blood group appear here.</p>
       <div id="bloodGroupButtons" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px;"></div>
@@ -1953,7 +2072,7 @@
       <div id="petAdminEditorContainer"></div>
     </fieldset>
     <div style="display:flex; gap:10px; margin-top:14px;">
-      <button class="btn btn-primary btn-sm" id="editPetAdminBtn" style="display:none;">✎ Edit</button>
+      <button class="btn btn-primary btn-sm" id="editPetAdminBtn" style="display:none;"><svg class="ic inline-ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-edit"/></svg>Edit</button>
       <button class="btn btn-primary btn-sm" id="savePetAdminBtn">Save</button>
       <button class="btn btn-outline btn-sm" id="cancelPetAdminBtn">Cancel</button>
     </div>
@@ -2095,7 +2214,7 @@ if ('serviceWorker' in navigator) {
      renders even if the SDK or a CDN fails to load. -->
 <script type="module">
 import { LOGO_DATA_URI } from './logo-data.js';
-import { installModalA11y, installOfflineBanner, installPasswordToggles } from './ui-a11y.js';
+import { installAutoLabels, installModalA11y, installOfflineBanner, installPasswordToggles } from './ui-a11y.js';
 import { hideAppLoader } from './premium.js';
 window.__MHM_LOGO = LOGO_DATA_URI;
 ['loginLogo','sidebarLogo'].forEach(id => {
@@ -2106,6 +2225,7 @@ window.__MHM_LOGO = LOGO_DATA_URI;
 /* Focus-trap dialogs + offline banner: installed from the Firebase-free block
    so they work even if the Firebase SDK is slow or fails to load. */
 installModalA11y();
+installAutoLabels();
 installOfflineBanner();
 installPasswordToggles();
 
@@ -2130,7 +2250,7 @@ import {
   initializeApp, deleteApp
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
 import {
-  getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, createUserWithEmailAndPassword, sendPasswordResetEmail, deleteUser
+  getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, createUserWithEmailAndPassword, sendPasswordResetEmail, deleteUser, EmailAuthProvider, reauthenticateWithCredential
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
 import {
   doc, getDoc, setDoc, updateDoc, deleteDoc, addDoc, collection, getDocs, query, where, orderBy, serverTimestamp, limit,
@@ -2146,19 +2266,23 @@ import {
   generateMemberId, generateReceiptNumber, generateReceiptNumberAtomic, logAudit, flushAuditOutbox, generateReceiptPDF, generateIncomeExpenditurePDF, exportToExcel, parseExcelFile, PAYMENT_DEFAULTS, sanitizeUrl, safeStorageFilename, flatClaimId, findBlockingFlatClaim, generatePetId,
   encryptFile, decryptToBlob, backupToDrive, waLink, waShareText, serializeForExport,
   newPublicToken, publicKeyForMember,
-  TOWER_IDS, TOWER_PLAN, flatsForTower, isValidFlat, inspectionItemCounts, backupStatus, summarizeBackup, expenseNeedsSecondApprover, expenseApprovalBlock, extensionForMime, topInspectors, recurringIssueLocations, complaintTimes, scorableComplaints, checkMemberFlatClaim, validateRentAgreementDates, inspectionStatusMark, complaintsForInspection, shortRef, paymentFlatMismatch, paymentStatusLabel,
+  TOWER_IDS, TOWER_PLAN, flatsForTower, isValidFlat, inspectionItemCounts, backupStatus, summarizeBackup, deployedVersionFromSw, versionStatus, APP_VERSION, expenseNeedsSecondApprover, expenseApprovalBlock, extensionForMime, topInspectors, recurringIssueLocations, complaintTimes, scorableComplaints, checkMemberFlatClaim, validateRentAgreementDates, inspectionStatusMark, complaintsForInspection, shortRef, paymentFlatMismatch, paymentStatusLabel,
   duesFor, DUES_LABEL, DUES_BADGE, maintenanceHealthStatus, membershipDue, membershipFeeAmount, eventDue,
   EXPENSE_CATEGORIES, EXPENSE_MODES, expenseSummary, fundPosition, treasurerDashboardStats, validateExpense,
   renderPager, skeletonTableRows, emptyState,
   initFamilyMembersEditor, addFamilyMemberRow, collectFamilyMembers,
   initVehiclesEditor, addVehicleRow, collectVehicles,
   initPetsEditor, addPetCard, collectPets, petVaccinationStatus, rentAgreementStatus, tsMillis, todayLocalISO, dateToLocalISO,
-  todaysCelebrations, upcomingCelebrations, celebrationWishMessage, INSPECTION_TYPES, INSPECTION_SCHEDULE, STAFF_TRADES
-} from './app-common.js';
+  todaysCelebrations, upcomingCelebrations, celebrationWishMessage, INSPECTION_TYPES, INSPECTION_SCHEDULE, STAFF_TRADES,
+  receiptWhatsAppMessage, isRecentSignIn, loginLockRemainingMs, nextLoginFailState, LOGIN_MAX_FAILS,
+  pollFlatId, pollTally, pollResultText, getTextSize, setTextSize
+} from './app-common.js?v=170';
 
 /* ---------------------------------------------------------------------- */
 /*  State                                                                  */
 /* ---------------------------------------------------------------------- */
+
+window.__moduleBooted = true; { var __bg = document.getElementById('bootGuard'); if (__bg) __bg.remove(); }
 let currentAdmin = null;
 let allMembers = [];
 let allPayments = [];
@@ -2250,21 +2374,101 @@ function can(action) { return (ACTION_PERMS[action] || []).includes(currentAdmin
 /* ---------------------------------------------------------------------- */
 /*  Auth                                                                   */
 /* ---------------------------------------------------------------------- */
+/* Login throttle: a speed bump on THIS device after repeated wrong passwords
+   (Firebase also rate-limits on its own servers). Kept in localStorage, so it
+   survives a refresh; clearing site data resets it, which is fine — it is meant
+   to stop guessing at the keyboard, not to be the only line of defence. */
+const LOGIN_LOCK_KEY = 'mhmrws-admin-login-lock';
+function readLoginLock() { try { return JSON.parse(localStorage.getItem(LOGIN_LOCK_KEY) || '{}'); } catch { return {}; } }
+function writeLoginLock(s) { try { if (s && (s.fails || s.lockedUntil)) localStorage.setItem(LOGIN_LOCK_KEY, JSON.stringify(s)); else localStorage.removeItem(LOGIN_LOCK_KEY); } catch {} }
 document.getElementById('adminLoginForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const f = e.target;
   const btn = f.querySelector('button[type="submit"]');
   const errEl = document.getElementById('loginError');
   errEl.style.display = 'none';
+  const lock = readLoginLock();
+  const waitMs = loginLockRemainingMs(lock);
+  if (waitMs > 0) {
+    errEl.textContent = `Too many wrong passwords on this device. Please wait ${Math.ceil(waitMs / 60000)} minute(s), or use "Forgot password".`;
+    errEl.style.display = 'block';
+    return;
+  }
   btn.disabled = true;
   try {
     await signInWithEmailAndPassword(auth, f.email.value.trim(), f.password.value);
+    writeLoginLock({});
+    try { sessionStorage.setItem('mhmrws-log-login', '1'); } catch {}
   } catch (err) {
-    errEl.textContent = 'Incorrect email or password.';
+    // Say what actually went wrong — "incorrect password" for a network or
+    // configuration failure sends people round in circles.
+    const code = err?.code || '';
+    const wrongCred = ['auth/invalid-credential', 'auth/wrong-password', 'auth/user-not-found', 'auth/invalid-email'].includes(code);
+    let extra = '';
+    if (wrongCred) {
+      const next = nextLoginFailState(lock);
+      writeLoginLock(next);
+      if (next.lockedUntil) extra = ` Too many tries — locked for ${Math.ceil(loginLockRemainingMs(next) / 60000)} minute(s).`;
+      else if (LOGIN_MAX_FAILS - next.fails <= 2) extra = ` ${LOGIN_MAX_FAILS - next.fails} attempt(s) left before a short lock.`;
+    }
+    errEl.textContent =
+      (wrongCred ? 'Incorrect email or password.' + extra
+      : code === 'auth/too-many-requests' ? 'Too many attempts — please wait a few minutes, or reset your password with "Forgot password".'
+      : code === 'auth/network-request-failed' ? 'Could not reach the server — please check your internet connection and try again.'
+      : code === 'auth/user-disabled' ? 'This account has been disabled. Please contact the Super Admin.'
+      : `Could not sign in${code ? ` (${code})` : ''}. Please refresh the page and try again; if it keeps happening, tell the Super Admin this code.`);
     errEl.style.display = 'block';
   } finally { btn.disabled = false; }
 });
 
+/* STEP-UP: a few actions (changing the UPI / bank details residents pay into,
+   adding or removing an admin) need the password typed again if the sign-in is
+   more than a few minutes old. The Firestore rules enforce this on the server
+   (recentSignIn), so a stolen open session cannot change them — this just asks
+   for the password at the right moment instead of failing with a permission error. */
+async function ensureRecentSignIn() {
+  const u = auth.currentUser;
+  if (!u) return false;
+  try {
+    const r = await u.getIdTokenResult();
+    if (isRecentSignIn(Date.parse(r.authTime))) return true;
+  } catch (e) { /* fall through and ask */ }
+  return new Promise((resolve) => {
+    const back = document.getElementById('stepUpBackdrop');
+    const form = document.getElementById('stepUpForm');
+    const pw = document.getElementById('stepUpPw');
+    const err = document.getElementById('stepUpErr');
+    const submit = form.querySelector('button[type="submit"]');
+    let done = false;
+    const finish = (ok) => { if (done) return; done = true; back.classList.remove('open'); form.onsubmit = null; document.getElementById('stepUpClose').onclick = null; pw.value = ''; resolve(ok); };
+    err.style.display = 'none'; pw.value = '';
+    back.classList.add('open'); setTimeout(() => pw.focus(), 50);
+    document.getElementById('stepUpClose').onclick = () => finish(false);
+    form.onsubmit = async (ev) => {
+      ev.preventDefault();
+      submit.disabled = true; err.style.display = 'none';
+      try {
+        await reauthenticateWithCredential(u, EmailAuthProvider.credential(u.email, pw.value));
+        await u.getIdToken(true);   // pick up the refreshed sign-in time
+        finish(true);
+      } catch (e2) {
+        const c = e2?.code || '';
+        err.textContent = ['auth/wrong-password', 'auth/invalid-credential'].includes(c) ? 'That password is not correct.'
+          : c === 'auth/too-many-requests' ? 'Too many attempts — please wait a few minutes.'
+          : `Could not confirm${c ? ` (${c})` : ''}. Please try again.`;
+        err.style.display = 'block';
+      } finally { submit.disabled = false; }
+    };
+  });
+}
+
+(() => {
+  const b = document.getElementById('textSizeBtn');
+  if (!b) return;
+  const paint = () => { const on = getTextSize() === 'large'; b.setAttribute('aria-pressed', String(on)); b.textContent = on ? 'Larger text: On' : 'Larger text: Off'; };
+  paint();
+  b.addEventListener('click', () => { setTextSize(getTextSize() === 'large' ? 'normal' : 'large'); paint(); });
+})();
 document.getElementById('logoutBtn').addEventListener('click', async () => {
   try { await signOut(auth); } catch (e) { console.warn('Sign-out failed:', e); }
   location.reload();   // return to a clean login screen regardless
@@ -2402,6 +2606,7 @@ onAuthStateChanged(auth, async (user) => {
   applyRoleNav();
   flushAuditOutbox(user).catch(() => {});   // retry any activity-log entries a previous session couldn't save
   resetIdleTimer();   // start the inactivity clock for this session
+  try { if (sessionStorage.getItem('mhmrws-log-login')) { sessionStorage.removeItem('mhmrws-log-login'); logAudit(user, 'admin_login', {}).catch(() => {}); } } catch {}
   checkStorageAvailable();
   // Safety net: bootData() loads every section of the panel. Its own pieces
   // are individually guarded now, but this catches anything unexpected so a
@@ -2626,6 +2831,29 @@ document.querySelectorAll('#sideNav button').forEach(btn => btn.addEventListener
   window.__syncNavToggleLabel();
 })();
 
+
+// Mobile bottom tab bar: shortcuts to the four busiest views + the full menu.
+(function initAdminTabbar() {
+  const bar = document.getElementById('aTabbar');
+  const nav = document.getElementById('sideNav');
+  const toggle = document.getElementById('navMenuToggle');
+  if (!bar || !nav) return;
+  bar.addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-go]'); if (!b) return;
+    e.stopPropagation();
+    if (b.dataset.go === '__menu') { toggle?.click(); return; }
+    nav.querySelector(`button[data-view="${b.dataset.go}"]`)?.click();
+  });
+  const sync = () => {
+    const act = nav.querySelector('button[data-view].active')?.dataset.view;
+    let hit = false;
+    bar.querySelectorAll('button[data-go]').forEach(b => { const on = b.dataset.go === act; if (on) hit = true; b.classList.toggle('active', on); });
+    bar.querySelector('[data-go="__menu"]')?.classList.toggle('active', !hit);
+  };
+  new MutationObserver(sync).observe(nav, { attributes: true, subtree: true, attributeFilter: ['class'] });
+  sync();
+})();
+
 // Back button: if the admin is on any view other than Overview, back returns
 // to Overview rather than exiting the app. On Overview it falls through to
 // the handler's double-press-to-exit guard.
@@ -2809,7 +3037,7 @@ function openProblemReports() {
     <div class="card card-pad" style="margin-bottom:10px; ${r.status === 'done' ? 'opacity:.6;' : ''}">
       <div style="display:flex; justify-content:space-between; gap:8px; font-size:12.5px;" class="t-muted"><span><b>${escapeHtml(r.reporterName || 'Resident')}</b>${r.flat ? ` · ${escapeHtml(r.flat)}` : ''}</span><span>${fmtDate(r.createdAt)}</span></div>
       <p style="margin:8px 0; white-space:pre-wrap; word-break:break-word; font-size:14px;">${escapeHtml(r.message)}</p>
-      ${r.details ? `<details><summary class="t-muted" style="font-size:12px; cursor:pointer;">Technical details</summary><pre style="font-size:11.5px; white-space:pre-wrap; word-break:break-word;">${escapeHtml(fmtDetails(r.details))}</pre></details>` : ''}
+      ${r.details ? `<details><summary class="t-muted" style="font-size:12px; cursor:pointer;">Technical details</summary><pre style="font-size:12.5px; white-space:pre-wrap; word-break:break-word;">${escapeHtml(fmtDetails(r.details))}</pre></details>` : ''}
       <div style="margin-top:8px;">${r.status === 'done' ? '<span class="badge badge-success">Done</span>' : `<button class="btn btn-secondary btn-sm" data-problem-done="${escapeHtml(r.id)}">Mark done</button>`}</div>
     </div>`).join('') : '<p class="t-muted">No problems reported. 🎉</p>';
   body.querySelectorAll('[data-problem-done]').forEach((b) => b.addEventListener('click', async () => {
@@ -2840,7 +3068,60 @@ const myExpenseIdentity = () => ({ uid: auth.currentUser?.uid, email: currentAdm
 // '' when the signed-in admin may approve this pending expense, else the reason.
 const expenseBlockFor = (e) => expenseApprovalBlock(e, myExpenseIdentity(), expensePolicy);
 
+// ---- System check (Settings, Super Admin) ---------------------------------
+async function runSystemCheck() {
+  const out = document.getElementById('systemCheckResult');
+  out.innerHTML = '<span class="t-muted">Checking…</span>';
+  const rows = [];
+  const add = (level, label, detail) => rows.push({ level, label, detail });
+
+  add(navigator.onLine ? 'ok' : 'bad', 'Internet', navigator.onLine ? 'This device is online.' : 'This device reports no internet connection.');
+
+  // Which version is this page, and which is live?
+  try {
+    const res = await fetch(`sw.js?nocache=${Date.now()}`, { cache: 'no-store' });
+    const vs = versionStatus(APP_VERSION, deployedVersionFromSw(await res.text()));
+    add(vs.state === 'current' ? 'ok' : vs.state === 'unknown' ? 'warn' : 'bad', 'App version', vs.message);
+  } catch { add('warn', 'App version', `This page is ${APP_VERSION}; could not read the live version.`); }
+
+  // Copy of the app stored on this device
+  try {
+    const keys = window.caches ? await caches.keys() : [];
+    const sw = navigator.serviceWorker?.controller ? 'active' : 'not active';
+    add('info', 'Stored copy on this device', `${keys.length ? keys.join(', ') : 'none'} · offline helper ${sw}`);
+  } catch { /* informational only */ }
+
+  // Database reachable?
+  try { await getDoc(doc(db, 'settings', 'society')); add('ok', 'Database', 'Reachable and answering.'); }
+  catch (e) { add('bad', 'Database', `Could not read (${escapeHtml(e?.code || e?.message || 'error')}). If this says permission-denied, the security rules may need publishing again.`); }
+
+  // Who am I?
+  add('ok', 'Signed in as', `${escapeHtml(currentAdmin?.email || auth.currentUser?.email || '—')} · role ${escapeHtml(currentAdmin?.role || '—')}`);
+
+  // Backups
+  const bs = window.__backupStatus;
+  if (bs) add(bs.state === 'ok' ? 'ok' : 'bad', 'Backup', bs.state === 'none' ? 'No backup has ever been taken.' : `${bs.auto ? 'Automatic nightly' : 'Manual'} backup — last one ${bs.days === 0 ? 'today' : bs.days + ' day(s) ago'}${bs.state === 'stale' ? ' (overdue)' : ''}.`);
+
+  // The address matters for Google sign-in and Drive backup
+  add('info', 'Website address', `<b>${escapeHtml(location.origin)}</b> — Google sign-in needs this in Firebase → Authentication → Settings → Authorized domains; Google Drive backup needs it in Google Cloud → Credentials → your OAuth client → Authorized JavaScript origins.`);
+
+  const icon = { ok: '✅', warn: '⚠️', bad: '❌', info: 'ℹ️' };
+  out.innerHTML = rows.map((r) => `<div style="display:flex; gap:8px; padding:6px 0; border-bottom:1px solid var(--line);"><span>${icon[r.level]}</span><div><b>${escapeHtml(r.label)}</b><div class="t-muted" style="font-size:12.5px;">${r.detail}</div></div></div>`).join('')
+    + `<div class="t-muted" style="font-size:12.5px; margin-top:8px;">Checked ${new Date().toLocaleTimeString('en-IN')} · ${escapeHtml(APP_VERSION)}</div>`;
+}
+document.getElementById('systemCheckBtn')?.addEventListener('click', runSystemCheck);
+document.getElementById('systemClearBtn')?.addEventListener('click', async () => {
+  if (!confirm('Remove the copy of the app stored on this device and reload? Your login and data are not affected.')) return;
+  try {
+    const regs = navigator.serviceWorker?.getRegistrations ? await navigator.serviceWorker.getRegistrations() : [];
+    await Promise.all(regs.map((r) => r.unregister()));
+    if (window.caches) await Promise.all((await caches.keys()).map((k) => caches.delete(k)));
+  } catch (e) { console.warn('Clearing the stored copy failed:', e); }
+  location.replace(`${location.pathname}?r=${Date.now()}`);
+});
+
 async function bootData() {
+  { const sc = document.getElementById('systemCheckCard'); if (sc) sc.style.display = can('manageAdmins') ? '' : 'none'; const oh = document.getElementById('driveOriginHint'); if (oh) oh.textContent = location.origin; }
   const fySel = document.getElementById('fySelect');
   fySel.innerHTML = financialYearOptions().map(fy => `<option value="${fy}" ${fy === selectedFY ? 'selected' : ''}>FY ${fy}</option>`).join('');
   fySel.addEventListener('change', () => { selectedFY = fySel.value; renderOverview(); renderDefaulters(); renderExpenses(); });
@@ -3517,7 +3798,7 @@ function renderComplaintWeeklyReport() {
   const box = (num, label, color) => `
     <div style="flex:1; min-width:90px; background:var(--paper); border:1px solid var(--line); border-radius:12px; padding:12px 14px; text-align:center;">
       <div style="font-size:22px; font-weight:800; ${color ? `color:${color};` : ''}">${num}</div>
-      <div class="t-muted" style="font-size:10.5px;">${label}</div>
+      <div class="t-muted" style="font-size:11.5px;">${label}</div>
     </div>`;
 
   el.innerHTML = `
@@ -3528,7 +3809,7 @@ function renderComplaintWeeklyReport() {
       ${box(rate === null ? '—' : rate + '%', 'Resolution rate')}
       <div style="flex:1; min-width:90px; background:${gradeColor}; color:#fff; border-radius:12px; padding:12px 14px; text-align:center;">
         <div style="font-size:22px; font-weight:800;">${grade}</div>
-        <div style="font-size:10.5px; opacity:.85;">Rating</div>
+        <div style="font-size:11.5px; opacity:.85;">Rating</div>
       </div>
     </div>
     <div style="font-size:12px; color:var(--ink-600); margin-bottom:${avgStars ? '6px' : '0'};">${trendTxt}</div>
@@ -3726,7 +4007,7 @@ function renderPetVaxReminders() {
           ${st.status === 'overdue' ? `<span style="color:var(--danger,#C0392B);">${Math.abs(st.daysUntil)} days overdue</span>` : `Due in ${st.daysUntil} days`}
         </div>
       </div>
-      ${mobile ? `<a class="btn btn-primary btn-sm" data-petvax-wa="${i}" target="_blank" rel="noopener">Send WhatsApp</a>` : '<span class="t-muted" style="font-size:11.5px;">No mobile number found</span>'}
+      ${mobile ? `<a class="btn btn-primary btn-sm" data-petvax-wa="${i}" target="_blank" rel="noopener">Send WhatsApp</a>` : '<span class="t-muted" style="font-size:12.5px;">No mobile number found</span>'}
     </div>`;
   }).join('');
   list.querySelectorAll('[data-petvax-wa]').forEach(a => {
@@ -3761,7 +4042,7 @@ function renderRentAgreementReminders() {
           ${st.status === 'expired' ? `<span style="color:var(--danger,#C0392B);">Expired ${Math.abs(st.daysUntil)} days ago</span>` : `Expires in ${st.daysUntil} days`}
         </div>
       </div>
-      ${m.mobile ? `<a class="btn btn-primary btn-sm" data-rentwa="${i}" target="_blank" rel="noopener">Send WhatsApp</a>` : '<span class="t-muted" style="font-size:11.5px;">No mobile number found</span>'}
+      ${m.mobile ? `<a class="btn btn-primary btn-sm" data-rentwa="${i}" target="_blank" rel="noopener">Send WhatsApp</a>` : '<span class="t-muted" style="font-size:12.5px;">No mobile number found</span>'}
     </div>`).join('');
   list.querySelectorAll('[data-rentwa]').forEach(a => {
     const { m } = flagged[Number(a.dataset.rentwa)];
@@ -3964,7 +4245,7 @@ function renderEvents() {
           </div>`;
     return `
       <tr>
-        <td data-label="Event"><b>${escapeHtml(ev.name)}</b>${ev.note ? `<div class="t-muted" style="font-size:11.5px;">${escapeHtml(ev.note)}</div>` : ''}</td>
+        <td data-label="Event"><b>${escapeHtml(ev.name)}</b>${ev.note ? `<div class="t-muted" style="font-size:12.5px;">${escapeHtml(ev.note)}</div>` : ''}</td>
         <td data-label="Fee">${formatINR(ev.feeAmount)}</td>
         <td data-label="FY">${escapeHtml(ev.fy || '—')}</td>
         <td data-label="Status">${statusBadge}</td>
@@ -4193,7 +4474,7 @@ function renderExpenses() {
       <td data-label="Category">${escapeHtml(e.category || '—')}</td>
       <td data-label="Paid To">${escapeHtml(e.paidTo || '—')}${e.billLink ? ` <a href="${escapeHtml(e.billLink)}" target="_blank" rel="noopener" style="text-decoration:underline;">bill</a>` : ''}</td>
       <td data-label="Amount"><b>${formatINR(e.amount)}</b></td>
-      <td data-label="Status">${expenseStatusBadge(e)}${isVoided && e.voidReason ? `<div class="t-muted" style="font-size:11px;">${escapeHtml(e.voidReason)}</div>` : ''}</td>
+      <td data-label="Status">${expenseStatusBadge(e)}${isVoided && e.voidReason ? `<div class="t-muted" style="font-size:12px;">${escapeHtml(e.voidReason)}</div>` : ''}</td>
       <td data-label="Actions">${actions}</td>
     </tr>`;
   }).join('') || `<tr><td colspan="7" class="t-muted">No expenses recorded for FY ${escapeHtml(fy)} yet.</td></tr>`;
@@ -4229,12 +4510,12 @@ function renderExpenses() {
       <div class="list-edit-item" style="align-items:flex-start;">
         <div>
           <b style="font-size:13.5px;">${escapeHtml(e.description)}</b> — <span class="mono">${formatINR(e.amount)}</span>
-          <div class="t-muted" style="font-size:11.5px; margin-top:2px;">
+          <div class="t-muted" style="font-size:12.5px; margin-top:2px;">
             ${escapeHtml(e.category || '—')} · ${escapeHtml(e.paidTo || '—')} · Requested by ${escapeHtml(e.requestedBy || '—')}
           </div>
         </div>
         <div style="display:flex; gap:6px; flex-shrink:0;">
-          ${expenseBlockFor(e) ? `<span class="t-muted" style="font-size:11.5px; max-width:200px; align-self:center;">${escapeHtml(expenseBlockFor(e))}</span>` : `<button class="btn btn-primary btn-sm" data-approve-exp="${e.id}">Approve</button>`}
+          ${expenseBlockFor(e) ? `<span class="t-muted" style="font-size:12.5px; max-width:200px; align-self:center;">${escapeHtml(expenseBlockFor(e))}</span>` : `<button class="btn btn-primary btn-sm" data-approve-exp="${e.id}">Approve</button>`}
           <button class="btn btn-danger btn-sm" data-reject-exp="${e.id}">Reject</button>
         </div>
       </div>`).join('');
@@ -4598,7 +4879,7 @@ function renderMemberDetailView(m) {
     <div class="vrow-list" style="font-size:13.5px;">
       <div class="vrow"><span class="t-muted">Flat / Tower</span><span>${escapeHtml(m.flatNumber)} / ${escapeHtml(m.tower)}</span></div>
       <div class="vrow"><span class="t-muted">Mobile</span><span>${escapeHtml(m.mobile)}</span></div>
-      <div class="vrow"><span class="t-muted">Email</span><span>${escapeHtml(m.email)} ${m.emailVerified ? '<span class="badge badge-success" style="font-size:10.5px; padding:1px 6px;">✓ Verified</span>' : '<span class="badge badge-warning" style="font-size:10.5px; padding:1px 6px;">Not verified</span>'}</span></div>
+      <div class="vrow"><span class="t-muted">Email</span><span>${escapeHtml(m.email)} ${m.emailVerified ? '<span class="badge badge-success" style="font-size:11.5px; padding:1px 6px;">✓ Verified</span>' : '<span class="badge badge-warning" style="font-size:11.5px; padding:1px 6px;">Not verified</span>'}</span></div>
       <div class="vrow"><span class="t-muted">Occupation</span><span>${escapeHtml(m.occupation || '—')}</span></div>
       <div class="vrow"><span class="t-muted">Type</span><span>${{ owner: 'Owner', jointowner: 'Joint Owner', tenant: 'Tenant' }[m.residentType] || escapeHtml(m.residentType || '—')}</span></div>
       ${m.coOwnerName ? `<div class="vrow"><span class="t-muted">Co-Owner</span><span>${escapeHtml(m.coOwnerName)}${m.coOwnerMobile ? ` · ${escapeHtml(m.coOwnerMobile)}` : ''}</span></div>` : ''}
@@ -4630,14 +4911,14 @@ function renderMemberDetailView(m) {
       })()}
     </div>
     <div style="margin:16px 0; display:flex; gap:10px; flex-wrap:wrap;">
-      ${m.idDocURL ? `<button class="btn btn-outline btn-sm" id="viewDocBtn">${m.idDocEncrypted ? '<svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#a-unlock"/></svg>Decrypt &amp; View ID Doc' : '<svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#a-doc"/></svg>View ID Doc'}</button>` : '<span class="t-muted" style="font-size:12.5px;">No ID document uploaded.</span>'}
+      ${m.idDocURL ? `<button class="btn btn-outline btn-sm" id="viewDocBtn">${m.idDocEncrypted ? '<svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-unlock"/></svg>Decrypt &amp; View ID Doc' : '<svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-file"/></svg>View ID Doc'}</button>` : '<span class="t-muted" style="font-size:12.5px;">No ID document uploaded.</span>'}
     </div>
     ${m.status === 'inactive' && m.dataErasedAt ? `<p class="t-muted" style="font-size:12px; margin-bottom:10px;">🔒 Personal data has been erased (${fmtDate(m.dataErasedAt)}) — only name, flat, and financial history are retained.</p>` : ''}
     <div class="action-row" style="flex-wrap:wrap;">
       ${m.status === 'pending' && can('approveMembers') ? `<button class="btn btn-primary btn-sm" id="approveBtn">✓ Approve</button><button class="btn btn-danger btn-sm" id="rejectBtn">✕ Reject</button>` : ''}
       ${m.status === 'approved' && can('approveMembers') ? `<button class="btn btn-danger btn-sm" id="deactivateBtn">Deactivate Member</button>` : ''}
-      ${can('approveMembers') ? `<button class="btn btn-outline btn-sm" id="editMemberBtn">✎ Edit Master Data</button>` : ''}
-      ${m.status === 'inactive' && !m.dataErasedAt && can('approveMembers') ? `<button class="btn btn-danger btn-sm" id="erasePersonalDataBtn">🔒 Erase Personal Data</button>` : ''}
+      ${can('approveMembers') ? `<button class="btn btn-outline btn-sm" id="editMemberBtn"><svg class="ic inline-ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-edit"/></svg>Edit Master Data</button>` : ''}
+      ${m.status === 'inactive' && !m.dataErasedAt && can('approveMembers') ? `<button class="btn btn-danger btn-sm" id="erasePersonalDataBtn"><svg class="ic inline-ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-lock"/></svg>Erase Personal Data</button>` : ''}
     </div>
   `;
   document.getElementById('viewDocBtn')?.addEventListener('click', () => openMemberDoc(m));
@@ -4722,6 +5003,7 @@ document.getElementById('householdFlatSelect')?.addEventListener('change', rende
    at the moment it's relevant, instead of making them go find this person
    again later. Silently does nothing if there's no mobile number to send
    to, since a broken/disabled button would be worse than no prompt. */
+function SOCIETY_NAME_FOR_MSG() { return SOCIETY.fullName || 'Max Heights Majestic RWS'; }
 function promptSendWhatsApp(mobile, message, subtitle) {
   if (!mobile) return;
   document.getElementById('waPromptSubtitle').textContent = subtitle;
@@ -4758,7 +5040,7 @@ function renderBloodGroupResult(bg) {
           <b style="font-size:13px;">${escapeHtml(m.name)}</b>
           <div class="t-muted" style="font-size:12px;">${escapeHtml(m.tower)}-${escapeHtml(m.flatNumber)}</div>
         </div>
-        ${m.mobile ? `<a href="tel:${escapeHtml(m.mobile.replace(/\s+/g, ''))}" class="btn btn-primary btn-sm">Call</a>` : '<span class="t-muted" style="font-size:11.5px;">No number</span>'}
+        ${m.mobile ? `<a href="tel:${escapeHtml(m.mobile.replace(/\s+/g, ''))}" class="btn btn-primary btn-sm">Call</a>` : '<span class="t-muted" style="font-size:12.5px;">No number</span>'}
       </div>`).join('')}
   `;
 }
@@ -5738,7 +6020,7 @@ function renderPetsSection() {
       <td data-label="Owner">${owner ? `<a href="#" class="name-link" data-view-owner="${owner.id || owner.uid}">${escapeHtml(p.ownerName || owner.name)}</a>` : escapeHtml(p.ownerName || '—')}</td>
       <td data-label="Flat / Tower">${escapeHtml(p.flatNumber || '')} / ${escapeHtml(p.tower || '')}</td>
       <td data-label="Vaccination"><span class="badge ${vaxBadge[st.status]}">${vaxLabel[st.status]}</span></td>
-      <td data-label=""><button class="btn btn-outline btn-sm" data-delete-pet="${p.id}" title="Delete pet" aria-label="Delete pet">🗑</button></td>
+      <td data-label=""><button class="btn btn-outline btn-sm" data-delete-pet="${p.id}" title="Delete pet" aria-label="Delete pet"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-trash"/></svg></button></td>
     </tr>`;
   }).join('');
 
@@ -6024,16 +6306,17 @@ function renderPaymentDetailView(p) {
         If the flat was entered wrongly and later corrected, update this payment (and its receipt) to match. If they genuinely moved, leave it as it is.
         <div style="margin-top:8px;"><button class="btn btn-outline btn-sm" id="fixPayFlatBtn">Update payment to ${escapeHtml(flatMismatch.current)}</button></div>
       </div>` : ''}
-    ${p.paymentProofURL ? `<a href="${escapeHtml(p.paymentProofURL)}" target="_blank" class="btn btn-outline btn-sm" style="margin:14px 0; display:inline-flex;"><svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#a-clip"/></svg>View Payment Proof</a>` : ''}
+    ${p.paymentProofURL ? `<a href="${escapeHtml(p.paymentProofURL)}" target="_blank" class="btn btn-outline btn-sm" style="margin:14px 0; display:inline-flex;"><svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-clip"/></svg>View Payment Proof</a>` : ''}
     <div class="action-row" style="margin-top:8px; flex-wrap:wrap;">
       ${(p.status === 'pending_approval' || p.status === 'pending_verification') && can('verifyPayments') ? `
         <button class="btn btn-primary btn-sm" id="verifyBtn">✓ Verify &amp; Issue Receipt</button>
         <button class="btn btn-danger btn-sm" id="rejectPayBtn">✕ Reject</button>` : ''}
       ${can('verifyPayments') ? `
-        <button class="btn btn-outline btn-sm" id="editPayBtn">✎ Edit (fix a mistake)</button>
+        <button class="btn btn-outline btn-sm" id="editPayBtn"><svg class="ic inline-ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-edit"/></svg>Edit (fix a mistake)</button>
+        ${p.status === 'verified' && p.receiptNumber ? `<button class="btn btn-outline btn-sm" id="waReceiptBtn"><svg class="ic inline-ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-share"/></svg>Send receipt on WhatsApp</button>` : ''}
         ${p.status === 'verified'
           ? `<button class="btn btn-ghost btn-sm t-danger" id="voidPayBtn">⊘ Void Payment</button>`
-          : `<button class="btn btn-ghost btn-sm t-danger" id="deletePayBtn">🗑 Delete Entry</button>`}` : ''}
+          : `<button class="btn btn-ghost btn-sm t-danger" id="deletePayBtn"><svg class="ic inline-ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-trash"/></svg>Delete Entry</button>`}` : ''}
     </div>
   `;
   document.getElementById('fixPayFlatBtn')?.addEventListener('click', async (ev) => {
@@ -6050,6 +6333,11 @@ function renderPaymentDetailView(p) {
       showToast(`Could not update the payment${err?.code ? ` (${err.code})` : ''}.`, 'error');
       b.disabled = false;
     }
+  });
+  document.getElementById('waReceiptBtn')?.addEventListener('click', () => {
+    const who = allMembers.find((x) => x.uid === p.memberUid || x.id === p.memberUid);
+    if (!who?.mobile) { showToast('No mobile number is saved for this resident.', 'error'); return; }
+    promptSendWhatsApp(who.mobile, receiptWhatsAppMessage(p, SOCIETY_NAME_FOR_MSG()), `${p.residentName} ko receipt ${p.receiptNumber} WhatsApp par bhejein`);
   });
   document.getElementById('verifyBtn')?.addEventListener('click', () => verifyPayment(p.id));
   document.getElementById('rejectPayBtn')?.addEventListener('click', () => rejectPayment(p.id));
@@ -6368,8 +6656,8 @@ async function verifyPayment(id) {
     const payingMember = allMembers.find(x => x.uid === p.memberUid || x.id === p.memberUid);
     promptSendWhatsApp(
       payingMember?.mobile,
-      `Namaste ${p.residentName} ji,\n\nAapka payment (₹${p.amount}) verify ho gaya hai. Receipt number: ${receiptNumber}\n\nReceipt portal par login karke download kar sakte hain.\n\nDhanyavaad,\nMHMRWS Committee`,
-      `${p.residentName} ka payment verify ho gaya — WhatsApp par bataana chahenge?`
+      receiptWhatsAppMessage({ ...p, receiptNumber, publicToken }, SOCIETY_NAME_FOR_MSG()),
+      `${p.residentName} ka payment verify ho gaya — receipt WhatsApp par bhejna chahenge?`
     );
   } catch (e) {
     console.error('Verify payment failed:', e);
@@ -6754,6 +7042,36 @@ function openWaQueue() {
   }));
   document.getElementById('waQueueModalBackdrop').classList.add('open');
 }
+
+// In-app reminder: ONE small record, not a message per resident. Each resident's
+// app reads the latest one and shows it only if THEY currently owe something.
+// (Rules: only Treasurer / Super Admin may send; a 24-hour gap is asked about
+// so a reminder is not sent twice by accident.)
+document.getElementById('sendReminderBtn')?.addEventListener('click', async (e) => {
+  const btn = e.currentTarget;
+  if (!can('verifyPayments')) { showToast('Only the Treasurer or Super Admin can send reminders.', 'error'); return; }
+  const owing = outstandingMembers().length;
+  if (!owing) { showToast(`Nobody has dues for FY ${selectedFY} — nothing to remind.`, 'info'); return; }
+  btn.disabled = true;
+  try {
+    let last = null;
+    try {
+      const snap = await getDocs(query(collection(db, 'reminders'), orderBy('sentAt', 'desc'), limit(1)));
+      last = snap.docs[0]?.data()?.sentAt?.toMillis?.() || null;
+    } catch (_) { /* first ever reminder, or index not needed — carry on */ }
+    if (last && Date.now() - last < 24 * 3600 * 1000 &&
+        !confirm(`A reminder was already sent ${Math.max(1, Math.round((Date.now() - last) / 3600000))} hour(s) ago. Send another now?`)) return;
+    if (!confirm(`Show a dues reminder in the app of the ${owing} flat(s) that owe money for FY ${selectedFY}?`)) return;
+    await addDoc(collection(db, 'reminders'), {
+      type: 'dues', fy: selectedFY, sentAt: serverTimestamp(), sentBy: auth.currentUser?.email || '', count: owing
+    });
+    await logAudit(auth.currentUser, 'send_dues_reminder', { fy: selectedFY, flats: owing });
+    showToast(`Reminder sent — it shows in the app of ${owing} flat(s) that owe money.`, 'success');
+  } catch (err) {
+    console.error('Send reminder failed:', err);
+    showToast(`Could not send the reminder${err?.code ? ` (${err.code})` : ''}.`, 'error');
+  } finally { btn.disabled = false; }
+});
 document.getElementById('waQueueBtn')?.addEventListener('click', openWaQueue);
 document.getElementById('closeWaQueue')?.addEventListener('click', () => document.getElementById('waQueueModalBackdrop').classList.remove('open'));
 
@@ -6808,9 +7126,9 @@ function renderDefaulters() {
       <td data-label="Resident">${escapeHtml(m.name)}</td>
       <td data-label="Flat / Tower">${escapeHtml(m.flatNumber)} / ${escapeHtml(m.tower)}</td>
       <td data-label="Outstanding"><b class="t-danger">${formatINR(d.outstanding)}</b>
-        <span class="t-muted" style="font-size:11.5px;"> of ${formatINR(d.expected)}</span></td>
+        <span class="t-muted" style="font-size:12.5px;"> of ${formatINR(d.expected)}</span></td>
       <td data-label="Health">${health.icon} ${escapeHtml(health.label)}
-        ${health.level === 'disputed' && m.duesDisputedReason ? `<div class="t-muted" style="font-size:11px;">${escapeHtml(m.duesDisputedReason)}</div>` : ''}</td>
+        ${health.level === 'disputed' && m.duesDisputedReason ? `<div class="t-muted" style="font-size:12px;">${escapeHtml(m.duesDisputedReason)}</div>` : ''}</td>
       <td data-label="Remind"><a class="btn btn-outline btn-sm" target="_blank" rel="noopener"
         href="${waLink(m.mobile, defaulterReminderText(m, d))}">WhatsApp</a></td>
       <td data-label="">${canDispute ? `<button class="btn btn-outline btn-sm" data-toggle-dispute="${m.id}">${health.level === 'disputed' ? 'Un-dispute' : 'Mark Disputed'}</button>` : ''}</td>
@@ -6843,7 +7161,7 @@ function renderMembershipDues() {
       <td data-label="Flat / Tower">${escapeHtml(m.flatNumber)} / ${escapeHtml(m.tower)}</td>
       <td data-label="Mobile">${escapeHtml(m.mobile || '—')}</td>
       <td data-label="Outstanding"><b class="t-danger">${formatINR(d.outstanding)}</b>
-        <span class="t-muted" style="font-size:11.5px;"> of ${formatINR(d.fee)}</span></td>
+        <span class="t-muted" style="font-size:12.5px;"> of ${formatINR(d.fee)}</span></td>
     </tr>`).join('') || '<tr><td colspan="4" class="t-muted">Every owner has cleared the membership fee</td></tr>';
 
   body.querySelectorAll('[data-view-member]').forEach((b) => b.addEventListener('click', (e) => { e.preventDefault(); openMemberModal(b.dataset.viewMember); }));
@@ -6941,7 +7259,7 @@ async function loadContentPanels() {
   const CATEGORY_BADGE_LABEL = { core: 'Core Committee', team: 'Team', advisory: 'Advisory' };
   document.getElementById('committeeEditList').innerHTML = allCommitteeMembers.map(c => `
     <div class="list-edit-item">
-      <div><b style="font-size:13.5px;">${escapeHtml(c.name)}</b><div class="t-muted" style="font-size:12px;">${escapeHtml(c.role)} · <span class="badge badge-neutral" style="font-size:10px;">${CATEGORY_BADGE_LABEL[c.category] || 'Team'}</span></div></div>
+      <div><b style="font-size:13.5px;">${escapeHtml(c.name)}</b><div class="t-muted" style="font-size:12px;">${escapeHtml(c.role)} · <span class="badge badge-neutral" style="font-size:11px;">${CATEGORY_BADGE_LABEL[c.category] || 'Team'}</span></div></div>
       <div style="display:flex; gap:6px;">
         <button class="btn btn-outline btn-sm" data-edit-committee="${c.id}">Edit</button>
         <button class="btn btn-danger btn-sm" data-del-committee="${c.id}">Delete</button>
@@ -7085,8 +7403,11 @@ document.getElementById('pollForm')?.addEventListener('submit', async (e) => {
 
   btn.disabled = true;
   try {
+    const description = (f.description?.value || '').trim();
+    const perFlat = !!f.perFlat?.checked;
     const pollRef = await addDoc(collection(db, 'polls'), {
       question, options, startTime: startDate, endTime: endDate,
+      perFlat, ...(description ? { description } : {}),
       createdAt: serverTimestamp()
     });
     // Best-effort: if this partially fails, the vote transaction itself
@@ -7094,9 +7415,10 @@ document.getElementById('pollForm')?.addEventListener('submit', async (e) => {
     // option's first vote — same reasoning as the "no admin seed yet" path
     // in the rules comment.
     await Promise.all(options.map((_, i) => setDoc(doc(db, 'polls', pollRef.id, 'tally', String(i)), { count: 0 }).catch(() => {})));
-    await logAudit(auth.currentUser, 'create_poll', { question, optionCount: options.length });
+    await logAudit(auth.currentUser, 'create_poll', { question, optionCount: options.length, perFlat });
     showToast('Poll started.', 'success');
     f.reset();
+    f.perFlat.checked = true;
     resetPollOptionsEditor();
     loadPollsPanel();
   } catch (err) {
@@ -7170,8 +7492,8 @@ function renderApprovalCenter() {
       <div class="list-edit-item" style="align-items:flex-start;">
         <div>
           <b style="font-size:13.5px;">${escapeHtml(m.name)}</b>
-          ${m.emailVerified ? '<span class="badge badge-success" style="font-size:10px; padding:1px 5px; margin-left:6px;">✓ Email verified</span>' : '<span class="badge badge-warning" style="font-size:10px; padding:1px 5px; margin-left:6px;">Email not verified</span>'}
-          <div class="t-muted" style="font-size:11.5px; margin-top:2px;">
+          ${m.emailVerified ? '<span class="badge badge-success" style="font-size:11px; padding:1px 5px; margin-left:6px;">✓ Email verified</span>' : '<span class="badge badge-warning" style="font-size:11px; padding:1px 5px; margin-left:6px;">Email not verified</span>'}
+          <div class="t-muted" style="font-size:12.5px; margin-top:2px;">
             ${escapeHtml(m.tower || '—')}-${escapeHtml(m.flatNumber || '—')} · ${escapeHtml(m.residentType || '—')} · ${escapeHtml(m.mobile || '—')}
           </div>
         </div>
@@ -7193,7 +7515,7 @@ function renderApprovalCenter() {
       <div class="list-edit-item" style="align-items:flex-start;">
         <div>
           <b style="font-size:13.5px;">${escapeHtml(p.residentName)}</b> — <span class="mono">${formatINR(p.amount)}</span>
-          <div class="t-muted" style="font-size:11.5px; margin-top:2px;">
+          <div class="t-muted" style="font-size:12.5px; margin-top:2px;">
             ${escapeHtml(p.tower || '—')}-${escapeHtml(p.flatNumber || '—')} · ${escapeHtml((p.type || 'maintenance'))} · ${escapeHtml((p.mode || '').toUpperCase())}${p.utrOrChequeNo ? ' · ' + escapeHtml(p.utrOrChequeNo) : ''}
           </div>
         </div>
@@ -7217,7 +7539,7 @@ function renderApprovalCenter() {
       <div class="list-edit-item" style="align-items:flex-start;">
         <div>
           <b style="font-size:13.5px;">${escapeHtml(b.facilityName)}</b>
-          <div class="t-muted" style="font-size:11.5px; margin-top:2px;">
+          <div class="t-muted" style="font-size:12.5px; margin-top:2px;">
             ${fmtDate(b.date)} · ${BOOKING_SLOT_LABEL[b.slot] || escapeHtml(String(b.slot || ''))} · ${escapeHtml(b.residentName)} (${escapeHtml(b.tower || '—')}-${escapeHtml(b.flatNumber || '—')})
           </div>
         </div>
@@ -7241,12 +7563,12 @@ function renderApprovalCenter() {
       <div class="list-edit-item" style="align-items:flex-start;">
         <div>
           <b style="font-size:13.5px;">${escapeHtml(e.description)}</b> — <span class="mono">${formatINR(e.amount)}</span>
-          <div class="t-muted" style="font-size:11.5px; margin-top:2px;">
+          <div class="t-muted" style="font-size:12.5px; margin-top:2px;">
             ${escapeHtml(e.category || '—')} · ${escapeHtml(e.paidTo || '—')} · Requested by ${escapeHtml(e.requestedBy || '—')}
           </div>
         </div>
         <div style="display:flex; gap:14px; flex-shrink:0; align-items:center;">
-          ${expenseBlockFor(e) ? `<span class="t-muted" style="font-size:11.5px; max-width:200px;">${escapeHtml(expenseBlockFor(e))}</span>` : `<button class="btn btn-primary btn-sm" data-ap-approve-exp="${e.id}">Approve</button>`}
+          ${expenseBlockFor(e) ? `<span class="t-muted" style="font-size:12.5px; max-width:200px;">${escapeHtml(expenseBlockFor(e))}</span>` : `<button class="btn btn-primary btn-sm" data-ap-approve-exp="${e.id}">Approve</button>`}
           <button class="btn btn-outline btn-sm" data-ap-reject-exp="${e.id}">Reject</button>
         </div>
       </div>`).join('');
@@ -7380,14 +7702,14 @@ function renderBookingsCalendar() {
     const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
     const dayBookings = byDate[dateStr] || [];
     cells.push(`
-      <div style="min-height:64px; border:1px solid var(--line); border-radius:6px; padding:4px; font-size:11px;">
+      <div style="min-height:64px; border:1px solid var(--line); border-radius:6px; padding:4px; font-size:12px;">
         <div style="font-weight:600; margin-bottom:2px;">${d}</div>
         ${dayBookings.map(b => `<div style="background:var(--gold-tint,#F5EDD8); border-radius:4px; padding:1px 4px; margin-bottom:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${escapeHtml(b.facilityName)} — ${escapeHtml(b.residentName)}">${escapeHtml(b.facilityName)}</div>`).join('')}
       </div>`);
   }
   el.innerHTML = `
     <div style="font-weight:600; margin-bottom:8px;">${today.toLocaleString('en-IN', { month: 'long', year: 'numeric' })}</div>
-    <div style="display:grid; grid-template-columns:repeat(7,1fr); gap:4px; font-size:11px; margin-bottom:4px; text-align:center; color:var(--ink-400);">
+    <div style="display:grid; grid-template-columns:repeat(7,1fr); gap:4px; font-size:12px; margin-bottom:4px; text-align:center; color:var(--ink-400);">
       ${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d => `<div>${d}</div>`).join('')}
     </div>
     <div style="display:grid; grid-template-columns:repeat(7,1fr); gap:4px;">${cells.join('')}</div>`;
@@ -8122,7 +8444,7 @@ function renderInspectionSchedule() {
     const statusFor = (label) => filedItems.find(it => it.label === label)?.status;
     return `<details class="insp-tower-group">
       <summary>
-        <span>${escapeHtml(d.label)}<span class="t-muted" style="font-weight:400; font-size:11px;"> — ${d.assignee ? escapeHtml(d.assignee) : 'unassigned'}</span></span>
+        <span>${escapeHtml(d.label)}<span class="t-muted" style="font-weight:400; font-size:12px;"> — ${d.assignee ? escapeHtml(d.assignee) : 'unassigned'}</span></span>
         <span class="badge ${d.done ? 'badge-success' : 'badge-warning'}">${d.done ? 'Done today' : d.partial ? `Filed — ${Number(d.rec.uncheckedCount)} unchecked` : 'Pending'}</span>
       </summary>
       <div style="padding:8px 4px 2px;">
@@ -8146,7 +8468,7 @@ function renderInspectionSchedule() {
     const badgeClass = pending ? 'badge-warning' : partialCount ? 'badge-warning' : 'badge-success';
     return `<details class="insp-tower-group">
       <summary>
-        <span>Tower ${escapeHtml(g.tower)}${assignee ? ` <span class="t-muted" style="font-weight:400; font-size:11px;">— ${escapeHtml(assignee)}</span>` : ' <span class="t-muted" style="font-weight:400; font-size:11px;">— unassigned</span>'}</span>
+        <span>Tower ${escapeHtml(g.tower)}${assignee ? ` <span class="t-muted" style="font-weight:400; font-size:12px;">— ${escapeHtml(assignee)}</span>` : ' <span class="t-muted" style="font-weight:400; font-size:12px;">— unassigned</span>'}</span>
         <span class="badge ${badgeClass}">${badgeText}</span>
       </summary>
       <div style="padding:8px 4px 2px;">
@@ -8154,14 +8476,14 @@ function renderInspectionSchedule() {
           <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:4px 0; font-size:12.5px;">
             <span style="display:flex; align-items:center; gap:8px;">
               <span style="width:16px; flex-shrink:0;">${i.done ? '✅' : i.partial ? '🟡' : '⬜'}</span>
-              <span style="${i.done ? 'color:var(--ink-500); text-decoration:line-through;' : ''}">${escapeHtml(i.label)}${i.partial ? ` <span class="t-muted" style="font-size:11px;">(${Number(i.rec.uncheckedCount)} unchecked)</span>` : ''}</span>
+              <span style="${i.done ? 'color:var(--ink-500); text-decoration:line-through;' : ''}">${escapeHtml(i.label)}${i.partial ? ` <span class="t-muted" style="font-size:12px;">(${Number(i.rec.uncheckedCount)} unchecked)</span>` : ''}</span>
             </span>
-            ${i.done || i.partial ? `<span class="t-muted" style="font-size:11px; white-space:nowrap;">${filedWhen(i.rec)}</span>` : ''}
+            ${i.done || i.partial ? `<span class="t-muted" style="font-size:12px; white-space:nowrap;">${filedWhen(i.rec)}</span>` : ''}
           </div>
           ${i.subItems ? `
           <div style="display:grid; grid-template-columns:1fr 1fr; gap:2px 10px; margin:2px 0 8px 24px; padding:6px 0 6px 10px; border-left:2px solid var(--line);">
             ${i.subItems.map(s => `
-              <div style="display:flex; align-items:center; gap:6px; font-size:11.5px; ${s.done ? 'color:var(--ink-400);' : 'color:var(--ink-600);'}">
+              <div style="display:flex; align-items:center; gap:6px; font-size:12.5px; ${s.done ? 'color:var(--ink-400);' : 'color:var(--ink-600);'}">
                 <span style="width:13px; flex-shrink:0;">${s.done ? '✅' : '⬜'}</span>
                 <span style="${s.done ? 'text-decoration:line-through;' : ''}">${escapeHtml(s.label)}</span>
               </div>`).join('')}
@@ -8176,7 +8498,7 @@ function renderInspectionSchedule() {
       const tankCheckLabels = INSPECTION_TYPES['weekly-mep'].tankChecks;
       const tankStatus = (v) => v === true ? 'ok' : v === false ? 'issue' : 'unchecked';
       itemsHtml = s.rec?.tankData ? Object.entries(s.rec.tankData).map(([tower, checks]) => `
-        <div class="t-muted" style="font-size:11px; font-weight:700; margin:6px 0 2px;">Tower ${escapeHtml(tower)}</div>
+        <div class="t-muted" style="font-size:12px; font-weight:700; margin:6px 0 2px;">Tower ${escapeHtml(tower)}</div>
         ${tankCheckLabels.map((label, i) => `<div style="display:flex; align-items:center; gap:8px; padding:4px 0; font-size:12.5px;"><span style="width:16px; flex-shrink:0;">${pill(tankStatus(checks[i]))}</span><span>${escapeHtml(label)}</span></div>`).join('')}`).join('') : '';
     } else {
       const items = s.rec ? (s.rec.sections || []).find((sec) => sec.title === s.title)?.items || [] : [];
@@ -8189,7 +8511,7 @@ function renderInspectionSchedule() {
     </summary>
     ${s.rec ? `
       <div style="padding:8px 4px 2px;">
-        <div class="t-muted" style="font-size:11px; margin-bottom:6px;">${filedWhen(s.rec)}</div>
+        <div class="t-muted" style="font-size:12px; margin-bottom:6px;">${filedWhen(s.rec)}</div>
         ${itemsHtml}
       </div>` : ''}
   </details>`;
@@ -8199,11 +8521,11 @@ function renderInspectionSchedule() {
     <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px;">
       <div style="flex:1; min-width:120px; background:var(--paper); border:1px solid var(--line); border-radius:12px; padding:12px 14px;">
         <div style="font-size:22px; font-weight:800;">${doneToday}/${totalToday}</div>
-        <div class="t-muted" style="font-size:11px;">Daily inspections done today</div>
+        <div class="t-muted" style="font-size:12px;">Daily inspections done today</div>
       </div>
       <div style="flex:1; min-width:120px; background:var(--paper); border:1px solid var(--line); border-radius:12px; padding:12px 14px;">
         <div style="font-size:22px; font-weight:800; color:${pendingTodayCount ? 'var(--danger)' : 'var(--success)'};">${pendingTodayCount}</div>
-        <div class="t-muted" style="font-size:11px;">Still pending today</div>
+        <div class="t-muted" style="font-size:12px;">Still pending today</div>
       </div>
     </div>
 
@@ -8266,7 +8588,7 @@ function renderInspectionAnalytics() {
   const stat = (num, label, color) => `
     <div style="flex:1; min-width:110px; background:var(--paper); border:1px solid var(--line); border-radius:12px; padding:12px 14px;">
       <div style="font-size:24px; font-weight:800; ${color ? `color:${color};` : ''}">${num}</div>
-      <div class="t-muted" style="font-size:11px;">${label}</div>
+      <div class="t-muted" style="font-size:12px;">${label}</div>
     </div>`;
 
   el.innerHTML = `
@@ -8291,7 +8613,7 @@ function renderInspectionAnalytics() {
     ${towerRows.length ? `
       <div style="font-size:12px; font-weight:700; margin-bottom:6px;">By tower</div>
       <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px;">
-        ${towerRows.map(([t, c]) => `<span class="badge badge-neutral" style="font-size:11.5px;">Tower ${escapeHtml(t)}: <b>${c}</b></span>`).join('')}
+        ${towerRows.map(([t, c]) => `<span class="badge badge-neutral" style="font-size:12.5px;">Tower ${escapeHtml(t)}: <b>${c}</b></span>`).join('')}
       </div>` : ''}
 
     ${staffRows.length ? `
@@ -8427,7 +8749,7 @@ function renderStaffPerformance() {
         </tbody>
       </table>
     </div>
-    <p class="t-muted" style="font-size:11.5px; margin-top:10px;">Score = average of Completion (% of checklist items actually checked, not left unchecked — finding issues doesn't lower this) and complaint resolution rate, over whichever of the two a person has data for. Issues Found is purely informational: more found is a sign of thorough, honest inspecting, never a penalty. Rejected complaints (duplicates, not valid) are not counted. Turnaround is raised → resolved (what the resident experienced); Handling is assigned → resolved (how long this person took). A low score on very few filings/complaints is a small sample, not a verdict.</p>
+    <p class="t-muted" style="font-size:12.5px; margin-top:10px;">Score = average of Completion (% of checklist items actually checked, not left unchecked — finding issues doesn't lower this) and complaint resolution rate, over whichever of the two a person has data for. Issues Found is purely informational: more found is a sign of thorough, honest inspecting, never a penalty. Rejected complaints (duplicates, not valid) are not counted. Turnaround is raised → resolved (what the resident experienced); Handling is assigned → resolved (how long this person took). A low score on very few filings/complaints is a small sample, not a verdict.</p>
     <canvas id="chartStaffPerf" height="${Math.max(120, rows.length * 34)}" style="margin-top:14px;"></canvas>
   `;
   renderStaffPerfChart(rows);
@@ -8491,11 +8813,11 @@ function openInspectionDetail(id) {
   // checklist item stores the 'ok'/'issue'/'unchecked' strings staff.html
   // itself uses — normalize both into the same badge here.
   const statusPill = (status) => {
-    if (status === 'ok' || status === true) return '<span class="badge badge-success" style="font-size:10.5px;">OK</span>';
-    if (status === 'issue' || status === false) return '<span class="badge badge-danger" style="font-size:10.5px;">Issue</span>';
+    if (status === 'ok' || status === true) return '<span class="badge badge-success" style="font-size:11.5px;">OK</span>';
+    if (status === 'issue' || status === false) return '<span class="badge badge-danger" style="font-size:11.5px;">Issue</span>';
     // Spelled out: a bare dash reads as "not applicable" — this form has no
     // N/A, so anything not marked OK or Issue simply wasn't checked.
-    return `<span class="badge badge-neutral" style="font-size:10.5px;">${inspectionStatusMark(status) === 'NOT CHECKED' ? 'Not checked' : '—'}</span>`;
+    return `<span class="badge badge-neutral" style="font-size:11.5px;">${inspectionStatusMark(status) === 'NOT CHECKED' ? 'Not checked' : '—'}</span>`;
   };
   // Every item gets its own row — not just a rolled-up count of what was
   // OK — so "what was actually checked on this floor / in this section"
@@ -8507,8 +8829,8 @@ function openInspectionDetail(id) {
         <span style="font-size:12px;">${escapeHtml(it.label)}</span>
         ${statusPill(it.status)}
       </div>
-      ${it.status === 'issue' && it.note ? `<div class="t-muted" style="font-size:11px; margin-top:2px;">${escapeHtml(it.note)}</div>` : ''}
-      ${it.status === 'issue' && it.tags?.length ? `<div style="margin-top:3px;">${it.tags.map(t => `<span class="badge badge-warning" style="margin-right:3px; font-size:10px;">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
+      ${it.status === 'issue' && it.note ? `<div class="t-muted" style="font-size:12px; margin-top:2px;">${escapeHtml(it.note)}</div>` : ''}
+      ${it.status === 'issue' && it.tags?.length ? `<div style="margin-top:3px;">${it.tags.map(t => `<span class="badge badge-warning" style="margin-right:3px; font-size:11px;">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
       ${it.status === 'issue' && it.photoURL ? `${imgTag(it.photoURL, 'alt="" style="max-width:140px; border-radius:6px; margin-top:5px; display:block;"')}` : ''}
     </div>`;
   const sectionCard = (title, itemsHtml) => `
@@ -8543,7 +8865,7 @@ function openInspectionDetail(id) {
         <div class="t-muted" style="font-size:12px; margin-top:3px;">${c.ok} OK · ${c.issue} issue${c.issue === 1 ? '' : 's'} · ${c.unchecked} not checked</div>
         ${issues.length ? `<div style="margin-top:8px;">${issues.map(itemRow).join('')}</div>` : ''}
         ${skipped.length ? `<details style="margin-top:8px;"><summary style="font-size:12.5px; cursor:pointer;">${skipped.length} item${skipped.length === 1 ? ' was' : 's were'} not checked</summary>
-          <div class="t-muted" style="font-size:11.5px; margin-top:4px; line-height:1.6;">${skipped.map((s) => escapeHtml(s)).join('<br>')}</div></details>` : ''}
+          <div class="t-muted" style="font-size:12.5px; margin-top:4px; line-height:1.6;">${skipped.map((s) => escapeHtml(s)).join('<br>')}</div></details>` : ''}
       </div>`;
   })();
 
@@ -8563,7 +8885,7 @@ function openInspectionDetail(id) {
     if (r.readingsData) {
       html += sectionCard('Readings', tpl.readings.map(label => `
         <div style="display:flex; justify-content:space-between; padding:5px 0; border-bottom:1px solid var(--line); font-size:12px;">
-          <span>${escapeHtml(label)} <span class="t-muted" style="font-size:10.5px;">(${escapeHtml(tpl.READING_HINTS?.[label] || '')})</span></span><b>${escapeHtml(r.readingsData[label] || '—')}</b>
+          <span>${escapeHtml(label)} <span class="t-muted" style="font-size:11.5px;">(${escapeHtml(tpl.READING_HINTS?.[label] || '')})</span></span><b>${escapeHtml(r.readingsData[label] || '—')}</b>
         </div>`).join(''));
     }
     if (r.maintenanceNotes) html += `<div class="card" style="margin-bottom:10px; padding:14px;"><b style="font-size:13.5px;">Preventive Maintenance</b><p style="font-size:12.5px; margin-top:6px;">${escapeHtml(r.maintenanceNotes)}</p></div>`;
@@ -8585,7 +8907,7 @@ function openInspectionDetail(id) {
     html += `
       <div class="card" style="margin-bottom:10px; padding:14px; ${r.managerVerificationStatus === 'needs_correction' ? 'border-left:3px solid var(--warning,#B87A1F);' : 'border-left:3px solid var(--success);'}">
         <b style="font-size:13.5px;">${r.managerVerificationStatus === 'needs_correction' ? '⚠️ Needs Correction' : '✅ Verified'}</b>
-        <div class="t-muted" style="font-size:11.5px; margin-top:2px;">by ${escapeHtml(r.managerVerifiedBy)}${r.managerVerifiedAt ? ' · ' + fmtDateTime(r.managerVerifiedAt) : ''}</div>
+        <div class="t-muted" style="font-size:12.5px; margin-top:2px;">by ${escapeHtml(r.managerVerifiedBy)}${r.managerVerifiedAt ? ' · ' + fmtDateTime(r.managerVerifiedAt) : ''}</div>
         ${r.managerRemarks ? `<p style="font-size:12.5px; margin-top:6px;">${escapeHtml(r.managerRemarks)}</p>` : ''}
       </div>`;
   }
@@ -9336,7 +9658,7 @@ async function loadPollsPanel() {
     list.innerHTML = `<div style="padding:10px 12px; background:#FDEDED; border-radius:8px; font-size:12.5px;">Could not load polls — please check your connection and refresh.</div>`;
     return;
   }
-  list.innerHTML = polls.map(p => {
+  const pollRow = (p) => {
     const st = pollStatus(p);
     const start = p.startTime?.toDate ? p.startTime.toDate() : new Date(p.startTime);
     const end = p.endTime?.toDate ? p.endTime.toDate() : new Date(p.endTime);
@@ -9344,17 +9666,28 @@ async function loadPollsPanel() {
     <div class="list-edit-item" style="flex-direction:column; align-items:stretch; gap:8px;">
       <div class="spread">
         <div><b style="font-size:13.5px;">${escapeHtml(p.question)}</b>
-          <div class="t-muted" style="font-size:11.5px;">${fmtDate({ toDate: () => start })} → ${fmtDate({ toDate: () => end })}</div>
+          <div class="t-muted" style="font-size:12.5px;">${fmtDate({ toDate: () => start })} → ${fmtDate({ toDate: () => end })}</div>
         </div>
         <span class="badge ${st.cls}">${st.label}</span>
       </div>
+      <div class="t-muted" style="font-size:12.5px;">${p.perFlat ? 'One vote per flat' : 'One vote per member'}</div>
       <div style="display:flex; gap:8px; flex-wrap:wrap;">
         <button class="btn btn-outline btn-sm" data-poll-results="${p.id}">View Results</button>
+        ${canEdit && st.label === 'Active' ? `<button class="btn btn-outline btn-sm" data-close-poll="${p.id}">Close now</button>` : ''}
         ${canEdit ? `<button class="btn btn-danger btn-sm" data-del-poll="${p.id}">Delete</button>` : ''}
       </div>
       <div id="pollResults-${p.id}" style="display:none;"></div>
     </div>`;
-  }).join('') || '<p class="t-muted" style="font-size:13px;">No polls yet.</p>';
+  };
+  // Running polls first (soonest to end on top), then upcoming; finished polls
+  // tuck away under "Past polls" so the list stays short as the years add up.
+  const endMs = (p) => (p.endTime?.toDate ? p.endTime.toDate() : new Date(p.endTime)).getTime();
+  const live = polls.filter(p => pollStatus(p).label !== 'Closed')
+    .sort((a, b) => (pollStatus(a).label === 'Active' ? 0 : 1) - (pollStatus(b).label === 'Active' ? 0 : 1) || endMs(a) - endMs(b));
+  const past = polls.filter(p => pollStatus(p).label === 'Closed').sort((a, b) => endMs(b) - endMs(a));
+  list.innerHTML = (live.map(pollRow).join('') || (past.length ? '<p class="t-muted" style="font-size:13px; margin-bottom:10px;">No running polls.</p>' : ''))
+    + (past.length ? `<details class="past-polls"${live.length ? '' : ' open'}><summary class="past-summary">Past polls (${past.length})</summary>${past.map(pollRow).join('')}</details>` : '')
+    || '<p class="t-muted" style="font-size:13px;">No polls yet.</p>';
 
   document.querySelectorAll('[data-poll-results]').forEach(b => b.addEventListener('click', async () => {
     const pollId = b.dataset.pollResults;
@@ -9364,24 +9697,83 @@ async function loadPollsPanel() {
     box.style.display = 'block';
     box.innerHTML = '<p class="t-muted" style="font-size:12px;">Loading…</p>';
     try {
+      if (!Array.isArray(poll.options)) throw new Error('This poll has no options.');
       const votes = (await getDocs(collection(db, 'polls', pollId, 'votes'))).docs.map(d => d.data());
-      const counts = {};
-      poll.options.forEach(o => { counts[o] = 0; });
-      votes.forEach(v => { if (v.option in counts) counts[v.option]++; });
-      const total = votes.length;
+      const counts = poll.options.map((o) => votes.filter((v) => v.option === o).length);
+      const t = pollTally(poll.options, counts);
+      const closed = pollStatus(poll).label === 'Closed';
+
+      // Turnout by flat (one-vote-per-flat polls): who has voted, who has not.
+      let turnoutHtml = '', flatsVoted = null, flatsTotal = null, pending = [];
+      if (poll.perFlat) try {
+        const voted = new Set((await getDocs(collection(db, 'polls', pollId, 'flatVotes'))).docs.map((d) => d.id));
+        const byFlat = new Map();
+        allMembers.filter((m) => m.status === 'approved').forEach((m) => {
+          const id = pollFlatId(m.tower, m.flatNumber);
+          if (!byFlat.has(id)) byFlat.set(id, []);
+          byFlat.get(id).push(m);
+        });
+        flatsVoted = voted.size; flatsTotal = byFlat.size;
+        pending = [...byFlat.entries()].filter(([id]) => !voted.has(id))
+          .sort((a, b) => a[0].localeCompare(b[0], undefined, { numeric: true }));
+        const pct = flatsTotal ? Math.round((flatsVoted / flatsTotal) * 100) : 0;
+        turnoutHtml = `
+          <div class="poll-turnout" style="margin:8px 0 10px;">
+            <div class="spread" style="font-size:12.5px; margin-bottom:2px;"><span><b>Turnout</b> — ${flatsVoted} of ${flatsTotal} registered flats</span><span class="mono">${pct}%</span></div>
+            <div style="height:6px; background:var(--paper-dark,#eee); border-radius:4px; overflow:hidden;"><div style="height:100%; width:${pct}%; background:var(--green-700,#1E7B46);"></div></div>
+          </div>
+          ${!closed && pending.length ? `<details class="poll-pending"><summary style="cursor:pointer; font-size:12.5px;">${pending.length} flat${pending.length === 1 ? '' : 's'} yet to vote — remind on WhatsApp</summary>
+            <div style="max-height:240px; overflow:auto; margin-top:8px;">
+            ${pending.map(([id, ms]) => {
+              const m = ms.find((x) => String(x.mobile || '').replace(/\D/g, '').length >= 10) || null;
+              const label = `${escapeHtml(ms[0].tower)}-${escapeHtml(ms[0].flatNumber)}`;
+              if (!m) return `<div class="spread" style="font-size:12.5px; padding:5px 0;"><span>${label}</span><span class="t-muted">no mobile</span></div>`;
+              const end = poll.endTime?.toDate ? poll.endTime.toDate() : new Date(poll.endTime);
+              const msg = `Namaste ${m.name || ''}, ${SOCIETY_NAME_FOR_MSG()} ka poll chal raha hai:\n"${poll.question}"\nKripya app mein apna vote dein (${fmtDate({ toDate: () => end })} tak, ek flat ka ek vote): ${location.origin}`;
+              return `<a class="btn btn-outline btn-sm btn-block" style="justify-content:space-between; margin-bottom:6px;" target="_blank" rel="noopener" href="${waLink(m.mobile, msg)}"><span>${label} · ${escapeHtml(m.name || '')}</span><span>Remind</span></a>`;
+            }).join('')}
+            </div></details>` : ''}`;
+      } catch (e) {
+        // The vote counts below are still correct without the turnout figure.
+        console.warn('Poll turnout unavailable:', e?.code || e);
+        turnoutHtml = '<p class="t-muted" style="font-size:12px; margin:8px 0;">Turnout by flat could not be loaded.</p>';
+      }
+
+      const verdict = !closed || !t.total ? '' : t.tie
+        ? `<div style="font-size:13px; margin-bottom:6px;"><b>Tie</b> — ${t.leaders.map((i) => escapeHtml(poll.options[i])).join(' and ')}</div>`
+        : `<div style="font-size:13px; margin-bottom:6px;">Result: <b>${escapeHtml(poll.options[t.leaders[0]])}</b></div>`;
       box.innerHTML = `
-        <div class="t-muted" style="font-size:11.5px; margin-bottom:6px;">${total} vote${total === 1 ? '' : 's'} total</div>
-        ${poll.options.map(o => {
-          const pct = total ? Math.round((counts[o] / total) * 100) : 0;
-          return `<div style="margin-bottom:6px;">
-            <div class="spread" style="font-size:12.5px; margin-bottom:2px;"><span>${escapeHtml(o)}</span><span class="mono">${counts[o]} · ${pct}%</span></div>
-            <div style="height:6px; background:var(--paper-dark,#eee); border-radius:4px; overflow:hidden;"><div style="height:100%; width:${pct}%; background:var(--gold-500,#C9A227);"></div></div>
-          </div>`;
-        }).join('')}
+        ${verdict}
+        <div class="t-muted" style="font-size:12.5px; margin-bottom:6px;">${t.total} vote${t.total === 1 ? '' : 's'} total</div>
+        ${t.rows.map((r) => `<div style="margin-bottom:6px;">
+            <div class="spread" style="font-size:12.5px; margin-bottom:2px;"><span>${escapeHtml(r.option)}</span><span class="mono">${r.count} · ${r.pct}%</span></div>
+            <div style="height:6px; background:var(--paper-dark,#eee); border-radius:4px; overflow:hidden;"><div style="height:100%; width:${r.pct}%; background:var(--gold-500,#C9A227);"></div></div>
+          </div>`).join('')}
+        ${turnoutHtml}
+        <a class="btn btn-outline btn-sm" style="margin-top:8px;" target="_blank" rel="noopener" id="pollShare-${pollId}" href="https://wa.me/?text=${encodeURIComponent(pollResultText(poll, t, { flatsVoted, flatsTotal, society: SOCIETY_NAME_FOR_MSG(), closed }))}">Share result on WhatsApp</a>
       `;
     } catch (err) {
       console.error('Load poll results failed:', err);
       box.innerHTML = `<p class="t-muted" style="font-size:12px;">Could not load results${err?.code ? ` (${err.code})` : ''}.</p>`;
+    }
+  }));
+
+  // End voting now. Only the end time moves (rules allow nothing else here),
+  // and the result then shows to residents as a closed poll.
+  document.querySelectorAll('[data-close-poll]').forEach(b => b.addEventListener('click', async () => {
+    if (!confirm('Close voting now? Nobody will be able to vote after this, and the result becomes final.')) return;
+    b.disabled = true;
+    try {
+      // Two seconds in the past so a clock that runs slightly ahead of the
+      // server's still satisfies "endTime <= now" in the rules.
+      await updateDoc(doc(db, 'polls', b.dataset.closePoll), { endTime: new Date(Date.now() - 2000) });
+      await logAudit(auth.currentUser, 'close_poll', { id: b.dataset.closePoll });
+      showToast('Voting closed.', 'success');
+      loadPollsPanel();
+    } catch (err) {
+      console.error('Close poll failed:', err);
+      showToast(`Could not close the poll${err?.code ? ` (${err.code})` : ''}.`, 'error');
+      b.disabled = false;
     }
   }));
 
@@ -9402,7 +9794,8 @@ async function loadPollsPanel() {
       // actually delivers on that.
       const votesSnap = await getDocs(collection(db, 'polls', pollId, 'votes'));
       const tallySnap = await getDocs(collection(db, 'polls', pollId, 'tally'));
-      await deleteRefsInChunks([...votesSnap.docs.map(d => d.ref), ...tallySnap.docs.map(d => d.ref)]);
+      const flatVotesSnap = await getDocs(collection(db, 'polls', pollId, 'flatVotes'));
+      await deleteRefsInChunks([...votesSnap.docs.map(d => d.ref), ...tallySnap.docs.map(d => d.ref), ...flatVotesSnap.docs.map(d => d.ref)]);
       await deleteDoc(doc(db, 'polls', pollId));
       await logAudit(auth.currentUser, 'delete_poll', { id: pollId, votesDeleted: votesSnap.size });
       loadPollsPanel();
@@ -9457,7 +9850,7 @@ function renderBankReconciliation() {
       <td data-label="Type">${t.type === 'credit' ? '↓ Credit' : '↑ Debit'}</td>
       <td data-label="Amount"><b>${formatINR(t.amount)}</b></td>
       <td data-label="Status">${reconStatusBadge(t)}
-        ${t.status === 'matched' && t.matchedLabel ? `<div class="t-muted" style="font-size:11px; margin-top:2px;">${escapeHtml(t.matchedLabel)}</div>` : ''}
+        ${t.status === 'matched' && t.matchedLabel ? `<div class="t-muted" style="font-size:12px; margin-top:2px;">${escapeHtml(t.matchedLabel)}</div>` : ''}
       </td>
       <td data-label="Actions" style="white-space:nowrap;">
         ${(!t.status || t.status === 'unmatched')
@@ -9530,7 +9923,7 @@ function showMatchCandidates(txId) {
   const candidates = buildMatchCandidates(tx);
   row.querySelector('td').innerHTML = candidates.length
     ? `<div style="padding:10px; background:var(--paper,#FAF8F3); border-radius:8px;">
-        <div class="t-muted" style="font-size:11.5px; margin-bottom:8px;">${tx.type === 'credit' ? 'Matching payments' : 'Matching expenses'} (closest amount first):</div>
+        <div class="t-muted" style="font-size:12.5px; margin-bottom:8px;">${tx.type === 'credit' ? 'Matching payments' : 'Matching expenses'} (closest amount first):</div>
         ${candidates.map((c, i) => `<div class="spread" style="font-size:12.5px; padding:5px 0; border-bottom:1px solid #eee;"><span>${escapeHtml(c.label)} — ${formatINR(c.amount)}</span><button class="btn btn-primary btn-sm" data-pick-candidate="${i}">Link</button></div>`).join('')}
       </div>`
     : `<div style="padding:10px; background:var(--paper,#FAF8F3); border-radius:8px;" class="t-muted" style="font-size:12.5px;">No matching ${tx.type === 'credit' ? 'payment' : 'expense'} found.</div>`;
@@ -9641,7 +10034,7 @@ function renderSuspenseList() {
     <div class="list-edit-item" style="align-items:flex-start;">
       <div>
         <b style="font-size:13.5px;">${formatINR(p.amount)}</b>
-        <div class="t-muted" style="font-size:11.5px; margin-top:2px;">
+        <div class="t-muted" style="font-size:12.5px; margin-top:2px;">
           ${p.transactionDate ? fmtDate(p.transactionDate) + ' · ' : ''}${escapeHtml(p.notes || '')}
         </div>
       </div>
@@ -9807,7 +10200,7 @@ async function loadClosingPanel() {
   document.getElementById('closingChecklist').innerHTML = checks.map(c => `
     <div class="spread" style="font-size:13px; padding:6px 0; border-bottom:1px solid #eee;">
       <span>${c.ok ? '✅' : '⚠️'} ${escapeHtml(c.label)}</span>
-      ${c.detail ? `<span class="t-muted" style="font-size:11.5px;">${escapeHtml(c.detail)}</span>` : ''}
+      ${c.detail ? `<span class="t-muted" style="font-size:12.5px;">${escapeHtml(c.detail)}</span>` : ''}
     </div>`).join('');
 
   const closeBtn = document.getElementById('closeMonthBtn');
@@ -9827,7 +10220,7 @@ async function loadClosingPanel() {
 
   document.getElementById('closedMonthsList').innerHTML = closures.map(c => `
     <div class="list-edit-item">
-      <div><b style="font-size:13px;">${escapeHtml(c.id)}</b><div class="t-muted" style="font-size:11.5px;">Closed by ${escapeHtml(c.closedBy || '—')} on ${fmtDate(c.closedAt)}${c.allChecksOk === false ? ' · kuch checks pending the' : ''}</div></div>
+      <div><b style="font-size:13px;">${escapeHtml(c.id)}</b><div class="t-muted" style="font-size:12.5px;">Closed by ${escapeHtml(c.closedBy || '—')} on ${fmtDate(c.closedAt)}${c.allChecksOk === false ? ' · kuch checks pending the' : ''}</div></div>
     </div>`).join('') || '<p class="t-muted" style="font-size:13px;">No months closed yet.</p>';
 
   await renderFyLockList();
@@ -9844,7 +10237,7 @@ async function renderFyLockList() {
     const lock = allFyLocks.find(l => l.id === fy);
     return `
     <div class="list-edit-item">
-      <div><b style="font-size:13px;">FY ${escapeHtml(fy)}</b>${lock ? `<div class="t-muted" style="font-size:11.5px;">Locked by ${escapeHtml(lock.lockedBy || '—')} on ${fmtDate(lock.lockedAt)}</div>` : ''}</div>
+      <div><b style="font-size:13px;">FY ${escapeHtml(fy)}</b>${lock ? `<div class="t-muted" style="font-size:12.5px;">Locked by ${escapeHtml(lock.lockedBy || '—')} on ${fmtDate(lock.lockedAt)}</div>` : ''}</div>
       ${lock
         ? `<button class="btn btn-danger btn-sm" data-unlock-fy="${fy}">Unlock</button>`
         : `<button class="btn btn-primary btn-sm" data-lock-fy="${fy}">Lock</button>`}
@@ -10102,7 +10495,7 @@ document.getElementById('checkCommitteeCategoriesBtn')?.addEventListener('click'
   panel.style.display = 'block';
 
   if (!allCommitteeMembers.length) {
-    panel.innerHTML = `<div class="card"><p style="font-size:13px; margin:0;">No committee members added yet.</p></div>`;
+    panel.innerHTML = `<div class="card card-pad"><p style="font-size:13px; margin:0;">No committee members added yet.</p></div>`;
     return;
   }
 
@@ -10115,9 +10508,9 @@ document.getElementById('checkCommitteeCategoriesBtn')?.addEventListener('click'
   const mismatchCount = rows.filter((c) => c.current !== c.suggested).length;
 
   panel.innerHTML = `
-    <div class="card">
+    <div class="card card-pad">
       <p style="font-size:13px; margin-bottom:4px;"><b>${allCommitteeMembers.length}</b> committee member(s). ${mismatchCount ? `<b style="color:var(--danger);">${mismatchCount} in the wrong group.</b>` : `<b style="color:var(--success);">All correctly grouped.</b>`}</p>
-      <p class="t-muted" style="font-size:11.5px; margin-bottom:10px;">Group is decided from each person's Role text. If a guess is wrong, fix that person's Role wording (e.g. include "President"/"Advisory"), then run this again.</p>
+      <p class="t-muted" style="font-size:12.5px; margin-bottom:10px;">Group is decided from each person's Role text. If a guess is wrong, fix that person's Role wording (e.g. include "President"/"Advisory"), then run this again.</p>
       <div style="max-height:320px; overflow-y:auto; border:1px solid var(--line); border-radius:8px; padding:4px 10px;">
         ${rows.map((c) => {
           const changed = c.current !== c.suggested;
@@ -10696,6 +11089,7 @@ document.getElementById('paymentSettingsForm').addEventListener('submit', async 
     branch: f.branch.value.trim(),
     updatedAt: serverTimestamp()
   };
+  if (!(await ensureRecentSignIn())) { showToast('Cancelled — payment details were not changed.', 'info'); return; }
   if (btn) btn.disabled = true;
   try {
     if (f.qrImage.files[0]) {
@@ -11100,14 +11494,14 @@ async function renderBackupAge() {
 
   if (backupAgeLoadFailed) {
     el.innerHTML = `<div class="notice-banner" style="margin:0;">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#a-cloud"/></svg>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-cloud"/></svg>
       <div><b>Could not check when the last backup was taken.</b> Please refresh — this isn't necessarily "no backup".</div>
     </div>`;
     return;
   }
   if (!last) {
     el.innerHTML = `<div class="notice-banner" style="margin:0;">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#a-cloud"/></svg>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-cloud"/></svg>
       <div><b>No backup has been taken yet.</b> The society's entire financial record exists only on Firebase.</div>
     </div>`;
     return;
@@ -11118,7 +11512,7 @@ async function renderBackupAge() {
   const kindLabel = kind === 'github' ? 'Automatic nightly backup' : kind === 'drive' ? 'To Google Drive' : 'File download';
   const when = days === 0 ? 'today' : days === 1 ? 'yesterday' : days + ' days ago';
   el.innerHTML = `<div class="notice-banner" style="margin:0; ${stale ? '' : 'background:var(--success-bg); border-color:var(--success-line);'}">
-    <svg viewBox="0 0 24 24" aria-hidden="true" ${stale ? '' : 'style="color:var(--success)"'}><use href="#a-cloud"/></svg>
+    <svg viewBox="0 0 24 24" aria-hidden="true" ${stale ? '' : 'style="color:var(--success)"'}><use href="#ic-cloud"/></svg>
     <div>
       <b>${stale ? `Last backup was ${days} days ago.` : `Last backup was ${when}.`}</b>
       ${escapeHtml(kindLabel)}${by && kind !== 'github' ? ' &middot; ' + escapeHtml(by) : ''}
@@ -11231,7 +11625,7 @@ document.getElementById('backupNowBtn').addEventListener('click', async () => {
     }
   } catch (e) {
     showToast(e.message || 'Backup failed.', 'error');
-  } finally { btn.disabled = false; btn.innerHTML = `<svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#a-cloud"/></svg>Backup Now`; }
+  } finally { btn.disabled = false; btn.innerHTML = `<svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-cloud"/></svg>Backup Now`; }
 });
 
 /* ---------------------------------------------------------------------- */
@@ -11253,6 +11647,7 @@ async function loadAdmins() {
   `).join('');
   document.querySelectorAll('[data-remove-admin]').forEach(b => b.addEventListener('click', async () => {
     if (!confirm("Remove this admin's access? (Their login account will still work — only the admin role is removed.)")) return;
+    if (!(await ensureRecentSignIn())) { showToast('Cancelled — nothing was changed.', 'info'); return; }
     b.disabled = true;
     try {
       await deleteDoc(doc(db, 'admins', b.dataset.removeAdmin));
@@ -11275,6 +11670,7 @@ document.getElementById('addAdminForm').addEventListener('submit', async (e) => 
   e.preventDefault();
   const f = e.target;
   const btn = f.querySelector('button[type="submit"]');
+  if (!(await ensureRecentSignIn())) { showToast('Cancelled — no admin was added.', 'info'); return; }
   btn.disabled = true;
   // Create the new account on a throwaway secondary Firebase app so the
   // current admin's own session is not replaced. Declared outside the try so
@@ -11521,7 +11917,7 @@ async function loadAuditLog() {
     const rows = (await getDocs(query(collection(db, 'auditLogs'), orderBy('timestamp', 'desc'), limit(200)))).docs.map(d => d.data());
     document.getElementById('auditLogBody').innerHTML = rows.map(r => `
       <tr><td data-label="Time">${fmtDateTime(r.timestamp)}</td><td data-label="User">${escapeHtml(r.userEmail)}</td><td data-label="Action">${escapeHtml(r.action)}</td>
-      <td data-label="Details" class="mono" style="font-size:11.5px; overflow-wrap:anywhere;">${escapeHtml(JSON.stringify(r.details || {}))}</td></tr>
+      <td data-label="Details" class="mono" style="font-size:12.5px; overflow-wrap:anywhere;">${escapeHtml(JSON.stringify(r.details || {}))}</td></tr>
     `).join('') || '<tr><td colspan="4" class="t-muted">No activity recorded yet.</td></tr>';
   } catch (e) { document.getElementById('auditLogBody').innerHTML = '<tr><td colspan="4" class="t-muted">Could not load activity log.</td></tr>'; }
 }

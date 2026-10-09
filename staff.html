@@ -17,6 +17,7 @@
 ">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Staff App — MHMRWS</title>
+<script>try{if(localStorage.getItem('mhmrws-text-size')==='large')document.documentElement.dataset.textSize='large';}catch(e){}</script>
 <meta name="theme-color" content="#0A1B33">
 <link rel="icon" href="favicon-32.png">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -30,46 +31,107 @@
 <link rel="stylesheet" href="styles.css">
 <style>
   body{ background:var(--paper); }
-  .st-shell{ max-width:560px; margin:0 auto; min-height:100vh; display:flex; flex-direction:column; }
-  #screen-login.active{ min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
-  .login-card{ width:100%; max-width:360px; background:#fff; border:1px solid var(--line); border-radius:18px; padding:28px 24px; }
-  .login-card h1{ font-size:18px; margin:0 0 4px; text-align:center; }
+  :root{ --toast-bottom-gap:96px; }
+  .st-shell{ max-width:560px; margin:0 auto; min-height:calc(100 * var(--vh1)); display:flex; flex-direction:column; }
+  #screen-login.active{ display:block; }
+  .login-card{ width:100%; }
   .login-card p{ font-size:12.5px; color:var(--ink-500); margin:0 0 20px; text-align:center; }
   #loginError{ display:none; color:var(--danger); font-size:12.5px; margin-bottom:10px; }
   .screen{ display:none; }
   .screen.active{ display:block; }
-  .st-header{ display:flex; align-items:center; justify-content:space-between; padding:16px; background:var(--navy-900); color:#fff; }
-  .st-header .who b{ display:block; font-size:15px; }
-  .st-header .who span{ font-size:11.5px; color:rgba(255,255,255,.6); }
-  .st-header button{ background:rgba(255,255,255,.1); border:none; color:#fff; padding:7px 12px; border-radius:8px; font-size:12px; }
-  .st-tabs{ display:flex; gap:4px; padding:10px 12px; background:var(--navy-900); }
-  .st-tab{ flex:1; padding:8px; border-radius:8px; background:transparent; border:none; color:rgba(255,255,255,.65); font-size:12.5px; font-weight:600; }
-  .st-tab.active{ background:rgba(255,255,255,.14); color:#fff; }
-  .st-body{ padding:16px; padding-bottom:40px; }
+  .st-header{ display:flex; align-items:center; gap:12px; padding:16px 16px 22px; background:linear-gradient(170deg,#14305C,#0A1B33 75%); color:#fff; border-radius:0 0 26px 26px; }
+  .st-header .who{ flex:1; min-width:0; }
+  .st-header .who b{ display:block; font-size:16px; font-family:var(--font-display,Georgia,serif); }
+  .st-header .who span{ display:inline-block; margin-top:3px; font-size:12px; font-weight:600; color:#FFC978; background:rgba(255,201,120,.12); border:1px solid rgba(255,201,120,.28); padding:2px 9px; border-radius:999px; }
+  .st-header .who span:empty{ display:none; }
+  .st-header button{ min-height:40px; background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.14); color:#fff; padding:8px 13px; border-radius:12px; font-size:12px; font-weight:600; }
+  /* Floating bottom tab bar — same pattern as the resident app. */
+  .st-tabs{ position:fixed; left:50%; transform:translateX(-50%); width:min(536px, calc(100% - 24px)); bottom:calc(12px + env(safe-area-inset-bottom)); z-index:70; display:flex; gap:2px; padding:6px; background:#0A1B33; border-radius:24px; box-shadow:0 14px 30px rgba(10,27,51,.40); }
+  .st-tab{ flex:1; min-width:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; min-height:54px; padding:6px 2px; border-radius:18px; background:transparent; border:none; color:#AEB8CC; font-size:12px; font-weight:600; --duo:rgba(255,255,255,.12); transition:background .15s ease,color .15s ease; }
+  .st-tab svg.ic{ width:24px; height:24px; }
+  .st-tab.active{ background:rgba(255,201,120,.14); color:#FFC978; --duo:rgba(255,201,120,.38); font-weight:700; }
+  .st-body{ padding:16px; padding-bottom:110px; }
+  .st-body .card{ border-radius:18px; }
+  @media (min-width:900px){
+    .st-shell{ max-width:860px; }
+    .st-header{ border-radius:0 0 28px 28px; padding:20px 28px 26px; }
+    .st-tabs{ width:min(620px, calc(100% - 48px)); }
+    .type-grid{ grid-template-columns:repeat(4,1fr); }
+    .st-body{ padding:24px 28px 120px; }
+  }
+  .st-body .btn-primary{ border-radius:16px; }
   .type-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:18px; }
   .type-card{ background:#fff; border:1px solid var(--line); border-radius:14px; padding:16px 12px; text-align:center; }
+  .type-ic svg.ic{ width:28px; height:28px; color:#0F2547; --duo:#FFC978; }
   .type-card b{ display:block; font-size:13px; margin-top:6px; }
-  .chk-section{ background:#fff; border:1px solid var(--line); border-radius:14px; margin-bottom:10px; overflow:hidden; }
+  .chk-section{ background:#fff; border:1px solid var(--line); border-radius:18px; margin-bottom:10px; overflow:hidden; }
   .chk-section-head{ padding:12px 14px; font-weight:700; font-size:13.5px; background:var(--paper); border-bottom:1px solid var(--line); }
   .chk-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 14px; border-bottom:1px solid var(--line); }
   .chk-row:last-child{ border-bottom:none; }
   .chk-label{ font-size:12.5px; flex:1; }
   .chk-toggle{ display:flex; gap:4px; flex-shrink:0; }
-  .chk-btn{ padding:9px 14px; min-height:38px; border-radius:7px; font-size:13px; font-weight:700; border:1px solid var(--line); background:#fff; color:var(--ink-500); }
+  .chk-btn{ padding:9px 14px; min-height:42px; min-width:52px; border-radius:12px; font-size:13px; font-weight:700; border:1.5px solid #D9D3C6; background:#fff; color:var(--ink-500); }
   .chk-btn.ok-on{ background:var(--success-bg); color:var(--success); border-color:var(--success-line); }
   .chk-btn.issue-on{ background:var(--danger-bg); color:var(--danger); border-color:var(--danger-line); }
   .chk-note{ padding:0 14px 10px; }
   .chk-note input{ width:100%; font-size:12px; padding:7px 10px; border-radius:7px; border:1px solid var(--line); }
   .cx-row{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:12px 14px; margin-bottom:8px; }
 </style>
+<script>
+/* Boot guard — if the page's main script cannot start (typically a half-updated cache: a new
+   page next to an old script), a login form would otherwise just reload itself, blank, with
+   no message. This turns that into a clear message and a one-tap repair. */
+(function () {
+  window.__moduleBooted = false;
+  function show() {
+    if (window.__moduleBooted || document.getElementById('bootGuard')) return;
+    var d = document.createElement('div');
+    d.id = 'bootGuard'; d.setAttribute('role', 'alert');
+    d.style.cssText = 'position:fixed;left:0;right:0;top:0;z-index:2147483647;background:#B3261E;color:#fff;padding:12px 16px;font:15px/1.4 system-ui,sans-serif;text-align:center';
+    d.innerHTML = 'The app did not load completely (an old copy is stored on this phone). ';
+    var b = document.createElement('button');
+    b.textContent = 'Tap here to fix and reload';
+    b.style.cssText = 'margin-left:8px;padding:8px 14px;border:0;border-radius:8px;background:#fff;color:#B3261E;font-weight:700;font-size:15px';
+    b.onclick = function () {
+      b.disabled = true; b.textContent = 'Fixing…';
+      var done = function () { location.replace(location.pathname + '?r=' + Date.now()); };
+      Promise.all([
+        (navigator.serviceWorker && navigator.serviceWorker.getRegistrations ? navigator.serviceWorker.getRegistrations().then(function (rs) { return Promise.all(rs.map(function (r) { return r.unregister(); })); }) : Promise.resolve()),
+        (window.caches ? caches.keys().then(function (ks) { return Promise.all(ks.map(function (k) { return caches.delete(k); })); }) : Promise.resolve())
+      ]).then(done, done);
+    };
+    d.appendChild(b);
+    (document.body || document.documentElement).appendChild(d);
+  }
+  window.__showBootGuard = show;
+  window.addEventListener('error', function (e) {
+    var m = String((e && e.message) || '');
+    if (/does not provide an export|Unexpected token|Failed to fetch dynamically|error loading dynamically|Importing a module script failed|SyntaxError|is not defined/i.test(m)) show();
+  });
+  document.addEventListener('submit', function (e) {
+    if (window.__moduleBooted) return;
+    e.preventDefault();
+    if (document.readyState === 'complete') show();
+    else alert('The page is still loading — please wait a moment and try again.');
+  }, true);
+  window.addEventListener('load', function () { setTimeout(function () { if (!window.__moduleBooted) show(); }, 10000); });
+})();
+</script>
 </head>
 <body>
 
 <!-- ============================= LOGIN ============================= -->
 <div class="screen active" id="screen-login">
-  <div class="login-card">
+ <div class="pl-wrap">
+  <div class="pl-hero">
+    <img class="pl-seal" src="logo.webp" alt="Max Heights Majestic RWS seal">
     <h1>Staff App</h1>
     <p>Max Heights Majestic RWS — Facility Team</p>
+    <div class="pl-pill"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-shield"/></svg>Secure staff sign-in</div>
+  </div>
+  <div class="pl-sheet login-card">
+    <h2>Welcome back</h2>
+    <p class="pl-sub" style="text-align:left;">Sign in to start your inspections.</p>
     <form id="loginForm">
       <div class="field"><label for="loginId">Login ID</label><input type="text" id="loginId" autocomplete="off" autocapitalize="characters" placeholder="e.g. S001" required></div>
       <div class="field"><label for="loginPin">PIN</label><input type="password" id="loginPin" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="off" placeholder="6-digit PIN" required></div>
@@ -78,21 +140,24 @@
       <p class="t-muted" style="font-size:12px; text-align:center; margin-top:10px;">Forgotten your PIN? Ask your Managing Staff or the admin to set up a new login.</p>
     </form>
   </div>
+ </div>
 </div>
 
 <!-- ============================= MAIN ============================= -->
 <div class="screen" id="screen-main">
   <div class="st-shell">
     <div class="st-header">
+      <span class="app-av" id="staffAv" aria-hidden="true">S</span>
       <div class="who"><b id="staffNameLabel">—</b><span id="staffRoleLabel"></span></div>
-      <button id="logoutBtn">Sign Out</button>
+      <button id="textSizeBtn" class="ts-aa" type="button" aria-label="Larger text" title="Larger text" style="margin-right:8px; color:#fff; border-color:rgba(255,255,255,.4); min-width:44px;">Aa</button>
+    <button id="logoutBtn">Sign Out</button>
     </div>
     <div class="st-tabs">
-      <button class="st-tab active" data-tab="home">Home</button>
-      <button class="st-tab" data-tab="inspect">New Inspection</button>
-      <button class="st-tab" data-tab="history">History</button>
-      <button class="st-tab" data-tab="complaints">Complaints</button>
-      <button class="st-tab" data-tab="team" id="teamTabBtn" style="display:none;">Team</button>
+      <button class="st-tab active" data-tab="home"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-home"/></svg>Home</button>
+      <button class="st-tab" data-tab="inspect"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-check"/></svg>Inspect</button>
+      <button class="st-tab" data-tab="history"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-clock"/></svg>History</button>
+      <button class="st-tab" data-tab="complaints"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-chat"/></svg>Complaints</button>
+      <button class="st-tab" data-tab="team" id="teamTabBtn" style="display:none;"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-users"/></svg>Team</button>
     </div>
     <div class="st-body">
       <div class="tab-panel" id="tab-home"></div>
@@ -128,8 +193,9 @@ if ('serviceWorker' in navigator) {
      vanish exactly when the connection is the problem. The resident, admin
      pages already work this way. -->
 <script type="module">
-import { installOfflineBanner } from './ui-a11y.js';
+import { installOfflineBanner, installAutoLabels } from './ui-a11y.js';
 installOfflineBanner();
+installAutoLabels();
 </script>
 
 <script type="module">
@@ -143,8 +209,10 @@ import {
 import {
   ref as storageRef, uploadBytes, getDownloadURL
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-storage.js";
-import { showToast, escapeHtml, fmtDate, fmtDateTime, TOWER_IDS, TOWER_PLAN, INSPECTION_TYPES, INSPECTION_SCHEDULE, INSPECTION_CRITICAL_ITEMS, DEFECT_TAG_OPTIONS, inspectionSectionToComplaintCategory, STAFF_TRADES, dateToLocalISO, todayLocalISO, complaintUrgency, COMPLAINT_SLA_HOURS } from './app-common.js';
+import { showToast, escapeHtml, fmtDate, fmtDateTime, TOWER_IDS, TOWER_PLAN, INSPECTION_TYPES, INSPECTION_SCHEDULE, INSPECTION_CRITICAL_ITEMS, DEFECT_TAG_OPTIONS, inspectionSectionToComplaintCategory, STAFF_TRADES, dateToLocalISO, todayLocalISO, complaintUrgency, COMPLAINT_SLA_HOURS, icon, emptyState, getTextSize, setTextSize } from './app-common.js?v=170';
 import { installAppInstallPrompt } from './install-prompt.js';
+
+window.__moduleBooted = true; { var __bg = document.getElementById('bootGuard'); if (__bg) __bg.remove(); }
 installAppInstallPrompt({ appName: 'MHMRWS Staff', showToast });
 
 let currentStaff = null; // {uid, name, role}
@@ -243,6 +311,15 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
   }
 });
 document.getElementById('logoutBtn').addEventListener('click', () => signOut(auth));
+// Larger-text switch ("Aa"): remembered on this device.
+(() => {
+  const b = document.getElementById('textSizeBtn');
+  if (!b) return;
+  const paint = () => b.setAttribute('aria-pressed', String(getTextSize() === 'large'));
+  paint();
+  b.addEventListener('click', () => { setTextSize(getTextSize() === 'large' ? 'normal' : 'large'); paint(); });
+})();
+
 
 onAuthStateChanged(auth, async (user) => {
   if (!user) {
@@ -271,6 +348,7 @@ onAuthStateChanged(auth, async (user) => {
     }
     currentStaff = { uid: user.uid, ...snap.data() };
     document.getElementById('staffNameLabel').textContent = currentStaff.name || 'Staff';
+    { const av = document.getElementById('staffAv'); if (av) av.textContent = ((currentStaff.name || 'S').trim()[0] || 'S').toUpperCase(); }
     document.getElementById('staffRoleLabel').textContent = currentStaff.role === 'manager' ? 'Managing Staff' : 'Supervisor';
     document.getElementById('teamTabBtn').style.display = currentStaff.role === 'manager' ? '' : 'none';
     showScreen('screen-main');
@@ -410,9 +488,9 @@ function renderTeam() {
         <div style="border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin-top:8px;">
           <div class="spread">
             <b style="font-size:13px;">${escapeHtml(INSPECTION_TYPES[r.formType]?.label || r.formType)}${r.tower ? ' — Tower ' + escapeHtml(r.tower) : ''}</b>
-            <span class="t-muted" style="font-size:11px;">${r.createdAt ? fmtDateTime(r.createdAt) : ''}</span>
+            <span class="t-muted" style="font-size:12px;">${r.createdAt ? fmtDateTime(r.createdAt) : ''}</span>
           </div>
-          <div class="t-muted" style="font-size:11.5px; margin:2px 0 8px;">Filed by ${escapeHtml(r.createdByName || '—')}${Number(r.issueCount) ? ` · ${Number(r.issueCount)} issue${Number(r.issueCount) > 1 ? 's' : ''}` : ''}${Number(r.uncheckedCount) ? ` · ${Number(r.uncheckedCount)} unchecked` : ''}</div>
+          <div class="t-muted" style="font-size:12.5px; margin:2px 0 8px;">Filed by ${escapeHtml(r.createdByName || '—')}${Number(r.issueCount) ? ` · ${Number(r.issueCount)} issue${Number(r.issueCount) > 1 ? 's' : ''}` : ''}${Number(r.uncheckedCount) ? ` · ${Number(r.uncheckedCount)} unchecked` : ''}</div>
           <div style="display:flex; gap:6px; flex-wrap:wrap;">
             <button type="button" class="btn btn-primary btn-sm" data-verify-insp="${i}">Verify</button>
             <button type="button" class="btn btn-outline btn-sm" data-correct-insp="${i}">Needs Correction</button>
@@ -489,8 +567,8 @@ function renderHome() {
     </div>` : ''}
     <div class="card card-pad" style="margin-bottom:12px;">
       <div style="display:flex; justify-content:space-between; align-items:center;">
-        <div><div class="t-muted" style="font-size:11.5px;">Inspections filed</div><div style="font-size:22px; font-weight:800;">${inspectionsLoadFailed ? '—' : myInspections.length}</div>${inspectionsLoadFailed ? '<div style="font-size:10px; color:var(--danger);">couldn\'t load</div>' : ''}</div>
-        <div><div class="t-muted" style="font-size:11.5px;">${complaintLabel}</div><div style="font-size:22px; font-weight:800; color:${openComplaints ? 'var(--danger)' : 'var(--success)'};">${openComplaints}</div></div>
+        <div><div class="t-muted" style="font-size:12.5px;">Inspections filed</div><div style="font-size:22px; font-weight:800;">${inspectionsLoadFailed ? '—' : myInspections.length}</div>${inspectionsLoadFailed ? '<div style="font-size:11px; color:var(--danger);">couldn\'t load</div>' : ''}</div>
+        <div><div class="t-muted" style="font-size:12.5px;">${complaintLabel}</div><div style="font-size:22px; font-weight:800; color:${openComplaints ? 'var(--danger)' : 'var(--success)'};">${openComplaints}</div></div>
       </div>
     </div>
     ${(() => {
@@ -590,7 +668,7 @@ async function submitLogIssue() {
 /* ---------------------------------------------------------------------- */
 /*  Inspection: type picker → checklist → submit                          */
 /* ---------------------------------------------------------------------- */
-const TYPE_ICON = { 'daily-tower': '🏢', 'weekly-mep': '⚙️', 'daily-security': '🛡️', 'club-house': '🏊' };
+const TYPE_ICON = { 'daily-tower': 'building', 'weekly-mep': 'gear', 'daily-security': 'shield', 'club-house': 'users' };
 
 function isSlotAvailableToMe(formType, tower) {
   if (currentStaff.role === 'manager') return true;
@@ -611,7 +689,7 @@ function renderInspectPicker() {
     ${savedDraft ? `
       <div style="padding:12px; background:#FDF3E2; border-radius:10px; margin-bottom:14px;">
         <b style="font-size:13px;">You have an unfinished ${escapeHtml(INSPECTION_TYPES[savedDraft.formType]?.label || savedDraft.formType)}${savedDraft.tower ? ' — Tower ' + escapeHtml(savedDraft.tower) : ''}</b>
-        <div class="t-muted" style="font-size:11.5px; margin:2px 0 8px;">Last saved ${savedDraftAgo < 1 ? 'just now' : savedDraftAgo + ' min ago'} — not yet submitted. Any photo not already uploaded will need to be re-attached.</div>
+        <div class="t-muted" style="font-size:12.5px; margin:2px 0 8px;">Last saved ${savedDraftAgo < 1 ? 'just now' : savedDraftAgo + ' min ago'} — not yet submitted. Any photo not already uploaded will need to be re-attached.</div>
         <div style="display:flex; gap:8px;">
           <button type="button" class="btn btn-primary btn-sm" id="resumeDraftBtn">Resume</button>
           <button type="button" class="btn btn-outline btn-sm" id="discardDraftBtn">Discard</button>
@@ -624,7 +702,7 @@ function renderInspectPicker() {
     <div class="type-grid">
       ${visibleTypes.map(([key, t]) => `
         <button class="type-card" data-type="${key}">
-          <span style="font-size:22px;">${TYPE_ICON[key] || '📋'}</span>
+          <span class="type-ic">${icon(TYPE_ICON[key] || 'file')}</span>
           <b>${escapeHtml(t.label)}</b>
         </button>`).join('')}
     </div>
@@ -699,14 +777,14 @@ function renderChecklist() {
 
   el.innerHTML = `
     <div class="card card-pad" style="margin-bottom:12px;">
-      <button type="button" class="link-btn" id="inspChangeTypeBtn" style="font-size:11.5px; margin-bottom:6px;">← Change inspection type</button>
-      <b style="font-size:14.5px;">${escapeHtml(tpl.label)}</b>
+      <button type="button" class="link-btn" id="inspChangeTypeBtn" style="display:block; font-size:12.5px; margin-bottom:8px;">← Change inspection type</button>
+      <b style="font-size:17px; font-family:var(--font-display,Georgia,serif);">${escapeHtml(tpl.label)}</b>
       ${draft.needsTower ? `
         <div class="field" style="margin-top:10px;">
           <label for="inspTower">Tower</label>
           <select id="inspTower">${TOWER_IDS.filter(t => isSlotAvailableToMe('daily-tower', t)).map(t => `<option value="${escapeHtml(t)}" ${draft.tower === t ? 'selected' : ''}>${escapeHtml(t)}</option>`).join('')}</select>
         </div>` : ''}
-      <div class="t-muted" style="font-size:11.5px; margin-top:8px;">${doneItems}/${totalItems} checked${issueCount ? ' · ' + issueCount + ' issue' + (issueCount > 1 ? 's' : '') + ' flagged' : ''}</div>
+      <div class="t-muted" style="font-size:12.5px; margin-top:8px;">${doneItems}/${totalItems} checked${issueCount ? ' · ' + issueCount + ' issue' + (issueCount > 1 ? 's' : '') + ' flagged' : ''}</div>
     </div>
     ${draft.sections.map((sec, si) => `
       <div class="chk-section">
@@ -725,12 +803,12 @@ function renderChecklist() {
                 <input type="text" placeholder="What's wrong? (optional note)" value="${escapeHtml(it.note)}" data-note="${si}:${ii}" maxlength="2000">
               </div>
               <div class="chk-note" style="margin-top:6px;">
-                <label style="font-size:11.5px; display:block; margin-bottom:3px;">Photo${it.priority === 'high' ? ' <span class="t-muted">(required — critical item)</span>' : ' <span class="t-muted">(optional)</span>'}</label>
+                <label style="font-size:12.5px; display:block; margin-bottom:3px;">Photo${it.priority === 'high' ? ' <span class="t-muted">(required — critical item)</span>' : ' <span class="t-muted">(optional)</span>'}</label>
                 <input type="file" accept="image/*" data-photo="${si}:${ii}">
-                ${it.photoFile ? `<div class="t-muted" style="font-size:11px; margin-top:3px;">📎 ${escapeHtml(it.photoFile.name)} attached</div>` : ''}
+                ${it.photoFile ? `<div class="t-muted" style="font-size:12px; margin-top:3px;">${icon('clip','inline-ic')} ${escapeHtml(it.photoFile.name)} attached</div>` : ''}
               </div>
               <div class="chk-note tag-row" style="margin-top:6px; display:flex; flex-wrap:wrap; gap:6px;">
-                ${DEFECT_TAG_OPTIONS.map((tag) => `<button type="button" class="btn btn-sm ${((it.tags || []).includes(tag)) ? 'btn-primary' : 'btn-outline'}" style="font-size:11px; padding:4px 8px;" data-tag="${si}:${ii}:${escapeHtml(tag)}">${escapeHtml(tag)}</button>`).join('')}
+                ${DEFECT_TAG_OPTIONS.map((tag) => `<button type="button" class="btn btn-sm ${((it.tags || []).includes(tag)) ? 'btn-primary' : 'btn-outline'}" style="font-size:12px; padding:4px 8px;" data-tag="${si}:${ii}:${escapeHtml(tag)}">${escapeHtml(tag)}</button>`).join('')}
               </div>` : ''}
           </div>`).join('')}
       </div>`).join('')}
@@ -751,9 +829,9 @@ function renderChecklist() {
                 </div>
                 ${draft.tankData[t][ci] === false ? `
                   <div class="chk-note" style="margin:4px 0 8px;">
-                    <label style="font-size:11.5px; display:block; margin-bottom:3px;">Photo <span class="t-muted">(required — this will be logged as a complaint)</span></label>
+                    <label style="font-size:12.5px; display:block; margin-bottom:3px;">Photo <span class="t-muted">(required — this will be logged as a complaint)</span></label>
                     <input type="file" accept="image/*" data-tank-photo="${t}:${ci}">
-                    ${draft.tankPhotos[t][ci].photoFile ? `<div class="t-muted" style="font-size:11px; margin-top:3px;">📎 ${escapeHtml(draft.tankPhotos[t][ci].photoFile.name)} attached</div>` : ''}
+                    ${draft.tankPhotos[t][ci].photoFile ? `<div class="t-muted" style="font-size:12px; margin-top:3px;">${icon('clip','inline-ic')} ${escapeHtml(draft.tankPhotos[t][ci].photoFile.name)} attached</div>` : ''}
                   </div>` : ''}`).join('')}
             </div>`).join('')}
         </div>
@@ -762,8 +840,8 @@ function renderChecklist() {
         <div class="chk-section-head">Weekly Readings</div>
         <div style="padding:10px 12px;">
           ${INSPECTION_TYPES['weekly-mep'].readings.map((label) => `
-            <div class="field"><label>${escapeHtml(label)} <span class="t-muted" style="font-weight:400; font-size:11px;">(${escapeHtml(INSPECTION_TYPES['weekly-mep'].READING_HINTS?.[label] || '')})</span></label><input type="text" inputmode="decimal" value="${escapeHtml(draft.readingsData[label] || '')}" data-reading="${escapeHtml(label)}">
-              <div class="t-muted" data-reading-warn="${escapeHtml(label)}" style="display:${draft.readingsData[label] && isNaN(parseFloat(draft.readingsData[label])) ? 'block' : 'none'}; font-size:10.5px; color:var(--warning,#B8860B); margin-top:2px;">Doesn't look like a number — OK if that's intentional (e.g. sensor not working).</div>
+            <div class="field"><label>${escapeHtml(label)} <span class="t-muted" style="font-weight:400; font-size:12px;">(${escapeHtml(INSPECTION_TYPES['weekly-mep'].READING_HINTS?.[label] || '')})</span></label><input type="text" inputmode="decimal" value="${escapeHtml(draft.readingsData[label] || '')}" data-reading="${escapeHtml(label)}">
+              <div class="t-muted" data-reading-warn="${escapeHtml(label)}" style="display:${draft.readingsData[label] && isNaN(parseFloat(draft.readingsData[label])) ? 'block' : 'none'}; font-size:11.5px; color:var(--warning,#B8860B); margin-top:2px;">Doesn't look like a number — OK if that's intentional (e.g. sensor not working).</div>
             </div>`).join('')}
         </div>
       </div>
@@ -1125,13 +1203,13 @@ function renderHistory() {
     document.getElementById('retryHistoryBtn')?.addEventListener('click', () => loadMyInspections().then(renderHistory));
     return;
   }
-  if (!myInspections.length) { el.innerHTML = '<p class="t-muted" style="font-size:13px;">No inspections filed yet.</p>'; return; }
+  if (!myInspections.length) { el.innerHTML = emptyState('No inspections filed yet', 'Inspections you file will show up here.'); return; }
   el.innerHTML = myInspections.map(r => `
     <div class="cx-row">
       <div style="display:flex; justify-content:space-between; align-items:start;">
         <div>
           <b style="font-size:13.5px;">${escapeHtml(INSPECTION_TYPES[r.formType]?.label || r.formType)}</b>
-          <div class="t-muted" style="font-size:11.5px; margin-top:2px;">${r.tower ? 'Tower ' + escapeHtml(r.tower) + ' · ' : ''}${r.createdAt ? fmtDateTime(r.createdAt) : ''}</div>
+          <div class="t-muted" style="font-size:12.5px; margin-top:2px;">${r.tower ? 'Tower ' + escapeHtml(r.tower) + ' · ' : ''}${r.createdAt ? fmtDateTime(r.createdAt) : ''}</div>
         </div>
         ${Number(r.issueCount) ? `<span class="badge badge-danger">${Number(r.issueCount)} issue${Number(r.issueCount) > 1 ? 's' : ''}</span>`
           : Number(r.uncheckedCount) ? `<span class="badge badge-warning">${Number(r.uncheckedCount)} unchecked</span>`
@@ -1139,9 +1217,9 @@ function renderHistory() {
       </div>
       ${r.managerVerificationStatus === 'needs_correction' ? `
         <div style="margin-top:6px; padding:8px 10px; background:#FDF3E2; border-radius:8px; font-size:12px;">
-          <b>⚠️ Needs correction</b> — by ${escapeHtml(r.managerVerifiedBy || '—')}${r.managerRemarks ? `: ${escapeHtml(r.managerRemarks)}` : ''}
+          <b>${icon('alert','inline-ic')} Needs correction</b> — by ${escapeHtml(r.managerVerifiedBy || '—')}${r.managerRemarks ? `: ${escapeHtml(r.managerRemarks)}` : ''}
         </div>` : r.managerVerificationStatus === 'verified' ? `
-        <div class="t-muted" style="margin-top:4px; font-size:11px;">✅ Verified by ${escapeHtml(r.managerVerifiedBy || '—')}</div>` : ''}
+        <div class="t-muted" style="margin-top:4px; font-size:12px;">${icon('check','inline-ic')} Verified by ${escapeHtml(r.managerVerifiedBy || '—')}</div>` : ''}
     </div>`).join('');
 }
 
@@ -1181,7 +1259,7 @@ function renderComplaints() {
     return;
   }
   if (!myComplaints.length) {
-    el.innerHTML = `<p class="t-muted" style="font-size:13px;">${isManager ? 'No complaints on record.' : 'No complaints assigned to you yet. A Managing Staff or the committee will assign them.'}</p>`;
+    el.innerHTML = `<p class="t-muted" style="font-size:13px; text-align:center; padding:28px 12px;">${isManager ? 'No complaints on record.' : 'No complaints assigned to you yet. A Managing Staff or the committee will assign them.'}</p>`;
     return;
   }
   el.innerHTML = myComplaints.map(c => {
@@ -1197,14 +1275,14 @@ function renderComplaints() {
       <div style="display:flex; justify-content:space-between; align-items:start; gap:8px;">
         <div style="min-width:0;">
           <b style="font-size:13.5px;">${escapeHtml(c.title)}</b>
-          <div class="t-muted" style="font-size:11.5px; margin-top:2px;">${escapeHtml(c.category || '')}${c.location ? ' · ' + (c.location === 'common' ? 'Common Area' : 'Inside Flat') : ''}${c.source === 'inspection' ? ' · from inspection' : ' · resident report'}${c.createdAt ? ' · ' + fmtDate(c.createdAt) : ''}</div>
-          ${c.assignedToName ? `<div class="t-muted" style="font-size:11px; margin-top:2px;">Assigned to: <b>${escapeHtml(c.assignedToName)}</b></div>` : '<div style="font-size:11px; margin-top:2px; color:var(--danger);">Unassigned</div>'}
-          ${c.targetDate ? `<div class="t-muted" style="font-size:11px; margin-top:1px;">Target: ${escapeHtml(c.targetDate)}</div>` : ''}
-          ${c.reopenNote ? `<div style="font-size:11px; margin-top:3px; color:var(--danger);">Reopened by resident: ${escapeHtml(c.reopenNote)}</div>` : ''}
+          <div class="t-muted" style="font-size:12.5px; margin-top:2px;">${escapeHtml(c.category || '')}${c.location ? ' · ' + (c.location === 'common' ? 'Common Area' : 'Inside Flat') : ''}${c.source === 'inspection' ? ' · from inspection' : ' · resident report'}${c.createdAt ? ' · ' + fmtDate(c.createdAt) : ''}</div>
+          ${c.assignedToName ? `<div class="t-muted" style="font-size:12px; margin-top:2px;">Assigned to: <b>${escapeHtml(c.assignedToName)}</b></div>` : '<div style="font-size:12px; margin-top:2px; color:var(--danger);">Unassigned</div>'}
+          ${c.targetDate ? `<div class="t-muted" style="font-size:12px; margin-top:1px;">Target: ${escapeHtml(c.targetDate)}</div>` : ''}
+          ${c.reopenNote ? `<div style="font-size:12px; margin-top:3px; color:var(--danger);">Reopened by resident: ${escapeHtml(c.reopenNote)}</div>` : ''}
           ${c.raisedByUid === currentStaff.uid && !c.photoURL && ['open', 'in_progress'].includes(c.status) ? `
             <label class="btn btn-outline btn-sm" style="display:inline-block; cursor:pointer; margin-top:6px;">Add photo<input type="file" accept="image/*" data-add-staff-photo="${c.id}" style="display:none;"></label>` : ''}
         </div>
-        <span style="flex-shrink:0; text-align:right;"><span class="badge badge-${COMPLAINT_STATUS_BADGE[c.status] || 'neutral'}">${COMPLAINT_STATUS_LABEL[c.status] || c.status}</span>${slaBadge}${isManager && recurringCount(c) >= 2 ? '<span class="badge badge-warning" style="margin-left:4px;">🔁</span>' : ''}</span>
+        <span style="flex-shrink:0; text-align:right;"><span class="badge badge-${COMPLAINT_STATUS_BADGE[c.status] || 'neutral'}">${COMPLAINT_STATUS_LABEL[c.status] || c.status}</span>${slaBadge}${isManager && recurringCount(c) >= 2 ? `<span class="badge badge-warning" style="margin-left:4px;" title="Recurring">${icon('alert','inline-ic')} Repeat</span>` : ''}</span>
       </div>
       ${isManager ? `
         <div style="display:flex; gap:6px; margin-top:8px; flex-wrap:wrap; align-items:center;">
@@ -1219,7 +1297,7 @@ function renderComplaints() {
         ${COMPLAINT_STATUS_NEXT[c.status] === 'resolved' ? `
           <div style="margin-top:8px;">
             <input type="text" data-resolve-note="${c.id}" placeholder="Resolution note (optional)" maxlength="500" style="width:100%; font-size:12.5px; padding:6px 8px; border-radius:7px; border:1px solid var(--line);">
-            <div class="t-muted" style="font-size:10.5px; text-align:right; margin-bottom:6px;" data-resolve-note-count="${c.id}">0/500</div>
+            <div class="t-muted" style="font-size:11.5px; text-align:right; margin-bottom:6px;" data-resolve-note-count="${c.id}">0/500</div>
             <input type="file" accept="image/*" data-resolve-photo="${c.id}" style="font-size:12px;">
           </div>` : ''}
         <button class="btn btn-primary btn-sm" style="margin-top:8px;" data-advance="${c.id}" data-next="${COMPLAINT_STATUS_NEXT[c.status]}">Mark ${COMPLAINT_STATUS_LABEL[COMPLAINT_STATUS_NEXT[c.status]]}</button>` : ''}

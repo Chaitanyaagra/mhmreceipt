@@ -44,6 +44,7 @@
 ">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Max Heights Majestic RWA — Digital Membership Portal</title>
+<script>try{if(localStorage.getItem('mhmrws-text-size')==='large')document.documentElement.dataset.textSize='large';}catch(e){}</script>
 <meta name="description" content="Register, pay and download QR-verified receipts for Max Heights Majestic Resident Welfare Society.">
 <meta name="theme-color" content="#0A1B33">
 <link rel="manifest" href="manifest.json">
@@ -102,7 +103,7 @@
 .site-header .wrap{ display:flex; align-items:center; justify-content:space-between; height:70px; gap:12px; }
 .brand{ display:flex; align-items:center; gap:11px; color:var(--white); min-width:0; }
 .brand-text .full{ font-family:var(--font-display); font-weight:600; font-size:15.5px; line-height:1.14; white-space:normal; }
-.brand-text .eyebrow{ color:var(--saffron-300); font-size:9.5px; }
+.brand-text .eyebrow{ color:var(--saffron-300); font-size:11px; }
   .brand-eyebrow{ display:block; font-family:var(--font-mono); letter-spacing:.12em; text-transform:uppercase; }
 nav.main-nav{ display:flex; align-items:center; gap:26px; }
 nav.main-nav a{ color:rgba(255,255,255,.8); font-size:13.8px; font-weight:500; position:relative; padding:4px 0; }
@@ -153,19 +154,6 @@ nav.main-nav a:hover::after{ transform:scaleX(1); }
 /* A quiet credentials strip — the sort of line that appears on official
    letterhead. It signals "this is the real society" before anyone reads
    a word of the copy. */
-.trust-strip{
-  display:flex; align-items:center; gap:0; flex-wrap:wrap;
-  margin-top:26px; padding-top:20px;
-  border-top:1px solid rgba(228,199,101,.28);
-}
-.trust-strip .t-item{
-  display:flex; align-items:center; gap:8px; padding-right:22px; margin-right:22px;
-  border-right:1px solid rgba(255,255,255,.13);
-  font-size:11.5px; color:rgba(255,255,255,.62); letter-spacing:.02em;
-}
-.trust-strip .t-item:last-child{ border-right:none; margin-right:0; padding-right:0; }
-.trust-strip svg{ width:15px; height:15px; color:var(--gold-300); flex-shrink:0; }
-.trust-strip b{ color:rgba(255,255,255,.9); font-family:var(--font-mono); font-size:11px; letter-spacing:.04em; }
 .hero-ctas{ display:flex; gap:12px; flex-wrap:wrap; }
 .hero-visual{ display:grid; place-items:center; }
 .hero-seal-wrap{ position:relative; display:grid; place-items:center; }
@@ -187,136 +175,7 @@ nav.main-nav a:hover::after{ transform:scaleX(1); }
 }
 .seal-caption{
   text-align:center; margin-top:22px; color:rgba(255,255,255,.55);
-  font-family:var(--font-mono); font-size:10.5px; letter-spacing:.18em; text-transform:uppercase;
-}
-.stat-strip{ display:flex; gap:0; margin-top:40px; border-top:1px solid rgba(255,255,255,.14); padding-top:22px; }
-.stat-strip .stat{ flex:1; border-right:1px solid rgba(255,255,255,.12); padding-right:16px; }
-.stat-strip .stat:last-child{ border-right:none; }
-.stat-strip .stat b{
-  font-family:var(--font-display); font-weight:600; font-size:30px; color:var(--white);
-  display:block; line-height:1.1; letter-spacing:-.02em;
-}
-.stat-strip .stat span{ font-size:11.5px; color:rgba(255,255,255,.58); letter-spacing:.02em; }
-
-/* ---------- Birds ----------
-   Small silhouettes drifting across the hero, echoing the birds in the
-   project's brochure. The point is a little life on a still image, not to pull
-   the eye off the copy: faint, few, slow.
-
-   Anatomy — this is what makes them read as birds rather than flapping Vs.
-   Each wing is two hinged segments, an "arm" (shoulder->wrist) and a "hand"
-   (wrist->tip). Real birds flex at the wrist, so on the downstroke the whole
-   wing spreads and on the upstroke the hand folds back and up. We get that by
-   nesting: the hand lives inside the arm, so it inherits the shoulder's
-   rotation and then adds its own — exactly how the joint behaves.
-
-   Cost — everything is transform: rotate()/translate() on the compositor.
-   Nothing morphs an SVG path per frame, nothing touches layout or paint. It
-   stays smooth on a cheap phone, which is the whole target here. */
-.birds{ position:absolute; inset:0; z-index:2; pointer-events:none; overflow:hidden; }
-
-/* Horizontal drift across the hero, plus a gentle bob and bank so the flight
-   line curves instead of tracking dead straight through the headline. */
-.bird{ position:absolute; will-change:transform; animation:bird-fly linear infinite; }
-.bird-bob{ animation:bird-bob ease-in-out infinite; will-change:transform; }
-.bird-bank{ animation:bird-bank ease-in-out infinite; will-change:transform; }
-
-/* The bird itself: a body point with a wing either side. Sized off font-size
-   so one variable scales the whole creature. */
-.bird-body{ position:relative; width:0; height:0; font-size:15px; }
-/* Each wing is a zero-size anchor at the shoulder; the arm and hand are thin
-   bars drawn outward from it. Rotating this anchor swings the whole wing about
-   the shoulder. */
-/* The mirror sits on a static mount that the flap animation never touches, so
-   the wing keyframes can own `transform` outright. If scaleX lived on the same
-   element as the rotation, the animation would overwrite it and the left wing
-   would flap the wrong way. */
-.wing-mount{ position:absolute; left:0; top:0; width:0; height:0; }
-.wing-mount.left{ transform:scaleX(-1); }
-.wing{ position:absolute; left:0; top:0; width:0; height:0;
-  transform-origin:0 0;
-  animation:wing-arm ease-in-out infinite; }
-.wing .arm{ position:absolute; left:0; top:-0.05em; width:0.54em; height:0.1em;
-  border-radius:0.05em; background:currentColor; transform-origin:0 50%; }
-/* The hand is anchored at the wrist — the far tip of the arm — and adds its own
-   rotation, so the outer wing bends past the inner one instead of staying in
-   line with it. Slightly thinner and tapered to a round cap so it reads as a
-   wingtip, not a stick. */
-.wing .hand{ position:absolute; left:0.53em; top:-0.04em; width:0.5em; height:0.08em;
-  background:currentColor; transform-origin:0 50%;
-  /* taper to a point: full height at the wrist, nothing at the tip */
-  clip-path:polygon(0 0, 100% 42%, 100% 58%, 0 100%);
-  animation:wing-hand ease-in-out infinite; }
-.bird-body{ color:#fff; }
-
-@keyframes bird-fly{
-  from{ transform:translateX(-12vw); }
-  to  { transform:translateX(116vw); }
-}
-/* Vertical drift over the crossing — a long slow rise and fall, unrelated to
-   the wingbeat, so the path reads as a real glide-and-flap rather than a
-   bouncing sprite. */
-@keyframes bird-bob{
-  0%   { transform:translateY(6px); }
-  50%  { transform:translateY(-18px); }
-  100% { transform:translateY(6px); }
-}
-/* A slight roll into the bob, the way a bird banks as it changes height. */
-@keyframes bird-bank{
-  0%,100%{ transform:rotate(4deg); }
-  50%    { transform:rotate(-5deg); }
-}
-/* The shoulder: strong down-sweep, softer recovery — birds spend more of the
-   beat pushing down than lifting up, so the curve is not a clean sine. */
-@keyframes wing-arm{
-  0%   { transform:rotate(-42deg); }   /* wings raised, top of the upstroke */
-  45%  { transform:rotate(30deg); }    /* driven down through the horizon */
-  60%  { transform:rotate(24deg); }    /* brief hold at the bottom */
-  100% { transform:rotate(-42deg); }   /* swept back up */
-}
-/* The wrist: leads slightly and travels further, so the hand whips through the
-   bottom of the stroke and folds on the way up. The phase offset from the arm
-   is what stops the wing looking like one rigid stick. */
-@keyframes wing-hand{
-  0%   { transform:rotate(-46deg); }   /* hand folded up and back */
-  45%  { transform:rotate(28deg); }    /* whips down, wing fully spread */
-  60%  { transform:rotate(22deg); }
-  100% { transform:rotate(-46deg); }
-}
-
-/* Each bird gets its own size, altitude, speed and beat so the group never
-   looks like one shape copied. Altitudes are set against the hero layout:
-   content starts around 8% on desktop, so bird-1 rides the clear band above it
-   and the others sit in the looser areas beside the seal. */
-.bird-1{ top:5%;  animation-duration:36s; animation-delay:-4s; }
-.bird-1 .bird-bob{ animation-duration:7.2s; }
-.bird-1 .bird-bank{ animation-duration:7.2s; }
-.bird-1 .bird-body{ font-size:17px; color:rgba(255,255,255,.62); }
-.bird-1 .wing{ animation-duration:.9s; }
-.bird-1 .wing .hand{ animation-duration:.9s; }
-
-.bird-2{ top:22%; animation-duration:52s; animation-delay:-24s; }
-.bird-2 .bird-bob{ animation-duration:9s; }
-.bird-2 .bird-bank{ animation-duration:9s; }
-.bird-2 .bird-body{ font-size:12px; color:rgba(255,255,255,.5); }
-.bird-2 .wing{ animation-duration:1.15s; }
-.bird-2 .wing .hand{ animation-duration:1.15s; }
-
-.bird-3{ top:12%; animation-duration:44s; animation-delay:-33s; }
-.bird-3 .bird-bob{ animation-duration:8s; }
-.bird-3 .bird-bank{ animation-duration:8s; }
-.bird-3 .bird-body{ font-size:14px; color:rgba(255,255,255,.55); }
-.bird-3 .wing{ animation-duration:1.02s; }
-.bird-3 .wing .hand{ animation-duration:1.02s; }
-
-@media (max-width:900px){
-  /* Two is plenty on a small screen; both ride the clear band above the seal. */
-  .bird-3{ display:none; }
-  .bird-1{ top:3%; }
-  .bird-2{ top:6%; }
-}
-@media (prefers-reduced-motion: reduce){
-  .birds{ display:none; }
+  font-family:var(--font-mono); font-size:11.5px; letter-spacing:.18em; text-transform:uppercase;
 }
 
 /* ---------- Section scaffolding ---------- */
@@ -333,40 +192,20 @@ section{ padding:76px 0; position:relative; }
 .process-step:hover{ background:linear-gradient(180deg,#FDFBF6,var(--white)); }
 .process-step:last-child{ border-right:none; }
 .process-num{
-  font-family:var(--font-mono); font-size:11px; letter-spacing:.1em; color:var(--gold-700);
+  font-family:var(--font-mono); font-size:12px; letter-spacing:.1em; color:var(--gold-700);
   display:flex; align-items:center; gap:9px; margin-bottom:14px;
 }
-.process-num i{ width:26px; height:26px; border-radius:50%; border:1px solid var(--gold-300); display:grid; place-items:center; font-style:normal; font-size:11.5px; color:var(--navy-900); background:#FBF6E6; }
+.process-num i{ width:26px; height:26px; border-radius:50%; border:1px solid var(--gold-300); display:grid; place-items:center; font-style:normal; font-size:12.5px; color:var(--navy-900); background:#FBF6E6; }
 .process-step h3{ font-size:16.5px; margin-bottom:7px; }
 .process-step p{ font-size:13.6px; color:var(--ink-600); }
 
 /* ---------- Benefit cards with SVG icons ---------- */
-.benefit-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:18px; }
-.benefit-card{
-  position:relative; background:var(--white); border:1px solid var(--line);
-  border-radius:var(--radius-lg); padding:28px 26px;
-  transition:border-color .22s ease, transform .22s ease, box-shadow .22s ease;
-}
 /* A gold hairline that draws itself along the top edge on hover — the same
    detail engraved rules use elsewhere, so the motion feels part of the
    language rather than bolted on. */
-.benefit-card::before{
-  content:''; position:absolute; top:-1px; left:24px; right:24px; height:2px; border-radius:2px;
-  background:var(--gradient-saffron); transform:scaleX(0); transform-origin:left;
-  transition:transform .35s cubic-bezier(.2,.7,.3,1);
-}
-.benefit-card:hover{ border-color:var(--gold-300); transform:translateY(-3px); box-shadow:var(--shadow-pop); }
-.benefit-card:hover::before{ transform:scaleX(1); }
-.benefit-card .glyph{
-  width:44px; height:44px; border-radius:11px; display:grid; place-items:center; margin-bottom:16px;
-  background:linear-gradient(155deg,#EAF0FB,#F6F8FC); border:1px solid #DDE5F3; color:var(--navy-700);
-}
-.benefit-card .glyph svg{ width:21px; height:21px; }
-.benefit-card h3{ font-size:16px; margin-bottom:7px; }
-.benefit-card p{ font-size:13.6px; color:var(--ink-600); }
 
 /* ---------- Notice board ---------- */
-.notice-grid{ display:grid; grid-template-columns:1.6fr 1fr; gap:26px; align-items:start; }
+.notice-grid{ display:grid; grid-template-columns:1fr; gap:26px; align-items:start; }
 .notice-item{ display:flex; gap:18px; padding:20px 0; border-bottom:1px solid var(--line); }
 .notice-item:last-child{ border-bottom:none; }
 .notice-date{
@@ -374,20 +213,20 @@ section{ padding:76px 0; position:relative; }
   padding:8px 0; background:var(--paper);
 }
 .notice-date .d{ font-family:var(--font-display); font-size:19px; font-weight:600; color:var(--navy-950); line-height:1; }
-.notice-date .m{ font-family:var(--font-mono); font-size:9.5px; letter-spacing:.08em; color:var(--ink-400); text-transform:uppercase; margin-top:3px; }
+.notice-date .m{ font-family:var(--font-mono); font-size:11px; letter-spacing:.08em; color:var(--ink-400); text-transform:uppercase; margin-top:3px; }
 .notice-body h4{ font-size:15px; margin-bottom:5px; }
 .notice-body p{ font-size:13.5px; color:var(--ink-600); }
 .notice-actions{ margin-top:10px; }
 .notice-share{
   display:inline-flex; align-items:center; gap:6px; padding:6px 12px;
   border-radius:var(--radius-pill); font-size:12px; font-weight:600;
-  color:#128C7E; background:rgba(18,140,126,.08); border:1px solid rgba(18,140,126,.22);
+  color:#0B6B5F; background:rgba(18,140,126,.08); border:1px solid rgba(18,140,126,.22);
   text-decoration:none; transition:background .15s ease;
 }
 .notice-share:hover{ background:rgba(18,140,126,.15); }
-.notice-share svg{ color:#128C7E; }
+.notice-share svg{ color:#0B6B5F; }
 .lang-toggle{ display:inline-flex; background:var(--paper); border-radius:var(--radius-pill); padding:3px; border:1px solid var(--line); }
-.lang-toggle button{ border:none; background:transparent; padding:6px 14px; border-radius:var(--radius-pill); font-size:12.5px; font-weight:600; color:var(--ink-400); cursor:pointer; }
+.lang-toggle button{ border:none; background:transparent; padding:6px 14px; border-radius:var(--radius-pill); font-size:12.5px; font-weight:600; color:var(--ink-400); cursor:pointer; min-height:34px; min-width:40px; }
 .lang-toggle button.active{ background:var(--navy-900); color:var(--white); }
 /* Header variant sits on dark navy, so it inverts */
 .lang-toggle-header{ background:rgba(255,255,255,.08); border-color:rgba(255,255,255,.18); }
@@ -403,7 +242,7 @@ section{ padding:76px 0; position:relative; }
 .notif-bell:hover{ background:rgba(255,255,255,.14); }
 .notif-badge{
   position:absolute; top:-4px; right:-4px; min-width:16px; height:16px; padding:0 3px;
-  background:var(--danger,#C0392B); color:#fff; font-size:10px; font-weight:700;
+  background:var(--danger,#C0392B); color:#fff; font-size:11px; font-weight:700;
   border-radius:8px; display:grid; place-items:center; font-family:var(--font-mono);
 }
 .notif-panel{
@@ -424,92 +263,20 @@ section{ padding:76px 0; position:relative; }
 .notif-item:hover{ background:var(--paper,#FAF8F3); }
 .notif-item .notif-icon{ font-size:16px; flex-shrink:0; }
 .notif-item .notif-text{ font-size:12.8px; line-height:1.45; }
-.notif-item .notif-time{ display:block; font-size:11px; color:var(--ink-400,#8891A3); margin-top:2px; }
+.notif-item .notif-time{ display:block; font-size:12px; color:var(--ink-400,#8891A3); margin-top:2px; }
 @media (max-width:640px){
-  .notif-panel{ position:fixed; top:auto; bottom:0; left:0; right:0; width:auto; max-width:none; max-height:70vh; border-radius:16px 16px 0 0; }
+  .notif-panel{ position:fixed; top:auto; bottom:0; left:0; right:0; width:auto; max-width:none; max-height:calc(70 * var(--vh1)); border-radius:16px 16px 0 0; }
 }
 
-/* ---------- Payment info panel ---------- */
-.pay-panel{ background:var(--navy-950); color:var(--white); border-radius:var(--radius-lg); padding:26px; }
-.pay-panel h3{ color:var(--white); font-size:16px; margin-bottom:6px; }
-.pay-panel .sub{ font-size:12.8px; color:rgba(255,255,255,.6); margin-bottom:18px; }
 .pay-line{ display:flex; justify-content:space-between; gap:12px; padding:11px 0; border-bottom:1px solid rgba(255,255,255,.1); font-size:13.2px; }
 .pay-line:last-child{ border-bottom:none; }
 .pay-line span:first-child{ color:rgba(255,255,255,.55); }
 .pay-line span:last-child{ font-weight:600; text-align:right; word-break:break-all; }
 
-/* ---------- Our Community (building + amenities) ---------- */
-.community{ background:var(--navy-950); color:var(--white); }
-.community .section-head h2{ color:var(--white); }
-.community .section-head p{ color:rgba(255,255,255,.7); }
-.community-grid{ display:grid; grid-template-columns:1.25fr .75fr; gap:20px; align-items:stretch; }
-.shot{
-  position:relative; border-radius:var(--radius-lg); overflow:hidden;
-  border:1px solid rgba(228,199,101,.22); background:var(--navy-900);
-  min-height:170px; max-height:340px;
-}
-.shot img{
-  width:100%; height:100%; object-fit:cover; display:block;
-  transition:transform .7s cubic-bezier(.2,.7,.3,1), opacity .45s ease;
-  opacity:0;                       /* revealed once the file has decoded */
-  /* THIS IS LOad-BEARING, do not remove. .shot::before below is absolutely
-     positioned, and a positioned pseudo-element paints above a static sibling
-     no matter what order they appear in. Without this, the blurred placeholder
-     sat permanently on top of the real photograph — the images looked blurry
-     forever, and only sharpened on hover because the hover rule applies a
-     transform to the <img>, which promotes it into the positioned paint layer.
-     Giving the image its own stacking position fixes it in both states. */
-  position:relative; z-index:1;
-}
-.shot img.loaded{ opacity:1; }
-/* A ~900-byte blurred version of the same photo, inlined so it paints on the
-   first frame. It gives the card its real colours immediately instead of a
-   grey box, and because .shot already has a fixed aspect ratio nothing
-   shifts when the full image arrives. */
-.shot::before{
-  content:''; position:absolute; inset:0; z-index:0;
-  background-image:var(--lqip); background-size:cover; background-position:center;
-  filter:blur(12px); transform:scale(1.06);
-  transition:opacity .5s ease;
-}
-/* Once the real photo is up, drop the placeholder entirely. It is no longer
-   doing anything, and a 12px blur held underneath a semi-transparent edge can
-   bleed a soft halo around the image corners. */
-.shot.is-loaded::before{ opacity:0; }
-.shot:hover img{ transform:scale(1.045); }
-.shot figcaption{
-  position:absolute; left:0; right:0; bottom:0; padding:26px 20px 16px;
-  background:linear-gradient(to top, rgba(10,27,51,.94), transparent);
-  font-size:12.5px; font-weight:600; letter-spacing:.02em;
-  /* Without an explicit z-index this loses to .shot img's z-index:1 and
-     paints underneath the photo — invisible, not just faint, since the
-     photo is fully opaque. Confirmed via elementFromPoint(): the img, not
-     the figcaption, was the actual top element at the caption's own
-     coordinates. */
-  z-index:2;
-}
-.shot figcaption span{
-  display:block; font-family:var(--font-mono); font-size:9.5px; letter-spacing:.12em;
-  text-transform:uppercase; color:var(--saffron-300); margin-bottom:3px; font-weight:500;
-}
-.shot-stack{ display:grid; grid-template-rows:1fr 1fr; gap:20px; }
-.amenity-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(150px,1fr)); gap:10px; margin-top:20px; }
-.amenity{
-  display:flex; align-items:center; gap:10px; padding:13px 14px;
-  background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.1);
-  border-radius:var(--radius-md); font-size:13px; font-weight:500;
-}
-.amenity svg{ width:18px; height:18px; color:var(--saffron-300); flex-shrink:0; }
-.stat-pill{
-  display:inline-flex; align-items:baseline; gap:7px; padding:9px 16px; border-radius:var(--radius-pill);
-  background:var(--gradient-magenta); font-size:12.5px; font-weight:600; margin-bottom:16px;
-}
-.stat-pill b{ font-family:var(--font-mono); font-size:15px; }
-
 /* ---------- Accounts ---------- */
 .fund-row{ display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:22px; }
 .fund-card{ background:var(--white); border:1px solid var(--line); border-radius:var(--radius-lg); padding:22px; }
-.fund-card .lbl{ font-family:var(--font-mono); font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-400); }
+.fund-card .lbl{ font-family:var(--font-mono); font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-400); }
 .fund-card .amt{ font-family:var(--font-display); font-size:29px; font-weight:600; color:var(--navy-950); line-height:1.1; margin-top:6px; letter-spacing:-.02em; }
 .fund-card.spend .amt{ color:var(--magenta-500); }
 .fund-card.balance .amt{ color:var(--success); }
@@ -521,7 +288,7 @@ section{ padding:76px 0; position:relative; }
 .spend-row .top{ display:flex; justify-content:space-between; gap:12px; align-items:baseline; margin-bottom:7px; }
 .spend-row .nm{ font-size:14px; font-weight:600; }
 .spend-row .amt{ font-family:var(--font-mono); font-size:13.5px; font-weight:600; color:var(--navy-950); }
-.spend-row .pct{ font-family:var(--font-mono); font-size:11px; color:var(--ink-400); margin-left:8px; }
+.spend-row .pct{ font-family:var(--font-mono); font-size:12px; color:var(--ink-400); margin-left:8px; }
 .spend-bar{ height:7px; border-radius:99px; background:var(--paper); overflow:hidden; }
 .spend-bar span{ display:block; height:100%; border-radius:99px; background:var(--gradient-saffron); }
 
@@ -540,7 +307,7 @@ section{ padding:76px 0; position:relative; }
 .doc-icon svg{ width:19px; height:19px; }
 .doc-meta{ min-width:0; flex:1; }
 .doc-meta .nm{ font-weight:600; font-size:14.2px; line-height:1.3; }
-.doc-meta .sub{ font-family:var(--font-mono); font-size:10.5px; letter-spacing:.07em; text-transform:uppercase; color:var(--ink-400); margin-top:3px; }
+.doc-meta .sub{ font-family:var(--font-mono); font-size:11.5px; letter-spacing:.07em; text-transform:uppercase; color:var(--ink-400); margin-top:3px; }
 .doc-item .go{ flex-shrink:0; color:var(--navy-700); }
 .doc-item .go svg{ width:18px; height:18px; }
 .cplt-steps{ display:grid; grid-template-columns:repeat(4, 1fr); width:100%; margin:8px 0 4px; }
@@ -554,7 +321,7 @@ section{ padding:76px 0; position:relative; }
 .cplt-step.current{ color:var(--navy-900); font-weight:700; }
 .cplt-step.current .cplt-dot{ border-color:var(--gold-500, #C9A227); box-shadow:0 0 0 3px var(--gold-glow, rgba(201,162,39,.22)); }
 .cplt-lbl{ display:block; }
-.cplt-dt{ display:block; font-size:11px; font-weight:400; color:var(--ink-400); margin-top:1px; }
+.cplt-dt{ display:block; font-size:12px; font-weight:400; color:var(--ink-400); margin-top:1px; }
 .cplt-meta{ font-size:13px; margin-top:2px; }
 .cplt-next{ font-size:13px; color:var(--ink-600); margin-top:2px; }
 .doc-item .doc-main{ display:flex; align-items:center; gap:14px; flex:1; min-width:0; color:inherit; text-decoration:none; }
@@ -570,12 +337,11 @@ section{ padding:76px 0; position:relative; }
    a grid and break the card sizing. */
 #committeeGrid{ display:flex; flex-direction:column; gap:34px; }
 .committee-group-title{ font-size:15px; font-weight:600; letter-spacing:.03em; text-transform:uppercase; color:var(--ink-700,#1c2b3d); margin-bottom:14px; }
-.committee-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:16px; }
-.committee-card{ text-align:center; background:var(--white); border:1px solid var(--line); border-radius:var(--radius-lg); padding:26px 16px; }
-.committee-card img{ width:76px; height:76px; border-radius:50%; margin:0 auto 14px; object-fit:cover; border:2px solid var(--gold-300); }
-.committee-card .nm{ font-weight:600; font-size:14.5px; }
-.committee-card .role{ font-family:var(--font-mono); font-size:10px; letter-spacing:.09em; text-transform:uppercase; color:var(--magenta-500); margin-top:3px; }
-.committee-card img{ border-color:var(--magenta-100); }
+.committee-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(230px, 1fr)); gap:10px; }
+.committee-card{ display:flex; align-items:center; gap:12px; text-align:left; background:var(--white); border:1px solid var(--line); border-radius:var(--radius-md); padding:10px 14px; }
+.committee-card img{ width:44px; height:44px; flex:0 0 44px; border-radius:50%; margin:0; object-fit:cover; border:2px solid var(--magenta-100); }
+.committee-card .nm{ font-weight:600; font-size:14px; line-height:1.25; }
+.committee-card .role{ font-family:var(--font-mono); font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--magenta-500); margin-top:2px; }
 
 /* ---------- Portal (login/register) ---------- */
 #portal .card{ max-width:580px; margin:0 auto; }
@@ -583,11 +349,14 @@ section{ padding:76px 0; position:relative; }
 .tabbar button{ flex:1; background:none; border:none; padding:15px; font-weight:600; font-size:14.5px; color:var(--ink-400); cursor:pointer; border-bottom:2px solid transparent; }
 .tabbar button.active{ color:var(--navy-900); border-color:var(--saffron-500); }
 .form-2col{ display:grid; grid-template-columns:1fr 1fr; gap:0 16px; }
-.upload-hint{ font-size:11.5px; color:var(--ink-400); margin-top:4px; }
+.upload-hint{ font-size:12.5px; color:var(--ink-400); margin-top:4px; }
 /* Every field on this form is required — the marker is a quiet confirmation
    of that rather than a way to distinguish required from optional. */
 .field label .req{ color:var(--magenta-500); font-style:normal; font-weight:700; margin-left:2px; }
-.field .hint{ font-size:11.5px; color:var(--ink-400); margin-top:4px; }
+/* A hint outside a .field (e.g. under the Google buttons) used to inherit the 16px body size and
+   looked bigger than its own heading. */
+.hint{ font-size:12.5px; line-height:1.5; color:var(--ink-600); }
+.field .hint{ font-size:12.5px; color:var(--ink-400); margin-top:4px; }
 select:disabled{ background:var(--paper); color:var(--ink-400); cursor:not-allowed; }
 optgroup, option[disabled]{ color:var(--ink-400); font-style:italic; }
 
@@ -602,18 +371,7 @@ optgroup, option[disabled]{ color:var(--ink-400); font-style:italic; }
   color:var(--saffron-300); padding:9px 16px; border-radius:var(--radius-pill);
   display:inline-flex; align-items:center; gap:8px; margin-top:14px;
 }
-.dash-grid{ display:grid; grid-template-columns:1.35fr 1fr; gap:20px; align-items:start; margin-top:20px; }
-.dash-shortcuts{ display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-top:18px; }
-.dash-shortcut{
-  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:7px;
-  background:#fff; border:1px solid var(--line); border-radius:14px; padding:14px 6px;
-  min-height:76px; cursor:pointer; transition:border-color .15s ease, transform .1s ease;
-  font-family:inherit; font-size:12.5px; font-weight:600; color:var(--navy-900);
-}
-.dash-shortcut:hover{ border-color:var(--saffron-500); }
-.dash-shortcut:active{ transform:scale(.97); }
-.dash-shortcut svg{ width:22px; height:22px; color:var(--navy-900); }
-@media (max-width:420px){ .dash-shortcuts{ grid-template-columns:repeat(2,1fr); } }
+.dash-grid{ display:grid; grid-template-columns:minmax(0,1.35fr) minmax(0,1fr); gap:20px; align-items:start; margin-top:20px; }
 .pay-history-item{ display:flex; justify-content:space-between; align-items:center; padding:15px 0; border-bottom:1px solid var(--line); gap:12px; flex-wrap:wrap; }
 .pay-history-item:last-child{ border-bottom:none; }
 
@@ -645,29 +403,23 @@ optgroup, option[disabled]{ color:var(--ink-400); font-style:italic; }
 .pay-timeline .tl-row{ display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap; }
 .pay-timeline .tl-amt{ font-weight:600; font-size:14.5px; }
 .pay-timeline .tl-meta{ color:var(--ink-400,#6b7688); font-size:12px; margin-top:2px; }
-.pay-timeline .tl-rcpt{ font-family:var(--font-mono,monospace); color:var(--ink-400,#6b7688); font-size:11.5px; margin-top:2px; }
+.pay-timeline .tl-rcpt{ font-family:var(--font-mono,monospace); color:var(--ink-400,#6b7688); font-size:12.5px; margin-top:2px; }
 .pay-timeline .tl-actions{ display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end; }
 
 /* --- Dues progress bar (linear companion to the ring) --------------------- */
-.dues-bar-wrap{ margin-top:14px; }
-.dues-bar-head{ display:flex; justify-content:space-between; font-size:12px; color:var(--ink-400,#6b7688); margin-bottom:6px; }
-.dues-bar{ height:9px; border-radius:6px; background:var(--line); overflow:hidden; }
-.dues-bar > span{
-  display:block; height:100%; border-radius:6px; width:0;
-  background:linear-gradient(90deg, var(--gold-500,#C9A227), var(--gold-300,#E4C765));
-  transition:width .8s cubic-bezier(.22,.61,.36,1);
-}
-.dues-bar > span.is-paid{ background:linear-gradient(90deg, #0f8a54, var(--success)); }
-.dues-bar > span.is-unpaid{ background:linear-gradient(90deg, #c0392b, var(--danger)); }
-@media (prefers-reduced-motion: reduce){ .dues-bar > span{ transition:none; } }
 .dues-box{ border:1px solid var(--line); border-radius:var(--radius-md); overflow:hidden; }
 .dues-head{ display:flex; align-items:center; gap:18px; padding:18px 16px; background:var(--paper); flex-wrap:wrap; }
 .dues-head .amt{ font-family:var(--font-display); font-size:28px; font-weight:600; color:var(--navy-950); line-height:1.1; font-variant-numeric:tabular-nums; margin:3px 0 8px; }
-.dues-head .lbl{ font-family:var(--font-mono); font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-400); }
+.dues-head .lbl{ font-family:var(--font-mono); font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-400); }
 .dues-split{ display:flex; }
 .dues-split > div{ flex:1; padding:11px 16px; border-right:1px solid var(--line); font-size:13px; }
 .dues-split b{ font-variant-numeric:tabular-nums; }
 .dues-split > div:last-child{ border-right:none; }
+.upi-launch{ margin:4px 0 18px; padding:14px; border-radius:var(--radius-md); background:rgba(31,69,133,.05); border:1px solid rgba(31,69,133,.18); }
+.upi-launch .hint{ margin-top:8px; }
+.upi-ios-row{ display:flex; gap:8px; }
+.upi-ios-row .btn{ flex:1 1 0; padding-inline:8px; }
+.upi-note{ margin-top:10px; padding:9px 11px; border-radius:10px; background:rgba(245,166,35,.12); border:1px solid rgba(245,166,35,.35); font-size:12.5px; line-height:1.45; }
 .dues-split b{ display:block; font-size:14.5px; color:var(--navy-950); margin-top:2px; }
 /* ---------- Dues ring ----------
    This is the number a resident opens the app to find, and it used to be a
@@ -700,7 +452,7 @@ optgroup, option[disabled]{ color:var(--ink-400); font-style:italic; }
   line-height:1; letter-spacing:-.02em; font-variant-numeric:tabular-nums;
 }
 .dues-ring .pct small{ display:block; font-family:var(--font-mono); font-weight:500;
-  font-size:8.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-400); margin-top:3px; }
+  font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-400); margin-top:3px; }
 .dues-figures{ min-width:0; }
 @media (max-width:420px){
   .dues-ring{ width:86px; height:86px; }
@@ -722,16 +474,17 @@ optgroup, option[disabled]{ color:var(--ink-400); font-style:italic; }
 /* ---------- Footer ---------- */
 footer.site-footer{ background:var(--navy-950); color:rgba(255,255,255,.68); padding:54px 0 26px; }
 footer.site-footer .foot-grid{ display:grid; grid-template-columns:2fr 1fr 1fr; gap:32px; margin-bottom:34px; }
-footer.site-footer h4{ color:var(--white); font-size:11.5px; margin-bottom:15px; font-family:var(--font-mono); letter-spacing:.1em; text-transform:uppercase; }
+footer.site-footer h4{ color:var(--white); font-size:12.5px; margin-bottom:15px; font-family:var(--font-mono); letter-spacing:.1em; text-transform:uppercase; }
 footer.site-footer a{ color:rgba(255,255,255,.62); font-size:13.4px; display:block; margin-bottom:10px; }
 footer.site-footer a:hover{ color:var(--saffron-300); }
+@media (pointer: coarse){ footer.site-footer a{ padding:7px 0; margin-bottom:2px; } }
 .foot-credentials{
   display:flex; flex-wrap:wrap; gap:10px 22px; align-items:center;
   padding:16px 0; border-top:1px solid rgba(255,255,255,.12); margin-bottom:4px;
 }
 .foot-credentials .cred{ font-size:11.8px; color:rgba(255,255,255,.55); display:inline-flex; align-items:center; gap:7px; }
 .foot-credentials .cred b{
-  font-family:var(--font-mono); font-size:9.5px; letter-spacing:.1em; text-transform:uppercase;
+  font-family:var(--font-mono); font-size:11px; letter-spacing:.1em; text-transform:uppercase;
   color:var(--navy-950); background:var(--saffron-300); padding:3px 7px; border-radius:4px;
 }
 .foot-bottom{ border-top:1px solid rgba(255,255,255,.12); padding-top:20px; font-size:12.3px; display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px; }
@@ -755,58 +508,178 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
 .qr-download-btn:hover{ border-color:var(--navy-600); background:var(--paper); }
 .qr-download-btn svg{ width:15px; height:15px; flex-shrink:0; }
 
+
+/* v167 — closed-poll verdict */
+.poll-verdict{ font-size:13px; margin:2px 0 8px; color:var(--green-700,#1E7B46); }
+.poll-verdict.tie{ color:var(--ink-600,#555); }
+
+/* v165 — sign-in card: segmented Login / New Registration control + roomier fields */
+.tabbar:has(#tabLogin){ border:none; background:#EFEAE0; border-radius:999px; padding:4px; gap:4px; margin-bottom:22px; }
+.tabbar:has(#tabLogin) button{ border:none; border-radius:999px; padding:11px 8px; font-size:14px; color:var(--ink-500); }
+.tabbar:has(#tabLogin) button.active{ background:#0A1B33; color:#FFC978; box-shadow:0 4px 10px rgba(10,27,51,.25); }
+#loginForm input, #registerForm input{ min-height:50px; border-radius:14px; }
+#loginForm .btn-primary, #registerForm .btn-primary{ min-height:52px; border-radius:15px; font-size:16px; box-shadow:0 8px 18px rgba(242,123,14,.28); }
+
+
+/* v165 — collapsible "More" card heading reads as a proper section header */
+details.card > summary{ list-style:none; cursor:pointer; display:flex; align-items:center; justify-content:space-between; gap:10px; padding:16px 18px; font-weight:700; color:var(--navy-900); }
+details.card > summary::-webkit-details-marker{ display:none; }
+details.card > summary::after{ content:''; width:22px; height:22px; flex:none; border-radius:50%; background:#F3EFE6 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%230F2547' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") center/12px no-repeat; transition:transform .2s ease; }
+details.card[open] > summary::after{ transform:rotate(180deg); }
+
 /* ---------- Mobile bottom tab bar (the main mobile UX upgrade) ---------- */
 /* Tab bar is ~66px tall plus the safe area; lift toasts clear of it. */
-@media (max-width: 900px){ :root{ --toast-bottom-gap:80px; } }
+@media (max-width: 900px){ :root{ --toast-bottom-gap:96px; } }
 .tabbar-mobile{
-  display:none; position:fixed; bottom:0; left:0; right:0; z-index:70;
-  background:rgba(10,27,51,.97); backdrop-filter:blur(14px);
-  border-top:1px solid rgba(228,199,101,.24);
-  padding:7px 4px calc(7px + env(safe-area-inset-bottom));
+  display:none; position:fixed; left:12px; right:12px; bottom:calc(12px + env(safe-area-inset-bottom)); z-index:70;
+  background:#0A1B33; border-radius:24px; padding:6px; box-shadow:0 14px 30px rgba(10,27,51,.40);
 }
-.tabbar-mobile ul{ display:flex; }
+.tabbar-mobile ul{ display:flex; gap:2px; }
 .tabbar-mobile li{ flex:1; }
 .tabbar-mobile a{
-  display:flex; flex-direction:column; align-items:center; gap:4px; padding:7px 2px;
-  color:rgba(255,255,255,.6); font-size:10.5px; font-weight:600; letter-spacing:.01em; min-height:52px; justify-content:center;
+  display:flex; flex-direction:column; align-items:center; gap:2px; padding:6px 2px; border-radius:18px;
+  color:#AEB8CC; font-size:12px; font-weight:600; letter-spacing:.01em; min-height:54px; justify-content:center;
+  --duo:rgba(255,255,255,.12); transition:background .15s ease, color .15s ease;
 }
-.tabbar-mobile a svg{ width:20px; height:20px; }
-.tabbar-mobile a.active{ color:var(--saffron-300); }
-.tabbar-mobile a svg{ flex-shrink:0; }
+.tabbar-mobile a svg{ width:24px; height:24px; flex-shrink:0; }
+.tabbar-mobile a.active{ color:var(--saffron-300); background:rgba(255,201,120,.14); --duo:rgba(255,201,120,.38); font-weight:700; }
 
-/* ---------- "Dues + Pay Now" card at the very top of the resident home ----------
-   The one thing most residents open the app for, so it sits straight under the
-   welcome/status card (and under any visitor waiting at the gate). The fuller
-   ring-and-progress panel stays further down, next to the payment history. */
-.dues-hero{
-  margin-top:16px; padding:16px 18px; background:#fff; border:1px solid var(--line);
-  border-radius:16px; box-shadow:0 1px 2px rgba(10,27,51,.05), 0 6px 16px -10px rgba(10,27,51,.18);
-  display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+/* ---------- State card at the top of the resident home ----------
+   One card, three states: money due (navy, Pay Now), payment being verified
+   (a three-step tracker) and all paid (green, with the latest receipt). */
+.dues-hero{ margin-top:16px; border-radius:20px; padding:20px; position:relative; }
+.dues-hero .dh-top{ display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; }
+.dues-hero .dh-lbl{ font-family:var(--mono, 'IBM Plex Mono', monospace); font-size:12px; letter-spacing:.1em; text-transform:uppercase; }
+.dues-hero .dh-amt{ font-weight:800; line-height:1.05; letter-spacing:-.02em; margin-top:10px; }
+.dues-hero .dh-note{ font-size:13.5px; margin-top:8px; line-height:1.4; }
+.dues-hero .btn{ min-height:52px; width:100%; font-size:16px; font-weight:700; margin-top:18px; }
+.dues-hero.dh-due{ background:linear-gradient(160deg,#0F2547,#0A1B33); color:#fff; box-shadow:0 10px 28px rgba(10,27,51,.28); }
+.dues-hero.dh-due .dh-lbl{ color:#FFC978; }
+.dues-hero.dh-due .dh-amt{ font-size:44px; }
+.dues-hero.dh-due .dh-note, .dues-hero.dh-due .dh-office{ color:#D5DBE8; }
+.dues-hero .dh-office{ margin-top:12px; text-align:center; font-size:13px; }
+.dues-hero.dh-verify{ background:#fff; border:1px solid var(--line); box-shadow:0 8px 22px rgba(10,27,51,.08); }
+.dues-hero.dh-verify .dh-lbl{ color:#7D6410; }
+.dues-hero.dh-verify .dh-amt{ font-size:38px; color:var(--navy-900); }
+.dues-hero .dh-amt small{ font-size:13.5px; font-weight:500; letter-spacing:0; color:var(--ink-600); margin-left:8px; }
+.dh-steps{ list-style:none; margin:20px 0 0; padding:0; }
+.dh-steps li{ display:flex; gap:14px; }
+.dh-steps .dh-rail{ display:flex; flex-direction:column; align-items:center; }
+.dh-steps .dh-dot{ width:26px; height:26px; box-sizing:border-box; border-radius:50%; border:2px solid #C4CBD8; background:#fff; display:flex; align-items:center; justify-content:center; color:#fff; flex:none; }
+.dh-steps .dh-dot svg{ width:14px; height:14px; }
+.dh-steps .dh-line{ width:2px; flex:1; min-height:22px; background:#D9D3C6; }
+.dh-steps .is-done .dh-dot{ background:#1E7B4A; border-color:#1E7B4A; }
+.dh-steps .is-done .dh-line{ background:#1E7B4A; }
+.dh-steps .is-now .dh-dot{ border:3px solid #F27B0E; background:#FFF1D6; }
+.dh-steps .dh-txt{ padding-bottom:14px; }
+.dh-steps li:last-child .dh-txt{ padding-bottom:0; }
+.dh-steps .dh-t{ font-size:15px; font-weight:600; }
+.dh-steps .dh-s{ font-size:13px; color:var(--ink-600); }
+.dh-steps .is-todo .dh-t, .dh-steps .is-todo .dh-s{ color:#5B667B; }
+.dues-hero .dh-rest{ margin-top:16px; padding-top:14px; border-top:1px dashed #D9D3C6; display:flex; justify-content:space-between; align-items:center; font-size:14px; }
+.dues-hero .dh-rest b{ font-size:15px; }
+.dues-hero .btn.btn-outline{ min-height:48px; font-size:15px; margin-top:12px; }
+.dues-hero.dh-clear{ background:#EAF6EF; border:1px solid #BFE3CF; }
+.dues-hero .dh-ok{ display:flex; align-items:center; gap:14px; }
+.dues-hero .dh-tick{ width:52px; height:52px; border-radius:50%; background:#1E7B4A; color:#fff; display:flex; align-items:center; justify-content:center; flex:none; }
+.dues-hero .dh-tick svg{ width:26px; height:26px; }
+.dues-hero .dh-ok-t{ font-weight:800; font-size:22px; line-height:1.15; letter-spacing:-.01em; color:#0E4D2D; }
+.dues-hero .dh-ok-s{ font-size:13.5px; color:#2B5E43; margin-top:2px; }
+.dues-hero .dh-rcpt{ margin-top:18px; background:#FFFDF9; border:1px solid #CFE6D9; border-radius:14px; padding:14px 16px; }
+.dues-hero .dh-rcpt-top{ display:flex; justify-content:space-between; align-items:center; font-size:12px; color:var(--ink-600); }
+.dues-hero .dh-rcpt-top .dh-lbl{ color:#7D6410; font-size:11.5px; }
+.dues-hero .dh-rcpt-row{ margin-top:8px; display:flex; justify-content:space-between; align-items:baseline; gap:10px; flex-wrap:wrap; }
+.dues-hero .dh-rcpt-amt{ font-weight:800; font-size:26px; color:var(--navy-900); }
+.dues-hero .dh-rcpt-what{ font-size:13px; color:var(--ink-600); }
+.dues-hero .dh-rcpt-act{ margin-top:12px; display:flex; gap:10px; }
+.dues-hero .dh-rcpt-act .btn{ margin-top:0; min-height:46px; font-size:14.5px; }
+.dues-hero .dh-rcpt-act .btn:first-child{ flex:1; }
+.dues-hero .dh-rcpt-act .btn.dh-share{ width:46px; padding:0; flex:none; }
+.dues-hero .dh-rcpt-act svg{ width:18px; height:18px; flex:none; }
+
+/* Quick rows under the state card (phone Home): complaints, bookings, profile */
+.home-links{ margin-top:12px; background:#fff; border:1px solid var(--line); border-radius:16px; }
+.home-link{ display:flex; align-items:center; gap:12px; width:100%; min-height:56px; padding:0 16px; background:none; border:0; border-bottom:1px solid var(--line); font:inherit; font-size:15px; font-weight:600; color:var(--ink-900, #10192B); text-align:left; cursor:pointer; }
+.home-link:last-child{ border-bottom:0; }
+.hl-ico, .mi-ico{ width:38px; height:38px; border-radius:12px; flex:none; display:flex; align-items:center; justify-content:center; color:var(--navy-900); background:#FFF1D6; --duo:#FFC978; }
+.hl-ico svg, .mi-ico svg{ width:22px; height:22px; }
+.dues-hero .dh-lblrow{ display:flex; align-items:center; gap:10px; flex:1; min-width:0; }
+.dues-hero .dh-top{ flex-wrap:nowrap; }
+.dues-hero .dh-top .badge{ flex:none; white-space:nowrap; }
+.dues-hero .dh-ico{ width:36px; height:36px; border-radius:11px; background:rgba(255,201,120,.14); color:#FFC978; display:flex; align-items:center; justify-content:center; flex:none; --duo:rgba(255,201,120,.35); }
+.dues-hero .dh-ico svg{ width:22px; height:22px; }
+.more-profile{ display:flex; align-items:center; gap:14px; background:#fff; border:1px solid var(--line); border-radius:20px; padding:14px 16px; box-shadow:0 2px 8px rgba(10,27,51,.04); }
+.more-avatar{ width:56px; height:56px; border-radius:50%; flex:none; background:linear-gradient(135deg,#12294F,#0A1B33); color:#FFC978; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:22px; box-shadow:0 0 0 3px #FFE7B8; }
+.more-group-label{ margin:16px 6px 6px; font-size:11.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--ink-600); font-weight:600; }
+.more-group{ background:#fff; border:1px solid var(--line); border-radius:18px; box-shadow:0 2px 8px rgba(10,27,51,.04); }
+#moreView{ display:none; }
+.home-link .hl-t{ flex:1; min-width:0; }
+.home-link .hl-n{ font-size:13px; font-weight:500; color:var(--ink-600); }
+.home-link .hl-go{ color:#5B667B; font-size:20px; line-height:1; }
+#viewTitle{ display:none; }
+
+/* ---------- Phone: one screen per bottom-bar tab ----------
+   Each dashboard block is tagged data-v="home|payments|complaints|community|
+   profile|info"; only the current view's blocks show. The desktop page keeps
+   (v165: now also on desktop, where the left sidebar replaces the bottom bar.) */
+  body.logged-in[data-view="home"] [data-v]:not([data-v~="home"]),
+  body.logged-in[data-view="payments"] [data-v]:not([data-v~="payments"]),
+  body.logged-in[data-view="complaints"] [data-v]:not([data-v~="complaints"]),
+  body.logged-in[data-view="community"] [data-v]:not([data-v~="community"]),
+  body.logged-in[data-view="profile"] [data-v]:not([data-v~="profile"]),
+  body.logged-in[data-view="info"] [data-v]:not([data-v~="info"]),
+  body.logged-in[data-view="more"] [data-v]:not([data-v~="more"]){ display:none !important; }
+  body.logged-in[data-view="more"] #moreView{ display:block; }
+  body.logged-in #dashboard{ background:#F6F3EC !important; }
+  body.logged-in #dashboard .card{ border-radius:20px; border-color:#E7E2D6; box-shadow:0 2px 8px rgba(10,27,51,.04); }
+  body.logged-in:not([data-view="home"]) #viewTitle{ display:block; margin:0; font-size:22px; }
+  body.logged-in #dashboard .section-head{ margin-bottom:12px !important; }
+  body.logged-in[data-view="info"] section{ padding:20px 0; }
+
+
+
+/* ---------- Desktop (v165): left sidebar + one section per screen ---------- */
+.side-desk{ display:none; }
+@media (min-width:901px){
+  body.logged-in{ padding-left:248px; }
+  body.logged-in .site-header{ margin-left:-248px; }
+  body.logged-in .tabbar-mobile{ display:none !important; }
+  body.logged-in .side-desk{
+    display:flex; flex-direction:column; gap:4px; position:fixed; left:0; top:71px; bottom:0; width:248px; z-index:50;
+    background:#0A1B33; padding:20px 14px; overflow-y:auto; box-shadow:4px 0 24px rgba(10,27,51,.12);
+  }
+  .side-desk .sd-label{ font-size:11.5px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:rgba(255,255,255,.38); padding:2px 12px 8px; }
+  .side-desk a{
+    display:flex; align-items:center; gap:12px; padding:12px 14px; border-radius:12px; color:rgba(255,255,255,.74);
+    font-size:14px; font-weight:600; text-decoration:none; --duo:rgba(255,255,255,.14); transition:background .15s ease,color .15s ease;
+  }
+  .side-desk a svg{ width:22px; height:22px; flex:none; }
+  .side-desk a:hover{ background:rgba(255,255,255,.06); color:#fff; }
+  .side-desk a.active{ background:rgba(255,201,120,.14); color:#FFC978; --duo:rgba(255,201,120,.38); }
+  .side-desk .sd-foot{ margin-top:auto; padding-top:14px; border-top:1px solid rgba(255,255,255,.12); }
+  body.logged-in #dashboard > .wrap, body.logged-in #dashboard .wrap{ max-width:980px; margin-inline:auto; }
+  body.logged-in:not([data-view="home"]) #viewTitle{ font-size:28px; }
+  body.logged-in .site-footer{ margin-top:30px; }
+  .home-links{ display:none; }   /* the sidebar already lists these */
+  /* A resident who is not approved yet has nothing to navigate to. */
+  body.logged-in.not-approved{ padding-left:0; }
+  body.logged-in.not-approved .site-header{ margin-left:0; }
+  body.logged-in.not-approved .side-desk{ display:none; }
+  :root{ --toast-bottom-gap:24px; }
 }
-.dues-hero .dh-main{ flex:1 1 150px; min-width:0; }
-.dues-hero .dh-lbl{ font-size:12.5px; font-weight:600; color:var(--ink-600); letter-spacing:.01em; }
-.dues-hero .dh-amt{ font-size:28px; font-weight:800; line-height:1.15; color:var(--navy-900); margin:2px 0 6px; }
-.dues-hero .dh-amt.is-clear{ color:var(--success, #1E7B4A); font-size:22px; }
-.dues-hero .dh-note{ font-size:12.5px; color:var(--ink-600); margin-top:6px; line-height:1.4; }
-.dues-hero .btn{ min-height:46px; padding-inline:22px; font-size:15px; flex-shrink:0; }
-@media (max-width:420px){ .dues-hero .btn{ width:100%; } }
 
 /* ---------- "More" sheet opened from the bottom bar ---------- */
 .more-list{ list-style:none; margin:0; padding:0; }
 .more-list li + li{ border-top:1px solid var(--line); }
 .more-item{
-  display:flex; align-items:center; gap:14px; width:100%; min-height:52px; padding:10px 4px;
+  display:flex; align-items:center; gap:12px; width:100%; min-height:54px; padding:8px 14px;
   background:none; border:0; font:inherit; font-size:15px; font-weight:600; color:var(--navy-900);
   text-align:left; cursor:pointer; text-decoration:none;
 }
-.more-item .mi-ico{
-  width:44px; height:44px; border-radius:12px; flex-shrink:0; display:flex; align-items:center; justify-content:center;
-  background:var(--paper); border:1px solid var(--line);
-}
-.more-item .mi-ico svg{ width:22px; height:22px; color:var(--navy-900); }
+.more-item .hl-go{ color:#5B667B; font-size:20px; line-height:1; margin-left:auto; }
 .more-item.is-danger{ color:var(--danger, #B3261E); }
-.more-item.is-danger .mi-ico svg{ color:var(--danger, #B3261E); }
 .dash-grid > .card, #notices, #downloads{ scroll-margin-top:76px; }
+.dash-grid > *{ min-width:0; }
 
 /* =====================================================================
    RESPONSIVE — mobile is the priority target
@@ -819,7 +692,7 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
 
   nav.main-nav{ display:none; }
   body.logged-in .tabbar-mobile{ display:block; }
-  body.logged-in{ padding-bottom:74px; }  /* clearance for the fixed tab bar */
+  body.logged-in{ padding-bottom:98px; }  /* clearance for the floating tab bar */
   /* Admin and Logout move into the bottom bar's "More" sheet once signed in,
      leaving the header with just the seal, language toggle and the bell. */
   body.logged-in .header-admin-btn, body.logged-in #navAuthBtn{ display:none; }
@@ -833,18 +706,12 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
   .hero-grid{ grid-template-columns:1fr; gap:30px; }
   .hero-visual{ order:-1; }
   .hero-visual img.seal-img{ width:148px; height:148px; }
-  .seal-caption{ margin-top:14px; font-size:9.5px; letter-spacing:.14em; }
+  .seal-caption{ margin-top:14px; font-size:11px; letter-spacing:.14em; }
   .hero h1{ font-size:31px; max-width:none; margin:14px 0 15px; }
   .hero p.lead{ font-size:15.5px; margin-bottom:24px; }
-  .trust-strip{ margin-top:22px; padding-top:16px; gap:10px 0; }
-  .trust-strip .t-item{ padding-right:14px; margin-right:14px; font-size:10.8px; }
   .section-head h2{ font-size:25px; }
   .hero-ctas{ flex-direction:column; }
   .hero-ctas .btn{ width:100%; }
-  .stat-strip{ margin-top:30px; padding-top:18px; }
-  .stat-strip .stat b{ font-size:17px; }
-  .stat-strip .stat span{ font-size:10px; }
-  .stat-strip .stat{ padding-right:10px; }
 
   .section-head{ margin-bottom:26px; }
   .section-head h2{ font-size:24px; }
@@ -854,22 +721,14 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
   .process-step{ border-right:none; border-bottom:1px solid var(--line); padding:22px 20px; }
   .process-step:last-child{ border-bottom:none; }
 
-  .benefit-grid{ grid-template-columns:1fr; gap:12px; }
-  .benefit-card{ padding:20px; }
 
   .notice-grid{ grid-template-columns:1fr; }
-  .community-grid{ grid-template-columns:1fr; gap:12px; }
   .fund-row{ grid-template-columns:1fr; gap:10px; }
   .fund-card{ padding:18px; }
   .fund-card .amt{ font-size:25px; }
   .spend-list{ padding:18px; }
-  .shot-stack{ grid-template-rows:auto auto; gap:12px; }
-  .shot{ min-height:130px; }
-  .amenity-grid{ grid-template-columns:1fr 1fr; gap:8px; }
-  .amenity{ padding:11px; font-size:12.3px; }
-  .committee-grid{ grid-template-columns:1fr 1fr; gap:12px; }
   .contact-grid{ grid-template-columns:1fr; }
-  .dash-grid{ grid-template-columns:1fr; }
+  .dash-grid{ grid-template-columns:minmax(0,1fr); }
   .form-2col{ grid-template-columns:1fr; }
   .card-pad{ padding:20px; }
   .map-embed{ height:230px; }
@@ -880,8 +739,6 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
   .hero h1{ font-size:25px; }
   .section-head h2{ font-size:21px; }
   .committee-grid{ grid-template-columns:1fr; }
-  .stat-strip{ flex-wrap:wrap; gap:14px 0; }
-  .stat-strip .stat{ flex:0 0 50%; border-right:none; }
   .pay-history-item{ flex-direction:column; align-items:stretch; }
   .pay-history-item > div:last-child{ text-align:left !important; }
   footer.site-footer .foot-grid{ grid-template-columns:1fr; }
@@ -912,21 +769,72 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
   .seal-caption{ margin-top:10px; }
   .hero h1{ font-size:26px; margin:10px 0 11px; }
   .hero p.lead{ font-size:14.5px; margin-bottom:18px; }
-  .stat-strip{ margin-top:20px; padding-top:14px; }
-  .trust-strip{ margin-top:16px; padding-top:12px; }
 }
 @media (max-width: 560px){
-  /* On phones the primary action is Resident Login; keep the Admin link but
-     make it visually secondary and compact so the header doesn't crowd. */
+  /* On phones the primary action is Resident Login. The Admin button is for the committee only and
+     the header could not hold it beside the society name, language toggle and Login (the name was
+     being covered at 390px) — it stays in the footer ("Admin Panel") and in the More sheet. */
+  body:not(.logged-in) .header-admin-btn{ display:none; }
   .header-admin-btn{ padding-left:10px; padding-right:10px; }
+  .site-header .brand{ flex:1 1 auto; min-width:0; }
+  .site-header .brand-text{ min-width:0; overflow:hidden; }
+  .header-actions{ flex-shrink:0; }
 }
-@media (max-width: 348px){
+@media (max-width: 370px){
   .site-header .brand-text{ display:none; }  /* seal alone is enough at this width */
-  .header-admin-btn{ display:none; }         /* Admin still reachable from the footer link */
+  .header-admin-btn{ display:none; }
+}
+
+/* Payment History header on phones: the main action ("Make a Payment") gets its own full-width row
+   on top; the year picker and statement button sit together underneath. */
+@media (max-width: 560px){
+  .pay-head-actions{ width:100%; }
+  .pay-head-actions #openPaymentBtn{ order:-1; flex:1 1 100%; width:100%; }
+  .pay-head-actions select{ flex:1 1 auto; }
 }
 </style>
+<script>
+/* Boot guard — if the page's main script cannot start (typically a half-updated cache: a new
+   page next to an old script), a login form would otherwise just reload itself, blank, with
+   no message. This turns that into a clear message and a one-tap repair. */
+(function () {
+  window.__moduleBooted = false;
+  function show() {
+    if (window.__moduleBooted || document.getElementById('bootGuard')) return;
+    var d = document.createElement('div');
+    d.id = 'bootGuard'; d.setAttribute('role', 'alert');
+    d.style.cssText = 'position:fixed;left:0;right:0;top:0;z-index:2147483647;background:#B3261E;color:#fff;padding:12px 16px;font:15px/1.4 system-ui,sans-serif;text-align:center';
+    d.innerHTML = 'The app did not load completely (an old copy is stored on this phone). ';
+    var b = document.createElement('button');
+    b.textContent = 'Tap here to fix and reload';
+    b.style.cssText = 'margin-left:8px;padding:8px 14px;border:0;border-radius:8px;background:#fff;color:#B3261E;font-weight:700;font-size:15px';
+    b.onclick = function () {
+      b.disabled = true; b.textContent = 'Fixing…';
+      var done = function () { location.replace(location.pathname + '?r=' + Date.now()); };
+      Promise.all([
+        (navigator.serviceWorker && navigator.serviceWorker.getRegistrations ? navigator.serviceWorker.getRegistrations().then(function (rs) { return Promise.all(rs.map(function (r) { return r.unregister(); })); }) : Promise.resolve()),
+        (window.caches ? caches.keys().then(function (ks) { return Promise.all(ks.map(function (k) { return caches.delete(k); })); }) : Promise.resolve())
+      ]).then(done, done);
+    };
+    d.appendChild(b);
+    (document.body || document.documentElement).appendChild(d);
+  }
+  window.__showBootGuard = show;
+  window.addEventListener('error', function (e) {
+    var m = String((e && e.message) || '');
+    if (/does not provide an export|Unexpected token|Failed to fetch dynamically|error loading dynamically|Importing a module script failed|SyntaxError|is not defined/i.test(m)) show();
+  });
+  document.addEventListener('submit', function (e) {
+    if (window.__moduleBooted) return;
+    e.preventDefault();
+    if (document.readyState === 'complete') show();
+    else alert('The page is still loading — please wait a moment and try again.');
+  }, true);
+  window.addEventListener('load', function () { setTimeout(function () { if (!window.__moduleBooted) show(); }, 10000); });
+})();
+</script>
 </head>
-<body>
+<body data-view="home">
 
 <!-- Elegant loading screen — society seal on the navy gradient. Normally the
      Firebase-free module below fades it out; the small inline script here is an
@@ -1012,7 +920,6 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
     </a>
     <nav class="main-nav">
       <a href="#about">About</a>
-      <a href="#community">Community</a>
       <a href="#downloads">Documents</a>
       <a href="#notices">Notices</a>
       <a href="#committee">Committee</a>
@@ -1026,7 +933,7 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
       <a href="admin.html" class="btn btn-outline btn-sm on-dark header-admin-btn">Admin</a>
       <div class="notif-wrap" id="notifWrap" style="display:none;">
         <button class="notif-bell" id="notifBellBtn" aria-label="Notifications" data-no-translate>
-          🔔<span class="notif-badge" id="notifBadge" style="display:none;">0</span>
+          <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-bell"/></svg><span class="notif-badge" id="notifBadge" style="display:none;">0</span>
         </button>
         <div class="notif-panel" id="notifPanel">
           <div class="notif-panel-head">Notifications</div>
@@ -1041,9 +948,12 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
 <section id="dashboard" style="display:none; background:var(--paper);">
   <div class="wrap">
     <div class="section-head" style="margin-bottom:22px;">
-      <div class="rule-gold"></div>
-      <div class="eyebrow">Your Portal</div>
-      <h2 id="dashGreeting" style="font-size:26px;">Welcome back</h2>
+      <div data-v="home">
+        <div class="rule-gold"></div>
+        <div class="eyebrow">Your Portal</div>
+        <h2 id="dashGreeting" style="font-size:26px;">Welcome back</h2>
+      </div>
+      <h2 id="viewTitle" aria-live="polite"></h2>
     </div>
     <div id="dashboardContent"></div>
   </div>
@@ -1051,29 +961,14 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
 
 <section class="hero engrave" id="top" style="padding-top:70px;">
   <div class="hero-photo" aria-hidden="true"></div>
-  <div class="birds" aria-hidden="true">
-    <div class="bird bird-1"><div class="bird-bob"><div class="bird-bank"><div class="bird-body"><div class="wing-mount right"><div class="wing"><span class="arm"></span><span class="hand"></span></div></div><div class="wing-mount left"><div class="wing"><span class="arm"></span><span class="hand"></span></div></div></div></div></div></div>
-    <div class="bird bird-2"><div class="bird-bob"><div class="bird-bank"><div class="bird-body"><div class="wing-mount right"><div class="wing"><span class="arm"></span><span class="hand"></span></div></div><div class="wing-mount left"><div class="wing"><span class="arm"></span><span class="hand"></span></div></div></div></div></div></div>
-    <div class="bird bird-3"><div class="bird-bob"><div class="bird-bank"><div class="bird-body"><div class="wing-mount right"><div class="wing"><span class="arm"></span><span class="hand"></span></div></div><div class="wing-mount left"><div class="wing"><span class="arm"></span><span class="hand"></span></div></div></div></div></div></div>
-  </div>
   <div class="wrap hero-grid">
     <div>
       <div class="eyebrow on-dark">Digital Membership &amp; Payment Portal</div>
       <h1>Membership, payments and receipts — in <em>one verified record.</em></h1>
-      <p class="lead">Register your flat once, pay online or at the office, and receive a QR-verified receipt every single time. No paper registers, no "did it go through?" uncertainty.</p>
+      <p class="lead">Register your flat once, pay online or at the office, and get a QR-verified receipt every time.</p>
       <div class="hero-ctas">
         <button class="btn btn-primary" onclick="window.__goToPortal('register')">Register as Resident</button>
         <button class="btn btn-gold on-dark" onclick="window.__goToPortal('login')">Resident Login</button>
-      </div>
-      <div class="stat-strip">
-        <div class="stat"><b id="statMembers">—</b><span>Homes in the Community</span></div>
-        <div class="stat"><b id="statTowers">—</b><span>Residential Towers</span></div>
-        <div class="stat"><b>100%</b><span>QR-Verifiable</span></div>
-      </div>
-      <div class="trust-strip">
-        <span class="t-item"><svg viewBox="0 0 24 24"><use href="#i-shield"/></svg>Reg. <b>COOP/2026/JAIPUR/502531</b></span>
-        <span class="t-item"><svg viewBox="0 0 24 24"><use href="#i-seal"/></svg><b>JDA</b> Approved</span>
-        <span class="t-item"><svg viewBox="0 0 24 24"><use href="#i-bank"/></svg>Registered Welfare Society</span>
       </div>
     </div>
     <div class="hero-visual">
@@ -1113,39 +1008,7 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
   </div>
 </section>
 
-<section id="benefits" style="background:var(--paper);">
-  <div class="wrap">
-    <div class="section-head reveal">
-      <div class="rule-gold"></div>
-      <div class="eyebrow">Why This Portal</div>
-      <h2>Built around one idea: nothing should be "he said, she said."</h2>
-    </div>
-    <div class="benefit-grid reveal">
-      <div class="benefit-card">
-        <div class="glyph"><svg viewBox="0 0 24 24"><use href="#i-id"/></svg></div>
-        <h3>One Member ID, for life</h3>
-        <p>Approved once, your MHM ID stays linked to your flat's entire payment history — no re-registration, ever.</p>
-      </div>
-      <div class="benefit-card">
-        <div class="glyph"><svg viewBox="0 0 24 24"><use href="#i-seal"/></svg></div>
-        <h3>QR-sealed receipts</h3>
-        <p>Every verified payment issues a receipt with a scannable seal. Anyone can confirm it's genuine, anytime.</p>
-      </div>
-      <div class="benefit-card">
-        <div class="glyph"><svg viewBox="0 0 24 24"><use href="#i-card"/></svg></div>
-        <h3>Pay your way</h3>
-        <p>Cash or cheque at the office, or UPI and bank transfer from home — both tracked the same way.</p>
-      </div>
-      <div class="benefit-card">
-        <div class="glyph"><svg viewBox="0 0 24 24"><use href="#i-phone"/></svg></div>
-        <h3>Built for one hand</h3>
-        <p>Register, pay, and pull up a receipt from your phone — no app store, no download needed.</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section id="notices">
+<section id="notices" data-v="home">
   <div class="wrap">
     <div class="notice-grid">
       <div>
@@ -1161,16 +1024,11 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
           <div class="skeleton" style="height:56px;"></div>
         </div>
       </div>
-      <div class="pay-panel">
-        <h3>Payment Details on File</h3>
-        <p class="sub">These are the society's official collection details, configured by the committee.</p>
-        <div id="miniPaySettings"><div class="skeleton" style="height:90px; opacity:.25;"></div></div>
-      </div>
     </div>
   </div>
 </section>
 
-<section id="societyCalendar">
+<section id="societyCalendar" data-v="home" style="display:none;">
   <div class="wrap">
     <div class="section-head" style="margin-bottom:22px;">
       <div class="rule-gold"></div>
@@ -1184,12 +1042,12 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
   </div>
 </section>
 
-<section id="activePolls">
+<section id="activePolls" data-v="home" style="display:none;">
   <div class="wrap">
     <div class="section-head" style="margin-bottom:22px;">
       <div class="rule-gold"></div>
       <div class="eyebrow">Have Your Say</div>
-      <h2 style="font-size:25px; margin-top:9px;">Active Polls</h2>
+      <h2 style="font-size:25px; margin-top:9px;">Polls</h2>
     </div>
     <div id="pollsList" class="card card-pad">
       <div class="skeleton" style="height:56px; margin-bottom:12px;"></div>
@@ -1198,50 +1056,7 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
   </div>
 </section>
 
-<section class="community engrave" id="community">
-  <div class="wrap">
-    <div class="section-head reveal">
-      <div class="rule-gold"></div>
-      <div class="eyebrow on-dark">Where We Live</div>
-      <h2>Max Heights Majestic, Grand Sikar Road</h2>
-      <p>Seven towers in the 400-acre Suncity Township, sharing a landscaped podium garden and a six-level clubhouse. These are the common facilities your maintenance contributions keep running.</p>
-    </div>
-
-    <div class="community-grid">
-      <figure class="shot reveal" style="--lqip:url(data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABMNDhEODBMRDxEVFBMXHTAfHRoaHToqLCMwRT1JR0Q9Q0FMVm1dTFFoUkFDX4JgaHF1e3x7SlyGkIV3j214e3b/2wBDARQVFR0ZHTgfHzh2T0NPdnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnb/wAARCAAOABgDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwBIWwNpPas27uZEmBjPA61pfYXVjiQVLa6Qj/fIJqEgv0LenXKpDG8hwMUU06U5ZQJQF9KKdh3P/9k=)">
-        <img src="mhm-aerial.webp" alt="Aerial view of Max Heights Majestic towers and the landscaped podium garden" loading="lazy" width="900" height="518">
-        <figcaption><span>The Complex</span>70,000 sq.ft. landscaped podium garden</figcaption>
-      </figure>
-      <div class="shot-stack">
-        <figure class="shot reveal reveal-d1" style="--lqip:url(data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABMNDhEODBMRDxEVFBMXHTAfHRoaHToqLCMwRT1JR0Q9Q0FMVm1dTFFoUkFDX4JgaHF1e3x7SlyGkIV3j214e3b/2wBDARQVFR0ZHTgfHzh2T0NPdnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnb/wAARCAANABgDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwCpa26RyYcZHvWnDIkcoeNegxilNmgHU80RwDkbjUOUpbiilHY2bCNBH5ijDN1orMtxLCCVmb6UUcyWg2z/2Q==)">
-          <img src="mhm-clubhouse.webp" alt="The six-level Club Ultima clubhouse building" loading="lazy" width="900" height="493">
-          <figcaption><span>Club Ultima</span>25,000 sq.ft. clubhouse, six levels</figcaption>
-        </figure>
-        <figure class="shot reveal reveal-d2" style="--lqip:url(data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABMNDhEODBMRDxEVFBMXHTAfHRoaHToqLCMwRT1JR0Q9Q0FMVm1dTFFoUkFDX4JgaHF1e3x7SlyGkIV3j214e3b/2wBDARQVFR0ZHTgfHzh2T0NPdnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnb/wAARCAANABgDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwBi3N2cb5TU8M05PEjVGiMi4D5+oqztbygd3P0rS6S1Rm4tvRkd3eTRxEeadxoplxZrKcsxzRS917haSP/Z)">
-          <img src="mhm-pool.webp" alt="Rooftop swimming pool at the clubhouse" loading="lazy" width="900" height="482">
-          <figcaption><span>Rooftop</span>Swimming pool &amp; sun deck</figcaption>
-        </figure>
-      </div>
-    </div>
-
-    <div class="reveal" style="margin-top:34px;">
-      <div class="stat-pill"><b>7</b> Towers · <b>A</b> to <b>G</b></div>
-      <div class="amenity-grid">
-        <div class="amenity"><svg viewBox="0 0 24 24"><use href="#i-pool"/></svg>Swimming Pool</div>
-        <div class="amenity"><svg viewBox="0 0 24 24"><use href="#i-gym"/></svg>Gymnasium</div>
-        <div class="amenity"><svg viewBox="0 0 24 24"><use href="#i-banquet"/></svg>Banquet Hall</div>
-        <div class="amenity"><svg viewBox="0 0 24 24"><use href="#i-play"/></svg>Kids' Play Area</div>
-        <div class="amenity"><svg viewBox="0 0 24 24"><use href="#i-jog"/></svg>Jogging Track</div>
-        <div class="amenity"><svg viewBox="0 0 24 24"><use href="#i-yoga"/></svg>Yoga / Meditation</div>
-        <div class="amenity"><svg viewBox="0 0 24 24"><use href="#i-shield"/></svg>3-Tier Security</div>
-        <div class="amenity"><svg viewBox="0 0 24 24"><use href="#i-power"/></svg>100% Power Backup</div>
-        <div class="amenity"><svg viewBox="0 0 24 24"><use href="#i-parking"/></svg>Ample Parking</div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section id="downloads">
+<section id="downloads" data-v="info" style="display:none;">
   <div class="wrap">
     <div class="section-head reveal">
       <div class="rule-gold"></div>
@@ -1256,7 +1071,7 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
   </div>
 </section>
 
-<section id="committee" style="background:var(--paper);">
+<section id="committee" data-v="info" style="background:var(--paper);">
   <div class="wrap">
     <div class="section-head reveal">
       <div class="rule-gold"></div>
@@ -1288,28 +1103,44 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
         <div class="field"><label for="fld-email-1">Email</label><input type="email" name="email" required autocomplete="email" id="fld-email-1"></div>
         <div class="field"><label for="fld-password-2">Password</label><input type="password" name="password" required autocomplete="current-password" id="fld-password-2"></div>
         <button class="btn btn-primary btn-block" type="submit">Log In</button>
-        <div style="text-align:center; color:var(--ink-400,#9A9488); font-size:11.5px; margin:14px 0;">— or —</div>
+        <div style="text-align:center; color:var(--ink-400,#9A9488); font-size:12.5px; margin:14px 0;">— or —</div>
         <button type="button" class="btn btn-outline btn-block" id="loginGoogleBtn">
           <svg width="16" height="16" viewBox="0 0 48 48" style="vertical-align:-3px; margin-right:6px;"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 3l5.7-5.7C34.7 6 29.6 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.7-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.9 18.9 13 24 13c3.1 0 5.8 1.1 8 3l5.7-5.7C34.7 6 29.6 4 24 4c-7.7 0-14.4 4.4-17.7 10.7z"/><path fill="#4CAF50" d="M24 44c5.5 0 10.5-2.1 14.3-5.6l-6.6-5.6C29.6 34.7 27 35.5 24 35.5c-5.3 0-9.7-3.3-11.3-7.9l-6.6 5.1C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.3-4.2 5.7l6.6 5.6C41.1 36.4 44 30.7 44 24c0-1.3-.1-2.7-.4-3.5z"/></svg>
           Continue with Google
         </button>
+        <div class="hint" style="text-align:center; margin-top:6px;">New here? Google sign-in also starts your registration — or use the <b>New Registration</b> tab.</div>
         <p style="text-align:center; margin-top:14px; font-size:13px;"><a href="#" id="forgotPasswordLink" class="t-sub" style="text-decoration:underline;">Forgot password?</a></p>
         <div class="staff-gate-links" style="margin-top:18px; padding-top:16px; border-top:1px solid var(--line,#EAE6DC); text-align:center;">
           <p class="t-sub" style="font-size:12px; margin-bottom:10px;">Society staff? Sign in to your own app:</p>
           <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
-            <a href="staff.html" class="btn btn-outline btn-sm">🧰 Staff Login</a>
-            <a href="guard.html" class="btn btn-outline btn-sm">🛡️ Gate Login</a>
+            <a href="staff.html" class="btn btn-outline btn-sm"><svg class="ic inline-ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-tool"/></svg>Staff Login</a>
+            <a href="guard.html" class="btn btn-outline btn-sm"><svg class="ic inline-ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-shield"/></svg>Gate Login</a>
           </div>
         </div>
       </form>
 
       <form id="registerForm" style="display:none;">
         <div id="regDraftBanner" style="display:none; margin-bottom:16px; padding:12px 14px; border-radius:10px; background:rgba(201,162,39,.08); border:1px solid rgba(201,162,39,.25); font-size:12.5px;">
-          <div style="margin-bottom:8px;">📝 We found a saved draft from your last visit. Continue where you left off?</div>
+          <div style="margin-bottom:8px;"><svg class="ic inline-ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-file"/></svg>We found a saved draft from your last visit. Continue where you left off?</div>
           <div style="display:flex; gap:8px;">
             <button type="button" class="btn btn-primary btn-sm" id="regDraftContinue">Continue Draft</button>
             <button type="button" class="btn btn-outline btn-sm" id="regDraftDiscard">Start Fresh</button>
           </div>
+        </div>
+        <!-- Google sign-up sits at the very START of registration: it fills in the
+             name and e-mail, skips the password, and (being a full-page redirect) is
+             safest before anything has been typed. -->
+        <div id="regGoogleTop" style="margin-bottom:18px; padding:14px; border-radius:12px; background:rgba(66,133,244,.06); border:1px solid rgba(66,133,244,.25);">
+          <div style="font-weight:700; font-size:14px; margin-bottom:4px;">Fastest way: sign up with Google</div>
+          <div class="hint" style="margin-bottom:10px;">No password to remember — your name and e-mail are filled in for you. You can still complete the rest of the form after this.</div>
+          <button type="button" class="btn btn-outline btn-block" id="regGoogleBtnTop">
+            <svg width="16" height="16" viewBox="0 0 48 48" style="vertical-align:-3px; margin-right:6px;"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 3l5.7-5.7C34.7 6 29.6 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.7-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.9 18.9 13 24 13c3.1 0 5.8 1.1 8 3l5.7-5.7C34.7 6 29.6 4 24 4c-7.7 0-14.4 4.4-17.7 10.7z"/><path fill="#4CAF50" d="M24 44c5.5 0 10.5-2.1 14.3-5.6l-6.6-5.6C29.6 34.7 27 35.5 24 35.5c-5.3 0-9.7-3.3-11.3-7.9l-6.6 5.1C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.3-4.2 5.7l6.6 5.6C41.1 36.4 44 30.7 44 24c0-1.3-.1-2.7-.4-3.5z"/></svg>
+            Sign up with Google
+          </button>
+          <div style="text-align:center; color:var(--ink-400,#9A9488); font-size:12.5px; margin-top:12px;">— or fill in the form below with an e-mail and password —</div>
+        </div>
+        <div id="regGoogleConfirmedTop" style="display:none; margin-bottom:18px; padding:10px 12px; border-radius:10px; background:rgba(52,168,83,.08); border:1px solid rgba(52,168,83,.25); font-size:13px;">
+          ✓ Signed in with Google as <b id="regGoogleEmailTop"></b> — no password needed. Please complete the rest of the form.
         </div>
         <div class="step-indicator" id="stepIndicator" style="display:none;">
           <div class="step-dot" data-step="0"><span class="num">1</span><span class="lbl">Basic Info</span></div>
@@ -1479,7 +1310,7 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
           <div id="regGoogleConfirmed" style="display:none; margin-bottom:14px; padding:10px 12px; border-radius:10px; background:rgba(52,168,83,.08); border:1px solid rgba(52,168,83,.25); font-size:13px;">
             ✓ Signed in as <b id="regGoogleEmail"></b> — no password needed.
           </div>
-          <div style="text-align:center; color:var(--ink-400,#9A9488); font-size:11.5px; margin:6px 0 14px;" id="regPasswordDivider">— or set a password —</div>
+          <div style="text-align:center; color:var(--ink-400,#9A9488); font-size:12.5px; margin:6px 0 14px;" id="regPasswordDivider">— or set a password —</div>
           <div class="form-2col" id="regPasswordFields">
             <div class="field"><label for="fld-password-14">Set Password</label><input type="password" name="password" minlength="6" id="fld-password-14"></div>
             <div class="field"><label for="fld-confirmPassword-15">Confirm Password</label><input type="password" name="confirmPassword" minlength="6" id="fld-confirmPassword-15"></div>
@@ -1511,7 +1342,7 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
 
           <div class="final-only">
             <p class="t-muted" style="font-size:12px; line-height:1.6; margin-bottom:14px;">
-              🔒 Your information (mobile, email, DOB, family details) is visible only to the society's committee members —
+              <svg class="ic inline-ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-lock"/></svg>Your information (mobile, email, DOB, family details) is visible only to the society's committee members —
               for verifying membership, calculating maintenance, and sending birthday/anniversary wishes. It is never made public.
               You can have your personal data erased when you sell or vacate your flat.
               <button type="button" class="link-btn" id="openPrivacyPolicyBtnReg">Read the Full Privacy Policy</button>
@@ -1536,7 +1367,7 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
   </div>
 </section>
 
-<section id="contact">
+<section id="contact" data-v="info">
   <div class="wrap">
     <div class="section-head reveal">
       <div class="rule-gold"></div>
@@ -1554,7 +1385,7 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
   </div>
 </section>
 
-<footer class="site-footer no-print">
+<footer class="site-footer no-print" data-v="home info">
   <div class="wrap">
     <div class="foot-grid">
       <div>
@@ -1574,8 +1405,6 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
       <div>
         <h4>Official</h4>
         <a href="admin.html">Admin Panel →</a>
-        <a href="staff.html">Staff App →</a>
-        <a href="guard.html">Gate App →</a>
         <a href="verify.html">Verify a Receipt →</a>
       </div>
     </div>
@@ -1592,33 +1421,25 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
 </footer>
 
 <!-- ============ Mobile bottom tab bar ============ -->
-<nav class="tabbar-mobile no-print" id="tabbarMobile" aria-label="Primary">
-  <ul>
-    <li><a href="#top" data-tab="top" id="tabHomeBtn" class="active"><svg viewBox="0 0 24 24"><use href="#i-home"/></svg>Home</a></li>
-    <li><a href="#" data-tab="payments" id="tabPaymentsBtn"><svg viewBox="0 0 24 24"><use href="#i-rupee"/></svg>Payments</a></li>
-    <li><a href="#" data-tab="complaints" id="tabComplaintsBtn"><svg viewBox="0 0 24 24"><use href="#i-chat"/></svg>Complaints</a></li>
-    <li><a href="#" data-tab="more" id="tabMoreBtn" aria-haspopup="dialog"><svg viewBox="0 0 24 24"><use href="#i-more"/></svg>More</a></li>
-  </ul>
+<nav class="side-desk no-print" id="sideDesk" aria-label="Sections">
+  <div class="sd-label">My Portal</div>
+  <a href="#" data-dview="home" class="active"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-home"/></svg>Home</a>
+  <a href="#" data-dview="payments"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-rupee"/></svg>Payments</a>
+  <a href="#" data-dview="complaints"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-chat"/></svg>Complaints</a>
+  <a href="#" data-dview="community"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-building"/></svg>Bookings, Guests &amp; Suggestions</a>
+  <a href="#" data-dview="profile"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-user"/></svg>Profile &amp; Family</a>
+  <a href="#" data-dview="info"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-file"/></svg>Documents &amp; Committee</a>
+  <div class="sd-foot"><a href="#" data-more="guide"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-bulb"/></svg>How to use this app</a><a href="#" data-more="report"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-alert"/></svg>Report a problem</a></div>
 </nav>
 
-<!-- "More" sheet from the bottom bar: everything that isn't a daily action, plus
-     Admin and Logout, which no longer crowd the phone header. -->
-<div class="modal-backdrop no-print" id="moreSheetBackdrop">
-  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="moreSheetTitle" style="max-width:420px;">
-    <div class="modal-head"><h3 id="moreSheetTitle" style="font-size:17px;">More</h3><button class="icon-btn" id="closeMoreSheet" aria-label="Close" style="background:var(--paper); color:var(--ink-700); border-color:var(--line);">✕</button></div>
-    <div class="modal-body" style="padding-top:4px; padding-bottom:8px;">
-      <ul class="more-list">
-        <li><button type="button" class="more-item" data-more="notices"><span class="mi-ico"><svg viewBox="0 0 24 24"><use href="#i-bell"/></svg></span>Notices</button></li>
-        <li><button type="button" class="more-item" data-more="community"><span class="mi-ico"><svg viewBox="0 0 24 24"><use href="#i-home"/></svg></span>Bookings, Guests &amp; Suggestions</button></li>
-        <li><button type="button" class="more-item" data-more="profile"><span class="mi-ico"><svg viewBox="0 0 24 24"><use href="#i-user"/></svg></span>Profile, Vehicles, Family &amp; Pets</button></li>
-        <li><button type="button" class="more-item" data-more="report"><span class="mi-ico"><svg viewBox="0 0 24 24"><use href="#i-alert"/></svg></span>Report a problem</button></li>
-        <li><button type="button" class="more-item" data-more="documents"><span class="mi-ico"><svg viewBox="0 0 24 24"><use href="#i-file"/></svg></span>Documents</button></li>
-        <li><a class="more-item" href="admin.html"><span class="mi-ico"><svg viewBox="0 0 24 24"><use href="#i-shield"/></svg></span>Admin Panel</a></li>
-        <li><button type="button" class="more-item is-danger" data-more="logout"><span class="mi-ico"><svg viewBox="0 0 24 24"><use href="#i-logout"/></svg></span>Logout</button></li>
-      </ul>
-    </div>
-  </div>
-</div>
+<nav class="tabbar-mobile no-print" id="tabbarMobile" aria-label="Primary">
+  <ul>
+    <li><a href="#top" data-tab="top" id="tabHomeBtn" class="active"><svg class="ic" viewBox="0 0 24 24"><use href="#ic-home"/></svg>Home</a></li>
+    <li><a href="#" data-tab="payments" id="tabPaymentsBtn"><svg class="ic" viewBox="0 0 24 24"><use href="#ic-rupee"/></svg>Payments</a></li>
+    <li><a href="#" data-tab="complaints" id="tabComplaintsBtn"><svg class="ic" viewBox="0 0 24 24"><use href="#ic-chat"/></svg>Complaints</a></li>
+    <li><a href="#" data-tab="more" id="tabMoreBtn"><svg class="ic" viewBox="0 0 24 24"><use href="#ic-grid"/></svg>More</a></li>
+  </ul>
+</nav>
 
 <div class="modal-backdrop no-print" id="paymentModalBackdrop">
   <div class="modal">
@@ -1694,7 +1515,7 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
             <div class="field"><label for="pf-rentAgreementStart">Agreement start</label><input type="date" name="rentAgreementStart" id="pf-rentAgreementStart"></div>
             <div class="field"><label for="pf-rentAgreementEnd">Agreement end</label><input type="date" name="rentAgreementEnd" id="pf-rentAgreementEnd"></div>
           </div>
-          <p class="t-muted" style="font-size:11.5px; margin-top:4px;">Renewed your agreement? Update these dates too, or the "Expired" warning will keep showing against the old ones.</p>
+          <p class="t-muted" style="font-size:12.5px; margin-top:4px;">Renewed your agreement? Update these dates too, or the "Expired" warning will keep showing against the old ones.</p>
         </div>
         <div class="field">
           <label for="pf-idDoc">ID Document — Aadhaar / PAN <span class="t-muted" style="font-weight:400;">(optional, private — visible only to you and the office)</span></label>
@@ -1789,6 +1610,21 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
   </div>
 </div>
 
+<div class="modal-backdrop no-print" id="guideBackdrop">
+  <div class="modal guide-card" role="dialog" aria-modal="true" aria-labelledby="guideTitle">
+    <div class="modal-head"><h3 id="guideTitle" style="font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-400);">Quick guide</h3><button class="icon-btn" id="guideClose" aria-label="Close">✕</button></div>
+    <div class="guide-body" id="guideBody" aria-live="polite"></div>
+    <div class="guide-dots" id="guideDots" aria-hidden="true"></div>
+    <div class="guide-foot">
+      <button type="button" class="guide-skip" id="guideSkip">Skip</button>
+      <div style="display:flex;gap:8px;">
+        <button type="button" class="btn btn-outline" id="guideBack">Back</button>
+        <button type="button" class="btn btn-primary" id="guideNext">Next</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal-backdrop no-print" id="reportModalBackdrop">
   <div class="modal" style="max-width:440px;">
     <div class="modal-head"><h3 style="font-size:16.5px;">Report a problem</h3><button class="icon-btn" id="closeReportModal" aria-label="Close">✕</button></div>
@@ -1799,8 +1635,8 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
         <label class="checkbox-row" style="margin-bottom:6px;"><input type="checkbox" id="rp-attach" checked> Send technical details too (helps us fix it faster)</label>
         <details style="margin-bottom:14px;">
           <summary class="t-muted" style="font-size:12.5px; cursor:pointer;">What exactly is sent?</summary>
-          <pre id="rp-preview" style="font-size:11.5px; white-space:pre-wrap; word-break:break-word; background:var(--paper); border:1px solid var(--line); border-radius:8px; padding:8px; margin-top:8px;"></pre>
-          <p class="t-muted" style="font-size:11.5px; margin-top:4px;">Your name and flat are sent with it. No password, no payment details, no photos.</p>
+          <pre id="rp-preview" style="font-size:12.5px; white-space:pre-wrap; word-break:break-word; background:var(--paper); border:1px solid var(--line); border-radius:8px; padding:8px; margin-top:8px;"></pre>
+          <p class="t-muted" style="font-size:12.5px; margin-top:4px;">Your name and flat are sent with it. No password, no payment details, no photos.</p>
         </details>
         <button class="btn btn-primary btn-block" type="submit">Send report</button>
       </form>
@@ -1862,7 +1698,7 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
 <div class="modal-backdrop no-print" id="inspectionInfoModalBackdrop">
   <div class="modal" style="max-width:560px;">
     <div class="modal-head"><h3 id="inspectionInfoTitle" style="font-size:16.5px;">Inspection</h3><button class="icon-btn" id="closeInspectionInfoModal">✕</button></div>
-    <div class="modal-body" id="inspectionInfoBody" style="max-height:70vh; overflow-y:auto;"></div>
+    <div class="modal-body" id="inspectionInfoBody" style="max-height:calc(70 * var(--vh1)); overflow-y:auto;"></div>
   </div>
 </div>
 
@@ -1880,7 +1716,7 @@ footer.site-footer a:hover{ color:var(--saffron-300); }
 import { LOGO_DATA_URI, getLogoDataUri } from './logo-data.js';
 import { initLang, setLang, translateSubtree, setDynamicLabel, HI } from './i18n.js';
 import { TOWER_IDS, flatsForTower } from './tower-plan.js';
-import { installModalA11y, installOfflineBanner, installSlowConnectionBanner, isOffline, installPasswordToggles } from './ui-a11y.js';
+import { installAutoLabels, installModalA11y, installOfflineBanner, installSlowConnectionBanner, isOffline, installPasswordToggles } from './ui-a11y.js';
 import { imgTag } from './html-helpers.js';
 import { hideAppLoader } from './premium.js';
 
@@ -1888,6 +1724,7 @@ import { hideAppLoader } from './premium.js';
    here, in the Firebase-free block, so a slow or failed SDK load never strips
    the page of focus-trapping, Esc-to-close, or the offline banner. */
 installModalA11y();
+installAutoLabels();
 installOfflineBanner();
 installSlowConnectionBanner();
 installPasswordToggles();
@@ -2012,26 +1849,6 @@ window.addEventListener('scroll', () => {
     headerTicking = false;
   });
 }, { passive: true });
-
-/* If a building photo is missing or fails to load, drop its card entirely
-   rather than leaving an empty frame or a broken-image icon. The grid
-   simply reflows around whatever did load. */
-document.querySelectorAll('.shot img').forEach(img => {
-  // Fade the real photo in over its blurred placeholder once it has decoded.
-  // Images already complete (from cache) are marked immediately, otherwise
-  // a cached image would stay invisible because 'load' never fires.
-  const reveal = () => {
-    img.classList.add('loaded');
-    img.closest('.shot')?.classList.add('is-loaded');   // retires the blurred placeholder
-  };
-  if (img.complete && img.naturalWidth > 0) reveal();
-  else img.addEventListener('load', reveal);
-
-  img.addEventListener('error', () => {
-    const fig = img.closest('.shot');
-    if (fig) fig.style.display = 'none';
-  });
-});
 
 /* ---- Tower → Flat dependent dropdowns -------------------------------
    Lives in this Firebase-free module on purpose: if the SDK fails to load,
@@ -2167,7 +1984,7 @@ window.__animateCount = (el) => {
   window.__goToPortal = (tab) => {
     // Once logged in, the auth block sets window.__loggedIn and these buttons
     // jump to the dashboard instead.
-    if (window.__loggedIn) { const d = document.getElementById('dashboard'); if (d) d.scrollIntoView({ behavior: 'smooth' }); return; }
+    if (window.__loggedIn) { window.__setView('home'); const d = document.getElementById('dashboard'); if (d) d.scrollIntoView({ behavior: 'smooth' }); return; }
     window.__showTab(tab || 'login');
     const portal = document.getElementById('portal');
     if (portal) portal.scrollIntoView({ behavior: 'smooth' });
@@ -2187,8 +2004,32 @@ window.__animateCount = (el) => {
   // the browser can't scroll to a display:none target.
   const home = document.getElementById('tabHomeBtn');
   home && home.addEventListener('click', (e) => {
-    if (window.__loggedIn) { e.preventDefault(); const d = document.getElementById('dashboard'); if (d) d.scrollIntoView({ behavior: 'smooth' }); }
+    if (window.__loggedIn) { e.preventDefault(); window.__setView('home'); window.scrollTo(0, 0); }
   });
+
+  /* Phone: the bottom bar switches between whole screens instead of scrolling
+     one long page. The CSS (body[data-view] + data-v tags) does the hiding. */
+  const VIEW_TITLES = {
+    payments: 'Payments', complaints: 'Complaints',
+    community: 'Bookings, Guests & Suggestions', profile: 'Profile, Vehicles, Family & Pets',
+    info: 'Documents & Committee', more: 'More'
+  };
+  const TAB_FOR = { home: 'tabHomeBtn', payments: 'tabPaymentsBtn', complaints: 'tabComplaintsBtn' };
+  window.__setView = (v) => {
+    if (v !== 'home' && !VIEW_TITLES[v]) v = 'home';
+    document.body.dataset.view = v;
+    ['tabHomeBtn', 'tabPaymentsBtn', 'tabComplaintsBtn', 'tabMoreBtn'].forEach((id) => {
+      const a = document.getElementById(id);
+      if (!a) return;
+      const on = id === (TAB_FOR[v] || 'tabMoreBtn');
+      a.classList.toggle('active', on);
+      if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+    });
+    document.querySelectorAll('#sideDesk [data-dview]').forEach((a) => a.classList.toggle('active', a.dataset.dview === v));
+    const t = document.getElementById('viewTitle');
+    if (t) { t.textContent = VIEW_TITLES[v] || ''; if (window.__translate) window.__translate(t); }
+    return v;
+  };
 })();
 </script>
 
@@ -2197,10 +2038,10 @@ import { auth, db, storage, SOCIETY } from './firebase-config.js';
 import { TOWER_IDS, flatsForTower } from './tower-plan.js';
 import {
   createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged,
-  signOut, sendPasswordResetEmail, deleteUser, GoogleAuthProvider, signInWithRedirect, getRedirectResult, sendEmailVerification, updateEmail
+  signOut, sendPasswordResetEmail, deleteUser, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, sendEmailVerification, updateEmail
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
 import {
-  doc, getDoc, setDoc, updateDoc, addDoc, collection, query, where, orderBy, getDocs, serverTimestamp, limit, writeBatch, onSnapshot, runTransaction
+  doc, getDoc, setDoc, updateDoc, addDoc, collection, query, where, orderBy, getDocs, serverTimestamp, limit, writeBatch, onSnapshot, runTransaction, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 import {
   ref as storageRef, uploadBytes, getDownloadURL, deleteObject
@@ -2212,17 +2053,34 @@ import {
   generateMembershipCard, duesFor, DUES_LABEL, DUES_BADGE,
   generateRegistrationConfirmationPDF,
   generateStatementPDF, skeletonList, emptyState, showFieldError, clearFieldErrors,
-  membershipDue, membershipFeeAmount, paymentDetails, eventDue, bookingSlotAvailability, validateRentAgreementDates, downloadFileName, isOwnUploadUrl, complaintProgress, minutesWaiting, paymentStatusLabel, APP_VERSION, buildProblemReport, recentClientErrors,
-  waShareText, downloadImageFromUrl,
+  membershipDue, membershipFeeAmount, paymentDetails, eventDue, bookingSlotAvailability, validateRentAgreementDates, downloadFileName, isOwnUploadUrl, complaintProgress, minutesWaiting, paymentStatusLabel, APP_VERSION, buildProblemReport, recentClientErrors, buildUpiLinks, upiNote, upiPlatform, isValidUpiId,
+  waShareText, verifyUrlFor, downloadImageFromUrl, icon, GUIDE_STEPS, guideSeen, markGuideSeen, shouldShowGuide, duesReminderText, pollFlatId, pollTally, pollTimeLeft, paymentSteps, getTextSize, setTextSize, installPullToRefresh, totalFlats,
   initFamilyMembersEditor, addFamilyMemberRow, collectFamilyMembers,
   initVehiclesEditor, addVehicleRow, collectVehicles,
   initPetsEditor, addPetCard, collectPets, petVaccinationStatus, profileCompleteness, flatClaimId, findBlockingFlatClaim, generatePetId, rentAgreementStatus, flatKey, INSPECTION_TYPES, todayLocalISO
-} from './app-common.js';
+} from './app-common.js?v=170';
 import { installAppInstallPrompt } from './install-prompt.js';
 
 // The "install this app" prompt runs from here (not the branding block above)
 // because it uses showToast, which is imported in this block. Same shared
 // module guard.html and staff.html use.
+
+window.__moduleBooted = true; { var __bg = document.getElementById('bootGuard'); if (__bg) __bg.remove(); }
+// v168 — text size (More → Display) and pull-to-refresh.
+document.addEventListener('click', (e) => {
+  const b = e.target.closest?.('[data-text-size-set]');
+  if (!b) return;
+  const v = setTextSize(b.dataset.textSizeSet);
+  document.querySelectorAll('[data-text-size-set]').forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.textSizeSet === v)));
+});
+installPullToRefresh({
+  onRefresh: () => {
+    // Come back to the same screen after the reload.
+    try { sessionStorage.setItem('mhmrws-ptr-view', document.body.dataset.view || 'home'); } catch (_) { /* fine */ }
+    window.location.reload();
+    return new Promise(() => {});
+  }
+});
 installAppInstallPrompt({
   appName: 'MHMRWS Portal', showToast,
   shouldSuppress: () => {
@@ -2425,7 +2283,7 @@ function renderRegistrationReview() {
           <span class="t-muted">${escapeHtml(label)}</span><span style="font-weight:600; text-align:right;">${escapeHtml(value)}</span>
         </div>`).join('')}
     </div>
-    <p class="t-muted" style="font-size:11.5px; margin-top:8px;">Something not right? Use the step indicator above to go back and fix it before submitting.</p>
+    <p class="t-muted" style="font-size:12.5px; margin-top:8px;">Something not right? Use the step indicator above to go back and fix it before submitting.</p>
   `;
   window.__translate?.(el);
 }
@@ -2542,24 +2400,7 @@ const DRAFT_KEY = 'mhmrws_reg_draft';
 let googleAuthCred = null;
 const googleProvider = new GoogleAuthProvider();
 
-document.getElementById('regGoogleBtn')?.addEventListener('click', async () => {
-  const btn = document.getElementById('regGoogleBtn');
-  setLoading(btn, true);
-  try {
-    // Redirect, not popup — popups are documented to be unreliable on
-    // mobile (Safari can silently block them; some mobile Chrome versions
-    // open a disconnected tab instead of a communicating popup). This is a
-    // mobile-first PWA, so a full-page redirect is the robust choice. The
-    // flag is read back once the page reloads after Google sign-in.
-    sessionStorage.setItem('googleAuthIntent', 'register');
-    await signInWithRedirect(auth, googleProvider);
-  } catch (err) {
-    console.error('Google sign-in failed:', err);
-    sessionStorage.removeItem('googleAuthIntent');
-    showToast(`Could not sign in with Google${err?.code ? ` (${err.code})` : ''}.`, 'error');
-    setLoading(btn, false);
-  }
-});
+['regGoogleBtn', 'regGoogleBtnTop'].forEach((btnId) => document.getElementById(btnId)?.addEventListener('click', () => googleSignIn('register', document.getElementById(btnId))));
 const DRAFT_TEXT_FIELDS = [
   'residentType', 'name', 'fatherHusbandName', 'tower', 'flatNumber', 'mobile', 'email',
   'occupation', 'bloodGroup', 'coOwnerName', 'coOwnerMobile', 'coOwnerEmail',
@@ -2664,85 +2505,78 @@ function goToStepForField(form, field) { window.__goToStepForField(field); }
 // __goToPortal and navAuthBtn are wired in the Firebase-free
 // block so they work even if Firebase is down. Only the payment button needs
 // auth, so it stays here.
-/* ---- Bottom bar (signed-in, phone): Home · Payments · Complaints · More ---- */
+/* ---- Bottom bar (signed-in, phone): Home · Payments · Complaints · More ----
+   Each tab opens its own screen (window.__setView, defined with the landing
+   script). On a wide screen the page stays long and the tabs are not shown. */
 (() => {
+  const phone = () => window.matchMedia('(max-width:900px)').matches;
   const tabs = {
     top: document.getElementById('tabHomeBtn'),
     payments: document.getElementById('tabPaymentsBtn'),
     complaints: document.getElementById('tabComplaintsBtn'),
     more: document.getElementById('tabMoreBtn')
   };
-  // After a tap, keep the tapped tab lit while the page is still gliding there.
-  let lockUntil = 0;
-  const setActive = (name, lock) => {
-    if (lock) lockUntil = Date.now() + 1000;
-    Object.entries(tabs).forEach(([k, a]) => a && a.classList.toggle('active', k === name));
-  };
-  const go = (el) => el && el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const show = (view) => { window.__setView(view); window.scrollTo(0, 0); };
   const needApproved = () => {
     if (!currentUser) { showToast('Please log in first.', 'error'); window.__goToPortal('login'); return false; }
     if (currentMember?.status !== 'approved') { showToast('Your registration is still awaiting approval.', 'error'); return false; }
     return true;
   };
-  const cardOf = (id) => document.getElementById(id)?.closest('.card');
-  const sheet = document.getElementById('moreSheetBackdrop');
-  const closeSheet = () => sheet.classList.remove('open');
+  window.__showView = (view) => { if (needApproved()) show(view); };
 
-  tabs.payments?.addEventListener('click', (e) => { e.preventDefault(); if (needApproved()) { go(cardOf('duesPanel')); setActive('payments', true); } });
-  tabs.complaints?.addEventListener('click', (e) => { e.preventDefault(); if (needApproved()) { go(cardOf('myComplaintsList')); setActive('complaints', true); } });
-  tabs.more?.addEventListener('click', (e) => { e.preventDefault(); sheet.classList.add('open'); setActive('more'); });
-  document.getElementById('closeMoreSheet')?.addEventListener('click', closeSheet);
-  sheet?.addEventListener('click', (e) => { if (e.target === sheet) closeSheet(); });
+  document.getElementById('sideDesk')?.addEventListener('click', (e) => {
+    const a = e.target.closest('[data-dview]'); if (!a) return;
+    e.preventDefault();
+    const v = a.dataset.dview;
+    if (v === 'home') show('home'); else if (v === 'community') { window.__showView('community'); document.querySelector('[data-cmrtab="book"]')?.click(); }
+    else if (v === 'profile') { window.__showView('profile'); const d = document.querySelector('#dashboardContent details'); if (d) d.open = true; }
+    else if (v === 'info') show('info'); else window.__showView(v);
+  });
+  tabs.payments?.addEventListener('click', (e) => { e.preventDefault(); window.__showView('payments'); });
+  tabs.complaints?.addEventListener('click', (e) => { e.preventDefault(); window.__showView('complaints'); });
+  tabs.more?.addEventListener('click', (e) => { e.preventDefault(); show('more'); });
 
-  sheet?.querySelectorAll('[data-more]').forEach((btn) => btn.addEventListener('click', () => {
+  // The More screen: everything that isn't a daily action, plus Report and Logout.
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest?.('[data-more]');
+    if (!btn) return;
     const what = btn.dataset.more;
-    closeSheet();
     if (what === 'logout') { document.getElementById('navAuthBtn')?.click(); return; }
-    // The page is not scrollable while a modal is open — let the sheet finish closing first.
-    setTimeout(() => {
-      if (what === 'report') { if (needApproved()) openReportModal(); }
-      else if (what === 'notices') go(document.getElementById('notices'));
-      else if (what === 'documents') go(document.getElementById('downloads'));
-      else if (what === 'community') {
-        if (!needApproved()) return;
-        document.querySelector('[data-cmrtab="book"]')?.click();
-        go(document.querySelector('[data-cmrtab]')?.closest('.card'));
-      } else if (what === 'profile') {
-        if (!needApproved()) return;
-        const d = document.querySelector('#dashboardContent details');
-        if (d) { d.open = true; go(d); }
-      }
-    }, 60);
-  }));
+    if (what === 'report') { if (needApproved()) openReportModal(); return; }
+    if (what === 'guide') { e.preventDefault?.(); window.__openGuide?.(); return; }
+    if (what === 'notices') { show('home'); document.getElementById('notices')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
+    if (what === 'documents') { show('info'); return; }
+    if (!needApproved()) return;
+    if (what === 'community') { show('community'); document.querySelector('[data-cmrtab="book"]')?.click(); }
+    else if (what === 'profile') { show('profile'); const d = document.querySelector('#dashboardContent details'); if (d) d.open = true; }
+  });
 
-  // Highlight the tab for whatever part of the page is on screen.
-  let ticking = false;
-  const trackActiveTab = () => {
-    ticking = false;
-    if (!document.body.classList.contains('logged-in') || sheet?.classList.contains('open') || Date.now() < lockUntil) return;
-    const line = 110;   // just under the sticky header: the section at the top of the screen is the current one
-    const marks = [
-      ['top', document.getElementById('dashboard')],
-      ['payments', cardOf('duesPanel')],
-      ['more', document.querySelector('#dashboardContent details')],
-      ['complaints', cardOf('myComplaintsList')],
-      ['more', document.querySelector('[data-cmrtab]')?.closest('.card')],
-      ['more', document.getElementById('notices')]
-    ];
-    let active = 'top';
-    for (const [name, el] of marks) if (el && el.getBoundingClientRect().top <= line) active = name;
-    setActive(active);
-  };
-  window.addEventListener('scroll', () => { if (!ticking) { ticking = true; requestAnimationFrame(trackActiveTab); } }, { passive: true });
-  // Closing the sheet by Escape / backdrop / Back leaves "More" lit — put it back.
-  new MutationObserver(() => { if (!sheet.classList.contains('open')) trackActiveTab(); }).observe(sheet, { attributes: true, attributeFilter: ['class'] });
+  // Rows under the state card on Home.
+  document.addEventListener('click', (e) => {
+    const b = e.target.closest?.('[data-goto]');
+    if (!b) return;
+    const what = b.dataset.goto;
+    if (what === 'complaints') window.__showView('complaints');
+    else if (what === 'community') { if (needApproved()) { show('community'); document.querySelector('[data-cmrtab="book"]')?.click(); } }
+    else if (what === 'profile') { if (needApproved()) { show('profile'); const d = document.querySelector('#dashboardContent details'); if (d) d.open = true; } }
+  });
+
+  // Phone Back: from any other screen go to Home first, only then leave the app.
+  window.__registerBackStep?.(() => {
+    if (!phone() || !document.body.classList.contains('logged-in')) return false;
+    if ((document.body.dataset.view || 'home') === 'home') return false;
+    window.__setView('home'); window.scrollTo(0, 0);
+    return true;
+  });
 })();
 
 /* ---- Helpers ---- */
 function setLoading(btn, loading) {
   if (!btn) return;
   btn.disabled = loading;
-  if (loading) { btn.dataset.label = btn.textContent; btn.innerHTML = '<span class="spinner"></span>'; }
+  // Keep the button's own markup (an icon + label) so it comes back whole.
+  if (loading) { btn.dataset.label = btn.textContent; btn.dataset.html = btn.innerHTML; btn.innerHTML = '<span class="spinner"></span>'; }
+  else if (btn.dataset.html) { btn.innerHTML = btn.dataset.html; delete btn.dataset.html; }
   else { btn.textContent = btn.dataset.label || btn.textContent; }
 }
 function friendlyAuthError(err) {
@@ -3218,19 +3052,40 @@ loginForm.addEventListener('submit', async (e) => {
     setLoading(btn, false);
   }
 });
-document.getElementById('loginGoogleBtn')?.addEventListener('click', async () => {
-  const btn = document.getElementById('loginGoogleBtn');
+document.getElementById('loginGoogleBtn')?.addEventListener('click', () => googleSignIn('login', document.getElementById('loginGoogleBtn')));
+
+/* Google sign-in. POPUP first: the page stays put (nothing already typed is lost) and it does not
+   depend on the browser letting a redirect carry the sign-in back to this domain — which modern
+   browsers increasingly block when the Firebase auth domain differs from the site's own. If the
+   browser refuses the popup, fall back to the full-page redirect (the flag in sessionStorage is
+   read back by handleGoogleRedirectResult() after the page reloads). */
+async function googleSignIn(intent, btn) {
   setLoading(btn, true);
+  // Set BEFORE signing in: onAuthStateChanged fires the moment Google succeeds and must not
+  // jump to the dashboard before we have decided what this sign-in means.
+  sessionStorage.setItem('googleAuthIntent', intent);
   try {
-    sessionStorage.setItem('googleAuthIntent', 'login');
-    await signInWithRedirect(auth, googleProvider);
+    const result = await signInWithPopup(auth, googleProvider);
+    await processGoogleResult(intent, result);
   } catch (err) {
-    console.error('Google sign-in failed:', err);
+    const code = err?.code || '';
+    if (['auth/popup-blocked', 'auth/operation-not-supported-in-this-environment', 'auth/web-storage-unsupported'].includes(code)) {
+      try { await signInWithRedirect(auth, googleProvider); return; }
+      catch (e2) { console.error('Google redirect failed:', e2); }
+    }
     sessionStorage.removeItem('googleAuthIntent');
-    showToast(`Could not sign in with Google${err?.code ? ` (${err.code})` : ''}.`, 'error');
+    if (!['auth/popup-closed-by-user', 'auth/cancelled-popup-request'].includes(code)) {
+      console.error('Google sign-in failed:', err);
+      showToast(code === 'auth/unauthorized-domain'
+        ? 'Google sign-in is not enabled for this website address yet — please tell the Super Admin (Firebase → Authentication → Settings → Authorized domains).'
+        : code === 'auth/operation-not-allowed'
+          ? 'Google sign-in is not switched on yet — please tell the Super Admin (Firebase → Authentication → Sign-in method).'
+          : `Could not sign in with Google${code ? ` (${code})` : ''}.`, 'error');
+    }
+  } finally {
     setLoading(btn, false);
   }
-});
+}
 
 // Populates the registration form with an already-established Google
 // identity — shared by both redirect-return paths below (a first-time
@@ -3246,6 +3101,9 @@ function applyGoogleCredToRegistrationForm(cred) {
   document.getElementById('regPasswordFields').style.display = 'none';
   document.getElementById('regGoogleConfirmed').style.display = 'block';
   document.getElementById('regGoogleEmail').textContent = cred.user.email;
+  document.getElementById('regGoogleTop').style.display = 'none';
+  document.getElementById('regGoogleConfirmedTop').style.display = 'block';
+  document.getElementById('regGoogleEmailTop').textContent = cred.user.email;
   f.password.required = false;
   f.confirmPassword.required = false;
 }
@@ -3255,12 +3113,10 @@ function applyGoogleCredToRegistrationForm(cred) {
 // back. Resolves to null on a completely normal page load (no redirect just
 // happened), in which case this does nothing and the usual
 // onAuthStateChanged-driven flow below takes over as normal.
-(async function handleGoogleRedirectResult() {
-  const intent = sessionStorage.getItem('googleAuthIntent');
-  if (!intent) return;
+// What a finished Google sign-in means. `intent` is what the person clicked: 'login' (existing
+// resident → dashboard; no registration yet → carry them into the form) or 'register'.
+async function processGoogleResult(intent, result) {
   try {
-    const result = await getRedirectResult(auth);
-    if (!result) { sessionStorage.removeItem('googleAuthIntent'); return; }
     if (intent === 'login') {
       const memberSnap = await getDoc(doc(db, 'members', result.user.uid));
       sessionStorage.removeItem('googleAuthIntent');
@@ -3278,11 +3134,36 @@ function applyGoogleCredToRegistrationForm(cred) {
       // straight into the registration form instead of a dead end.
       showTab('register');
       applyGoogleCredToRegistrationForm(result);
+      document.getElementById('portal')?.scrollIntoView({ behavior: 'smooth' });
       showToast('No registration found for this Google account yet — let\'s get you set up!', 'info');
     } else if (intent === 'register') {
       sessionStorage.removeItem('googleAuthIntent');
+      // After a full-page redirect the portal is showing its default Login tab —
+      // bring the person back to the registration form they started.
+      showTab('register');
       applyGoogleCredToRegistrationForm(result);
+      document.getElementById('portal')?.scrollIntoView({ behavior: 'smooth' });
+      showToast('Google sign-in done — please fill in the rest of the form.', 'success');
+    } else {
+      sessionStorage.removeItem('googleAuthIntent');
     }
+  } catch (err) {
+    sessionStorage.removeItem('googleAuthIntent');
+    console.error('Google sign-in failed:', err);
+    showToast(`Could not sign in with Google${err?.code ? ` (${err.code})` : ''}.`, 'error');
+  }
+}
+
+// Runs once, right after the module loads — resolves a Google sign-in that went through the
+// full-page REDIRECT fallback. Resolves to null on a completely normal page load, in which case
+// this does nothing and the usual onAuthStateChanged-driven flow takes over.
+(async function handleGoogleRedirectResult() {
+  const intent = sessionStorage.getItem('googleAuthIntent');
+  if (!intent) return;
+  try {
+    const result = await getRedirectResult(auth);
+    if (!result) { sessionStorage.removeItem('googleAuthIntent'); return; }
+    await processGoogleResult(intent, result);
   } catch (err) {
     sessionStorage.removeItem('googleAuthIntent');
     console.error('Google sign-in failed:', err);
@@ -3347,11 +3228,18 @@ onAuthStateChanged(auth, async (user) => {
     // while the resident's approval status was still unknown, so now that it
     // is, draw them once more with the real answer.
     pollsMemberSettled = true;
+    document.body.classList.toggle('not-approved', currentMember?.status !== 'approved');
     if (window.__activePolls?.length) renderPolls();
     loadNotificationCenter();
+    setTimeout(maybeShowGuide, 900);   // let Home paint first; only ever once, only for approved members
+    try {
+      const rv = sessionStorage.getItem('mhmrws-ptr-view');
+      if (rv) { sessionStorage.removeItem('mhmrws-ptr-view'); if (rv !== 'home') window.__showView?.(rv); }
+    } catch (_) { /* fine */ }
   } else {
     window.__loggedIn = false;
-    document.body.classList.remove('logged-in');
+    document.body.classList.remove('logged-in', 'not-approved');
+    window.__setView?.('home');
     currentMember = null;
     if (unsubscribeGateVisitors) { unsubscribeGateVisitors(); unsubscribeGateVisitors = null; }
     if (unsubscribePaymentUpdates) { unsubscribePaymentUpdates(); unsubscribePaymentUpdates = null; }
@@ -3417,7 +3305,9 @@ async function loadDashboard(uid) {
     return;
   }
   currentMember = snap.data();
-  document.getElementById('dashGreeting').textContent = `Welcome, ${currentMember.name.split(' ')[0]}`;
+  const greetEl = document.getElementById('dashGreeting');
+  greetEl.textContent = `Welcome, ${currentMember.name.split(' ')[0]}`;
+  window.__translate?.(greetEl);
 
   // Syncs Firebase Auth's emailVerified flag (which lives on the auth
   // token, not in Firestore) into the member record once — so admin can see
@@ -3468,7 +3358,7 @@ async function loadDashboard(uid) {
 
   content.className = 'stagger';
   content.innerHTML = `
-    <div class="card status-card">
+    <div class="card status-card" data-v="home">
       <div class="status-head">
         ${imgTag(currentMember.photoURL || LOGO_DATA_URI, 'alt=""')}
         <div style="min-width:0;">
@@ -3489,23 +3379,67 @@ async function loadDashboard(uid) {
           <button type="button" class="link-btn" id="resendVerifyBtn" style="margin-left:4px;">Resend email</button>
         </div>` : ''}
     </div>
-    ${currentMember.status === 'approved' ? `<div id="gateCard"></div>` : ''}
-    ${currentMember.status === 'approved' ? `<div id="duesHero"><div class="skeleton" style="height:96px; margin-top:16px; border-radius:16px;"></div></div>` : ''}
-    ${currentMember.status === 'approved' ? `<div id="inspectionsCard"></div>` : ''}
-    ${currentMember.status === 'approved' ? `<div id="expiryCenterCard" style="display:none;"></div>` : ''}
+    ${currentMember.status === 'approved' ? `<div id="gateCard" data-v="home"></div>` : ''}
+    ${currentMember.status === 'approved' ? `<div id="duesHero" data-v="home"><div class="skeleton" style="height:96px; margin-top:16px; border-radius:16px;"></div></div>` : ''}
+    ${currentMember.status === 'approved' ? `<div id="inspectionsCard" data-v="home"></div>` : ''}
+    ${currentMember.status === 'approved' ? `<div id="expiryCenterCard" data-v="home" style="display:none;"></div>` : ''}
     ${currentMember.status === 'approved' ? `
-    <div class="dash-shortcuts" role="group" aria-label="Quick actions">
-      <button type="button" class="dash-shortcut" id="shortcutPay"><svg viewBox="0 0 24 24"><use href="#i-rupee"/></svg><span>Pay</span></button>
-      <button type="button" class="dash-shortcut" id="shortcutComplaint"><svg viewBox="0 0 24 24"><use href="#i-bell"/></svg><span>Complaint</span></button>
-      <button type="button" class="dash-shortcut" id="shortcutVisitors"><svg viewBox="0 0 24 24"><use href="#i-user"/></svg><span>Visitors</span></button>
-      <button type="button" class="dash-shortcut" id="shortcutBookings"><svg viewBox="0 0 24 24"><use href="#i-home"/></svg><span>Bookings</span></button>
+    <div class="home-links" id="homeLinks" data-v="home">
+      <button type="button" class="home-link" data-goto="complaints">
+        <span class="hl-ico t-blue"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-chat"/></svg></span>
+        <span class="hl-t">My complaints</span><span class="hl-n" id="homeOpenComplaints"></span><span class="hl-go" aria-hidden="true">›</span>
+      </button>
+      <button type="button" class="home-link" data-goto="community">
+        <span class="hl-ico t-green"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-building"/></svg></span>
+        <span class="hl-t">Bookings, Guests &amp; Suggestions</span><span class="hl-go" aria-hidden="true">›</span>
+      </button>
+      <button type="button" class="home-link" data-goto="profile">
+        <span class="hl-ico t-purple"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-user"/></svg></span>
+        <span class="hl-t">Profile, Vehicles, Family &amp; Pets</span><span class="hl-go" aria-hidden="true">›</span>
+      </button>
+    </div>` : ''}
+    <div id="moreView" data-v="more">
+      <div class="more-profile">
+        <span class="more-avatar" aria-hidden="true">${escapeHtml((currentMember.name || '?').trim().charAt(0).toUpperCase())}</span>
+        <div style="flex:1; min-width:0;">
+          <div style="font-size:17px; font-weight:700;">${escapeHtml(currentMember.name || '')}</div>
+          <div class="t-muted" style="font-size:13px; margin-top:2px;">Tower ${escapeHtml(currentMember.tower || '')} &middot; Flat ${escapeHtml(currentMember.flatNumber || '')}</div>
+          <span class="mono" style="display:inline-block; margin-top:6px; font-size:12px; background:var(--navy-900); color:var(--saffron-300); padding:2px 8px; border-radius:6px;">${escapeHtml(currentMember.memberID || '—')}</span>
+        </div>
+        <span class="badge ${currentMember.status === 'approved' ? 'badge-success' : 'badge-warning'}" style="align-self:flex-start;">${currentMember.status === 'approved' ? 'Approved' : 'Awaiting approval'}</span>
+      </div>
+      <div class="more-group-label">Society</div>
+      <div class="more-group"><ul class="more-list">
+        <li><button type="button" class="more-item" data-more="notices"><span class="mi-ico t-gold"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-bell"/></svg></span>Notices<span class="hl-go" aria-hidden="true">›</span></button></li>
+        <li><button type="button" class="more-item" data-more="documents"><span class="mi-ico t-blue"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-file"/></svg></span>Documents &amp; Committee<span class="hl-go" aria-hidden="true">›</span></button></li>
+        <li><button type="button" class="more-item" data-more="community"><span class="mi-ico t-green"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-building"/></svg></span>Bookings, Guests &amp; Suggestions<span class="hl-go" aria-hidden="true">›</span></button></li>
+      </ul></div>
+      <div class="more-group-label">My home</div>
+      <div class="more-group"><ul class="more-list">
+        <li><button type="button" class="more-item" data-more="profile"><span class="mi-ico t-purple"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-user"/></svg></span>Profile, Vehicles, Family &amp; Pets<span class="hl-go" aria-hidden="true">›</span></button></li>
+      </ul></div>
+      <div class="more-group-label">Display</div>
+      <div class="more-group"><div class="ts-row">
+        <div><div class="ts-lbl">Text size</div><div class="ts-sub">Make everything bigger and easier to read</div></div>
+        <div class="ts-seg" role="group" aria-label="Text size">
+          <button type="button" class="ts-a-sm" data-text-size-set="normal" aria-pressed="${getTextSize() === 'normal'}" aria-label="Standard text size">A</button>
+          <button type="button" class="ts-a-lg" data-text-size-set="large" aria-pressed="${getTextSize() === 'large'}" aria-label="Large text size">A</button>
+        </div>
+      </div></div>
+      <div class="more-group-label">Help</div>
+      <div class="more-group"><ul class="more-list">
+        <li><button type="button" class="more-item" data-more="guide"><span class="mi-ico t-blue"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-bulb"/></svg></span>How to use this app<span class="hl-go" aria-hidden="true">›</span></button></li>
+        <li><button type="button" class="more-item" data-more="report"><span class="mi-ico t-gold"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-siren"/></svg></span>Report a problem<span class="hl-go" aria-hidden="true">›</span></button></li>
+        <li><button type="button" class="more-item is-danger" data-more="logout"><span class="mi-ico t-red"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-logout"/></svg></span>Logout</button></li>
+      </ul></div>
     </div>
+    ${currentMember.status === 'approved' ? `
     <div class="dash-grid">
-      <div class="card card-pad">
+      <div class="card card-pad" data-v="payments">
         <div id="duesPanel"><div class="skeleton" style="height:186px; margin-bottom:18px;"></div></div>
         <div class="spread" style="margin:18px 0 16px; gap:10px; flex-wrap:wrap;">
           <h3 style="font-size:16px;">Payment History</h3>
-          <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+          <div class="pay-head-actions" style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
             <select id="statementFYSelect" style="width:auto; padding:6px 10px; font-size:12.5px;" title="Financial year for the statement"></select>
             <button class="btn btn-outline btn-sm" id="downloadStatementBtn" title="All receipts for the selected financial year in one PDF">FY Statement</button>
             <button class="btn btn-primary btn-sm" id="openPaymentBtn">Make a Payment</button>
@@ -3513,7 +3447,7 @@ async function loadDashboard(uid) {
         </div>
         <div id="paymentList"></div>
       </div>
-      <details class="card" style="grid-column:1/-1; padding:0;">
+      <details class="card" data-v="profile" style="grid-column:1/-1; padding:0;">
         <summary style="padding:16px 18px; cursor:pointer; font-size:14.5px; font-weight:700; color:var(--navy-900);">More — Profile, Vehicles, Family &amp; Pets</summary>
         <div class="dash-grid" style="padding:0 18px 18px; margin-top:0;">
       <div class="card card-pad">
@@ -3529,7 +3463,7 @@ async function loadDashboard(uid) {
             <div style="height:6px; border-radius:3px; background:var(--line,#E2E6EF); overflow:hidden;">
               <div style="height:100%; width:${pc.pct}%; background:var(--gradient-saffron, #C9A227); border-radius:3px;"></div>
             </div>
-            <p class="t-muted" style="font-size:11.5px; margin-top:6px;">${pc.missing.map(m => escapeHtml(m.label)).join(' · ')}</p>
+            <p class="t-muted" style="font-size:12.5px; margin-top:6px;">${pc.missing.map(m => escapeHtml(m.label)).join(' · ')}</p>
           </div>`;
         })()}
         ${(() => {
@@ -3541,7 +3475,7 @@ async function loadDashboard(uid) {
             : `Your rent agreement expires in ${rs.daysUntil} day${rs.daysUntil === 1 ? '' : 's'}.`;
           return `
           <div style="margin-bottom:16px; padding:10px 12px; border-radius:8px; background:rgba(192,57,43,.07); border:1px solid rgba(192,57,43,.18); font-size:12.5px;">
-            📄 ${escapeHtml(msg)} Please submit an updated agreement to the society office.
+            <svg class="ic inline-ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-file"/></svg>${escapeHtml(msg)} Please submit an updated agreement to the society office.
           </div>`;
         })()}
         <div class="detail-line"><span>Member ID</span><span class="mono">${escapeHtml(currentMember.memberID || '—')}</span></div>
@@ -3550,19 +3484,19 @@ async function loadDashboard(uid) {
         <div class="detail-line"><span>Type</span><span>${{ owner: 'Owner', jointowner: 'Joint Owner', tenant: 'Tenant' }[currentMember.residentType] || escapeHtml(currentMember.residentType)}</span></div>
         <div class="detail-line"><span>Date of Birth</span><span>${currentMember.dob || '—'}</span></div>
         <div class="detail-line"><span>Family Members</span><span>${(currentMember.familyMembers && currentMember.familyMembers.length) ? currentMember.familyMembers.length : '—'}</span></div>
-        <button class="btn btn-outline btn-sm" id="editProfileBtn" style="margin-top:10px;">✎ Edit Profile</button>
+        <button class="btn btn-outline btn-sm" id="editProfileBtn" style="margin-top:10px;"><svg class="ic inline-ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-edit"/></svg>Edit Profile</button>
       </div>
       <div class="card card-pad">
         <div class="spread" style="margin-bottom:12px;">
           <h3 style="font-size:16px;">My Vehicles</h3>
-          <button class="btn btn-outline btn-sm" id="editVehiclesBtn">✎ Edit</button>
+          <button class="btn btn-outline btn-sm" id="editVehiclesBtn"><svg class="ic inline-ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-edit"/></svg>Edit</button>
         </div>
         <div id="myVehiclesList"></div>
       </div>
       <div class="card card-pad">
         <div class="spread" style="margin-bottom:12px;">
           <h3 style="font-size:16px;">My Family</h3>
-          <button class="btn btn-outline btn-sm" id="editProfileBtnFamily">✎ Edit</button>
+          <button class="btn btn-outline btn-sm" id="editProfileBtnFamily"><svg class="ic inline-ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-edit"/></svg>Edit</button>
         </div>
         <p class="t-muted" style="font-size:12px; margin-bottom:10px;">Each family member can carry their own membership card — same QR, since it verifies against this flat's registration.</p>
         <div id="myFamilyList"></div>
@@ -3576,14 +3510,14 @@ async function loadDashboard(uid) {
       </div>
         </div>
       </details>
-      <div class="card card-pad">
+      <div class="card card-pad" data-v="complaints">
         <div class="spread" style="margin-bottom:12px;">
           <h3 style="font-size:16px;">My Complaints</h3>
-          <button class="btn btn-outline btn-sm" id="raiseComplaintBtn">+ Raise Complaint</button>
+          <button class="btn btn-primary btn-sm" id="raiseComplaintBtn">+ Raise Complaint</button>
         </div>
         <div id="myComplaintsList"><p class="t-muted" style="font-size:13px;">Loading…</p></div>
       </div>
-      <div class="card card-pad" style="grid-column:1/-1;">
+      <div class="card card-pad" data-v="community" style="grid-column:1/-1;">
         <h3 style="font-size:16px; margin-bottom:12px;">Community</h3>
         <div class="tab-strip" style="margin-bottom:14px;">
           <button data-cmrtab="book" class="active">Book a Facility</button>
@@ -3606,18 +3540,6 @@ async function loadDashboard(uid) {
           <div id="mySuggestionsList"><p class="t-muted" style="font-size:13px;">Loading…</p></div>
         </div>
       </div>
-      ${(!currentMember.dob && !(currentMember.familyMembers && currentMember.familyMembers.length)) ? `
-      <div class="card card-pad" style="grid-column:1/-1; background:var(--gold-glow,rgba(201,162,39,.08)); border-color:var(--gold-500,#C9A227);">
-        <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
-          <div style="font-size:22px;">🎂</div>
-          <div style="flex:1; min-width:200px;">
-            <b style="font-size:13.5px;">Add Your Birthday!</b>
-            <div class="t-muted" style="font-size:12.5px; margin-top:2px;">The society will wish you and your family a happy birthday/anniversary on WhatsApp — just fill in your details.</div>
-          </div>
-          <button class="btn btn-primary btn-sm" id="fillProfileNudgeBtn">Fill Now</button>
-        </div>
-      </div>` : ''}
-      <div class="t-muted" style="grid-column:1/-1; text-align:center; font-size:12.5px; padding:6px 0 2px;">Something not working? <button type="button" class="link-btn" id="reportProblemLink">Report a problem</button></div>
     </div>` : ''}
   `;
 
@@ -3645,20 +3567,10 @@ async function loadDashboard(uid) {
     }
     document.getElementById('downloadStatementBtn')?.addEventListener('click', downloadStatement);
     document.getElementById('editProfileBtn')?.addEventListener('click', openProfileModal);
-    document.getElementById('fillProfileNudgeBtn')?.addEventListener('click', openProfileModal);
     document.getElementById('editVehiclesBtn')?.addEventListener('click', openVehiclesModal);
     document.getElementById('editProfileBtnFamily')?.addEventListener('click', openProfileModal);
     document.getElementById('addPetBtn')?.addEventListener('click', () => openPetModal());
     document.getElementById('raiseComplaintBtn')?.addEventListener('click', openComplaintModal);
-    document.getElementById('reportProblemLink')?.addEventListener('click', openReportModal);
-    document.getElementById('shortcutPay')?.addEventListener('click', () => document.getElementById('openPaymentBtn')?.click());
-    document.getElementById('shortcutComplaint')?.addEventListener('click', () => document.getElementById('raiseComplaintBtn')?.click());
-    const goToCommunityTab = (tab) => {
-      document.querySelector(`[data-cmrtab="${tab}"]`)?.click();
-      document.querySelector('[data-cmrtab]')?.closest('.card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    };
-    document.getElementById('shortcutVisitors')?.addEventListener('click', () => goToCommunityTab('guest'));
-    document.getElementById('shortcutBookings')?.addEventListener('click', () => goToCommunityTab('book'));
     document.getElementById('newBookingBtn')?.addEventListener('click', openBookingModal);
     document.getElementById('newGuestBtn')?.addEventListener('click', () => {
       document.getElementById('guestForm').reset();
@@ -3726,23 +3638,39 @@ async function loadNotificationCenter() {
   (allPaymentRows || []).forEach(p => {
     const t = toMs(p.verifiedAt) || toMs(p.updatedAt);
     if (!t || t <= cutoff) return;
-    if (p.status === 'verified') items.push({ icon: '✅', text: `Payment of ${formatINR(p.amount)} was verified.`, time: t });
-    else if (p.status === 'rejected') items.push({ icon: '❌', text: `Payment of ${formatINR(p.amount)} was rejected${p.rejectionReason ? `: ${p.rejectionReason}` : '.'}`, time: t });
+    if (p.status === 'verified') items.push({ icon: icon('check'), text: `Payment of ${formatINR(p.amount)} was verified.`, time: t });
+    else if (p.status === 'rejected') items.push({ icon: icon('alert'), text: `Payment of ${formatINR(p.amount)} was rejected${p.rejectionReason ? `: ${p.rejectionReason}` : '.'}`, time: t });
   });
 
   (window.__myComplaints || []).forEach(c => {
     const t = toMs(c.updatedAt);
     if (!t || t <= cutoff || !['resolved', 'in_progress', 'rejected', 'closed'].includes(c.status)) return;
-    items.push({ icon: '📋', text: `Complaint "${c.title}" is now ${COMPLAINT_STATUS_LABEL_R[c.status] || c.status}.`, time: t });
+    items.push({ icon: icon('chat'), text: `Complaint "${c.title}" is now ${COMPLAINT_STATUS_LABEL_R[c.status] || c.status}.`, time: t });
   });
 
   try {
     const rows = (await getDocs(query(collection(db, 'notices'), where('postedAt', '>', new Date(cutoff)), orderBy('postedAt', 'desc'), limit(50)))).docs.map(d => d.data());
     rows.forEach(n => {
       const t = toMs(n.postedAt);
-      if (t && t > cutoff) items.push({ icon: '📢', text: `New notice: ${n.titleEn}`, time: t });
+      if (t && t > cutoff) items.push({ icon: icon('bell'), text: `New notice: ${n.titleEn}`, time: t });
     });
   } catch (e) { console.warn('Notification notices check failed:', e?.code || e); }
+
+  // Committee dues reminder: one small record per "send", shown only if THIS
+  // resident currently owes something.
+  try {
+    const rem = (await getDocs(query(collection(db, 'reminders'), orderBy('sentAt', 'desc'), limit(1)))).docs[0]?.data();
+    const sentMs = toMs(rem?.sentAt);
+    const owed = window.__duesOwed || {};
+    const text = duesReminderText(owed);
+    if (sentMs && text && sentMs > Date.now() - 14 * 86400000) {
+      items.push({ icon: icon('rupee'), text, time: sentMs });
+      if (window.__latestReminderMs !== sentMs) {
+        window.__latestReminderMs = sentMs;
+        if (window.__heroArgs) renderDuesHero(window.__heroArgs.dues, window.__heroArgs.financialYear);
+      }
+    }
+  } catch (e) { console.warn('Reminder check failed:', e?.code || e); }
 
   (window.__activePolls || []).forEach(p => {
     const end = toMs(p.endTime);
@@ -3750,7 +3678,7 @@ async function loadNotificationCenter() {
     // Not gated on lastSeen — an ending-soon poll should keep surfacing
     // every visit until it closes, not just the first time it qualifies.
     if (daysLeft >= 0 && daysLeft <= 3) {
-      items.push({ icon: '🗳️', text: `Poll "${p.question}" closes in ${daysLeft < 1 ? 'under a day' : Math.ceil(daysLeft) + ' day' + (Math.ceil(daysLeft) === 1 ? '' : 's')}.`, time: Date.now() });
+      items.push({ icon: icon('chart'), text: `Poll "${p.question}" closes in ${daysLeft < 1 ? 'under a day' : Math.ceil(daysLeft) + ' day' + (Math.ceil(daysLeft) === 1 ? '' : 's')}.`, time: Date.now() });
     }
   });
 
@@ -3838,7 +3766,7 @@ function renderExpiryCenter() {
     const rs = rentAgreementStatus(currentMember);
     if (rs.status === 'expired' || rs.status === 'expiring_soon') {
       items.push({
-        icon: '📄', label: 'Rent Agreement',
+        icon: icon('file'), label: 'Rent Agreement',
         detail: rs.status === 'expired' ? `Expired ${Math.abs(rs.daysUntil)} day${Math.abs(rs.daysUntil) === 1 ? '' : 's'} ago` : `Expires in ${rs.daysUntil} day${rs.daysUntil === 1 ? '' : 's'}`,
         daysUntil: rs.daysUntil
       });
@@ -3860,7 +3788,7 @@ function renderExpiryCenter() {
   card.style.display = 'block';
   card.innerHTML = `
     <div class="card card-pad" style="margin-bottom:20px; border-color:rgba(192,57,43,.2);">
-      <h3 style="font-size:15px; margin-bottom:10px;">🔔 Needs Your Attention</h3>
+      <h3 style="font-size:15px; margin-bottom:10px;"><svg class="ic inline-ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-bell"/></svg>Needs Your Attention</h3>
       ${items.map(i => `
         <div style="display:flex; align-items:center; gap:10px; padding:8px 0; border-top:1px solid var(--line,#E2E6EF);">
           <span style="font-size:18px;">${i.icon}</span>
@@ -3901,7 +3829,7 @@ function renderMyVehicles() {
   } else {
     el.innerHTML = vehicles.map(v => `
       <div style="display:flex; align-items:center; gap:10px; padding:9px 0; border-top:1px solid var(--line,#E2E6EF);">
-        <span style="font-size:18px;">${v.vehicleType === '2-wheeler' ? '🏍️' : '🚗'}</span>
+        <span style="font-size:18px;">${icon('car')}</span>
         <div>
           <div style="font-weight:600; font-size:13.5px;" class="mono">${escapeHtml(v.vehicleNumber || '—')}</div>
           <div class="t-muted" style="font-size:12px;">
@@ -3940,7 +3868,7 @@ function renderMyFamily() {
           <div style="font-weight:600; font-size:13.5px;">${escapeHtml(fm.name || '—')}</div>
           <div class="t-muted" style="font-size:12px;">${escapeHtml(fm.relation || 'Family Member')}${isMinor ? ' · Minor' : ''}</div>
         </div>
-        <button class="btn btn-outline btn-sm" data-family-card="${i}">⬇ Card</button>
+        <button class="btn btn-outline btn-sm" data-family-card="${i}">${icon('download', 'inline-ic')}Card</button>
       </div>`;
     }).join('');
     el.querySelectorAll('[data-family-card]').forEach(btn =>
@@ -3955,6 +3883,7 @@ function renderMyPets() {
   const rows = window.__myPets || [];
   if (!rows.length) {
     el.innerHTML = '<p class="t-muted" style="font-size:13px;">No pets registered yet.</p>';
+    window.__translate?.(el);
     return;
   }
   el.innerHTML = rows.map((pet, i) => {
@@ -3962,7 +3891,7 @@ function renderMyPets() {
     const vaxNote = st.status === 'overdue'
       ? `<span style="color:var(--danger,#C0392B);">Vaccination overdue by ${Math.abs(st.daysUntil)} day${Math.abs(st.daysUntil) === 1 ? '' : 's'}</span>`
       : st.status === 'due_soon'
-      ? `<span style="color:var(--gold-700,#8F7115);">Vaccination due in ${st.daysUntil} day${st.daysUntil === 1 ? '' : 's'}</span>`
+      ? `<span style="color:var(--gold-700,#7D6410);">Vaccination due in ${st.daysUntil} day${st.daysUntil === 1 ? '' : 's'}</span>`
       : st.status === 'fine'
       ? `Vaccination due in ${st.daysUntil} day${st.daysUntil === 1 ? '' : 's'}`
       : 'Vaccination date not set';
@@ -3973,6 +3902,7 @@ function renderMyPets() {
     </div>`;
   }).join('');
   el.querySelectorAll('[data-edit-pet]').forEach(b => b.addEventListener('click', () => openPetModal(rows[Number(b.dataset.editPet)].id)));
+  window.__translate?.(el);
 }
 
 /* Vehicles save as a single array-write on the member doc itself — there's
@@ -4256,7 +4186,7 @@ function renderGateCard(rows) {
 
   el.innerHTML = `
     <div class="card card-pad"${pending.length ? ' style="border-color:var(--gold-500,#C9A227); background:var(--gold-glow,rgba(201,162,39,.06));"' : ''}>
-      <h3 style="font-size:15px; margin-bottom:10px; display:flex; align-items:center; gap:8px;"><svg viewBox="0 0 24 24" aria-hidden="true" style="width:20px; height:20px; flex-shrink:0;"><use href="#i-door"/></svg>At the Gate</h3>
+      <h3 style="font-size:15px; margin-bottom:10px; display:flex; align-items:center; gap:8px;"><svg viewBox="0 0 24 24" aria-hidden="true" style="width:20px; height:20px; flex-shrink:0;"><use href="#ic-door"/></svg>At the Gate</h3>
       ${pending.length ? pending.map(r => `
         <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 0; border-bottom:1px solid var(--line,#EAE6DC);">
           <div style="min-width:0;">
@@ -4270,7 +4200,7 @@ function renderGateCard(rows) {
         </div>`).join('') : '<p class="t-muted" style="font-size:13px;">No one waiting right now.</p>'}
       ${recent.length ? `
         <div style="margin-top:${pending.length ? '10px' : '4px'};">
-          ${recent.map(r => `<div class="t-muted" style="font-size:11.5px; padding:3px 0;">${escapeHtml(r.visitorName)} — ${escapeHtml(String(r.status || '').replace('_', ' '))}</div>`).join('')}
+          ${recent.map(r => `<div class="t-muted" style="font-size:12.5px; padding:3px 0;">${escapeHtml(r.visitorName)} — ${escapeHtml(String(r.status || '').replace('_', ' '))}</div>`).join('')}
         </div>` : ''}
     </div>`;
   el.querySelectorAll('[data-gate-decide]').forEach(b => b.onclick = () => decideGateVisitor(b.dataset.gateDecide, b.dataset.gateStatus));
@@ -4352,26 +4282,26 @@ function renderInspectionsCard(all) {
     return `
     <div style="flex:1; min-width:90px; background:var(--paper,#FAF7F0); border:1px solid var(--line,#EAE6DC); border-radius:12px; padding:10px 12px; text-align:center;">
       <div style="font-size:20px; font-weight:800;">${p.count}</div>
-      <div class="t-muted" style="font-size:10.5px;">${label}</div>
-      <div style="font-size:10.5px; margin-top:2px; color:${status.color};">${status.text}</div>
+      <div class="t-muted" style="font-size:11.5px;">${label}</div>
+      <div style="font-size:11.5px; margin-top:2px; color:${status.color};">${status.text}</div>
     </div>`;
   };
 
   const recent = all.slice(0, 8);
   el.innerHTML = `
     <div class="card card-pad">
-      <h3 style="font-size:15px; margin-bottom:10px;">🔍 Facility Inspections</h3>
+      <h3 style="font-size:15px; margin-bottom:10px;"><svg class="ic inline-ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-search"/></svg>Facility Inspections</h3>
       <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px;">
         ${box('Today', today)}
         ${box('This Week', week)}
         ${box('This Month', month)}
       </div>
-      <div class="t-muted" style="font-size:11.5px; margin-bottom:6px;">Most recent — tap to see details</div>
+      <div class="t-muted" style="font-size:12.5px; margin-bottom:6px;">Most recent — tap to see details</div>
       ${recent.map((r, i) => `
         <button type="button" data-insp-detail="${i}" style="width:100%; text-align:left; background:none; border:none; border-bottom:1px solid var(--line,#EAE6DC); padding:8px 0; cursor:pointer; display:flex; align-items:center; justify-content:space-between; gap:10px;">
           <span>
             <b style="font-size:13.5px;">${escapeHtml(INSPECTION_TYPES[r.formType]?.label || r.formType)}</b>
-            <span class="t-muted" style="font-size:11.5px; display:block; margin-top:1px;">${r.tower ? 'Tower ' + escapeHtml(r.tower) + ' · ' : ''}${r.createdAt ? fmtDate(r.createdAt) : ''} · view ›</span>
+            <span class="t-muted" style="font-size:12.5px; display:block; margin-top:1px;">${r.tower ? 'Tower ' + escapeHtml(r.tower) + ' · ' : ''}${r.createdAt ? fmtDate(r.createdAt) : ''} · view ›</span>
           </span>
           ${Number(r.issueCount) ? `<span class="badge badge-warning">${Number(r.issueCount)} issue${Number(r.issueCount) > 1 ? 's' : ''}</span>`
             : Number(r.uncheckedCount) ? `<span class="badge badge-neutral">partially checked</span>`
@@ -4399,10 +4329,10 @@ function openResidentInspectionDetail(idx) {
         ${issues.length ? issues.map(it => `
           <div style="padding:6px 0; border-bottom:1px solid var(--line,#EAE6DC);">
             <div style="display:flex; justify-content:space-between; gap:8px;"><span style="font-size:12.5px;">${escapeHtml(it.label)}</span><span class="badge badge-warning">Issue</span></div>
-            ${it.note ? `<div class="t-muted" style="font-size:11.5px; margin-top:2px;">${escapeHtml(it.note)}</div>` : ''}
+            ${it.note ? `<div class="t-muted" style="font-size:12.5px; margin-top:2px;">${escapeHtml(it.note)}</div>` : ''}
           </div>`).join('') : ''}
-        ${oks.length ? `<div class="t-muted" style="font-size:11.5px; margin-top:8px;">${oks.length} item${oks.length > 1 ? 's' : ''} OK</div>` : ''}
-        ${unchecked.length ? `<div style="font-size:11.5px; margin-top:4px; color:var(--warning,#B87A1F);">${unchecked.length} item${unchecked.length > 1 ? 's' : ''} not checked</div>` : ''}
+        ${oks.length ? `<div class="t-muted" style="font-size:12.5px; margin-top:8px;">${oks.length} item${oks.length > 1 ? 's' : ''} OK</div>` : ''}
+        ${unchecked.length ? `<div style="font-size:12.5px; margin-top:4px; color:var(--warning,#B87A1F);">${unchecked.length} item${unchecked.length > 1 ? 's' : ''} not checked</div>` : ''}
       </div>`;
   }).join('');
 
@@ -4424,8 +4354,8 @@ function openResidentInspectionDetail(idx) {
             <div style="padding:6px 0; border-bottom:1px solid var(--line,#EAE6DC);">
               <div style="display:flex; justify-content:space-between; gap:8px;"><span style="font-size:12.5px;">${escapeHtml(label)}</span><span class="badge badge-warning">Issue</span></div>
             </div>`).join('') : ''}
-          ${tOk ? `<div class="t-muted" style="font-size:11.5px; margin-top:8px;">${tOk} check${tOk > 1 ? 's' : ''} OK</div>` : ''}
-          ${tUnchecked ? `<div style="font-size:11.5px; margin-top:4px; color:var(--warning,#B87A1F);">${tUnchecked} check${tUnchecked > 1 ? 's' : ''} not checked</div>` : ''}
+          ${tOk ? `<div class="t-muted" style="font-size:12.5px; margin-top:8px;">${tOk} check${tOk > 1 ? 's' : ''} OK</div>` : ''}
+          ${tUnchecked ? `<div style="font-size:12.5px; margin-top:4px; color:var(--warning,#B87A1F);">${tUnchecked} check${tUnchecked > 1 ? 's' : ''} not checked</div>` : ''}
         </div>`;
     }).join('');
   }
@@ -4699,6 +4629,48 @@ function refreshReportPreview() {
   const on = document.getElementById('rp-attach').checked;
   pre.textContent = on ? JSON.stringify(reportContext(), null, 1) : '(nothing — only your message, name and flat)';
 }
+/* ---- First-time guide (v170) ------------------------------------------- */
+let guideIdx = 0;
+function renderGuide(dir) {
+  const st = GUIDE_STEPS[guideIdx];
+  const body = document.getElementById('guideBody');
+  body.innerHTML = `<div class="guide-ico">${icon(st.icon)}</div>
+    <h3>${escapeHtml(st.title)}</h3>
+    <p class="guide-lead">${escapeHtml(st.lead)}</p>
+    <ul class="guide-points">${st.points.map((p) => `<li>${escapeHtml(p)}</li>`).join('')}</ul>`;
+  body.classList.remove('slide'); void body.offsetWidth; if (dir) body.classList.add('slide');
+  document.getElementById('guideDots').innerHTML = GUIDE_STEPS.map((_, i) => `<i class="${i === guideIdx ? 'on' : ''}"></i>`).join('');
+  const last = guideIdx === GUIDE_STEPS.length - 1;
+  document.getElementById('guideBack').hidden = guideIdx === 0;
+  document.getElementById('guideSkip').hidden = last;
+  const nx = document.getElementById('guideNext');
+  nx.textContent = last ? 'Got it' : 'Next';     // fresh text node, so the translator re-reads it
+  window.__translate?.(body); window.__translate?.(nx);
+}
+function openGuide() {
+  guideIdx = 0;
+  renderGuide(false);
+  markGuideSeen();                       // seen the moment it appears: never nag twice
+  document.getElementById('guideBackdrop').classList.add('open');
+  document.getElementById('guideNext')?.focus();
+}
+function closeGuide() { document.getElementById('guideBackdrop').classList.remove('open'); }
+window.__openGuide = openGuide;
+document.getElementById('guideNext')?.addEventListener('click', () => {
+  if (guideIdx >= GUIDE_STEPS.length - 1) { closeGuide(); return; }
+  guideIdx++; renderGuide(true);
+});
+document.getElementById('guideBack')?.addEventListener('click', () => { if (guideIdx > 0) { guideIdx--; renderGuide(true); } });
+document.getElementById('guideSkip')?.addEventListener('click', closeGuide);
+document.getElementById('guideClose')?.addEventListener('click', closeGuide);
+document.getElementById('guideBackdrop')?.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowRight' && guideIdx < GUIDE_STEPS.length - 1) { guideIdx++; renderGuide(true); }
+  else if (e.key === 'ArrowLeft' && guideIdx > 0) { guideIdx--; renderGuide(true); }
+});
+function maybeShowGuide() {
+  const modalOpen = !!document.querySelector('.modal-backdrop.open');
+  if (shouldShowGuide({ approved: currentMember?.status === 'approved', seen: guideSeen(), modalOpen })) openGuide();
+}
 function openReportModal() {
   document.getElementById('reportForm').reset();
   refreshReportPreview();
@@ -4760,8 +4732,12 @@ async function loadMyComplaints(uid) {
 function renderMyComplaints() {
   const el = document.getElementById('myComplaintsList');
   const rows = window.__myComplaints || [];
+  const openN = rows.filter((c) => !['resolved', 'closed'].includes(c.status)).length;
+  const hn = document.getElementById('homeOpenComplaints');
+  if (hn) { hn.textContent = openN ? `${openN} open` : ''; window.__translate?.(hn); }
   if (!rows.length) {
     el.innerHTML = '<p class="t-muted" style="font-size:13px;">No complaints yet.</p>';
+    window.__translate?.(el);
     return;
   }
   el.innerHTML = rows.map((c, i) => {
@@ -4773,7 +4749,7 @@ function renderMyComplaints() {
     return `
     <div class="detail-line" style="align-items:flex-start; flex-direction:column; gap:4px; padding:10px 0;">
       <div class="spread" style="width:100%;">
-        <span><b>${escapeHtml(c.title)}</b> <span class="t-muted" style="font-size:11.5px;">(${escapeHtml(COMPLAINT_CATEGORY_LABEL_R[c.category] || c.category)})</span></span>
+        <span><b>${escapeHtml(c.title)}</b> <span class="t-muted" style="font-size:12.5px;">(${escapeHtml(COMPLAINT_CATEGORY_LABEL_R[c.category] || c.category)})</span></span>
         <span class="t-muted" style="font-size:12px;">${escapeHtml(COMPLAINT_STATUS_LABEL_R[c.status] || c.status)}</span>
       </div>
       ${(() => {
@@ -5291,25 +5267,85 @@ async function loadMaintenanceSettings() {
 function renderDuesHero(dues, financialYear) {
   const el = document.getElementById('duesHero');
   if (!el) return;
+  window.__heroArgs = { dues, financialYear };
+  window.__duesOwed = {
+    maint: (currentMember?.maintenanceResponsible === false || !dues || dues.status === 'no_rate') ? 0 : (Number(dues.outstanding) || 0),
+    member: Number(currentMembership?.outstanding) || 0,
+    fy: financialYear
+  };
   const showNothing = !dues || dues.status === 'no_rate' || currentMember?.maintenanceResponsible === false;
   if (showNothing) { el.innerHTML = ''; return; }
+  const fy = escapeHtml(financialYear);
   const owes = dues.outstanding > 0;
+  const tick = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+  const memberNote = (currentMembership && currentMembership.outstanding > 0)
+    ? `<div class="dh-note">Membership fee ${formatINR(currentMembership.outstanding)} is also pending</div>` : '';
   const waiting = (allPaymentRows || []).filter((p) => p.status === 'pending_verification' || p.status === 'pending_approval');
-  const waitingSum = waiting.reduce((t, p) => t + (Number(p.amount) || 0), 0);
-  const notes = [];
-  if (waiting.length) notes.push(`${formatINR(waitingSum)} submitted — waiting for the committee to verify`);
-  if (currentMembership && currentMembership.outstanding > 0) notes.push(`Membership fee ${formatINR(currentMembership.outstanding)} is also pending`);
-  el.innerHTML = `
-    <div class="dues-hero">
-      <div class="dh-main">
-        <div class="dh-lbl">${owes ? 'Maintenance due' : 'Maintenance'} &middot; FY ${escapeHtml(financialYear)}</div>
-        <div class="dh-amt ${owes ? '' : 'is-clear'}">${owes ? formatINR(dues.outstanding) : 'All paid &#10003;'}</div>
-        <span class="badge ${DUES_BADGE[dues.status]}">${escapeHtml(DUES_LABEL[dues.status])}</span>
-        ${notes.map((n) => `<div class="dh-note">${escapeHtml(n)}</div>`).join('')}
-      </div>
-      ${owes ? '<button type="button" class="btn btn-primary" id="duesPayNowBtn">Pay Now</button>' : ''}
+  const modeLabel = (p) => `${p.type === 'membership' ? 'Membership' : p.type === 'event' ? 'Event' : 'Maintenance'} &middot; ${escapeHtml(String(p.mode || '').toUpperCase())}`;
+  let html;
+  let latest = null;
+
+  const isMaint = (p) => !p.type || p.type === 'maintenance';
+  const waitMaint = waiting.filter(isMaint);
+  const waitOther = waiting.filter((p) => !isMaint(p));
+  if (waitMaint.length || (!owes && waiting.length)) {
+    /* A payment is with the committee: show where it stands rather than a
+       second "Pay Now" for money that is already on its way. */
+    const sum = waiting.reduce((t, p) => t + (Number(p.amount) || 0), 0);
+    const first = waiting[0];
+    const left = Math.max(0, (Number(dues.outstanding) || 0) - waitMaint.reduce((t, p) => t + (Number(p.amount) || 0), 0));
+    html = `
+    <div class="dues-hero dh-verify">
+      <div class="dh-top"><span class="dh-lbl">Your payment</span><span class="badge badge-warning">Being verified</span></div>
+      <div class="dh-amt">${formatINR(sum)}<small>${waiting.length > 1 ? `${waiting.length} payments` : modeLabel(first)}</small></div>
+      <ol class="dh-steps">
+        <li class="is-done"><div class="dh-rail"><span class="dh-dot">${tick}</span><span class="dh-line"></span></div>
+          <div class="dh-txt"><div class="dh-t">Submitted</div><div class="dh-s">You sent the Transaction ID</div></div></li>
+        <li class="is-now"><div class="dh-rail"><span class="dh-dot"></span><span class="dh-line"></span></div>
+          <div class="dh-txt"><div class="dh-t">Committee is checking</div><div class="dh-s">We match it with the bank record</div></div></li>
+        <li class="is-todo"><div class="dh-rail"><span class="dh-dot"></span></div>
+          <div class="dh-txt"><div class="dh-t">Receipt issued</div><div class="dh-s">A QR-sealed receipt appears here</div></div></li>
+      </ol>
+      ${left > 0 ? `<div class="dh-rest"><span>Still due after this</span><b>${formatINR(left)}</b></div>
+      <button type="button" class="btn btn-outline" id="duesPayNowBtn">Pay the remaining ${formatINR(left)}</button>` : ''}
     </div>`;
+  } else if (owes) {
+    html = `
+    <div class="dues-hero dh-due">
+      <div class="dh-top"><span class="dh-lblrow"><span class="dh-ico">${icon('rupee')}</span><span class="dh-lbl">Maintenance due &middot; FY ${fy}</span></span><span class="badge ${DUES_BADGE[dues.status]}">${escapeHtml(DUES_LABEL[dues.status])}</span></div>
+      <div class="dh-amt">${formatINR(dues.outstanding)}</div>
+      ${(window.__latestReminderMs && Date.now() - window.__latestReminderMs < 7 * 86400000) ? `<div class="dh-note">Reminder from the committee &middot; ${fmtRelativeTime(window.__latestReminderMs)}</div>` : ''}
+      ${waitOther.length ? `<div class="dh-note">${formatINR(waitOther.reduce((t, p) => t + (Number(p.amount) || 0), 0))} submitted — waiting for the committee to verify</div>` : ''}
+      ${memberNote}
+      <button type="button" class="btn btn-primary" id="duesPayNowBtn">Pay Now</button>
+      <div class="dh-office">Or pay cash / cheque at the RWA office</div>
+    </div>`;
+  } else {
+    latest = (allPaymentRows || []).find((p) => p.status === 'verified' && p.receiptNumber) || null;
+    html = `
+    <div class="dues-hero dh-clear">
+      <div class="dh-ok"><span class="dh-tick">${tick}</span>
+        <div><div class="dh-ok-t">All paid &mdash; thank you</div><div class="dh-ok-s">Maintenance for FY ${fy} is cleared</div></div></div>
+      ${memberNote}
+      ${latest ? `
+      <div class="dh-rcpt">
+        <div class="dh-rcpt-top"><span class="dh-lbl">Latest receipt</span><span>${escapeHtml(latest.receiptNumber)}</span></div>
+        <div class="dh-rcpt-row"><span class="dh-rcpt-amt">${formatINR(latest.amount)}</span><span class="dh-rcpt-what">${modeLabel(latest)} &middot; ${fmtDate(latest.submittedAt)}</span></div>
+        <div class="dh-rcpt-act">
+          <button type="button" class="btn btn-primary" id="duesReceiptBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11m0 0l-4-4m4 4l4-4M5 19h14"/></svg>Download receipt</button>
+          <a class="btn btn-outline dh-share" id="duesShareBtn" target="_blank" rel="noopener" aria-label="Share receipt on WhatsApp" href="${waShareText(`Receipt ${latest.receiptNumber} — ${formatINR(latest.amount)} paid to ${SOCIETY.fullName}. Verify: ${verifyUrlFor(latest)}`)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v10M8 8l4-4 4 4M5 13v6h14v-6"/></svg></a>
+        </div>
+      </div>` : ''}
+    </div>`;
+  }
+  el.innerHTML = html;
   document.getElementById('duesPayNowBtn')?.addEventListener('click', openPaymentModal);
+  const rb = document.getElementById('duesReceiptBtn');
+  if (rb && latest) rb.addEventListener('click', () => {
+    // The Payments screen owns receipt creation; reuse its button for this payment.
+    const b = document.querySelector(`[data-receipt-id="${latest.id}"]`);
+    if (b) b.click(); else showToast('Open Payments to download this receipt.', 'info');
+  });
   window.__translate?.(el);
 }
 
@@ -5372,12 +5408,6 @@ function renderDues(dues, financialYear) {
         <div><span class="lbl">Total Due</span><b>${formatINR(dues.expected)}</b></div>
         <div><span class="lbl">Paid</span><b>${formatINR(dues.paid)}</b></div>
         <div><span class="lbl">Balance</span><b class="${dues.outstanding > 0 ? 't-danger' : 't-success'}">${formatINR(dues.outstanding)}</b></div>
-      </div>
-      <div class="dues-bar-wrap">
-        <div class="dues-bar-head"><span>Progress</span><span>${pct}% &middot; ${formatINR(dues.paid)} / ${formatINR(dues.expected)}</span></div>
-        <div class="dues-bar" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100">
-          <span class="is-${escapeHtml(dues.status)}" style="width:${pct}%"></span>
-        </div>
       </div>
     </div>`;
   window.__translate?.(el);
@@ -5470,6 +5500,15 @@ async function loadPayments(uid, preserveShowCount) {
   const nodeClass = (s) => s === 'verified' ? 'is-verified'
     : s === 'rejected' ? 'is-rejected' : 'is-pending';
 
+  // Submitted → Verified → Receipt, so a resident can see where THIS payment is
+  // without asking the committee.
+  const stepsHtml = (p) => {
+    const st = paymentSteps(p);
+    return `<div class="pay-steps" role="img" aria-label="${escapeHtml(st.map((x) => `${x.label}: ${x.state === 'done' ? 'done' : x.state === 'current' ? 'in progress' : x.state === 'bad' ? 'stopped' : 'not yet'}`).join(', '))}">`
+      + st.map((x, i) => `${i ? `<span class="ps-line ${st[i - 1].state === 'done' ? 'done' : ''}"></span>` : ''}<span class="ps ${x.state}"><span class="ps-dot"></span>${escapeHtml(x.label)}</span>`).join('')
+      + `</div>`;
+  };
+
   list.innerHTML = `<ul class="pay-timeline">` + listRows.map(p => `
     <li class="tl-item">
       <span class="tl-node ${nodeClass(p.status)}"></span>
@@ -5487,9 +5526,10 @@ async function loadPayments(uid, preserveShowCount) {
               <button class="btn btn-ghost btn-sm" data-print-id="${p.id}">Print</button>
             </div>
           ` : ''}
-          ${p.status === 'rejected' && p.rejectionReason ? `<div class="t-danger" style="font-size:11.5px; max-width:180px;">${escapeHtml(p.rejectionReason)}</div>` : ''}
+          ${p.status === 'rejected' && p.rejectionReason ? `<div class="t-danger" style="font-size:12.5px; max-width:180px;">${escapeHtml(p.rejectionReason)}</div>` : ''}
         </div>
       </div>
+      ${stepsHtml(p)}
     </li>
   `).join('') + `</ul>`;
 
@@ -5713,7 +5753,7 @@ async function openPaymentModal() {
     ${typeToggle}
     <div class="pay-option" data-mode="cash"><svg viewBox="0 0 24 24"><use href="#i-cash"/></svg><div><b>Cash</b><div class="t-muted" style="font-size:12.5px;">Visit the RWA office</div></div></div>
     <div class="pay-option" data-mode="cheque"><svg viewBox="0 0 24 24"><use href="#i-cheque"/></svg><div><b>Cheque</b><div class="t-muted" style="font-size:12.5px;">Visit the RWA office</div></div></div>
-    <div class="pay-option" data-mode="upi"><svg viewBox="0 0 24 24"><use href="#i-qr"/></svg><div><b>UPI / QR Scan</b><div class="t-muted" style="font-size:12.5px;">Pay instantly from your phone</div></div></div>
+    <div class="pay-option" data-mode="upi"><svg viewBox="0 0 24 24"><use href="#ic-qr"/></svg><div><b>UPI / QR Scan</b><div class="t-muted" style="font-size:12.5px;">Pay instantly from your phone</div></div></div>
     <div class="pay-option" data-mode="netbanking"><svg viewBox="0 0 24 24"><use href="#i-bank"/></svg><div><b>Net Banking / Transfer</b><div class="t-muted" style="font-size:12.5px;">NEFT / IMPS to society account</div></div></div>
     <div id="payDetailForm"></div>`}
   `;
@@ -5775,6 +5815,22 @@ function renderPayDetailForm(mode, paySettings, payContext) {
   window.__payEventId = payContext.eventId || null;
   window.__payEventName = payContext.eventName || null;
   window.__payEventFY = payContext.eventFY || null;
+  // "Pay with my UPI app": only for UPI on a phone, and only when the society has a valid UPI ID.
+  // Desktop browsers cannot open UPI links, so they keep the QR below.
+  const upiPlat = upiPlatform(navigator.userAgent);
+  const canLaunchUpi = mode === 'upi' && upiPlat !== 'other' && isValidUpiId(paySettings.upiId);
+  const upiLaunchHtml = canLaunchUpi ? `
+    <div class="upi-launch" id="upiLaunchBox">
+      ${upiPlat === 'android'
+        ? `<button type="button" class="btn btn-primary btn-block" id="upiPayBtn" data-upi="generic">Pay with my UPI app</button>`
+        : `<div class="upi-ios-row">
+             <button type="button" class="btn btn-primary" data-upi="gpay">Google Pay</button>
+             <button type="button" class="btn btn-primary" data-upi="phonepe">PhonePe</button>
+             <button type="button" class="btn btn-primary" data-upi="paytm">Paytm</button>
+           </div>`}
+      <div class="hint">Your UPI app opens with the amount already filled in. After paying, come back here and enter the Transaction ID below.</div>
+      <div class="upi-note" id="upiLaunchNote" hidden></div>
+    </div>` : '';
   holder.innerHTML = `
     <div style="margin-top:18px; border-top:1px solid var(--line); padding-top:18px;">
       ${isOffline ? `
@@ -5802,7 +5858,7 @@ function renderPayDetailForm(mode, paySettings, payContext) {
       `}
       <div class="amount-block">
         ${dues.outstanding > 0 && payContext.type !== 'membership' ? `
-          <label style="display:block; font-size:11px; font-family:var(--font-mono); letter-spacing:.06em; text-transform:uppercase; color:var(--ink-400); margin-bottom:8px;">How much would you like to pay?</label>
+          <label style="display:block; font-size:12px; font-family:var(--font-mono); letter-spacing:.06em; text-transform:uppercase; color:var(--ink-400); margin-bottom:8px;">How much would you like to pay?</label>
           <div class="amount-presets">
             <button type="button" class="amount-preset selected" data-preset="full" data-amt="${dues.outstanding}">
               <div class="pa-top">Full amount due</div>
@@ -5825,6 +5881,7 @@ function renderPayDetailForm(mode, paySettings, payContext) {
             : (hasRate ? `<div class="hint">Maintenance is fully cleared for this year. You can pay in advance or make another payment.</div>` : '')}
         </div>
       </div>
+      ${upiLaunchHtml}
       ${!isOffline ? `<div class="field">
         <label for="payUtr">UTR / Transaction ID</label>
         <input id="payUtr" required autocapitalize="characters">
@@ -5855,6 +5912,43 @@ function renderPayDetailForm(mode, paySettings, payContext) {
 
   window.__translate(holder);
   document.getElementById('submitPaymentBtn').addEventListener('click', () => submitPayment(mode));
+
+  if (canLaunchUpi) {
+    const note = document.getElementById('upiLaunchNote');
+    const showNote = (text) => { note.textContent = text; note.hidden = false; window.__translate?.(note); };
+    let launchedAt = 0, leftPage = false;
+    const onHide = () => { if (document.visibilityState === 'hidden') leftPage = true; };
+    // Back from the UPI app: point the person straight at the Transaction ID field.
+    const onShow = () => {
+      if (document.visibilityState !== 'visible' || !launchedAt || !leftPage) return;
+      if (Date.now() - launchedAt > 30 * 60 * 1000) return;
+      launchedAt = 0;
+      showNote('Back from your UPI app? If the payment went through, enter its Transaction ID (UTR) below and tap "I Have Paid".');
+      const utr = document.getElementById('payUtr');
+      if (utr) { utr.scrollIntoView({ behavior: 'smooth', block: 'center' }); setTimeout(() => utr.focus({ preventScroll: true }), 400); }
+    };
+    window.__upiCleanup?.();   // the form is re-rendered when the payment type changes — don't stack listeners
+    document.addEventListener('visibilitychange', onHide);
+    document.addEventListener('visibilitychange', onShow);
+    window.__upiCleanup = () => { document.removeEventListener('visibilitychange', onHide); document.removeEventListener('visibilitychange', onShow); };
+    document.getElementById('upiLaunchBox').querySelectorAll('[data-upi]').forEach((btn) => btn.addEventListener('click', () => {
+      const amount = Number(document.getElementById('payAmount')?.value);
+      const links = buildUpiLinks({
+        vpa: paySettings.upiId, name: paySettings.accountName || SOCIETY.shortName, amount,
+        note: upiNote({ shortName: SOCIETY.shortName, type: payContext.type, tower: currentMember?.tower, flat: currentMember?.flatNumber })
+      });
+      if (!links) { showToast('Enter a valid amount first (up to ₹1,00,000).', 'error'); return; }
+      launchedAt = Date.now(); leftPage = false;
+      (window.__openUpi || ((u) => { window.location.href = u; }))(links[btn.dataset.upi]);   // __openUpi: test hook
+      // If nothing took over the screen, there is no UPI app that understood the link.
+      setTimeout(() => {
+        if (!leftPage && document.visibilityState === 'visible' && launchedAt) {
+          launchedAt = 0;
+          showNote('Did not open? Use the QR below, or copy the UPI ID and pay from any UPI app.');
+        }
+      }, 2500);
+    }));
+  }
 
   // Let the resident save the society's QR to their phone — useful if they
   // want to scan it from a different device, or pay later while offline.
@@ -6115,6 +6209,13 @@ const CAL_TYPE_ICON = { festival: '🎉', meeting: '🗓️', maintenance: '🔧
 // that silently breaks because an index was never created in the Console.
 // The list a resident cares about is small enough that client-side
 // filtering costs nothing worth optimizing away.
+// A section with nothing to show (no events, no polls, no documents) stays hidden instead of
+// taking a whole card to say "nothing yet". It appears as soon as there is something — or an
+// error, which should never be hidden.
+function showSection(id, visible) {
+  const sec = document.getElementById(id);
+  if (sec) sec.style.display = visible ? '' : 'none';
+}
 async function loadCalendar() {
   const el = document.getElementById('calendarList');
   if (el && !el.dataset.loaded) el.innerHTML = skeletonList(2);
@@ -6128,6 +6229,7 @@ async function loadCalendar() {
     renderCalendar();
   } catch (e) {
     window.__calendarEntries = null;
+    showSection('societyCalendar', true);
     el.innerHTML = emptyState('Could not load the calendar', 'Check your connection and refresh the page.', { compact: true });
     window.__translate(el);
   }
@@ -6137,10 +6239,10 @@ function renderCalendar() {
   el.dataset.loaded = '1';
   const rows = window.__calendarEntries;
   if (!rows || !rows.length) {
-    el.innerHTML = emptyState('Nothing coming up yet', 'New events, maintenance work, and meetings will appear here.', { compact: true });
-    window.__translate(el);
+    showSection('societyCalendar', false);
     return;
   }
+  showSection('societyCalendar', true);
   const lang = document.documentElement.lang === 'hi' ? 'hi' : 'en';
   el.innerHTML = rows.map(c => {
     const d = new Date(c.date);
@@ -6171,21 +6273,38 @@ async function loadPolls() {
   const el = document.getElementById('pollsList');
   if (el && !el.dataset.loaded) el.innerHTML = skeletonList(2);
   try {
-    const rows = (await getDocs(collection(db, 'polls'))).docs.map(d => ({ id: d.id, ...d.data() }));
+    // A poll document missing its options (hand-edited in the console, say) would
+    // otherwise throw while drawing and blank EVERY poll — skip it instead.
+    const rows = (await getDocs(collection(db, 'polls'))).docs.map(d => ({ id: d.id, ...d.data() }))
+      .filter(p => p.question && Array.isArray(p.options) && p.options.length >= 2);
     const now = new Date();
-    window.__activePolls = rows.filter(p => {
-      const start = p.startTime?.toDate ? p.startTime.toDate() : new Date(p.startTime);
-      const end = p.endTime?.toDate ? p.endTime.toDate() : new Date(p.endTime);
-      return now >= start && now <= end;
+    const span = (p) => ({
+      start: p.startTime?.toDate ? p.startTime.toDate() : new Date(p.startTime),
+      end: p.endTime?.toDate ? p.endTime.toDate() : new Date(p.endTime)
     });
+    window.__activePolls = rows.filter(p => { const { start, end } = span(p); return now >= start && now <= end; });
+    // Residents keep seeing the FINAL result for 60 days after a poll closes —
+    // before v167 a poll simply vanished the moment voting ended, so nobody
+    // outside the committee ever learned the outcome.
+    window.__closedPolls = rows
+      .filter(p => { const { start, end } = span(p); return now >= start && now > end && now - end < 60 * 86400000; })
+      .sort((a, b) => span(b).end - span(a).end);
     await renderPolls();
   } catch (e) {
     window.__activePolls = null;
+    showSection('activePolls', true);
     el.innerHTML = emptyState('Could not load polls', 'Check your connection and refresh the page.', { compact: true });
     window.__translate(el);
   }
 }
-async function renderPollResults(pollId, poll, box) {
+// How many flats have voted — one aggregate read, not 454 document reads.
+async function flatsVotedCount(pollId) {
+  try { return (await getCountFromServer(collection(db, 'polls', pollId, 'flatVotes'))).data().count; }
+  catch (_) {
+    try { return (await getDocs(collection(db, 'polls', pollId, 'flatVotes'))).size; } catch (__) { return null; }
+  }
+}
+async function renderPollResults(pollId, poll, box, closed = false) {
   box.innerHTML = '<p class="t-muted" style="font-size:12px;">Loading…</p>';
   try {
     const tallyDocs = (await getDocs(collection(db, 'polls', pollId, 'tally'))).docs;
@@ -6194,39 +6313,54 @@ async function renderPollResults(pollId, poll, box) {
       const idx = Number(d.id);
       if (idx >= 0 && idx < counts.length) counts[idx] = d.data().count || 0;
     });
-    const total = counts.reduce((a, b) => a + b, 0);
+    const t = pollTally(poll.options, counts);
+    const total = t.total;
+    // Turnout by flat — best effort, and only for the signed-in approved
+    // members the rules let read it. Never blocks the result itself.
+    let flatsLine = '';
+    if (poll.perFlat && currentUser && currentMember?.status === 'approved') {
+      const n = await flatsVotedCount(pollId);
+      if (n != null) flatsLine = ` · ${n} flat${n === 1 ? '' : 's'} voted`;
+    }
+    const verdict = !closed || !total ? '' : t.tie
+      ? `<div class="poll-verdict tie">Tie — ${t.leaders.map((i) => escapeHtml(poll.options[i])).join(' and ')}</div>`
+      : `<div class="poll-verdict">Result: <b>${escapeHtml(poll.options[t.leaders[0]])}</b></div>`;
     box.innerHTML = `
-      <div class="t-muted" style="font-size:11.5px; margin-bottom:6px;">${total} vote${total === 1 ? '' : 's'} so far</div>
-      ${poll.options.map((o, i) => {
-        const pct = total ? Math.round((counts[i] / total) * 100) : 0;
+      ${verdict}
+      <div class="t-muted" style="font-size:12.5px; margin-bottom:6px;">${total} vote${total === 1 ? '' : 's'} ${closed ? 'in total' : 'so far'}${flatsLine}</div>
+      ${t.rows.map((r, i) => {
+        const win = closed && t.leaders.includes(i);
         return `<div style="margin-bottom:6px;">
-          <div class="spread" style="font-size:12.5px; margin-bottom:2px;"><span>${escapeHtml(o)}</span><span class="mono">${counts[i]} · ${pct}%</span></div>
-          <div style="height:6px; background:#eee; border-radius:4px; overflow:hidden;"><div style="height:100%; width:${pct}%; background:var(--gold-500,#C9A227);"></div></div>
+          <div class="spread" style="font-size:12.5px; margin-bottom:2px;"><span${win ? ' style="font-weight:700;"' : ''}>${escapeHtml(r.option)}</span><span class="mono">${r.count} · ${r.pct}%</span></div>
+          <div style="height:6px; background:#eee; border-radius:4px; overflow:hidden;"><div style="height:100%; width:${r.pct}%; background:${win ? 'var(--green-700,#1E7B46)' : 'var(--gold-500,#C9A227)'};"></div></div>
         </div>`;
       }).join('')}
     `;
+    window.__translate(box);
   } catch (e) {
     // Used to blank the box — indistinguishable from "no results yet", with
     // no hint anything had gone wrong. Say so, and offer a retry.
     console.warn('Poll results load failed:', e?.code || e);
     box.innerHTML = `<p class="t-muted" style="font-size:12px;">Couldn't load the results. <button type="button" class="btn btn-outline btn-sm" data-poll-results-retry>Retry</button></p>`;
-    box.querySelector('[data-poll-results-retry]')?.addEventListener('click', () => renderPollResults(pollId, poll, box));
+    box.querySelector('[data-poll-results-retry]')?.addEventListener('click', () => renderPollResults(pollId, poll, box, closed));
   }
 }
 async function renderPolls() {
   const el = document.getElementById('pollsList');
   el.dataset.loaded = '1';
   const polls = window.__activePolls;
-  if (!polls || !polls.length) {
-    el.innerHTML = emptyState('No active polls right now', 'New polls will appear here.', { compact: true });
-    window.__translate(el);
+  const closedPolls = window.__closedPolls || [];
+  if ((!polls || !polls.length) && !closedPolls.length) {
+    showSection('activePolls', false);
     return;
   }
+  showSection('activePolls', true);
 
+  const myFlat = currentMember ? pollFlatId(currentMember.tower, currentMember.flatNumber) : null;
   // For each active poll, quietly check whether the signed-in resident has
   // already voted, so the right UI (vote buttons vs results) shows on first
   // paint instead of flickering from one to the other.
-  const items = await Promise.all(polls.map(async (p) => {
+  const items = await Promise.all((polls || []).map(async (p) => {
     if (!currentUser) return { poll: p, hasVoted: false, myOption: null, loggedOut: true };
     if (currentMember?.status !== 'approved') {
       // Not-yet-known is not the same as not-approved: during the login-time
@@ -6236,7 +6370,13 @@ async function renderPolls() {
     }
     try {
       const voteSnap = await getDoc(doc(db, 'polls', p.id, 'votes', currentUser.uid));
-      return { poll: p, hasVoted: voteSnap.exists(), myOption: voteSnap.exists() ? voteSnap.data().option : null };
+      if (voteSnap.exists()) return { poll: p, hasVoted: true, myOption: voteSnap.data().option };
+      // One vote per FLAT: somebody else in this household may already have voted.
+      if (p.perFlat && myFlat) {
+        const flatSnap = await getDoc(doc(db, 'polls', p.id, 'flatVotes', myFlat));
+        if (flatSnap.exists()) return { poll: p, hasVoted: false, myOption: null, flatVoted: true };
+      }
+      return { poll: p, hasVoted: false, myOption: null };
     } catch (e) {
       // Can't tell whether they've voted. Guessing "not voted" would show an
       // existing voter fresh vote buttons (the rules would reject a repeat,
@@ -6246,44 +6386,81 @@ async function renderPolls() {
     }
   }));
 
-  el.innerHTML = items.map(({ poll, hasVoted, myOption, loggedOut, notApproved, lookupFailed, checkingMember }) => {
+  const pollEndMs = (poll) => (poll.endTime?.toDate ? poll.endTime.toDate() : new Date(poll.endTime)).getTime();
+  const chipFor = (poll) => {
+    const tl = pollTimeLeft(pollEndMs(poll));
+    return tl.label ? `<span class="badge ${tl.urgent ? 'badge-warning' : 'badge-neutral'} poll-chip">${tl.label}</span>` : '';
+  };
+  const turnoutSlot = (poll) => (poll.perFlat && currentUser && currentMember?.status === 'approved') ? `<div class="poll-turnout-res" data-turnout-for="${poll.id}"></div>` : '';
+  const head = (poll, badge = '') => `<div class="spread" style="align-items:flex-start; gap:10px; margin-bottom:6px;"><h4 style="margin:0;">${escapeHtml(poll.question)}</h4>${badge}</div>
+        ${poll.description ? `<p class="t-muted" style="font-size:12.5px; margin-bottom:8px; white-space:pre-line;">${escapeHtml(poll.description)}</p>` : ''}`;
+  const flatNote = (poll) => poll.perFlat ? `<p class="t-muted" style="font-size:12.5px; margin-bottom:8px;">One vote per flat${myFlat ? ` (${escapeHtml(currentMember.tower)}-${escapeHtml(currentMember.flatNumber)})` : ''}. A vote is final.</p>` : '';
+  const endsNote = (poll) => {
+    const end = poll.endTime?.toDate ? poll.endTime.toDate() : new Date(poll.endTime);
+    return `<p class="t-muted" style="font-size:12.5px; margin-top:6px;">Voting closes ${fmtDate({ toDate: () => end })}</p>`;
+  };
+
+  const activeHtml = items.map(({ poll, hasVoted, myOption, loggedOut, notApproved, lookupFailed, checkingMember, flatVoted }) => {
     if (checkingMember) {
       return `<div class="card card-pad" style="margin-bottom:14px;">
-        <h4 style="margin-bottom:6px;">${escapeHtml(poll.question)}</h4>
+        ${head(poll, chipFor(poll))}
         <p class="t-muted" style="font-size:12.5px;">Checking your membership…</p>
       </div>`;
     }
     if (lookupFailed) {
       return `<div class="card card-pad" style="margin-bottom:14px;">
-        <h4 style="margin-bottom:6px;">${escapeHtml(poll.question)}</h4>
+        ${head(poll, chipFor(poll))}
         <p class="t-muted" style="font-size:12.5px; margin-bottom:8px;">Couldn't check whether you've already voted on this poll.</p>
         <button type="button" class="btn btn-outline btn-sm" data-poll-retry>Retry</button>
       </div>`;
     }
     if (loggedOut) {
       return `<div class="card card-pad" style="margin-bottom:14px;">
-        <h4 style="margin-bottom:6px;">${escapeHtml(poll.question)}</h4>
+        ${head(poll, chipFor(poll))}
         <p class="t-muted" style="font-size:12.5px;">Log in to vote.</p>
       </div>`;
     }
     if (notApproved) {
       return `<div class="card card-pad" style="margin-bottom:14px;">
-        <h4 style="margin-bottom:6px;">${escapeHtml(poll.question)}</h4>
+        ${head(poll, chipFor(poll))}
         <p class="t-muted" style="font-size:12.5px;">Voting opens once your membership is approved.</p>
       </div>`;
     }
     if (hasVoted) {
       return `<div class="card card-pad" style="margin-bottom:14px;">
-        <h4 style="margin-bottom:6px;">${escapeHtml(poll.question)}</h4>
-        <p class="t-muted" style="font-size:12.5px; margin-bottom:8px;">You voted: <b>${escapeHtml(myOption)}</b></p>
+        ${head(poll, chipFor(poll))}
+        <p class="vote-done" style="font-size:13.5px; margin-bottom:8px;"><span aria-hidden="true">✓</span> You voted: <b>${escapeHtml(myOption)}</b></p>
+        ${turnoutSlot(poll)}
         <div id="pollResBox-${poll.id}"></div>
+        ${endsNote(poll)}
       </div>`;
     }
-    return `<div class="card card-pad" style="margin-bottom:14px;" data-poll-id="${poll.id}">
-      <h4 style="margin-bottom:10px;">${escapeHtml(poll.question)}</h4>
+    if (flatVoted) {
+      return `<div class="card card-pad" style="margin-bottom:14px;">
+        ${head(poll, chipFor(poll))}
+        <p class="t-muted poll-flat-done" style="font-size:12.5px; margin-bottom:8px;">Someone from your flat has already voted — it is one vote per flat.</p>
+        ${turnoutSlot(poll)}
+        <div id="pollResBox-${poll.id}"></div>
+        ${endsNote(poll)}
+      </div>`;
+    }
+    return `<div class="card card-pad" style="margin-bottom:14px;" data-poll-id="${poll.id}" data-per-flat="${poll.perFlat ? '1' : ''}">
+      ${head(poll, chipFor(poll))}
+      ${flatNote(poll)}
+      ${turnoutSlot(poll)}
       ${poll.options.map((o, i) => `<button type="button" class="btn btn-outline btn-sm poll-vote-btn" data-option="${escapeHtml(o)}" data-option-index="${i}" style="display:block; width:100%; text-align:left; margin-bottom:6px;">${escapeHtml(o)}</button>`).join('')}
+      ${endsNote(poll)}
     </div>`;
   }).join('');
+
+  const closedHtml = closedPolls.length ? `
+    ${activeHtml ? '<div class="eyebrow" style="margin:6px 0 10px;">Recent results</div>' : ''}
+    ${closedPolls.map((poll) => `<div class="card card-pad poll-closed" style="margin-bottom:14px;">
+        ${head(poll, '<span class="badge badge-neutral">Closed</span>')}
+        <div id="pollClosedBox-${poll.id}"></div>
+      </div>`).join('')}` : '';
+
+  el.innerHTML = activeHtml + closedHtml;
   window.__translate(el);
   el.querySelectorAll('[data-poll-retry]').forEach(btn => btn.addEventListener('click', () => renderPolls()));
 
@@ -6291,15 +6468,20 @@ async function renderPolls() {
     btn.addEventListener('click', async () => {
       const card = btn.closest('[data-poll-id]');
       const pollId = card.dataset.pollId;
+      const perFlat = card.dataset.perFlat === '1';
       const option = btn.dataset.option;
       const optionIndex = btn.dataset.optionIndex;
       card.querySelectorAll('.poll-vote-btn').forEach(b => { b.disabled = true; });
       try {
         const voteRef = doc(db, 'polls', pollId, 'votes', currentUser.uid);
         const tallyRef = doc(db, 'polls', pollId, 'tally', optionIndex);
+        const flatRef = perFlat ? doc(db, 'polls', pollId, 'flatVotes', pollFlatId(currentMember.tower, currentMember.flatNumber)) : null;
         await runTransaction(db, async (tx) => {
           const tallySnap = await tx.get(tallyRef);
+          const flatSnap = flatRef ? await tx.get(flatRef) : null;
+          if (flatSnap?.exists()) { const e = new Error('flat-already-voted'); e.code = 'flat-already-voted'; throw e; }
           tx.set(voteRef, { option, votedAt: serverTimestamp() });
+          if (flatRef) tx.set(flatRef, { votedAt: serverTimestamp() });
           if (tallySnap.exists()) tx.update(tallyRef, { count: (tallySnap.data().count || 0) + 1 });
           else tx.set(tallyRef, { count: 1 });
         });
@@ -6308,15 +6490,41 @@ async function renderPolls() {
       } catch (err) {
         console.error('Vote failed:', err);
         const code = err?.code || '';
+        if (code === 'flat-already-voted') {
+          showToast('Someone from your flat has already voted. It is one vote per flat.', 'info');
+          await loadPolls();
+          return;
+        }
+        if (code === 'permission-denied') {
+          // Almost always: voting closed a moment ago, or someone from the flat
+          // voted from another phone. Re-read the poll instead of leaving stale buttons.
+          showToast('Voting may have just closed, or your flat has already voted. Refreshing…', 'info');
+          await loadPolls();
+          return;
+        }
         showToast(`Could not record vote${code ? ` (${code})` : ''}.`, 'error');
         card.querySelectorAll('.poll-vote-btn').forEach(b => { b.disabled = false; });
       }
     });
   });
 
-  items.filter(i => i.hasVoted).forEach(({ poll }) => {
+  // Turnout bar: flats that have voted out of ALL flats in the society.
+  el.querySelectorAll('[data-turnout-for]').forEach(async (slot) => {
+    const n = await flatsVotedCount(slot.dataset.turnoutFor);
+    if (n == null || !slot.isConnected) return;
+    const tot = totalFlats();
+    const pct = tot ? Math.min(100, Math.round((n / tot) * 100)) : 0;
+    const pctTxt = n > 0 && pct === 0 ? '<1%' : `${pct}%`;
+    slot.innerHTML = `<div class="pt-top"><span>${n} of ${tot} flats voted</span><span class="mono">${pctTxt}</span></div><div class="pt-bar"><i style="width:${Math.max(pct, n > 0 ? 2 : 0)}%"></i></div>`;
+    window.__translate(slot);
+  });
+  items.filter(i => i.hasVoted || i.flatVoted).forEach(({ poll }) => {
     const box = document.getElementById(`pollResBox-${poll.id}`);
     if (box) renderPollResults(poll.id, poll, box);
+  });
+  closedPolls.forEach((poll) => {
+    const box = document.getElementById(`pollClosedBox-${poll.id}`);
+    if (box) renderPollResults(poll.id, poll, box, true);
   });
 }
 
@@ -6366,10 +6574,8 @@ async function loadDownloads() {
   try {
     const rows = (await getDocs(query(collection(db, 'documents'), orderBy('addedAt', 'desc'))))
       .docs.map(d => d.data());
-    if (!rows.length) {
-      el.innerHTML = emptyState('No documents yet', 'Bylaws, minutes, and forms will be published here.', { compact: true });
-      window.__translate(el); return;
-    }
+    if (!rows.length) { showSection('downloads', false); return; }
+    showSection('downloads', true);
     // The card itself OPENS the file (a new tab / the device's viewer); the
     // download icon is its own button that actually downloads it. The icon
     // used to sit inside the same link, so it promised a download and only
@@ -6378,19 +6584,20 @@ async function loadDownloads() {
     el.innerHTML = '<div class="doc-grid">' + rows.map(d => `
       <div class="doc-item">
         <a class="doc-main" href="${escapeHtml(d.url)}" target="_blank" rel="noopener" aria-label="Open ${escapeHtml(d.title)}">
-          <span class="doc-icon"><svg viewBox="0 0 24 24"><use href="#i-file"/></svg></span>
+          <span class="doc-icon"><svg viewBox="0 0 24 24"><use href="#ic-file"/></svg></span>
           <span class="doc-meta">
             <span class="nm">${escapeHtml(d.title)}</span>
             <span class="sub">${escapeHtml(d.category || 'Document')}${d.addedAt ? ' &middot; ' + fmtDate(d.addedAt) : ''}</span>
           </span>
         </a>
         <button type="button" class="go doc-download" data-url="${escapeHtml(d.url)}" data-title="${escapeHtml(d.title)}" aria-label="Download ${escapeHtml(d.title)}" title="Download">
-          <svg viewBox="0 0 24 24"><use href="#i-download"/></svg>
+          <svg viewBox="0 0 24 24"><use href="#ic-download"/></svg>
         </button>
       </div>`).join('') + '</div>';
     el.querySelectorAll('.doc-download').forEach(btn => btn.addEventListener('click', () => downloadDocument(btn)));
     window.__translate(el);
   } catch (e) {
+    showSection('downloads', true);
     el.innerHTML = emptyState('Could not load documents', 'Please try again in a little while.', { compact: true });
     window.__translate(el);
   }
@@ -6411,53 +6618,18 @@ async function loadSettingsPublic() {
     const s = societySnap.exists() ? societySnap.data() : {};
     document.getElementById('contactDetails').innerHTML = `
       <h3 style="font-size:16.5px; margin-bottom:14px;">${escapeHtml(s.name || SOCIETY.fullName)}</h3>
-      <div class="contact-line"><svg viewBox="0 0 24 24"><use href="#i-pin"/></svg><span>${escapeHtml(s.address || 'Address not configured yet — set it from the Admin Panel.')}</span></div>
+      <div class="contact-line"><svg viewBox="0 0 24 24"><use href="#ic-pin"/></svg><span>${escapeHtml(s.address || 'Address not configured yet — set it from the Admin Panel.')}</span></div>
       <div class="contact-line">${s.contactPhone ? `<svg viewBox="0 0 24 24"><use href="#i-tel"/></svg><a href="tel:${escapeHtml(s.contactPhone.replace(/\s+/g, ''))}" style="color:inherit; text-decoration:underline;">${escapeHtml(s.contactPhone)}</a>` : `<svg viewBox="0 0 24 24"><use href="#i-tel"/></svg><span>—</span>`}</div>
-      <div class="contact-line">${s.contactEmail ? `<svg viewBox="0 0 24 24"><use href="#i-mail"/></svg><a href="mailto:${escapeHtml(s.contactEmail)}" style="color:inherit; text-decoration:underline;">${escapeHtml(s.contactEmail)}</a>` : `<svg viewBox="0 0 24 24"><use href="#i-mail"/></svg><span>—</span>`}</div>
-      <div class="contact-line"><svg viewBox="0 0 24 24"><use href="#i-shield"/></svg><span>Reg. No: ${escapeHtml(s.regNumber || '—')}</span></div>
+      <div class="contact-line">${s.contactEmail ? `<svg viewBox="0 0 24 24"><use href="#ic-mail"/></svg><a href="mailto:${escapeHtml(s.contactEmail)}" style="color:inherit; text-decoration:underline;">${escapeHtml(s.contactEmail)}</a>` : `<svg viewBox="0 0 24 24"><use href="#ic-mail"/></svg><span>—</span>`}</div>
+      <div class="contact-line"><svg viewBox="0 0 24 24"><use href="#ic-shield"/></svg><span>Reg. No: ${escapeHtml(s.regNumber || '—')}</span></div>
       <div class="contact-line" style="margin-top:10px; padding-top:10px; border-top:1px dashed rgba(10,27,51,.12);">
-        <svg viewBox="0 0 24 24" style="color:var(--danger,#C0392B);"><use href="#i-alert"/></svg>
+        <svg viewBox="0 0 24 24" style="color:var(--danger,#C0392B);"><use href="#ic-alert"/></svg>
         <span>Emergency: <a href="tel:112" style="color:inherit; text-decoration:underline; font-weight:600;">112</a>${s.contactPhone ? ` &nbsp;•&nbsp; RWA Office: <a href="tel:${escapeHtml(s.contactPhone.replace(/\s+/g, ''))}" style="color:inherit; text-decoration:underline; font-weight:600;">${escapeHtml(s.contactPhone)}</a>` : ''}</span>
       </div>
     `;
     window.__translate(document.getElementById('contactDetails'));
     if (s.address) document.getElementById('mapFrame').src = `https://www.google.com/maps?q=${encodeURIComponent(s.address)}&output=embed`;
   } catch (e) {}
-
-  try {
-    // This runs before login, so only settings/payment (public) is fetched
-    // here — settings/paymentPrivate correctly rejects an anonymous read
-    // under the new rules, and account number / IFSC / branch have no
-    // business being visible to a visitor who hasn't even registered yet.
-    // A resident who's actually paying gets the complete picture inside the
-    // signed-in payment modal, which does read paymentPrivate.
-    const paySnap = await getDoc(doc(db, 'settings', 'payment'));
-    const p = paymentDetails(paySnap.exists() ? paySnap.data() : {});
-    document.getElementById('miniPaySettings').innerHTML = `
-      ${p.upiId ? `<div class="pay-line"><span>UPI ID</span><span>${escapeHtml(p.upiId)}</span></div>` : ''}
-      <div class="pay-line"><span>A/C Holder</span><span>${escapeHtml(p.accountName || '—')}</span></div>
-      <div class="pay-line"><span>Bank</span><span>${escapeHtml(p.bankName || '—')}</span></div>
-      ${p.officeAddress ? `<div class="pay-line"><span>Office</span><span>${escapeHtml(p.officeAddress)}</span></div>` : ''}
-      <div class="pay-line t-muted" style="font-size:12px;"><span>Full account number, IFSC &amp; branch</span><span>Visible after login</span></div>
-    `;
-    window.__translate(document.getElementById('miniPaySettings'));
-  } catch (e) {}
-}
-
-/* The real member-count looks discouraging before the community has
-   finished onboarding ("0 Registered Members" reads as "nobody's here" to
-   a first-time visitor, not as "we just launched"). The building's actual
-   size, by contrast, is never zero and needs no live data — it's the same
-   TOWER_PLAN the registration form's own dropdowns are built from, so
-   there's nothing here to keep in sync by hand if a tower is ever added. */
-function loadStats() {
-  const totalFlats = TOWER_IDS.reduce((sum, t) => sum + flatsForTower(t).reduce((floorSum, f) => floorSum + f.flats.length, 0), 0);
-  const memberEl = document.getElementById('statMembers');
-  const towerEl = document.getElementById('statTowers');
-  memberEl.textContent = totalFlats;
-  towerEl.textContent = TOWER_IDS.length;
-  window.__animateCount?.(memberEl);
-  window.__animateCount?.(towerEl);
 }
 
 loadNotices();
@@ -6466,7 +6638,6 @@ loadPolls();
 loadDownloads();
 loadCommittee();
 loadSettingsPublic();
-loadStats();
 
 </script>
 </body>

@@ -17,8 +17,9 @@
   base-uri 'self';
   form-action 'self';
 ">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Gate App — MHMRWS</title>
+<script>try{if(localStorage.getItem('mhmrws-text-size')==='large')document.documentElement.dataset.textSize='large';}catch(e){}</script>
 <meta name="theme-color" content="#0A1B33">
 <link rel="icon" href="favicon-32.png">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -37,65 +38,120 @@
      daylight, tapped by someone who does not have a spare hand for
      precision. Dark, high-contrast, big touch targets, nothing else. */
   *{ box-sizing:border-box; }
-  html,body{ margin:0; min-height:100vh; background:var(--navy-950); color:#fff; font-family:'Inter',system-ui,-apple-system,sans-serif; -webkit-tap-highlight-color:transparent; }
-  .screen{ display:none; min-height:100vh; }
+  html,body{ margin:0; min-height:calc(100 * var(--vh1)); background:var(--navy-950); color:#fff; font-family:'Inter',system-ui,-apple-system,sans-serif; -webkit-tap-highlight-color:transparent; }
+  .screen{ display:none; min-height:calc(100 * var(--vh1)); }
   .screen.active{ display:flex; flex-direction:column; }
 
   /* ---- Login ---- */
-  #screen-login{ align-items:center; justify-content:center; padding:24px; }
-  .login-card{ width:100%; max-width:340px; background:var(--navy-900); border:1px solid rgba(255,255,255,.08); border-radius:18px; padding:28px 24px; text-align:center; }
-  .login-card img{ height:44px; margin-bottom:14px; }
-  .login-card h1{ font-size:17px; margin:0 0 4px; }
-  .login-card p{ font-size:12.5px; color:rgba(255,255,255,.55); margin:0 0 20px; }
+  #screen-login{ padding:0; }
+  .login-card{ width:100%; text-align:left; }
   .login-field{ text-align:left; margin-bottom:14px; }
-  .login-field label{ display:block; font-size:12px; color:rgba(255,255,255,.6); margin-bottom:5px; }
-  .login-field input{ width:100%; padding:13px 14px; border-radius:10px; border:1px solid rgba(255,255,255,.15); background:rgba(255,255,255,.05); color:#fff; font-size:17px; letter-spacing:.04em; }
-  .login-field input:focus{ outline:none; border-color:var(--gold-500); }
-  #loginError{ display:none; color:#FF8A80; font-size:12.5px; margin-bottom:12px; }
-  .login-card .btn{ width:100%; padding:13px; font-size:15px; }
+  .login-field label{ display:block; font-size:12.5px; font-weight:600; color:#2B3448; margin-bottom:6px; }
+  .login-field input{ width:100%; height:52px; padding:0 14px; border-radius:14px; border:1.5px solid #D9D3C6; background:#fff; color:#10192B; font-size:17px; letter-spacing:.04em; }
+  .login-field input:focus{ outline:none; border-color:var(--saffron-500,#F27B0E); }
+  #loginError{ display:none; color:#B3261E; font-size:12.5px; margin-bottom:12px; }
+  .login-card .btn{ width:100%; height:52px; padding:0 13px; font-size:16px; border-radius:15px; }
 
   /* ---- Main shell ---- */
-  #screen-main .g-header{ display:flex; align-items:center; justify-content:space-between; padding:14px 16px; background:var(--navy-900); border-bottom:1px solid rgba(255,255,255,.08); flex-shrink:0; }
-  #screen-main .g-header .who{ font-size:13px; }
-  #screen-main .g-header .who b{ display:block; font-size:14.5px; }
-  #screen-main .g-header .who span{ color:rgba(255,255,255,.5); font-size:11.5px; }
-  #logoutBtn{ background:rgba(255,255,255,.08); border:none; color:#fff; padding:8px 14px; border-radius:8px; font-size:12.5px; }
+  #screen-main .g-header{ display:flex; align-items:center; gap:12px; padding:16px 16px 20px; background:linear-gradient(170deg,#14305C,#0A1B33 80%); border-radius:0 0 24px 24px; flex-shrink:0; box-shadow:0 8px 24px rgba(0,0,0,.25); }
+  #screen-main .g-header .who{ flex:1; min-width:0; font-size:13px; }
+  #screen-main .g-header .who b{ display:block; font-size:16px; font-family:var(--font-display,Georgia,serif); }
+  #screen-main .g-header .who span{ display:inline-block; margin-top:3px; color:#FFC978; background:rgba(255,201,120,.12); border:1px solid rgba(255,201,120,.28); padding:2px 9px; border-radius:999px; font-size:12px; font-weight:600; }
+  #screen-main .g-header .who span:empty{ display:none; }
+  #logoutBtn{ min-height:40px; background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.14); color:#fff; padding:8px 14px; border-radius:12px; font-size:12.5px; font-weight:600; }
 
+  @media (min-width:900px){
+    #screen-main .g-header{ padding:20px max(28px, calc((100% - 860px) / 2)) 26px; }
+    .g-body{ width:100%; max-width:900px; margin:0 auto; padding:28px; }
+    .purpose-btn{ padding:22px 8px 18px; font-size:14px; }
+  }
   .g-body{ flex:1; overflow-y:auto; padding:16px; padding-bottom:32px; }
 
   .purpose-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-bottom:22px; }
-  .purpose-btn{ background:var(--navy-900); border:1px solid rgba(255,255,255,.08); border-radius:14px; padding:14px 4px; color:#fff; text-align:center; font-size:12px; }
+  .purpose-btn{ background:linear-gradient(180deg,#12294F,#0F2547); border:1px solid rgba(255,255,255,.10); border-radius:18px; padding:16px 4px 13px; color:#fff; text-align:center; font-size:12.5px; font-weight:600; box-shadow:0 6px 16px rgba(0,0,0,.25); }
   .purpose-btn:active{ background:var(--navy-800); }
-  .purpose-btn .ico{ font-size:22px; display:block; margin-bottom:6px; }
+  .purpose-btn .ico{ display:flex; justify-content:center; margin-bottom:6px; }
+  .purpose-btn .ico svg{ width:30px; height:30px; }
+  .purpose-btn .ico{ width:48px; height:48px; margin:0 auto 8px; border-radius:15px; background:rgba(255,201,120,.10); align-items:center; }
 
-  .q-label{ font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:rgba(255,255,255,.45); margin:18px 0 8px; }
+  .q-label{ font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:rgba(255,255,255,.45); margin:18px 0 8px; }
   .q-group:first-of-type .q-label{ margin-top:0; }
-  .q-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; background:var(--navy-900); border-radius:12px; padding:12px 14px; margin-bottom:8px; }
+  .q-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; background:var(--navy-900); border:1px solid rgba(255,255,255,.07); border-left:3px solid #FFC978; border-radius:14px; padding:13px 14px; margin-bottom:9px; }
   .q-row b{ font-size:14px; }
   .q-sub{ font-size:12px; color:rgba(255,255,255,.5); margin-top:2px; }
-  .q-empty{ text-align:center; color:rgba(255,255,255,.4); font-size:13px; padding:40px 0; }
+  /* Pinch-zoom stays on (older guards need it); this stops the double-tap zoom on buttons instead. */
+  button, a, input, select, textarea{ touch-action:manipulation; }
+  .q-empty::before{ content:''; display:block; width:56px; height:56px; margin:0 auto 14px; border-radius:50%; border:1.5px solid rgba(255,201,120,.45); background:rgba(255,201,120,.08); }
+  .q-empty{ text-align:center; color:rgba(255,255,255,.62); font-size:13px; padding:40px 0; }
   .q-row .btn{ flex-shrink:0; padding:8px 14px; font-size:12.5px; }
 
   /* ---- Entry sheet ---- */
   .g-sheet-backdrop{ position:fixed; inset:0; background:rgba(0,0,0,.55); display:none; align-items:flex-end; justify-content:center; z-index:50; }
   .g-sheet-backdrop.open{ display:flex; }
-  .g-sheet{ width:100%; max-width:420px; background:var(--navy-900); border-radius:20px 20px 0 0; padding:20px; max-height:88vh; overflow-y:auto; }
+  .g-sheet{ width:100%; max-width:420px; background:var(--navy-900); border-radius:20px 20px 0 0; padding:20px; max-height:calc(88 * var(--vh1)); overflow-y:auto; }
   .g-sheet-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
-  .g-sheet-head h3{ font-size:16px; margin:0; }
+  .g-sheet-head h3{ font-size:17px; margin:0; color:#fff; }
   .g-sheet-head button{ background:none; border:none; color:rgba(255,255,255,.6); font-size:18px; }
   .g-field{ margin-bottom:12px; }
   .g-field label{ display:block; font-size:12px; color:rgba(255,255,255,.6); margin-bottom:5px; }
   .g-field input, .g-field select{ width:100%; padding:11px 12px; border-radius:9px; border:1px solid rgba(255,255,255,.15); background:rgba(255,255,255,.05); color:#fff; font-size:15px; }
   .g-row2{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
 </style>
+<script>
+/* Boot guard — if the page's main script cannot start (typically a half-updated cache: a new
+   page next to an old script), a login form would otherwise just reload itself, blank, with
+   no message. This turns that into a clear message and a one-tap repair. */
+(function () {
+  window.__moduleBooted = false;
+  function show() {
+    if (window.__moduleBooted || document.getElementById('bootGuard')) return;
+    var d = document.createElement('div');
+    d.id = 'bootGuard'; d.setAttribute('role', 'alert');
+    d.style.cssText = 'position:fixed;left:0;right:0;top:0;z-index:2147483647;background:#B3261E;color:#fff;padding:12px 16px;font:15px/1.4 system-ui,sans-serif;text-align:center';
+    d.innerHTML = 'The app did not load completely (an old copy is stored on this phone). ';
+    var b = document.createElement('button');
+    b.textContent = 'Tap here to fix and reload';
+    b.style.cssText = 'margin-left:8px;padding:8px 14px;border:0;border-radius:8px;background:#fff;color:#B3261E;font-weight:700;font-size:15px';
+    b.onclick = function () {
+      b.disabled = true; b.textContent = 'Fixing…';
+      var done = function () { location.replace(location.pathname + '?r=' + Date.now()); };
+      Promise.all([
+        (navigator.serviceWorker && navigator.serviceWorker.getRegistrations ? navigator.serviceWorker.getRegistrations().then(function (rs) { return Promise.all(rs.map(function (r) { return r.unregister(); })); }) : Promise.resolve()),
+        (window.caches ? caches.keys().then(function (ks) { return Promise.all(ks.map(function (k) { return caches.delete(k); })); }) : Promise.resolve())
+      ]).then(done, done);
+    };
+    d.appendChild(b);
+    (document.body || document.documentElement).appendChild(d);
+  }
+  window.__showBootGuard = show;
+  window.addEventListener('error', function (e) {
+    var m = String((e && e.message) || '');
+    if (/does not provide an export|Unexpected token|Failed to fetch dynamically|error loading dynamically|Importing a module script failed|SyntaxError|is not defined/i.test(m)) show();
+  });
+  document.addEventListener('submit', function (e) {
+    if (window.__moduleBooted) return;
+    e.preventDefault();
+    if (document.readyState === 'complete') show();
+    else alert('The page is still loading — please wait a moment and try again.');
+  }, true);
+  window.addEventListener('load', function () { setTimeout(function () { if (!window.__moduleBooted) show(); }, 10000); });
+})();
+</script>
 </head>
 <body>
 
 <!-- ============================= LOGIN ============================= -->
 <div class="screen active" id="screen-login">
-  <div class="login-card">
+ <div class="pl-wrap">
+  <div class="pl-hero">
+    <img class="pl-seal" src="logo.webp" alt="Max Heights Majestic RWS seal">
     <h1>Gate App</h1>
     <p>Max Heights Majestic RWS — Security</p>
+    <div class="pl-pill"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-shield"/></svg>Gate security sign-in</div>
+  </div>
+  <div class="pl-sheet login-card">
+    <h2>Welcome back</h2>
+    <p class="pl-sub">Sign in to log visitors at your gate.</p>
     <form id="loginForm">
       <div class="login-field">
         <label for="loginId">Login ID</label>
@@ -109,20 +165,23 @@
       <button class="btn btn-primary" type="submit">Sign In</button>
     </form>
   </div>
+ </div>
 </div>
 
 <!-- ============================= MAIN ============================= -->
 <div class="screen" id="screen-main">
   <div class="g-header">
+    <span class="app-av" id="guardAv" aria-hidden="true">G</span>
     <div class="who"><b id="guardNameLabel">—</b><span id="gateLabelText"></span></div>
+    <button id="textSizeBtn" class="ts-aa" type="button" aria-label="Larger text" title="Larger text" style="margin-right:8px; color:#fff; border-color:rgba(255,255,255,.4); min-width:44px;">Aa</button>
     <button id="logoutBtn">Sign Out</button>
   </div>
   <div class="g-body">
     <div class="purpose-grid">
-      <button class="purpose-btn" data-purpose="guest" data-label="Guest"><span class="ico">🧑</span>Guest</button>
-      <button class="purpose-btn" data-purpose="delivery" data-label="Delivery"><span class="ico">📦</span>Delivery</button>
-      <button class="purpose-btn" data-purpose="cab" data-label="Cab"><span class="ico">🚗</span>Cab</button>
-      <button class="purpose-btn" data-purpose="service" data-label="Service"><span class="ico">🔧</span>Service</button>
+      <button class="purpose-btn" data-purpose="guest" data-label="Guest"><span class="ico"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-user"/></svg></span>Guest</button>
+      <button class="purpose-btn" data-purpose="delivery" data-label="Delivery"><span class="ico"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-archive"/></svg></span>Delivery</button>
+      <button class="purpose-btn" data-purpose="cab" data-label="Cab"><span class="ico"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-car"/></svg></span>Cab</button>
+      <button class="purpose-btn" data-purpose="service" data-label="Service"><span class="ico"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-tool"/></svg></span>Service</button>
     </div>
 
     <div id="queueWrap"><p class="q-empty">Loading…</p></div>
@@ -169,8 +228,9 @@ if ('serviceWorker' in navigator) {
      vanish exactly when the connection is the problem. The resident, admin
      pages already work this way. -->
 <script type="module">
-import { installOfflineBanner } from './ui-a11y.js';
+import { installOfflineBanner, installAutoLabels } from './ui-a11y.js';
 installOfflineBanner();
+installAutoLabels();
 </script>
 
 <script type="module">
@@ -181,8 +241,10 @@ import {
 import {
   doc, getDoc, addDoc, updateDoc, collection, query, where, onSnapshot, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { showToast, escapeHtml, TOWER_IDS, flatsForTower, flatKey } from './app-common.js';
+import { showToast, escapeHtml, TOWER_IDS, flatsForTower, flatKey, getTextSize, setTextSize } from './app-common.js?v=170';
 import { installAppInstallPrompt } from './install-prompt.js';
+
+window.__moduleBooted = true; { var __bg = document.getElementById('bootGuard'); if (__bg) __bg.remove(); }
 installAppInstallPrompt({ appName: 'MHMRWS Gate', showToast });
 
 let currentGuard = null;
@@ -219,6 +281,15 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
 });
 
 document.getElementById('logoutBtn').addEventListener('click', () => signOut(auth));
+// Larger-text switch ("Aa"): remembered on this device.
+(() => {
+  const b = document.getElementById('textSizeBtn');
+  if (!b) return;
+  const paint = () => b.setAttribute('aria-pressed', String(getTextSize() === 'large'));
+  paint();
+  b.addEventListener('click', () => { setTextSize(getTextSize() === 'large' ? 'normal' : 'large'); paint(); });
+})();
+
 
 onAuthStateChanged(auth, async (user) => {
   if (unsubscribeVisitors) { unsubscribeVisitors(); unsubscribeVisitors = null; }
@@ -244,6 +315,7 @@ onAuthStateChanged(auth, async (user) => {
     }
     currentGuard = { uid: user.uid, ...snap.data() };
     document.getElementById('guardNameLabel').textContent = currentGuard.name || 'Guard';
+    { const av = document.getElementById('guardAv'); if (av) av.textContent = ((currentGuard.name || 'G').trim()[0] || 'G').toUpperCase(); }
     document.getElementById('gateLabelText').textContent = currentGuard.gateLabel || '';
     showScreen('screen-main');
     populateTowerSelect();

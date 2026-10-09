@@ -8,7 +8,7 @@
    Bump CACHE_NAME on any future structural change to force a clean cache.
    ========================================================================== */
 
-const CACHE_NAME = 'mhmrws-shell-v156';
+const CACHE_NAME = 'mhmrws-shell-v170';
 // Pinned Firebase SDK version used across every page (index/admin/staff/guard/
 // verify) — a specific version's content never changes, so caching these is
 // as safe as caching the vendored libraries below, and without this the app
@@ -41,7 +41,7 @@ const SHELL_FILES = [
   './verify.html',
   './styles.css',
   './firebase-config.js',
-  './app-common.js',
+  './app-common.js?v=170',
   './avatar-placeholder.js',
   './premium.js',
   './ui-a11y.js',
@@ -73,7 +73,10 @@ self.addEventListener('install', (event) => {
     caches.open(CACHE_NAME)
       .then((cache) => Promise.all(
         [...SHELL_FILES, ...FIREBASE_SDK_FILES, ...EXPORT_LIBRARY_FILES].map((url) =>
-          cache.add(url).catch((err) => console.warn('[sw] could not cache', url, err))
+          // cache:'reload' skips the browser's own HTTP cache (GitHub Pages lets it keep files
+          // for 10 minutes) so a fresh install can never precache a stale copy of one file next
+          // to a fresh copy of another — the half-updated state that stops the app starting.
+          cache.add(new Request(url, { cache: 'reload' })).catch((err) => console.warn('[sw] could not cache', url, err))
         )
       ))
       .then(() => self.skipWaiting())
@@ -166,7 +169,9 @@ self.addEventListener('fetch', (event) => {
   // Stale-while-revalidate: return cache now (if present), refresh in bg.
   event.respondWith(
     caches.match(event.request).then((cached) => {
-      const networkFetch = fetch(event.request)
+      // 'no-cache' = always ask the server whether the file changed (a cheap 304 when it has not)
+      // instead of trusting the browser's 10-minute HTTP cache.
+      const networkFetch = fetch(event.request, { cache: 'no-cache' })
         .then(async (response) => {
           if (response && response.ok) {
             const copy = response.clone();

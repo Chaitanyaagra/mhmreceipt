@@ -57,18 +57,37 @@ export function loadScript(src) {
 
 export function showToast(message, type = 'info') {
   const region = ensureToastRegion();
+  // The same message fired twice (a double tap, a retry loop) used to stack up as identical cards;
+  // show it once and let it stay a little longer instead.
+  const text = String(message ?? '');
+  const same = [...region.children].find((c) => c.textContent === text && !c.classList.contains('leaving'));
+  if (same) { same.dispatchEvent(new Event('toast-extend')); return; }
+  // Never let a burst of messages cover the screen: keep the three newest.
+  while (region.children.length >= 3) region.firstElementChild.remove();
   const el = document.createElement('div');
   el.className = `toast ${type}`;
   // No role here: the region above already announces its own changes, and
   // role="status" on both makes some screen readers read the message twice.
-  el.textContent = message;
+  el.textContent = text;
   region.appendChild(el);
-  setTimeout(() => {
+  let timer;
+  const dismiss = () => {
+    clearTimeout(timer);
     // Class-based so the exit direction can differ between desktop (top-right,
     // leaves upward) and mobile (bottom, leaves downward) — see styles.css.
     el.classList.add('leaving');
     setTimeout(() => el.remove(), 320);
-  }, 4200);
+  };
+  const arm = () => { clearTimeout(timer); timer = setTimeout(dismiss, toastDuration(text, type)); };
+  el.addEventListener('click', dismiss);
+  el.addEventListener('toast-extend', arm);
+  arm();
+}
+// How long a message stays: long messages and errors need longer to read than "Saved".
+export function toastDuration(message, type = 'info') {
+  const len = String(message ?? '').length;
+  const base = Math.min(9000, Math.max(4200, 2800 + len * 55));
+  return type === 'error' ? Math.min(11000, Math.round(base * 1.3)) : base;
 }
 // back-button-handler.js is a classic script, not a module, so it cannot import
 // showToast — it looks for window.showToast to show "Press back again to exit".
@@ -1134,7 +1153,7 @@ export function shortRef(id) {
 /*  "Report a problem" — context that makes a report actionable              */
 /* ---------------------------------------------------------------------- */
 // Keep in step with CACHE_NAME in sw.js (a test checks they match).
-export const APP_VERSION = 'v156';
+export const APP_VERSION = 'v170';
 
 const __recentErrors = [];
 function __noteError(text) {
@@ -3432,3 +3451,385 @@ export function expenseApprovalBlock(expense, me, policy) {
   if (!expenseNeedsSecondApprover(expense?.amount, policy)) return '';
   return expenseRaisedBy(expense, me) ? `Above ${'₹' + Number(policy.dualApprovalAbove).toLocaleString('en-IN')} a second person must approve — you raised this one.` : '';
 }
+
+
+/* ---- System check helpers (admin → Settings) ---------------------------- */
+/** 'v158' out of the text of sw.js (its CACHE_NAME), or null. */
+export function deployedVersionFromSw(text) {
+  const m = String(text || '').match(/CACHE_NAME\s*=\s*['"]mhmrws-shell-(v\d+)['"]/);
+  return m ? m[1] : null;
+}
+/** Compare the version this page is running with the one that is live on the website. */
+export function versionStatus(loaded, deployed) {
+  const n = (v) => { const m = /^v(\d+)$/.exec(String(v || '')); return m ? Number(m[1]) : null; };
+  const a = n(loaded), b = n(deployed);
+  if (a === null || b === null) return { state: 'unknown', message: 'Could not tell which version is live.' };
+  if (a === b) return { state: 'current', message: `This page is the latest version (${loaded}).` };
+  if (a < b) return { state: 'behind', message: `This device is showing ${loaded}, but ${deployed} is live — refresh (or use "Clear stored copy" below) to get the newer one.` };
+  return { state: 'ahead', message: `This page is ${loaded} but the website says ${deployed} — the website may not have received every uploaded file yet.` };
+}
+
+/* ---------------------------------------------------------------------- */
+/*  Pay with the resident's own UPI app                                    */
+/*                                                                          */
+/*  A UPI "intent" link opens the phone's UPI app with the payee, amount    */
+/*  and note already filled in. The web page cannot be told whether the     */
+/*  payment succeeded (only a native app gets that result), so the portal   */
+/*  brings the person back and asks for the Transaction ID, which the       */
+/*  committee then verifies like any other UPI payment.                     */
+/* ---------------------------------------------------------------------- */
+
+/** A UPI ID looks like name@bank — letters, digits, dots, dashes, underscores. */
+export function isValidUpiId(vpa) {
+  return /^[a-zA-Z0-9._-]{2,256}@[a-zA-Z][a-zA-Z0-9.-]{1,63}$/.test(String(vpa || '').trim());
+}
+
+/** 'android' | 'ios' | 'other' from a user-agent string (desktop browsers cannot open UPI links). */
+export function upiPlatform(ua) {
+  const s = String(ua || '');
+  if (/Android/i.test(s)) return 'android';
+  if (/iPhone|iPad|iPod/i.test(s)) return 'ios';
+  return 'other';
+}
+
+/** Short note shown in the payer's UPI app (kept plain: UPI apps reject many symbols and long text). */
+export function upiNote(parts) {
+  const label = { membership: 'Membership', maintenance: 'Maintenance', event: 'Event' }[parts?.type] || 'Payment';
+  const where = [parts?.tower, parts?.flat].filter(Boolean).join('-');
+  return `${parts?.shortName || 'MHMRWS'} ${label} ${where}`.replace(/[^A-Za-z0-9 \-]/g, '').replace(/\s+/g, ' ').trim().slice(0, 50);
+}
+
+/**
+ * Links that open a UPI app. Returns null when the details are not good enough to pay
+ * (no valid UPI ID, or an amount that is not a positive number up to ₹1,00,000).
+ * `generic` works on Android (it shows the app chooser); iPhones need an app-specific link.
+ */
+export function buildUpiLinks({ vpa, name, amount, note }) {
+  const id = String(vpa || '').trim();
+  const amt = Number(amount);
+  if (!isValidUpiId(id) || !Number.isFinite(amt) || amt <= 0 || amt > 100000) return null;
+  const q = [
+    ['pa', id], ['pn', String(name || '').trim().slice(0, 60) || 'Society'],
+    ['am', amt.toFixed(2)], ['cu', 'INR'], ['tn', String(note || '').slice(0, 50)]
+  ].filter(([, v]) => v !== '').map(([k, v]) => `${k}=${encodeURIComponent(v).replace(/%40/g, '@')}`).join('&');
+  return {
+    generic: `upi://pay?${q}`,
+    gpay: `gpay://upi/pay?${q}`,
+    phonepe: `phonepe://pay?${q}`,
+    paytm: `paytmmp://pay?${q}`
+  };
+}
+
+/* ---------------------------------------------------------------------------
+   Premium icon set (v164): duotone line icons on a 24px grid.
+   A fine line in the current text colour sits on a soft accent shape. The
+   accent comes from the CSS variable --duo (default saffron), so a tile can
+   tint every icon inside it: style="--duo:#9DB8E8".
+
+   The sprite is injected once on every page that imports this module, and
+   used as  <svg class="ic" viewBox="0 0 24 24"><use href="#ic-home"/></svg>
+   or from script with icon('home'). Ids are prefixed ic- so they never clash
+   with the older #i-* / #a-* sprites that still hold brand and sport icons.
+   --------------------------------------------------------------------------- */
+const ICON_SHAPES = {
+  home: '<path class="u" d="M5.5 10l6.5-5.6 6.5 5.6V19a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1z"/><path d="M3.5 11.2L12 4l8.5 7.2"/><path d="M5.5 9.8V19a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1V9.8"/><path d="M10 20v-4.5a2 2 0 0 1 4 0V20"/>',
+  rupee: '<circle class="u" cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="9"/><path d="M8.7 8h6.6M8.7 11h6.6M8.7 8c3.6 0 4.6 1.2 4.6 3s-1.5 3-4.6 3l4.2 3.2"/>',
+  chat: '<path class="u" d="M4 6.5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2V15a2 2 0 0 1-2 2h-6.5L8 20.5V17H6a2 2 0 0 1-2-2z"/><path d="M4 6.5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2V15a2 2 0 0 1-2 2h-6.5L8 20.5V17H6a2 2 0 0 1-2-2z"/><path d="M12 8.3v3.2M12 13.9h.01"/>',
+  grid: '<rect class="u" x="4" y="4" width="6.5" height="6.5" rx="2"/><rect x="4" y="4" width="6.5" height="6.5" rx="2"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="2"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="2"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="2"/>',
+  bell: '<path class="u" d="M6.5 16.5V11a5.5 5.5 0 0 1 11 0v5.5l1.5 2H5z"/><path d="M6.5 16.5V11a5.5 5.5 0 0 1 11 0v5.5l1.5 2H5z"/><path d="M10 20.8a2.2 2.2 0 0 0 4 0M12 4.2V5.6"/>',
+  building: '<path class="u" d="M5 20V6.5A1.5 1.5 0 0 1 6.5 5h6A1.5 1.5 0 0 1 14 6.5V20z"/><path d="M5 20V6.5A1.5 1.5 0 0 1 6.5 5h6A1.5 1.5 0 0 1 14 6.5V20M14 20v-9h3.5a1.5 1.5 0 0 1 1.5 1.5V20M3.5 20h17M8 8.5h3M8 11.5h3M8 14.5h3"/>',
+  user: '<circle class="u" cx="12" cy="8.5" r="3.6"/><path class="u" d="M5 20a7 7 0 0 1 14 0z"/><circle cx="12" cy="8.5" r="3.6"/><path d="M5 20a7 7 0 0 1 14 0"/>',
+  file: '<path class="u" d="M7 3.5h6.5L18 8v11.5a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1v-15a1 1 0 0 1 1-1z"/><path d="M7 3.5h6.5L18 8v11.5a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1v-15a1 1 0 0 1 1-1zM13.5 3.5V8H18M9 12.5h6M9 15.5h6"/>',
+  shield: '<path class="u" d="M12 3.5l7 2.8v5.2c0 4.3-2.9 7.6-7 9-4.1-1.4-7-4.7-7-9V6.3z"/><path d="M12 3.5l7 2.8v5.2c0 4.3-2.9 7.6-7 9-4.1-1.4-7-4.7-7-9V6.3zM9 12l2.2 2.2L15.5 10"/>',
+  door: '<rect class="u" x="6" y="3.5" width="12" height="17" rx="1.5"/><path d="M6 20.5V5a1.5 1.5 0 0 1 1.5-1.5h9A1.5 1.5 0 0 1 18 5v15.5M4 20.5h16"/><path d="M14.5 12h.01" stroke-width="2.6"/>',
+  car: '<path class="u" d="M4 15.5l1.6-4.6a2 2 0 0 1 1.9-1.4h9a2 2 0 0 1 1.9 1.4L20 15.5V18a1 1 0 0 1-1 1h-1.5a1 1 0 0 1-1-1v-1h-9v1a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/><path d="M4 15.5l1.6-4.6a2 2 0 0 1 1.9-1.4h9a2 2 0 0 1 1.9 1.4L20 15.5V18a1 1 0 0 1-1 1h-1.5a1 1 0 0 1-1-1v-1h-9v1a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1zM4 15.5h16"/><path d="M7.5 13h.01M16.5 13h.01" stroke-width="2.6"/>',
+  paw: '<path class="u" d="M12 12.5c-2.7 0-5 2.6-5 4.8 0 1.5 1.3 2.2 2.7 2.2 1 0 1.5-.4 2.3-.4s1.3.4 2.3.4c1.4 0 2.7-.7 2.7-2.2 0-2.2-2.3-4.8-5-4.8z"/><path d="M12 12.5c-2.7 0-5 2.6-5 4.8 0 1.5 1.3 2.2 2.7 2.2 1 0 1.5-.4 2.3-.4s1.3.4 2.3.4c1.4 0 2.7-.7 2.7-2.2 0-2.2-2.3-4.8-5-4.8z"/><circle cx="6.6" cy="10.6" r="1.6"/><circle cx="10" cy="6.8" r="1.6"/><circle cx="14" cy="6.8" r="1.6"/><circle cx="17.4" cy="10.6" r="1.6"/>',
+  users: '<circle class="u" cx="9" cy="9" r="3"/><path class="u" d="M3.5 19a5.5 5.5 0 0 1 11 0z"/><circle cx="9" cy="9" r="3"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><circle cx="16.8" cy="9.8" r="2.4"/><path d="M15.3 14.6A4.4 4.4 0 0 1 20.5 19"/>',
+  calendar: '<path class="u" d="M4.5 7.5a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2V19a1 1 0 0 1-1 1h-13a1 1 0 0 1-1-1z"/><path d="M4.5 7.5a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2V19a1 1 0 0 1-1 1h-13a1 1 0 0 1-1-1zM4.5 10.5h15M8.5 3.5v3M15.5 3.5v3M9.5 15l2 2 3.5-3.5"/>',
+  idcard: '<rect class="u" x="4" y="5.5" width="16" height="13" rx="2.5"/><rect x="4" y="5.5" width="16" height="13" rx="2.5"/><circle cx="9" cy="11" r="2"/><path d="M6.2 16c.5-1.6 1.6-2.3 2.8-2.3s2.3.7 2.8 2.3M14 10.5h3.5M14 13.5h2.5"/>',
+  bulb: '<path class="u" d="M12 3.5a6 6 0 0 0-3.6 10.8c.7.6 1.1 1.3 1.1 2.2h5c0-.9.4-1.6 1.1-2.2A6 6 0 0 0 12 3.5z"/><path d="M12 3.5a6 6 0 0 0-3.6 10.8c.7.6 1.1 1.3 1.1 2.2h5c0-.9.4-1.6 1.1-2.2A6 6 0 0 0 12 3.5zM9.8 19h4.4M10.5 21h3"/>',
+  chart: '<rect class="u" x="5" y="11" width="3.5" height="9" rx="1"/><rect class="u" x="10.3" y="5" width="3.5" height="15" rx="1"/><rect class="u" x="15.5" y="14" width="3.5" height="6" rx="1"/><rect x="5" y="11" width="3.5" height="9" rx="1"/><rect x="10.3" y="5" width="3.5" height="15" rx="1"/><rect x="15.5" y="14" width="3.5" height="6" rx="1"/>',
+  receipt: '<path class="u" d="M6 3.5h12v17l-2-1.3-2 1.3-2-1.3-2 1.3-2-1.3-2 1.3z"/><path d="M6 3.5h12v17l-2-1.3-2 1.3-2-1.3-2 1.3-2-1.3-2 1.3z"/><path d="M9 8h6M9 11.5h6M9 15h3.5"/>',
+  download: '<rect class="u" x="5" y="16.5" width="14" height="3.5" rx="1"/><path d="M12 4v10.5M7.5 10.5l4.5 4.5 4.5-4.5M5 20h14"/>',
+  share: '<path class="u" d="M6 12.5h12v6a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1z"/><path d="M12 14.5V4.5M8 8l4-4 4 4M6 12.5v6a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-6"/>',
+  qr: '<rect class="u" x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><path d="M14 14h2.5v2.5H14zM18 14h2M18 18h2M16.5 20H20"/>',
+  globe: '<circle class="u" cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="9"/><path d="M3.5 12h17M12 3.5c2.6 2.4 3.8 5.2 3.8 8.5S14.6 18.1 12 20.5c-2.6-2.4-3.8-5.2-3.8-8.5S9.4 5.9 12 3.5z"/>',
+  logout: '<rect class="u" x="5" y="3.5" width="5" height="17" rx="1.5"/><path d="M10 20.5H6.5A1.5 1.5 0 0 1 5 19V5a1.5 1.5 0 0 1 1.5-1.5H10M14.5 8l4 4-4 4M18.5 12h-9"/>',
+  siren: '<path class="u" d="M6.5 17v-5a5.5 5.5 0 0 1 11 0v5z"/><path d="M6.5 17v-5a5.5 5.5 0 0 1 11 0v5zM4.5 17h15v3h-15zM12 3v1.5M4.8 6.3l1.1 1M19.2 6.3l-1.1 1"/>',
+  lift: '<rect class="u" x="5.5" y="3.5" width="13" height="17" rx="1.5"/><rect x="5.5" y="3.5" width="13" height="17" rx="1.5"/><path d="M12 3.5v17M8 9.8l1.4-1.8 1.4 1.8M13.2 14.2l1.4 1.8 1.4-1.8"/>',
+  drop: '<path class="u" d="M12 3.5s6 6.2 6 10.5a6 6 0 0 1-12 0c0-4.3 6-10.5 6-10.5z"/><path d="M12 3.5s6 6.2 6 10.5a6 6 0 0 1-12 0c0-4.3 6-10.5 6-10.5zM9 14a3 3 0 0 0 2.2 2.8"/>',
+  bolt: '<path class="u" d="M13.5 3.5L5.5 13.5h5.5l-1 7 8-10h-5.5z"/><path d="M13.5 3.5L5.5 13.5h5.5l-1 7 8-10h-5.5z"/>',
+  check: '<circle class="u" cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="9"/><path d="M8 12.3l2.8 2.8 5.4-5.6"/>',
+  clock: '<circle class="u" cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="9"/><path d="M12 7.2V12l3.2 2"/>',
+  mail: '<rect class="u" x="3.5" y="5.5" width="17" height="13" rx="2.5"/><rect x="3.5" y="5.5" width="17" height="13" rx="2.5"/><path d="M4.5 7.5l7.5 5.5 7.5-5.5"/>',
+  lock: '<rect class="u" x="5" y="10.5" width="14" height="10" rx="2.5"/><rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5M12 14.5v2.2"/>',
+  unlock: '<rect class="u" x="5" y="10.5" width="14" height="10" rx="2.5"/><rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 6.8-1.2M12 14.5v2.2"/>',
+  search: '<circle class="u" cx="10.5" cy="10.5" r="6.5"/><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L20 20"/>',
+  gear: '<circle class="u" cx="12" cy="12" r="6.6"/><path d="M12 3.5l1.3 2.1 2.4-.6.9 2.3 2.3.9-.6 2.4 2.1 1.3-2.1 1.3.6 2.4-2.3.9-.9 2.3-2.4-.6L12 20.5l-1.3-2.1-2.4.6-.9-2.3-2.3-.9.6-2.4L3.5 12l2.1-1.3-.6-2.4 2.3-.9.9-2.3 2.4.6z"/><circle cx="12" cy="12" r="2.8"/>',
+  tool: '<path class="u" d="M14.5 6.5a4 4 0 0 0-5 5l-5 5a1.8 1.8 0 0 0 2.5 2.5l5-5a4 4 0 0 0 5-5l-2.4 2.4-2.2-.6-.6-2.2z"/><path d="M14.5 6.5a4 4 0 0 0-5 5l-5 5a1.8 1.8 0 0 0 2.5 2.5l5-5a4 4 0 0 0 5-5l-2.4 2.4-2.2-.6-.6-2.2z"/>',
+  archive: '<path class="u" d="M4.5 9h15v10a1 1 0 0 1-1 1h-13a1 1 0 0 1-1-1z"/><rect x="3.5" y="5" width="17" height="4" rx="1"/><path d="M4.5 9v10a1 1 0 0 0 1 1h13a1 1 0 0 0 1-1V9M10 13h4"/>',
+  cloud: '<path class="u" d="M7 18.5a4 4 0 0 1-.6-7.95A5.5 5.5 0 0 1 17 9.6a4.5 4.5 0 0 1 0 8.9z"/><path d="M7 18.5a4 4 0 0 1-.6-7.95A5.5 5.5 0 0 1 17 9.6a4.5 4.5 0 0 1 0 8.9z"/>',
+  clip: '<path d="M19 11.5l-6.5 6.5a4.2 4.2 0 0 1-6-6l7-7a2.8 2.8 0 0 1 4 4l-7 7a1.4 1.4 0 0 1-2-2l6-6"/>',
+  pin: '<path class="u" d="M12 21s6.5-5.8 6.5-10.6A6.5 6.5 0 0 0 5.5 10.4C5.5 15.2 12 21 12 21z"/><path d="M12 21s6.5-5.8 6.5-10.6A6.5 6.5 0 0 0 5.5 10.4C5.5 15.2 12 21 12 21z"/><circle cx="12" cy="10.4" r="2.2"/>',
+  edit: '<path class="u" d="M5 19l1-4L16.5 4.5a1.8 1.8 0 0 1 2.5 2.5L8.5 17.5z"/><path d="M5 19l1-4L16.5 4.5a1.8 1.8 0 0 1 2.5 2.5L8.5 17.5zM14.5 6.5l3 3"/>',
+  trash: '<path class="u" d="M6.5 7.5h11l-.8 11.5a1.5 1.5 0 0 1-1.5 1.4H8.8a1.5 1.5 0 0 1-1.5-1.4z"/><path d="M6.5 7.5h11l-.8 11.5a1.5 1.5 0 0 1-1.5 1.4H8.8a1.5 1.5 0 0 1-1.5-1.4zM4.5 7.5h15M9.5 7.5V5a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v2.5"/>',
+  alert: '<path class="u" d="M12 4l9 15.5H3z"/><path d="M12 4l9 15.5H3zM12 10v4M12 17h.01"/>'
+};
+
+export const ICON_NAMES = Object.keys(ICON_SHAPES);
+
+/** The <symbol> sprite as markup (ids are ic-<name>). */
+export function iconSpriteMarkup() {
+  const sym = ICON_NAMES.map((n) =>
+    `<symbol id="ic-${n}" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${ICON_SHAPES[n].replace(/class="u"/g, 'style="fill:var(--duo,#FFC978);stroke:none"')}</g></symbol>`
+  ).join('');
+  return `<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>${sym}</defs></svg>`;
+}
+
+/** Markup for one icon, for use in innerHTML templates: icon('home') or icon('bell', 'tiny'). */
+export function icon(name, extraClass = '') {
+  return `<svg class="ic${extraClass ? ' ' + extraClass : ''}" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ic-${name}"/></svg>`;
+}
+
+/** Puts the sprite into the page once. Safe to call again. */
+export function ensureIconSprite() {
+  if (typeof document === 'undefined' || document.getElementById('icSprite')) return;
+  const add = () => {
+    if (document.getElementById('icSprite') || !document.body) return;
+    const holder = document.createElement('div');
+    holder.id = 'icSprite';
+    holder.setAttribute('aria-hidden', 'true');
+    holder.style.cssText = 'position:absolute;width:0;height:0;overflow:hidden';
+    holder.innerHTML = iconSpriteMarkup();
+    document.body.prepend(holder);
+  };
+  if (document.body) add(); else document.addEventListener('DOMContentLoaded', add, { once: true });
+}
+
+/* ====================================================================== */
+/*  v166 — receipts on WhatsApp, dues reminders, admin step-up security    */
+/* ====================================================================== */
+
+/** A short receipt message with the QR-verifiable link, for WhatsApp.
+ *  `p` is the payment (receiptNumber, amount, publicToken, financialYear, type…). */
+export function receiptWhatsAppMessage(p, societyName = 'Max Heights Majestic RWS') {
+  const what = p.type === 'membership' ? 'membership fee' : p.type === 'event' ? 'event payment' : 'maintenance';
+  const lines = [
+    `Namaste ${p.residentName || ''} ji,`,
+    ``,
+    `${societyName} ko aapka ${what} ₹${Number(p.amount || 0).toLocaleString('en-IN')}${p.financialYear ? ` (FY ${p.financialYear})` : ''} mil gaya hai. Dhanyavaad!`,
+    `Receipt no.: ${p.receiptNumber || '—'}`,
+    `Receipt verify karein: ${verifyUrlFor(p)}`,
+    ``,
+    `Full receipt portal par login karke download kar sakte hain.`,
+    `— MHMRWS Committee`
+  ];
+  return lines.join('\n');
+}
+
+/** Message a resident sees in the bell when the committee has sent a dues reminder. */
+export function duesReminderText(owed) {
+  const parts = [];
+  if ((owed?.maint || 0) > 0) parts.push(`${formatINR(owed.maint)} maintenance${owed.fy ? ` (FY ${owed.fy})` : ''}`);
+  if ((owed?.member || 0) > 0) parts.push(`${formatINR(owed.member)} membership fee`);
+  return parts.length ? `Committee reminder: ${parts.join(' and ')} ${parts.length > 1 ? 'are' : 'is'} due.` : '';
+}
+
+/** Step-up: true while the sign-in is recent enough for the Firestore rules'
+ *  `recentSignIn()` check. The client asks for a little less than the server
+ *  allows, so a request never reaches the server just past the limit. */
+export const STEP_UP_SERVER_MS = 10 * 60 * 1000;
+export const STEP_UP_CLIENT_MS = 8 * 60 * 1000;
+export function isRecentSignIn(authTimeMs, nowMs = Date.now(), maxMs = STEP_UP_CLIENT_MS) {
+  return Number.isFinite(authTimeMs) && authTimeMs > 0 && nowMs - authTimeMs >= 0 && nowMs - authTimeMs < maxMs;
+}
+
+/** Login throttle (client side — a speed bump on one device, not a substitute
+ *  for Firebase's own server-side rate limit). `state` = { fails, lockedUntil }. */
+export const LOGIN_MAX_FAILS = 5;
+export function loginLockRemainingMs(state, nowMs = Date.now()) {
+  return Math.max(0, (state?.lockedUntil || 0) - nowMs);
+}
+export function nextLoginFailState(state, nowMs = Date.now()) {
+  const fails = (state?.fails || 0) + 1;
+  if (fails < LOGIN_MAX_FAILS) return { fails, lockedUntil: 0 };
+  // 5th miss: 1 min, then 2, 4, 8 … capped at 30 min.
+  const level = fails - LOGIN_MAX_FAILS;
+  const waitMs = Math.min(30 * 60 * 1000, 60 * 1000 * Math.pow(2, level));
+  return { fails, lockedUntil: nowMs + waitMs };
+}
+
+/* ---- v167: AGM-grade polls ------------------------------------------------
+   pollFlatId     — the document ID that makes "one vote per flat" a database
+                    fact: polls/{id}/flatVotes/{tower_flat}. firestore.rules
+                    rebuilds the same string from the voter's own member record,
+                    so it is deliberately NOT trimmed here.
+   pollTally      — counts → rows with %, and who leads (ties are reported as a
+                    tie, never as a silent winner).
+   pollResultText — plain-text result a committee member can paste in the
+                    society WhatsApp group. */
+export function pollFlatId(tower, flatNumber) {
+  return `${tower ?? ''}_${flatNumber ?? ''}`;
+}
+export function pollTally(options, counts) {
+  const opts = Array.isArray(options) ? options : [];
+  const nums = opts.map((_, i) => Math.max(0, Number(counts?.[i]) || 0));
+  const total = nums.reduce((a, b) => a + b, 0);
+  const rows = opts.map((option, i) => ({ option, count: nums[i], pct: total ? Math.round((nums[i] / total) * 100) : 0 }));
+  const top = Math.max(0, ...nums);
+  const leaders = top > 0 ? nums.map((n, i) => (n === top ? i : -1)).filter((i) => i >= 0) : [];
+  return { total, rows, leaders, tie: leaders.length > 1 };
+}
+export function pollResultText(poll, tally, { flatsVoted = null, flatsTotal = null, society = '', closed = false } = {}) {
+  const lines = [`🗳️ ${closed ? 'Poll result' : 'Poll so far'}: ${poll?.question || ''}`, ''];
+  (tally?.rows || []).forEach((r) => lines.push(`• ${r.option} — ${r.count} (${r.pct}%)`));
+  lines.push('');
+  if (tally?.leaders?.length === 1) lines.push(`${closed ? 'Result' : 'Leading'}: ${tally.rows[tally.leaders[0]].option}`);
+  else if (tally?.tie) lines.push(`${closed ? 'Result' : 'Currently'}: tie between ${tally.leaders.map((i) => tally.rows[i].option).join(' and ')}`);
+  if (flatsVoted != null) lines.push(flatsTotal ? `Turnout: ${flatsVoted} of ${flatsTotal} flats` : `Flats voted: ${flatsVoted}`);
+  if (society) lines.push('', `— ${society}`);
+  return lines.join('\n');
+}
+
+/* ---- v168: readability, progress and feel ----------------------------------
+   pollTimeLeft       — "Ends in 5h" chip text for a poll card.
+   paymentSteps       — Submitted → Verified → Receipt for ONE payment.
+   text size          — Standard / Large, kept per device. Large uses CSS zoom
+                        (see styles.css) because the app's sizes are px values,
+                        and zoom is the one switch that scales all of them,
+                        inline ones included. No dark mode, by request.
+   installPullToRefresh — drag down at the top of the page to reload; touch
+                        devices only, never while a dialog is open or when the
+                        gesture started inside something that scrolls. */
+export function pollTimeLeft(endMs, nowMs = Date.now()) {
+  const end = Number(endMs);
+  if (!Number.isFinite(end)) return { label: '', urgent: false, ended: false };
+  const left = end - nowMs;
+  if (left <= 0) return { label: 'Closed', urgent: false, ended: true };
+  const min = Math.ceil(left / 60000);
+  if (min < 60) return { label: `Ends in ${min} min`, urgent: true, ended: false };
+  const hrs = Math.floor(left / 3600000);
+  if (hrs < 24) return { label: `Ends in ${hrs}h`, urgent: true, ended: false };
+  const days = Math.floor(left / 86400000);
+  return { label: days === 1 ? '1 day left' : `${days} days left`, urgent: false, ended: false };
+}
+
+export function paymentSteps(p) {
+  const st = p?.status;
+  const steps = [
+    { key: 'submitted', label: 'Submitted', state: 'done' },
+    { key: 'verified', label: 'Verified', state: 'todo' },
+    { key: 'receipt', label: 'Receipt', state: 'todo' }
+  ];
+  if (st === 'pending_approval' || st === 'pending_verification') steps[1].state = 'current';
+  else if (st === 'verified') {
+    steps[1].state = 'done';
+    steps[2].state = p.receiptNumber ? 'done' : 'current';
+  } else if (st === 'rejected') { steps[1].state = 'bad'; steps[1].label = 'Rejected'; }
+  else if (st === 'voided') { steps[1].state = 'done'; steps[2].state = 'bad'; steps[2].label = 'Voided'; }
+  return steps;
+}
+
+export const TEXT_SIZE_KEY = 'mhmrws-text-size';
+export function getTextSize() {
+  try { return localStorage.getItem(TEXT_SIZE_KEY) === 'large' ? 'large' : 'normal'; } catch (_) { return 'normal'; }
+}
+export function applyTextSize(size) {
+  if (typeof document === 'undefined' || !document.documentElement) return;
+  document.documentElement.dataset.textSize = size === 'large' ? 'large' : 'normal';
+}
+export function setTextSize(size) {
+  const v = size === 'large' ? 'large' : 'normal';
+  try { localStorage.setItem(TEXT_SIZE_KEY, v); } catch (_) { /* private mode: applies for this visit only */ }
+  applyTextSize(v);
+  return v;
+}
+applyTextSize(getTextSize());
+
+export function installPullToRefresh({ onRefresh, threshold = 80 } = {}) {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return () => {};
+  if (!window.matchMedia || !window.matchMedia('(pointer: coarse)').matches) return () => {};
+  let startY = null, pull = 0, busy = false, ind = null;
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const blocked = (t) => {
+    if (document.querySelector('.modal-backdrop.open, [role="dialog"].open, .sheet-backdrop.open')) return true;
+    for (let el = t; el && el !== document.body; el = el.parentElement) {
+      if (/^(INPUT|TEXTAREA|SELECT|CANVAS)$/.test(el.tagName)) return true;
+      const oy = el.nodeType === 1 ? getComputedStyle(el).overflowY : '';
+      if ((oy === 'auto' || oy === 'scroll') && el.scrollHeight > el.clientHeight && el.scrollTop > 0) return true;
+    }
+    return false;
+  };
+  const mk = () => {
+    ind = document.createElement('div');
+    ind.className = 'ptr-ind'; ind.setAttribute('aria-hidden', 'true');
+    ind.innerHTML = '<span class="ptr-dot"></span>';
+    document.body.appendChild(ind);
+  };
+  const paint = (px, ready) => {
+    if (!ind) mk();
+    ind.style.transform = `translate(-50%, ${Math.min(px, 90) - 44}px)`;
+    ind.style.opacity = String(Math.min(1, px / 60));
+    ind.classList.toggle('ready', !!ready);
+  };
+  const clear = () => { if (ind) { ind.remove(); ind = null; } startY = null; pull = 0; };
+  const start = (e) => {
+    if (busy || e.touches.length !== 1 || window.scrollY > 0 || blocked(e.target)) { startY = null; return; }
+    startY = e.touches[0].clientY; pull = 0;
+  };
+  const move = (e) => {
+    if (startY == null) return;
+    const dy = e.touches[0].clientY - startY;
+    if (dy <= 0 || window.scrollY > 0) { if (pull) paint(0, false); pull = 0; return; }
+    pull = dy * 0.5;
+    paint(pull, pull >= threshold / 2);
+  };
+  const end = async () => {
+    if (startY == null) return;
+    const go = pull >= threshold / 2;
+    if (!go) { clear(); return; }
+    busy = true;
+    if (ind) { ind.classList.add('spin'); ind.style.transform = 'translate(-50%, 24px)'; ind.style.opacity = '1'; }
+    try { await (onRefresh ? onRefresh() : window.location.reload()); }
+    finally { busy = false; setTimeout(clear, reduce ? 0 : 350); }
+  };
+  document.addEventListener('touchstart', start, { passive: true });
+  document.addEventListener('touchmove', move, { passive: true });
+  document.addEventListener('touchend', end, { passive: true });
+  document.addEventListener('touchcancel', clear, { passive: true });
+  return () => {
+    document.removeEventListener('touchstart', start); document.removeEventListener('touchmove', move);
+    document.removeEventListener('touchend', end); document.removeEventListener('touchcancel', clear); clear();
+  };
+}
+
+/* ---- v170: first-time guide ------------------------------------------------
+   Four short cards shown once to a newly approved resident, and reachable any
+   time from More → "How to use this app". Plain words, no jargon. The text is
+   English here and translated by i18n.js like every other string. */
+export const GUIDE_KEY = 'mhmrws-guide-seen';
+export const GUIDE_STEPS = [
+  { icon: 'home', title: 'Welcome to your society app',
+    lead: 'Everything for your flat in one place.',
+    points: ['See what you owe, and pay it, from Home.', 'Your receipts, complaints, notices and polls are all here.'] },
+  { icon: 'rupee', title: 'Pay and get your receipt',
+    lead: 'Paying takes about a minute.',
+    points: ['Open Payments and tap Make a Payment.', 'Pay by UPI, then type the UTR number from your UPI app.', 'Watch it move: Submitted, Verified, Receipt. The receipt PDF appears once the committee verifies it.'] },
+  { icon: 'chat', title: 'Complaints, notices and polls',
+    lead: 'Stay in touch with the committee.',
+    points: ['Raise a complaint, with a photo, from Complaints.', 'Notices from the committee appear on Home.', 'Vote in polls. It is one vote per flat, and a vote cannot be changed.'] },
+  { icon: 'grid', title: 'Make it comfortable',
+    lead: 'The app can be adjusted for you.',
+    points: ['Text too small? Open More, then Display, then Text size.', 'To read in Hindi, tap the language switch at the top.', 'Add this app to your home screen from your browser menu.'] }
+];
+export function guideSeen() {
+  try { return localStorage.getItem(GUIDE_KEY) === '1'; } catch (_) { return true; }   // storage blocked: never nag
+}
+export function markGuideSeen() {
+  try { localStorage.setItem(GUIDE_KEY, '1'); } catch (_) { /* fine */ }
+}
+export function shouldShowGuide({ approved, seen, modalOpen = false } = {}) {
+  return !!approved && !seen && !modalOpen;
+}
+
+ensureIconSprite();
