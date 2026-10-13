@@ -252,7 +252,7 @@ export function installAutoLabels(root = document) {
   const SKIP = 'input[type=hidden],input[type=checkbox],input[type=radio],input[type=submit],input[type=button]';
   const clean = (t) => (t || '').replace(/\s+/g, ' ').replace(/[*:]+$/g, '').trim();
   function nameFor(el) {
-    if (el.getAttribute('aria-label') || el.getAttribute('aria-labelledby') || el.title) return '';
+    if (el.getAttribute('aria-label') || el.getAttribute('aria-labelledby')) return '';
     if (el.id && root.querySelector(`label[for="${CSS.escape(el.id)}"]`)) return '';
     if (el.closest('label')) return '';
     const field = el.closest('.field, .g-field, .login-field, .form-row');
@@ -260,6 +260,7 @@ export function installAutoLabels(root = document) {
     if (lbl && clean(lbl.textContent)) return clean(lbl.textContent);
     const prev = el.previousElementSibling;
     if (prev && prev.tagName === 'LABEL' && clean(prev.textContent)) return clean(prev.textContent);
+    if (el.title) return clean(el.title);   // a title alone is not a reliable accessible name; use it as the label
     if (el.placeholder) return clean(el.placeholder);
     if (el.tagName === 'SELECT' && el.options && el.options[0] && clean(el.options[0].textContent)) return clean(el.options[0].textContent);
     if (el.type === 'file') return 'Choose a file';
@@ -271,8 +272,52 @@ export function installAutoLabels(root = document) {
       const n = nameFor(el);
       if (n) el.setAttribute('aria-label', n);
     });
+    // A table that scrolls sideways must be reachable from the keyboard too.
+    root.querySelectorAll('.table-wrap:not([tabindex])').forEach((w) => w.setAttribute('tabindex', '0'));
   }
   run();
   let t = null;
   new MutationObserver(() => { clearTimeout(t); t = setTimeout(run, 150); }).observe(document.body, { childList: true, subtree: true });
+}
+
+/* v185 — premium count-up: a plain amount or count (e.g. "₹2,000", "454") on the dues card and
+   the admin stat tiles ticks up to its value over ~0.7 s, easing out. Only plain numbers are touched
+   (anything like "₹1.2L" or "12 / 20" is left alone), the final value is always what ends up on screen,
+   and it is skipped entirely for "reduce motion", background tabs and automated browsers (tests read the
+   number straight away). */
+export function installCountUp() {
+  if (typeof window === 'undefined' || typeof MutationObserver === 'undefined') return;
+  if (navigator.webdriver) return;
+  const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)');
+  const SEL = '.dues-hero .dh-amt, .stat-card .num';
+  const PLAIN = /^(₹\s?)?(\d{1,3}(,\d{2,3})*|\d+)$/;
+  const run = (el) => {
+    if (el.dataset.countDone) return;
+    const node = [...el.childNodes].find((n) => n.nodeType === 3 && PLAIN.test(n.nodeValue.trim()));
+    if (!node) return;
+    el.dataset.countDone = '1';
+    const raw = node.nodeValue;
+    const m = raw.trim().match(PLAIN);
+    const prefix = m[1] || '';
+    const target = parseInt(m[2].replace(/,/g, ''), 10);
+    if (!(target >= 10)) return;
+    const lead = raw.match(/^\s*/)[0], trail = raw.match(/\s*$/)[0];
+    const t0 = performance.now(), dur = 700;
+    const tick = (now) => {
+      const p = Math.min(1, (now - t0) / dur);
+      const e = 1 - Math.pow(1 - p, 4);
+      node.nodeValue = lead + prefix + Math.round(target * e).toLocaleString('en-IN') + trail;
+      if (p < 1 && node.isConnected) requestAnimationFrame(tick); else node.nodeValue = raw;
+    };
+    requestAnimationFrame(tick);
+  };
+  const scan = (root) => {
+    if (reduce && reduce.matches) return;
+    if (document.hidden) return;
+    if (root.nodeType !== 1) return;
+    if (root.matches?.(SEL)) run(root);
+    root.querySelectorAll?.(SEL).forEach(run);
+  };
+  new MutationObserver((muts) => { for (const mu of muts) mu.addedNodes.forEach(scan); })
+    .observe(document.body, { childList: true, subtree: true });
 }

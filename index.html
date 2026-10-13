@@ -35,7 +35,7 @@
   style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
   img-src 'self' data: blob: https://firebasestorage.googleapis.com https://*.googleusercontent.com;
   font-src 'self' data: https://fonts.gstatic.com;
-  connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://accounts.google.com https://www.gstatic.com;
+  connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://accounts.google.com https://www.gstatic.com https://www.google.com;
   frame-src https://www.google.com https://accounts.google.com;
   worker-src 'self';
   object-src 'none';
@@ -62,7 +62,7 @@
      Firebase SDK files it imports. (A module's imports are otherwise only discovered once the
      module itself has arrived, one slow round trip after another.) The URLs must match the
      imports exactly — the ?v= below is the release number the tests keep in step. -->
-<link rel="modulepreload" fetchpriority="low" href="./app-common.js?v=177">
+<link rel="modulepreload" fetchpriority="low" href="./app-common.js?v=189">
 <link rel="modulepreload" fetchpriority="low" href="./firebase-config.js">
 <link rel="modulepreload" fetchpriority="low" href="https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js">
 <link rel="modulepreload" fetchpriority="low" href="https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js">
@@ -233,7 +233,7 @@ section{ padding:76px 0; position:relative; }
 }
 .notice-date .d{ font-family:var(--font-display); font-size:19px; font-weight:600; color:var(--navy-950); line-height:1; }
 .notice-date .m{ font-family:var(--font-mono); font-size:11px; letter-spacing:.08em; color:var(--ink-400); text-transform:uppercase; margin-top:3px; }
-.notice-body h4{ font-size:15px; margin-bottom:5px; }
+.notice-body h3, .notice-body h4{ font-size:15px; margin-bottom:5px; }
 .notice-body p{ font-size:13.5px; color:var(--ink-600); }
 .notice-actions{ margin-top:10px; }
 .notice-share{
@@ -283,8 +283,41 @@ section{ padding:76px 0; position:relative; }
 .notif-item .notif-icon{ font-size:16px; flex-shrink:0; }
 .notif-item .notif-text{ font-size:12.8px; line-height:1.45; }
 .notif-item .notif-time{ display:block; font-size:12px; color:var(--ink-400,#8891A3); margin-top:2px; }
+.notif-panel-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.notif-head-meta{ display:inline-flex; align-items:center; gap:10px; }
+.notif-unread-chip{ background:#FFF1D6; color:#8A4B00; border-radius:999px; padding:2px 9px; font-size:12px; font-weight:700; }
+.notif-markall{ background:none; border:0; padding:4px 2px; color:#B25E00; font-size:12px; font-weight:700; cursor:pointer; min-height:32px; }
+.notif-group{ padding:10px 16px 4px; font-family:var(--font-mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--ink-600,#5B667B); }
+.notif-item .notif-text{ flex:1; min-width:0; }
+.notif-item .notif-dot{ width:9px; height:9px; border-radius:50%; background:#D3D8E2; flex:none; align-self:center; }
+.notif-item.is-unread .notif-dot{ background:#F27B0E; }
+.notif-item.is-unread .notif-text{ font-weight:600; }
+.notif-empty{ display:flex; flex-direction:column; align-items:center; gap:6px; text-align:center; padding:28px 22px 30px; color:var(--ink-600,#5B667B); font-size:12.8px; }
+.notif-empty .ic{ width:34px; height:34px; color:#F27B0E; }
+.notif-empty b{ font-family:var(--font-display, Georgia, serif); font-size:17px; color:var(--navy-950); }
+/* v185 — full-page Notifications (More → Notifications, or "See all" in the bell panel) */
+#notifPage{ display:none; max-width:720px; margin:0 auto; padding:4px 0 24px; }
+body.logged-in[data-view="notifications"] #notifPage{ display:block; }
+.np-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin:0 2px 12px; min-height:34px; }
+.np-card{ background:#fff; border:1px solid var(--line,#E2E6EF); border-radius:20px; box-shadow:0 8px 24px rgba(10,27,51,.08); overflow:hidden; }
+.np-card .notif-group{ padding:14px 18px 6px; font-size:12px; }
+.np-row{ display:block; width:100%; text-align:left; background:none; border:0; border-bottom:1px solid var(--line,#E2E6EF); padding:0; font:inherit; color:inherit; cursor:pointer; }
+.np-row:last-child{ border-bottom:0; }
+.np-row .notif-item{ border-bottom:0; padding:14px 18px; align-items:flex-start; }
+.np-row .notif-icon{ width:38px; height:38px; border-radius:12px; background:#FFF1D6; display:grid; place-items:center; font-size:18px; }
+.np-row .notif-icon .ic{ width:20px; height:20px; color:#B25E00; }
+.np-row .notif-text{ font-size:14.5px; line-height:1.45; }
+.np-row .notif-time{ font-size:12.5px; }
+.np-row .np-chev{ align-self:center; color:#5B667B; font-size:20px; line-height:1; transition:transform .2s ease-out; }
+.np-row[aria-expanded="true"] .np-chev{ transform:rotate(90deg); }
+.np-row:focus-visible{ outline:3px solid var(--saffron-500); outline-offset:-3px; }
+.np-detail{ display:none; padding:0 18px 16px 66px; font-size:13.5px; line-height:1.5; color:var(--ink-600,#465066); }
+.np-detail.open{ display:block; }
+.np-detail .np-when{ display:block; margin-bottom:10px; }
+.np-detail .btn{ min-height:44px; }
+.np-seeall{ display:block; width:100%; border:0; border-top:1px solid var(--line,#E2E6EF); background:var(--paper,#FAF8F3); color:#B25E00; font-weight:700; font-size:13.5px; padding:13px; cursor:pointer; position:sticky; bottom:0; }
 @media (max-width:640px){
-  .notif-panel{ position:fixed; top:auto; bottom:0; left:0; right:0; width:auto; max-width:none; max-height:calc(70 * var(--vh1)); border-radius:16px 16px 0 0; }
+  .notif-panel{ position:fixed; top:auto; bottom:calc(92px + env(safe-area-inset-bottom, 0px)); left:12px; right:12px; width:auto; max-width:none; max-height:calc(70 * var(--vh1) - 92px); border-radius:20px; }
 }
 
 .pay-line{ display:flex; justify-content:space-between; gap:12px; padding:11px 0; border-bottom:1px solid rgba(255,255,255,.1); font-size:13.2px; }
@@ -662,7 +695,8 @@ details.card[open] > summary::after{ transform:rotate(180deg); }
   body.logged-in[data-view="info"] [data-v]:not([data-v~="info"]),
   body.logged-in[data-view="rwa"] [data-v]:not([data-v~="rwa"]),
   body.logged-in[data-view="neighbours"] [data-v]:not([data-v~="neighbours"]),
-  body.logged-in[data-view="more"] [data-v]:not([data-v~="more"]){ display:none !important; }
+  body.logged-in[data-view="more"] [data-v]:not([data-v~="more"]),
+  body.logged-in[data-view="notifications"] [data-v]:not([data-v~="notifications"]){ display:none !important; }
   body.logged-in[data-view="more"] #moreView{ display:block; }
   body.logged-in #dashboard{ background:#F6F3EC !important; }
   body.logged-in #dashboard .card{ border-radius:20px; border-color:#E7E2D6; box-shadow:0 2px 8px rgba(10,27,51,.04); }
@@ -828,6 +862,201 @@ details.card[open] > summary::after{ transform:rotate(180deg); }
   .pay-head-actions #openPaymentBtn{ order:-1; flex:1 1 100%; width:100%; }
   .pay-head-actions select{ flex:1 1 auto; }
 }
+
+/* =====================================================================
+   v180 — Option C "geometric heritage"
+   One header language for every signed-in screen: overlapping saffron,
+   gold, navy and magenta facets with white type on top; paper-coloured
+   page; white cards; a light floating bottom bar with a navy active pill.
+   ===================================================================== */
+.geo-hd, .geo-chips{ display:none; }
+body.logged-in .geo-hd{ display:block; position:absolute; inset:0; z-index:-1; overflow:hidden; background:#0A1B33; }
+body.logged-in .geo-hd svg:not(.geo-art){ position:absolute; inset:0; width:100%; height:100%; display:block; }
+/* A soft navy wash keeps white type readable over the orange facets. */
+body.logged-in .geo-hd::after{ content:''; position:absolute; inset:0; background:linear-gradient(100deg, rgba(10,27,51,.12) 0%, rgba(10,27,51,.06) 50%, rgba(10,27,51,0) 85%); }
+body.logged-in #dashboard{ position:relative; }
+body.logged-in #dashboard .section-head{ position:relative; isolation:isolate; overflow:hidden; max-width:none; color:#fff; }
+body.logged-in #dashboard .section-head h2{ color:#fff; }
+body.logged-in #dashboard .section-head .rule-gold{ display:none; }
+body.logged-in #dashboard .section-head .geo-namaste{ display:block; color:rgba(255,255,255,.94); font:500 14.5px/1.3 var(--font-body); letter-spacing:0; text-transform:none; margin:0 0 3px; }
+body.logged-in #dashboard .section-head .geo-namaste::before, body.logged-in #dashboard .section-head .geo-namaste::after{ display:none; }
+body.logged-in #dashGreeting{ font-family:var(--font-display); font-size:28px !important; font-weight:600; line-height:1.15; letter-spacing:-.01em; margin:0; text-shadow:0 1px 2px rgba(10,27,51,.38), 0 2px 16px rgba(10,27,51,.34); overflow-wrap:anywhere; }
+body.logged-in .geo-chips{ display:flex; flex-wrap:wrap; gap:8px; margin-top:14px; }
+.geo-chip{ background:#fff; color:var(--navy-900); font-weight:700; font-size:13.5px; line-height:1; padding:8px 13px; border-radius:99px; box-shadow:0 2px 8px rgba(10,27,51,.16); }
+.geo-chip-id{ font-family:var(--font-mono); letter-spacing:.02em; }
+body.logged-in:not([data-view="home"]) #viewTitle{ font-family:var(--font-display); font-weight:600; letter-spacing:-.01em; line-height:1.15; text-shadow:0 1px 2px rgba(10,27,51,.38), 0 2px 16px rgba(10,27,51,.34); }
+body.logged-in .geo-namaste{ text-shadow:0 1px 8px rgba(10,27,51,.4); }
+
+/* Dues card: white, overlapping the header, amount on the left and Pay now on the right. */
+.dues-hero{ border-radius:22px; }
+.dues-hero.dh-due{
+  background:#fff; color:var(--navy-950); border:1px solid #EAE6DC; box-shadow:0 14px 34px rgba(10,27,51,.18);
+  display:grid; grid-template-columns:minmax(0,1fr) auto; column-gap:14px; align-items:center; padding:18px;
+}
+.dues-hero.dh-due > *{ grid-column:1 / -1; }
+.dues-hero.dh-due .dh-lbl{ color:var(--ink-600); font-size:11px; letter-spacing:.06em; line-height:1.35; }
+.dues-hero.dh-due .dh-ico{ background:#FFF1DC; color:#F27B0E; --duo:rgba(242,123,14,.3); }
+.dues-hero.dh-due .dh-amt{ grid-column:1; font-family:var(--font-display); font-size:34px; font-weight:700; letter-spacing:-.01em; color:var(--navy-950); margin-top:8px; }
+.dues-hero.dh-due .btn{ grid-column:2; grid-row:2; width:auto; margin:8px 0 0; padding:0 22px; min-height:50px; border-radius:14px; font-size:15.5px; white-space:nowrap; }
+.dues-hero.dh-due .dh-note{ color:var(--ink-600); }
+.dues-hero.dh-due .dh-office{ color:var(--ink-600); text-align:left; margin-top:10px; }
+.dues-hero.dh-due .dh-eye{ color:var(--ink-600); }
+.dues-hero.dh-verify, .dues-hero.dh-clear{ box-shadow:0 14px 34px rgba(10,27,51,.16); }
+
+/* 2x2 quick actions */
+.home-links.qa-grid{ display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:14px; background:none; border:0; border-radius:0; box-shadow:none; }
+.home-links.qa-grid .qa{
+  display:flex; align-items:center; gap:11px; min-height:68px; padding:12px; background:#fff; border:1px solid var(--line);
+  border-radius:18px; box-shadow:0 2px 8px rgba(10,27,51,.05); text-align:left; font:inherit; color:var(--navy-950); cursor:pointer; width:100%;
+}
+.home-links.qa-grid .qa:active{ transform:scale(.98); }
+.qa-ico{ width:42px; height:42px; border-radius:13px; flex:none; display:flex; align-items:center; justify-content:center; background:#E6EEF9; color:#1F4585; --duo:rgba(31,69,133,.28); }
+.qa-ico svg{ width:23px; height:23px; }
+.qa-ico.t-magenta{ background:#FBE9F1; color:#C01860; --duo:rgba(192,24,96,.28); }
+.qa-ico.t-green{ background:#E6F4EC; color:#1B7A4D; --duo:rgba(27,122,77,.28); }
+.qa-ico.t-saffron{ background:#FFF1DC; color:#E26F0A; --duo:rgba(242,123,14,.3); }
+.qa-t{ display:flex; flex-direction:column; min-width:0; }
+.qa-l{ font-weight:700; font-size:15px; line-height:1.2; }
+.qa-s{ font-size:12.5px; color:var(--ink-600); line-height:1.3; margin-top:2px; }
+
+/* Today chips wrap instead of scrolling sideways */
+.ts-chips{ flex-wrap:wrap; overflow:visible; }
+.ts-chip{ flex:0 1 auto; white-space:normal; }
+
+/* Notices: one card each, date box on the left, a coloured stripe by kind */
+body.logged-in #notices #noticeList{ background:none; border:0; box-shadow:none; padding:0; }
+body.logged-in .notice-item{ background:#fff; border:1px solid var(--line); border-radius:18px; padding:14px; margin-bottom:12px; gap:14px; box-shadow:0 2px 8px rgba(10,27,51,.04); position:relative; overflow:hidden; }
+body.logged-in .notice-item:last-child{ border-bottom:1px solid var(--line); margin-bottom:0; }
+body.logged-in .notice-item[class*="nk-"]{ border-left:5px solid var(--nk, #163564); }
+.nk-meeting{ --nk:#C01860; } .nk-dues{ --nk:#F27B0E; } .nk-service{ --nk:#1F4585; } .nk-general{ --nk:#163564; }
+.notice-kind{ font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--nk, var(--navy-700)); margin-bottom:3px; }
+.nk-dues .notice-kind{ color:#A85200; }
+body.logged-in .notice-date{ width:56px; border-radius:12px; background:var(--paper); align-self:flex-start; padding:9px 0; }
+body.logged-in .notice-date .d{ font-size:22px; font-weight:700; }
+body.logged-in .notice-date .m{ color:#C01860; font-weight:700; }
+body.logged-in #notices .eyebrow, body.logged-in #notices .rule-gold, body.logged-in #societyCalendar .eyebrow, body.logged-in #societyCalendar .rule-gold, body.logged-in #activePolls .eyebrow, body.logged-in #activePolls .rule-gold{ display:none; }
+body.logged-in #notices, body.logged-in #societyCalendar, body.logged-in #activePolls{ padding:14px 0 6px; }
+body.logged-in #societyCalendar h2, body.logged-in #activePolls h2{ font-size:21px !important; margin-top:0 !important; }
+body.logged-in #notices h2{ font-size:21px !important; margin-top:0 !important; }
+
+/* Light floating bottom bar, navy pill on the active tab */
+.tabbar-mobile{ background:#fff; border:1px solid var(--line); border-radius:22px; box-shadow:0 12px 30px rgba(10,27,51,.16); }
+.tabbar-mobile a{ color:var(--ink-600); --duo:rgba(10,27,51,.1); }
+.tabbar-mobile a.active{ background:var(--navy-900); color:#fff; --duo:rgba(255,255,255,.34); }
+
+@media (max-width:900px){
+  /* The site header floats over the facets: seal on the left, language pill and bell on the right. */
+  body.logged-in .site-header{ position:absolute; left:0; right:0; top:0; background:transparent; backdrop-filter:none; -webkit-backdrop-filter:none; border:0; box-shadow:none; }
+  body.logged-in .site-header.scrolled{ background:transparent; box-shadow:none; }
+  body.logged-in .site-header::after{ display:none; }
+  body.logged-in .site-header .brand-text{ display:none; }
+  body.logged-in .site-header .logo-disc{ width:40px; height:40px; background:#fff; padding:2px; border-radius:50%; box-shadow:0 2px 10px rgba(10,27,51,.28); }
+  body.logged-in .lang-toggle-header{ background:rgba(10,27,51,.58); border-color:transparent; }
+  body.logged-in .lang-toggle-header button{ color:rgba(255,255,255,.9); }
+  body.logged-in .lang-toggle-header button.active{ background:#fff; color:var(--navy-900); }
+  body.logged-in .notif-bell{ background:rgba(10,27,51,.58); border-color:transparent; border-radius:50%; }
+  body.logged-in #dashboard{ padding-top:0 !important; }
+  body.logged-in #dashboard .section-head{ margin:0 -16px 0 !important; padding:68px 16px 20px; }
+  body.logged-in:not(.not-approved)[data-view="home"] #dashboard .section-head{ padding-bottom:84px; }
+  body.logged-in.not-approved #dashboard .section-head{ padding-bottom:24px; }
+  body.logged-in #dashboard #dashboardContent{ margin-top:14px; }
+  body.logged-in[data-view="home"]:not(.not-approved) #dashboard #dashboardContent{ margin-top:-62px; position:relative; z-index:2; }
+  body.logged-in #duesHero .dues-hero{ margin-top:0; }
+  body.logged-in:not([data-view="home"]) #viewTitle{ font-size:23px; }
+}
+@media (min-width:901px){
+  body.logged-in #dashboard{ padding-top:26px !important; }
+  body.logged-in #dashboard .section-head{ border-radius:24px; padding:30px 34px; margin-bottom:22px !important; box-shadow:0 10px 28px rgba(10,27,51,.14); }
+  body.logged-in .geo-chips{ margin-top:12px; }
+}
+
+/* Receipts: a settled payment is one compact row (the three-step tracker is only for ones still in progress) */
+.pay-timeline .tl-done .pay-steps{ display:none; }
+@media (max-width:900px){
+  .pay-timeline .tl-row > div:last-child{ text-align:left !important; display:flex; align-items:center; gap:8px; flex-wrap:wrap; width:100%; }
+  .pay-timeline .tl-row > div:last-child > div:first-child{ margin-bottom:0 !important; }
+}
+
+.geo-art{ display:none; }
+body.logged-in .geo-hd .geo-art{ display:block; position:absolute; inset:auto 16px 92px auto; width:118px; height:auto; opacity:.34; pointer-events:none; }
+body.logged-in:not([data-view="home"]) .geo-hd .geo-art{ bottom:8px; width:84px; }
+body.logged-in.not-approved .geo-hd .geo-art{ bottom:8px; width:84px; }
+@media (min-width:901px){ body.logged-in .geo-hd .geo-art{ right:34px; bottom:12px; width:120px; } }
+
+/* Header band: the society's seal and name on every signed-in screen (v180) */
+.geo-brand{ display:none; }
+body.logged-in .geo-brand{ display:block; }
+body.logged-in .geo-seal{ position:absolute; left:16px; top:12px; width:76px; height:76px; border-radius:50%; background:#fff; padding:3px; box-shadow:0 3px 14px rgba(10,27,51,.32); z-index:1; }
+body.logged-in .geo-brand-t{ position:absolute; left:104px; right:16px; top:56px; z-index:1; color:#fff; display:flex; flex-direction:column; gap:1px; text-shadow:0 1px 2px rgba(10,27,51,.45), 0 2px 12px rgba(10,27,51,.35); }
+body.logged-in .geo-brand-t b{ font-family:var(--font-display); font-size:16px; font-weight:600; line-height:1.2; }
+body.logged-in .geo-brand-t span{ font-size:12px; line-height:1.3; font-weight:500; }
+body.logged-in:not([data-view="home"]) .geo-seal{ width:48px; height:48px; padding:2px; }
+body.logged-in:not([data-view="home"]) .geo-brand-t{ left:74px; right:170px; top:14px; }
+body.logged-in:not([data-view="home"]) .geo-brand-t b{ font-size:13px; white-space:nowrap; }
+body.logged-in:not([data-view="home"]) .geo-brand-t span{ white-space:nowrap; }
+body.logged-in:not([data-view="home"]) .geo-brand-t span{ font-size:11px; }
+body.logged-in:not([data-view="home"]) .geo-brand-s{ display:none; }
+@media (max-width:900px){
+  body.logged-in .site-header .brand{ display:none; }
+  body.logged-in .site-header .header-actions{ margin-left:auto; }
+  body.logged-in #dashboard .section-head{ padding-top:76px; }
+  body.logged-in[data-view="home"] #dashboard .section-head{ padding-top:104px; }
+}
+@media (min-width:901px){
+  body.logged-in .geo-brand{ position:absolute; right:32px; top:50%; transform:translateY(-50%); display:flex; flex-direction:row-reverse; align-items:center; gap:16px; z-index:1; text-align:right; }
+  body.logged-in .geo-seal{ position:static; width:88px; height:88px; padding:4px; }
+  body.logged-in .geo-brand-t{ position:static; display:flex; }
+  body.logged-in:not([data-view="home"]) .geo-seal{ width:72px; height:72px; }
+  body.logged-in:not([data-view="home"]) .geo-brand-t{ position:static; }
+  body.logged-in:not([data-view="home"]) .geo-brand-s{ display:block; }
+  body.logged-in .geo-brand-t b{ font-size:19px; }
+  body.logged-in:not([data-view="home"]) .geo-brand-t b{ font-size:16px; }
+  body.logged-in .geo-brand-t span, body.logged-in:not([data-view="home"]) .geo-brand-t span{ font-size:12.5px; }
+  body.logged-in .geo-hd .geo-art{ display:none; }
+  body.logged-in #dashboard .section-head{ min-height:150px; display:flex; flex-direction:column; justify-content:center; }
+}
+
+/* Know your RWA: a white card led by the real seal */
+.rwa-card{ background:#fff !important; color:var(--navy-950) !important; border:1px solid var(--line); box-shadow:0 14px 34px rgba(10,27,51,.12); border-radius:22px !important; padding:18px !important; position:relative; overflow:hidden; gap:16px; }
+.rwa-card::before{ content:''; position:absolute; right:-30px; top:-30px; width:140px; height:140px; background:linear-gradient(135deg,#FF9933,#F27B0E); clip-path:polygon(0 0,100% 0,100% 100%); opacity:.9; }
+.rwa-card::after{ content:''; position:absolute; right:-30px; top:-30px; width:80px; height:80px; background:#C01860; clip-path:polygon(0 0,100% 0,100% 100%); }
+.rwa-card .logo-disc{ width:92px !important; height:92px !important; flex:0 0 92px !important; box-shadow:0 4px 16px rgba(10,27,51,.2); position:relative; z-index:1; }
+.rwa-card h2{ color:var(--navy-950) !important; font-size:22px !important; font-weight:600; position:relative; z-index:1; }
+.rwa-card p{ color:var(--ink-600) !important; position:relative; z-index:1; }
+.rwa-card .rwa-reg{ font-family:var(--font-mono); font-size:11.5px; margin-top:6px !important; color:#7D6410 !important; }
+.rwa-about{ font-size:14px; line-height:1.55; color:var(--ink-700); margin:4px 2px 8px; }
+.rwa-addr{ font-size:12.5px; color:var(--ink-600); margin:0 2px 10px; }
+.rwa-facts b{ font-family:var(--font-display); font-weight:700; font-size:24px !important; }
+
+/* Committee: member cards with the photo on top */
+.committee-group-title{ font-family:var(--font-display); font-size:19px; font-weight:600; letter-spacing:0; text-transform:none; color:var(--navy-950); display:flex; align-items:center; gap:10px; }
+.committee-group-title::after{ content:''; flex:1; height:2px; border-radius:2px; background:linear-gradient(90deg,#F27B0E,#C01860 40%,transparent); opacity:.5; }
+.committee-grid{ grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:12px; }
+.committee-card{ flex-direction:column; align-items:center; text-align:center; gap:8px; padding:16px 10px 14px; border-radius:20px; box-shadow:0 2px 8px rgba(10,27,51,.05); border-color:#EAE6DC; }
+.committee-card img{ width:72px; height:72px; flex:0 0 72px; border:3px solid #fff; box-shadow:0 0 0 2px #FFC978, 0 4px 12px rgba(10,27,51,.16); background:#fff; object-fit:cover; }
+.committee-card .cc-txt{ flex:0 0 auto; width:100%; }
+.committee-card .role{ display:inline-block; margin-top:6px; padding:3px 9px; border-radius:99px; background:#FBE9F1; color:#9B1D5B; font-size:10.5px; letter-spacing:.06em; }
+@media (max-width:420px){ .committee-grid{ grid-template-columns:1fr 1fr; } }
+
+/* Section headings inside signed-in screens: the screen header already names the page */
+body.logged-in main section[data-v]:not(#dashboard) .section-head .rule-gold, body.logged-in main section[data-v]:not(#dashboard) .section-head .eyebrow{ display:none; }
+body.logged-in main section[data-v]:not(#dashboard){ padding:16px 0 8px; }
+body.logged-in main section[data-v]:not(#dashboard) .section-head{ margin-bottom:14px; }
+body.logged-in main section[data-v]:not(#dashboard) .section-head h2{ font-size:21px !important; margin:0 0 4px; }
+body.logged-in .geo-brand-t{ background:rgba(10,27,51,.4); border-radius:12px; padding:6px 11px; width:fit-content; max-width:calc(100% - 120px); }
+body.logged-in:not([data-view="home"]) .geo-brand-t{ padding:4px 9px; max-width:none; }
+@media (min-width:901px){ body.logged-in .geo-brand-t{ background:none; padding:0; max-width:none; } }
+
+/* Public landing hero: the facet band instead of the dark photograph */
+.hero-photo{ background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 390 250' preserveAspectRatio='xMinYMin slice'%3E%3Crect width='390' height='250' fill='%230A1B33'/%3E%3Cpolygon points='0%2C0 250%2C0 120%2C250 0%2C250' fill='%23F27B0E'/%3E%3Cpolygon points='120%2C0 390%2C0 390%2C120 200%2C250 70%2C250' fill='%23163564'/%3E%3Cpolygon points='0%2C0 170%2C0 40%2C250 0%2C250' fill='%23FF9933'/%3E%3Cpolygon points='290%2C0 390%2C0 390%2C90' fill='%23C01860'/%3E%3Cpolygon points='150%2C0 205%2C0 95%2C250 40%2C250' fill='%23FFC978'/%3E%3Cpolygon points='300%2C250 390%2C130 390%2C250' fill='%230F2547'/%3E%3C/svg%3E") !important; background-size:100% 290px !important; background-position:top center !important; background-repeat:no-repeat !important; opacity:1 !important; }
+.hero::after{ display:none; }
+/* v183: on phones the facet art stops just under the seal; the caption and eyebrow sit on plain navy so they stay readable */
+@media (max-width:900px){
+  .hero-photo{ background-size:100% 252px !important; }
+  .seal-caption{ width:fit-content; margin-left:auto; margin-right:auto; padding:4px 12px; border-radius:999px; background:rgba(10,27,51,.78); color:rgba(255,255,255,.82); }
+  .hero .eyebrow.on-dark{ margin-top:16px; }
+}
+@media (max-width:420px){ .site-header .brand-text .full{ font-size:12px; line-height:1.15; } }
 </style>
 <script>
 /* Boot guard — if the page's main script cannot start (typically a half-updated cache: a new
@@ -972,8 +1201,9 @@ details.card[open] > summary::after{ transform:rotate(180deg); }
           <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-bell"/></svg><span class="notif-badge" id="notifBadge" style="display:none;">0</span>
         </button>
         <div class="notif-panel" id="notifPanel">
-          <div class="notif-panel-head">Notifications</div>
+          <div class="notif-panel-head"><span>Notifications</span><span class="notif-head-meta"><span class="notif-unread-chip" id="notifUnreadChip" hidden></span><button type="button" class="notif-markall" id="notifMarkAll" hidden>Mark all as read</button></span></div>
           <div id="notifList"><p class="t-muted" style="font-size:12.5px; padding:14px;">Loading…</p></div>
+          <button type="button" class="np-seeall" id="notifSeeAll">See all notifications ›</button>
         </div>
       </div>
       <button class="btn btn-primary btn-sm" id="navAuthBtn">Resident Login</button>
@@ -981,13 +1211,35 @@ details.card[open] > summary::after{ transform:rotate(180deg); }
   </div>
 </header>
 
+<main id="mainContent">
 <section id="dashboard" style="display:none; background:var(--paper);">
+  <h1 class="sr-only" data-no-translate>MHMRWS Resident Portal</h1>
   <div class="wrap">
     <div class="section-head" style="margin-bottom:22px;">
+    <!-- v180 Option C: the geometric-heritage header. Pure decoration, one SVG of overlapping facets. -->
+    <div class="geo-hd" aria-hidden="true">
+    <svg viewBox="0 0 390 250" preserveAspectRatio="none" focusable="false">
+      <polygon points="0,0 250,0 120,250 0,250" fill="#F27B0E"/>
+      <polygon points="120,0 390,0 390,120 200,250 70,250" fill="#163564"/>
+      <polygon points="0,0 170,0 40,250 0,250" fill="#FF9933"/>
+      <polygon points="290,0 390,0 390,90" fill="#C01860"/>
+      <polygon points="150,0 205,0 95,250 40,250" fill="#FFC978"/>
+      <polygon points="300,250 390,130 390,250" fill="#0F2547"/>
+    </svg>
+    <svg class="geo-art" viewBox="0 0 120 90" fill="none" stroke="#fff" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true" focusable="false">
+      <path d="M60 3v7M44 34c0-14 8-22 16-24 8 2 16 10 16 24zM36 34h48M41 34v34M54 34v34M66 34v34M79 34v34M32 68h56M28 75h64M28 75v6h64v-6"/>
+      <path d="M10 52c0-8 4-12 8-14 4 2 8 6 8 14zM94 52c0-8 4-12 8-14 4 2 8 6 8 14zM8 52h20M92 52h20M13 52v23M23 52v23M97 52v23M107 52v23"/>
+    </svg>
+  </div>
+    <div class="geo-brand">
+      <img class="geo-seal" src="logo.webp" alt="" width="84" height="84" decoding="async">
+      <div class="geo-brand-t"><b data-no-translate>Max Heights Majestic</b><span>Resident Welfare Society</span><span class="geo-brand-s">Jaipur · 7 towers · 454 flats</span></div>
+    </div>
       <div data-v="home">
         <div class="rule-gold"></div>
-        <div class="eyebrow">Your Portal</div>
+        <div class="eyebrow geo-namaste">Namaste,</div>
         <h2 id="dashGreeting" style="font-size:26px;">Welcome back</h2>
+        <div class="geo-chips" id="geoChips" data-no-translate></div>
       </div>
       <h2 id="viewTitle" aria-live="polite"></h2>
     </div>
@@ -1110,10 +1362,11 @@ details.card[open] > summary::after{ transform:rotate(180deg); }
 <section id="rwaIntro" data-v="rwa">
   <div class="wrap">
     <div class="rwa-card">
-      <img id="rwaLogo" class="logo-disc" alt="" width="56" height="56">
+      <img id="rwaLogo" class="logo-disc" alt="Max Heights Majestic Resident Welfare Society seal" width="96" height="96">
       <div class="rwa-card-txt">
-        <h2 data-no-translate>Max Heights Majestic RWA</h2>
+        <h2 data-no-translate>Max Heights Majestic</h2>
         <p>Resident Welfare Society · Jaipur</p>
+        <p class="rwa-reg" data-no-translate>Reg. COOP/2026/JAIPUR/502531 · JDA Approved</p>
       </div>
     </div>
     <div class="rwa-facts">
@@ -1121,6 +1374,8 @@ details.card[open] > summary::after{ transform:rotate(180deg); }
       <div><b>454</b><span>Flats</span></div>
       <div><b>JDA</b><span>Approved</span></div>
     </div>
+    <p class="rwa-about">A registered society run by the residents, for the residents — it looks after upkeep, security and the shared funds of Max Heights Majestic, and keeps every rupee visible to every member.</p>
+    <p class="rwa-addr" data-no-translate>GH-3, Suncity Township, Grand Sikar Road, Jaipur 302013</p>
     <p class="t-muted rwa-note">The committee below is elected by the members. For anything about the app, use More → Report a problem; for a problem in the society, raise a complaint.</p>
   </div>
 </section>
@@ -1471,6 +1726,7 @@ details.card[open] > summary::after{ transform:rotate(180deg); }
     </div>
   </div>
 </section>
+</main>
 
 <footer class="site-footer no-print" data-v="home info">
   <div class="wrap">
@@ -1681,7 +1937,7 @@ details.card[open] > summary::after{ transform:rotate(180deg); }
         <div class="field"><label for="gs-name">Guest Name</label><input name="guestName" id="gs-name" required maxlength="100"></div>
         <div class="field"><label for="gs-date">Expected Date</label><input type="date" name="expectedDate" id="gs-date" required></div>
         <div class="field"><label for="gs-purpose">Purpose <span class="t-muted" style="font-weight:400;">(optional)</span></label><input name="purpose" id="gs-purpose" maxlength="200" placeholder="e.g. Family visit, delivery, cab"></div>
-        <p class="t-muted" style="font-size:12px;">This is a heads-up for the office to relay at the gate — not a security check-in system.</p>
+        <p class="t-muted" style="font-size:12px;">Tell the office who is coming — the gate guard will see it and let your guest in.</p>
         <button class="btn btn-primary btn-block" type="submit">Log Guest</button>
       </form>
     </div>
@@ -1807,7 +2063,7 @@ details.card[open] > summary::after{ transform:rotate(180deg); }
 import { LOGO_DATA_URI, getLogoDataUri } from './logo-data.js';
 import { initLang, setLang, translateSubtree, setDynamicLabel, HI } from './i18n.js';
 import { TOWER_IDS, flatsForTower } from './tower-plan.js';
-import { installAutoLabels, installModalA11y, installOfflineBanner, installSlowConnectionBanner, isOffline, installPasswordToggles } from './ui-a11y.js';
+import { installAutoLabels, installModalA11y, installOfflineBanner, installSlowConnectionBanner, isOffline, installPasswordToggles, installCountUp } from './ui-a11y.js';
 import { imgTag } from './html-helpers.js';
 import { hideAppLoader } from './premium.js';
 
@@ -1817,6 +2073,7 @@ import { hideAppLoader } from './premium.js';
 installModalA11y();
 installAutoLabels();
 installOfflineBanner();
+installCountUp();
 installSlowConnectionBanner();
 installPasswordToggles();
 
@@ -1873,8 +2130,8 @@ window.__renderCommittee = (rows) => {
   const cardHTML = (m) => `
     <div class="committee-card">
       ${imgTag(m.photoURL || LOGO_DATA_URI, 'alt=""')}
-      <div class="cc-txt"><div class="nm" data-no-translate>${esc(m.name)}</div>
-      <div class="role">${esc(m.role)}</div></div>
+      <div class="cc-txt"><div class="nm" data-no-translate>${esc(m.name || 'Committee member')}</div>
+      <div class="role">${esc(m.role || '')}</div></div>
     </div>`;
 
   // Grouping is driven primarily by ROLE, so it's correct even for members
@@ -2103,7 +2360,7 @@ window.__animateCount = (el) => {
   const VIEW_TITLES = {
     payments: 'Payments', complaints: 'Complaints',
     community: 'Bookings, Guests & Suggestions', profile: 'Profile, Vehicles, Family & Pets',
-    info: 'Documents & Contact', rwa: 'Know your RWA', neighbours: 'Neighbours', more: 'More'
+    info: 'Documents & Contact', rwa: 'Know your RWA', neighbours: 'Neighbours', more: 'More', notifications: 'Notifications'
   };
   const TAB_FOR = { home: 'tabHomeBtn', payments: 'tabPaymentsBtn', complaints: 'tabComplaintsBtn' };
   window.__setView = (v) => {
@@ -2117,6 +2374,7 @@ window.__animateCount = (el) => {
       if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
     });
     document.querySelectorAll('#sideDesk [data-dview]').forEach((a) => a.classList.toggle('active', a.dataset.dview === v));
+    if (v === 'profile') { const pd = document.querySelector('#dashboardContent details'); if (pd) pd.open = true; }
     const t = document.getElementById('viewTitle');
     if (t) { t.textContent = VIEW_TITLES[v] || ''; if (window.__translate) window.__translate(t); }
     try { window.__onViewShown?.(v); } catch (_) { /* never break navigation */ }
@@ -2150,7 +2408,7 @@ import {
   initFamilyMembersEditor, addFamilyMemberRow, collectFamilyMembers,
   initVehiclesEditor, addVehicleRow, collectVehicles,
   initPetsEditor, addPetCard, collectPets, petVaccinationStatus, profileCompleteness, flatClaimId, findBlockingFlatClaim, generatePetId, rentAgreementStatus, flatKey, INSPECTION_TYPES, todayLocalISO
-} from './app-common.js?v=177';
+} from './app-common.js?v=189';
 import { installAppInstallPrompt } from './install-prompt.js';
 
 // The "install this app" prompt runs from here (not the branding block above)
@@ -2246,7 +2504,7 @@ async function checkFlatAvailability() {
   if (!tower || !flat || !residentType) { flatAvailabilityMsg.style.display = 'none'; return; }
   const myToken = ++window.__flatAvailabilityCheckToken;
   flatAvailabilityMsg.style.display = 'block';
-  flatAvailabilityMsg.style.color = 'var(--ink-500,#6B7385)';
+  flatAvailabilityMsg.style.color = 'var(--ink-500,#636B7E)';
   flatAvailabilityMsg.textContent = 'Checking availability…';
   try {
     // A flat now has an owner-side slot and a tenant-side slot — this
@@ -2641,6 +2899,7 @@ function goToStepForField(form, field) { window.__goToStepForField(field); }
     if (what === 'rwa') { show('rwa'); return; }
     if (what === 'numbers') { show('rwa'); setTimeout(() => document.getElementById('rwaNumbers')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60); return; }
     if (!needApproved()) return;
+    if (what === 'notifications') { show('notifications'); return; }
     if (what === 'neighbours') { show('neighbours'); return; }
     if (what === 'community') { show('community'); document.querySelector('[data-cmrtab="book"]')?.click(); }
     else if (what === 'profile') { show('profile'); const d = document.querySelector('#dashboardContent details'); if (d) d.open = true; }
@@ -2652,6 +2911,7 @@ function goToStepForField(form, field) { window.__goToStepForField(field); }
     if (!b) return;
     const what = b.dataset.goto;
     if (what === 'complaints') window.__showView('complaints');
+    else if (what === 'more') window.__showView('more');
     else if (what === 'community') { if (needApproved()) { show('community'); document.querySelector('[data-cmrtab="book"]')?.click(); } }
     else if (what === 'guests') { if (needApproved()) { show('community'); document.querySelector('[data-cmrtab="guest"]')?.click(); } }
     else if (what === 'polls') { document.getElementById('activePolls')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
@@ -3426,8 +3686,16 @@ async function loadDashboard(uid) {
   }
   currentMember = snap.data();
   const greetEl = document.getElementById('dashGreeting');
-  greetEl.textContent = `Welcome, ${currentMember.name.split(' ')[0]}`;
-  window.__translate?.(greetEl);
+  greetEl.textContent = currentMember.name || 'Welcome';
+  greetEl.setAttribute('data-no-translate', '');
+  // The header carries who you are: member ID and flat as two chips (v180).
+  const chipsEl = document.getElementById('geoChips');
+  if (chipsEl) {
+    const tw = String(currentMember.tower || '').trim();
+    const flatTxt = [/^tower\b/i.test(tw) ? tw : (tw ? `Tower ${tw}` : ''), currentMember.flatNumber].filter(Boolean).join(' · ');
+    chipsEl.innerHTML = (currentMember.memberID && currentMember.status === 'approved' ? `<span class="geo-chip geo-chip-id">${escapeHtml(currentMember.memberID)}</span>` : '')
+      + (flatTxt ? `<span class="geo-chip">${escapeHtml(flatTxt)}</span>` : '');
+  }
 
   // Syncs Firebase Auth's emailVerified flag (which lives on the auth
   // token, not in Firestore) into the member record once — so admin can see
@@ -3478,7 +3746,7 @@ async function loadDashboard(uid) {
 
   content.className = 'stagger';
   content.innerHTML = `
-    <div class="card status-card" data-v="home">
+    <div class="card status-card" data-v="${currentMember.status === 'approved' ? 'profile' : 'home'}">
       <div class="status-head">
         ${imgTag(currentMember.photoURL || LOGO_DATA_URI, 'alt=""')}
         <div style="min-width:0;">
@@ -3500,26 +3768,34 @@ async function loadDashboard(uid) {
           <button type="button" class="link-btn" id="resendVerifyBtn" style="margin-left:4px;">Resend email</button>
         </div>` : ''}
     </div>
-    ${currentMember.status === 'approved' ? `<div id="todayStrip" class="today-strip" data-v="home" hidden></div>` : ''}
-    ${currentMember.status === 'approved' ? `<div id="gateCard" data-v="home"></div>` : ''}
     ${currentMember.status === 'approved' ? `<div id="duesHero" data-v="home"><div class="skeleton" style="height:96px; margin-top:16px; border-radius:16px;"></div></div>` : ''}
-    ${currentMember.status === 'approved' ? `<div id="inspectionsCard" data-v="home"></div>` : ''}
-    ${currentMember.status === 'approved' ? `<div id="expiryCenterCard" data-v="home" style="display:none;"></div>` : ''}
     ${currentMember.status === 'approved' ? `
-    <div class="home-links" id="homeLinks" data-v="home">
-      <button type="button" class="home-link" data-goto="complaints">
-        <span class="hl-ico t-blue"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-chat"/></svg></span>
-        <span class="hl-t">My complaints</span><span class="hl-n" id="homeOpenComplaints"></span><span class="hl-go" aria-hidden="true">›</span>
+    <div class="home-links qa-grid" id="homeLinks" data-v="home">
+      <button type="button" class="home-link qa" data-goto="complaints">
+        <span class="qa-ico t-blue"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-chat"/></svg></span>
+        <span class="qa-t"><span class="qa-l">Complaint</span><span class="qa-s" id="homeOpenComplaints">Raise or track</span></span>
       </button>
-      <button type="button" class="home-link" data-goto="community">
-        <span class="hl-ico t-green"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-building"/></svg></span>
-        <span class="hl-t">Bookings, Guests &amp; Suggestions</span><span class="hl-go" aria-hidden="true">›</span>
+      <button type="button" class="home-link qa" data-goto="community">
+        <span class="qa-ico t-magenta"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-building"/></svg></span>
+        <span class="qa-t"><span class="qa-l">Book</span><span class="qa-s">Clubhouse</span></span>
       </button>
-      <button type="button" class="home-link" data-goto="profile">
-        <span class="hl-ico t-purple"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-user"/></svg></span>
-        <span class="hl-t">Profile, Vehicles, Family &amp; Pets</span><span class="hl-go" aria-hidden="true">›</span>
+      <button type="button" class="home-link qa" data-goto="guests">
+        <span class="qa-ico t-green"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-user"/></svg></span>
+        <span class="qa-t"><span class="qa-l">Guest</span><span class="qa-s">Pre-approve entry</span></span>
+      </button>
+      <button type="button" class="home-link qa" data-goto="more">
+        <span class="qa-ico t-saffron"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-grid"/></svg></span>
+        <span class="qa-t"><span class="qa-l">More</span><span class="qa-s">Notices, Docs</span></span>
       </button>
     </div>` : ''}
+    ${currentMember.status === 'approved' ? `<div id="todayStrip" class="today-strip" data-v="home" hidden></div>` : ''}
+    ${currentMember.status === 'approved' ? `<div id="gateCard" data-v="home"></div>` : ''}
+    ${currentMember.status === 'approved' ? `<div id="inspectionsCard" data-v="home"></div>` : ''}
+    ${currentMember.status === 'approved' ? `<div id="expiryCenterCard" data-v="home" style="display:none;"></div>` : ''}
+    <div id="notifPage" data-v="notifications">
+      <div class="np-head"><span class="notif-unread-chip" id="npUnread" hidden></span><button type="button" class="notif-markall" id="npMarkAll" hidden>Mark all read</button></div>
+      <div class="np-card" id="npList"><p class="t-muted" style="font-size:13.5px; padding:18px;">Loading…</p></div>
+    </div>
     <div id="moreView" data-v="more">
       <div class="more-profile">
         <span class="more-avatar" aria-hidden="true">${escapeHtml((currentMember.name || '?').trim().charAt(0).toUpperCase())}</span>
@@ -3533,6 +3809,7 @@ async function loadDashboard(uid) {
       <div class="more-group-label">Society</div>
       <div class="more-group"><ul class="more-list">
         <li><button type="button" class="more-item" data-more="notices"><span class="mi-ico t-gold"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-bell"/></svg></span>Notices<span class="hl-go" aria-hidden="true">›</span></button></li>
+        <li><button type="button" class="more-item" data-more="notifications"><span class="mi-ico t-gold"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-bell"/></svg></span>Notifications<span class="hl-go" aria-hidden="true">›</span></button></li>
         <li><button type="button" class="more-item" data-more="rwa"><span class="mi-ico t-purple"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-shield"/></svg></span>Know your RWA<span class="hl-go" aria-hidden="true">›</span></button></li>
         <li><button type="button" class="more-item" data-more="numbers"><span class="mi-ico t-red"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-siren"/></svg></span>Important numbers<span class="hl-go" aria-hidden="true">›</span></button></li>
         <li><button type="button" class="more-item" data-more="neighbours"><span class="mi-ico t-green"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-users"/></svg></span>Neighbours<span class="hl-go" aria-hidden="true">›</span></button></li>
@@ -3582,7 +3859,7 @@ async function loadDashboard(uid) {
           if (pc.pct >= 100) return '';
           return `
           <div style="margin-bottom:16px;">
-            <div style="display:flex; justify-content:space-between; font-size:12px; color:var(--ink-500,#6B7385); margin-bottom:5px;">
+            <div style="display:flex; justify-content:space-between; font-size:12px; color:var(--ink-500,#636B7E); margin-bottom:5px;">
               <span>Profile completeness</span><span>${pc.pct}%</span>
             </div>
             <div style="height:6px; border-radius:3px; background:var(--line,#E2E6EF); overflow:hidden;">
@@ -3665,7 +3942,7 @@ async function loadDashboard(uid) {
         </div>
 
         <div id="cmrPanel-guest" style="display:none;">
-          <div class="spread" style="margin-bottom:10px;"><span class="t-muted" style="font-size:12.5px;">Let the office know ahead of time — not a security check-in system.</span><button class="btn btn-outline btn-sm" id="newGuestBtn">+ Log a Guest</button></div>
+          <div class="spread" style="margin-bottom:10px;"><span class="t-muted" style="font-size:12.5px;">Tell the office ahead of time — the gate guard will see it and let your guest in.</span><button class="btn btn-outline btn-sm" id="newGuestBtn">+ Log a Guest</button></div>
           <div id="quickGuests" class="quick-guests" hidden></div>
           <div id="myGuestsList"><p class="t-muted" style="font-size:13px;">Loading…</p></div>
         </div>
@@ -3794,7 +4071,7 @@ async function loadNotificationCenter() {
     const rows = (await getDocs(query(collection(db, 'notices'), where('postedAt', '>', new Date(cutoff)), orderBy('postedAt', 'desc'), limit(50)))).docs.map(d => d.data());
     rows.forEach(n => {
       const t = toMs(n.postedAt);
-      if (t && t > cutoff) items.push({ icon: icon('bell'), text: `New notice: ${n.titleEn}`, time: t, tab: 'home' });
+      if (t && t > cutoff) items.push({ icon: icon('bell'), text: `New notice: ${n.titleEn || n.titleHi || 'tap to read'}`, time: t, tab: 'home' });
     });
   } catch (e) { console.warn('Notification notices check failed:', e?.code || e); }
 
@@ -3849,7 +4126,7 @@ function renderTabDots() {
     document.querySelector(`#sideDesk [data-dview="${dview}"]`)?.classList.toggle('has-dot', on);
   }
 }
-window.__onViewShown = (v) => { if (v === 'payments' || v === 'complaints') { markTabSeen(v); renderTabDots(); } };
+window.__onViewShown = (v) => { if (v === 'payments' || v === 'complaints') { markTabSeen(v); renderTabDots(); } if (v === 'notifications' && (window.__unreadCount || 0) > 0) markNotificationsSeenNow(); };
 (function watchNoticeBoard() {
   const el = document.getElementById('notices');
   if (!el || !('IntersectionObserver' in window)) return;
@@ -3858,7 +4135,73 @@ window.__onViewShown = (v) => { if (v === 'payments' || v === 'complaints') { ma
   }, { threshold: 0.35 }).observe(el);
 })();
 
+/* The full-page list. Same items as the bell panel. Tapping a row opens its detail (exact date
+   and time, plus a button to the screen it is about) — the page itself never changes the data. */
+const NOTIF_TAB_LABEL = { home: 'Home', payments: 'Payments', complaints: 'Complaints', community: 'Bookings & Guests' };
+function renderNotificationPage(items, lastSeen) {
+  const list = document.getElementById('npList');
+  if (!list) return;
+  const unread = items.filter(i => i.time > lastSeen).length;
+  const chip = document.getElementById('npUnread');
+  const markAll = document.getElementById('npMarkAll');
+  if (chip) { chip.hidden = unread === 0; chip.textContent = `${unread} unread`; }
+  if (markAll) markAll.hidden = unread === 0;
+  if (!items.length) {
+    list.innerHTML = `<div class="notif-empty"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-bell"/></svg><b>All caught up!</b><span>You have no new notifications. We’ll tell you when there’s an update.</span></div>`;
+    return;
+  }
+  const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
+  const sorted = items.slice().sort((a, b) => b.time - a.time);
+  window.__notifPageItems = sorted;
+  const row = (i) => {
+    const n = sorted.indexOf(i);
+    const target = i.tab && NOTIF_TAB_LABEL[i.tab];
+    return `<button type="button" class="np-row" data-nidx="${n}" aria-expanded="false" aria-controls="npd${n}">
+      <span class="notif-item${i.time > lastSeen ? ' is-unread' : ''}">
+        <span class="notif-icon">${i.icon}</span>
+        <span class="notif-text">${escapeHtml(i.text)}<span class="notif-time">${fmtRelativeTime(i.time)}</span></span>
+        <span class="notif-dot" aria-hidden="true"></span><span class="np-chev" aria-hidden="true">›</span>
+      </span></button>
+      <div class="np-detail" id="npd${n}"><span class="np-when">${escapeHtml(new Date(i.time).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }))}</span>${target ? `<button type="button" class="btn btn-primary btn-sm" data-npgo="${escapeHtml(i.tab)}">Open ${escapeHtml(target)}</button>` : ''}</div>`;
+  };
+  const group = (label, rows) => rows.length ? `<div class="notif-group">${label}</div>${rows.map(row).join('')}` : '';
+  list.innerHTML = group('Today', sorted.filter(i => i.time >= startOfToday.getTime()))
+                 + group('Earlier', sorted.filter(i => i.time < startOfToday.getTime()));
+}
+document.addEventListener('click', (e) => {
+  if (!e.target.closest?.('#npList')) return;
+  const go = e.target.closest?.('[data-npgo]');
+  if (go) { window.__showView(go.dataset.npgo); return; }
+  const row = e.target.closest?.('.np-row');
+  if (!row) return;
+  const open = row.getAttribute('aria-expanded') !== 'true';
+  row.setAttribute('aria-expanded', String(open));
+  document.getElementById(row.getAttribute('aria-controls'))?.classList.toggle('open', open);
+});
+async function markNotificationsSeenNow() {
+  document.getElementById('notifBadge').style.display = 'none';
+  window.__unreadCount = 0;
+  if (!currentUser || !currentMember) return;
+  try {
+    await updateDoc(doc(db, 'members', currentUser.uid), { notificationsLastSeenAt: serverTimestamp() });
+    currentMember.notificationsLastSeenAt = { toMillis: () => Date.now() };
+  } catch (err) { console.warn('Could not update notification watermark:', err?.code || err); }
+}
+document.addEventListener('click', (e) => {
+  if (!e.target.closest?.('#npMarkAll')) return;
+  document.querySelectorAll('#npList .notif-item.is-unread').forEach(el => el.classList.remove('is-unread'));
+  document.getElementById('npUnread').hidden = true;
+  document.getElementById('npMarkAll').hidden = true;
+  markNotificationsSeenNow();
+});
+document.getElementById('notifSeeAll')?.addEventListener('click', (e) => {
+  e.stopPropagation();
+  document.getElementById('notifPanel')?.classList.remove('open');
+  window.__showView('notifications');
+});
+
 function renderNotificationBell(items, lastSeen) {
+  renderNotificationPage(items, lastSeen);
   const unreadCount = items.filter(i => i.time > lastSeen).length;
   window.__unreadCount = unreadCount;
   renderTodayStrip();
@@ -3866,16 +4209,29 @@ function renderNotificationBell(items, lastSeen) {
   if (unreadCount > 0) { badge.textContent = unreadCount > 9 ? '9+' : String(unreadCount); badge.style.display = 'grid'; }
   else { badge.style.display = 'none'; }
 
+  const chip = document.getElementById('notifUnreadChip');
+  const markAll = document.getElementById('notifMarkAll');
+  if (chip) { chip.hidden = unreadCount === 0; chip.textContent = `${unreadCount} unread`; }
+  if (markAll) markAll.hidden = unreadCount === 0;
+
   const list = document.getElementById('notifList');
   if (!items.length) {
-    list.innerHTML = '<p class="t-muted" style="font-size:12.5px; padding:14px;">Nothing new right now.</p>';
+    list.innerHTML = `<div class="notif-empty"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-bell"/></svg><b>All caught up!</b><span>You have no new notifications. We’ll tell you when there’s an update.</span></div>`;
     return;
   }
-  list.innerHTML = items.map(i => `
-    <div class="notif-item">
+  // Newest first, split into "Today" and "Earlier" by calendar day, with an
+  // orange dot on anything that arrived after the resident last looked.
+  const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
+  const sorted = items.slice().sort((a, b) => b.time - a.time);
+  const row = (i) => `
+    <div class="notif-item${i.time > lastSeen ? ' is-unread' : ''}">
       <span class="notif-icon">${i.icon}</span>
       <span class="notif-text">${escapeHtml(i.text)}<span class="notif-time">${fmtRelativeTime(i.time)}</span></span>
-    </div>`).join('');
+      <span class="notif-dot" aria-hidden="true"></span>
+    </div>`;
+  const group = (label, rows) => rows.length ? `<div class="notif-group">${label}</div>${rows.map(row).join('')}` : '';
+  list.innerHTML = group('Today', sorted.filter(i => i.time >= startOfToday.getTime()))
+                 + group('Earlier', sorted.filter(i => i.time < startOfToday.getTime()));
 }
 
 // A short, human "3h ago" / "2d ago" style stamp — a full date is more than
@@ -3906,6 +4262,20 @@ document.getElementById('notifBellBtn')?.addEventListener('click', async (e) => 
       await updateDoc(doc(db, 'members', currentUser.uid), { notificationsLastSeenAt: serverTimestamp() });
       currentMember.notificationsLastSeenAt = { toMillis: () => Date.now() };
       document.getElementById('notifBadge').style.display = 'none';
+    } catch (err) { console.warn('Could not update notification watermark:', err?.code || err); }
+  }
+});
+document.getElementById('notifMarkAll')?.addEventListener('click', async (e) => {
+  e.stopPropagation();
+  document.querySelectorAll('#notifList .notif-item.is-unread').forEach(el => el.classList.remove('is-unread'));
+  document.getElementById('notifUnreadChip').hidden = true;
+  document.getElementById('notifMarkAll').hidden = true;
+  document.getElementById('notifBadge').style.display = 'none';
+  window.__unreadCount = 0;
+  if (currentUser && currentMember) {
+    try {
+      await updateDoc(doc(db, 'members', currentUser.uid), { notificationsLastSeenAt: serverTimestamp() });
+      currentMember.notificationsLastSeenAt = { toMillis: () => Date.now() };
     } catch (err) { console.warn('Could not update notification watermark:', err?.code || err); }
   }
 });
@@ -4201,6 +4571,7 @@ async function loadMyBookings(uid) {
   }
 }
 const BOOKING_STATUS_BADGE_R = { pending: 'warning', approved: 'success', rejected: 'danger', cancelled: 'neutral' };
+const BOOKING_STATUS_LABEL_R = { pending: 'Pending', approved: 'Approved', rejected: 'Rejected', cancelled: 'Cancelled' };
 const BOOKING_SLOT_LABEL_R = { morning: 'Morning', evening: 'Evening', full_day: 'Full Day' };
 /* ---------------------------------------------------------------------- */
 /*  Gate — live visitor approvals                                          */
@@ -4416,7 +4787,18 @@ async function loadInspectionsCard() {
     const all = snap.docs.map(d => ({ id: d.id, ...d.data() }))
       .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
     renderInspectionsCard(all);
-  } catch (e) { console.warn('Inspections load failed:', e?.code || e); }
+  } catch (e) {
+    console.warn('Inspections load failed:', e?.code || e);
+    // Never leave the card silently blank or silently stale: say the data did not refresh, and offer Retry.
+    const note = `<div role="alert" style="padding:8px 10px; margin-bottom:10px; border:1px solid var(--warning,#B8860B); border-radius:10px; font-size:12.5px;">Could not refresh inspections${window.__residentInspections ? ' — the figures below may be out of date' : ''}. <button type="button" class="btn btn-outline btn-sm" id="inspRetryBtn">Retry</button></div>`;
+    if (window.__residentInspections && el.firstElementChild) {
+      el.querySelector('#inspRetryBtn')?.closest('[role="alert"]')?.remove();
+      el.firstElementChild.insertAdjacentHTML('afterbegin', note);
+    } else {
+      el.innerHTML = `<div class="card card-pad"><h3 style="font-size:15px; margin-bottom:10px;">Facility Inspections</h3>${note}</div>`;
+    }
+    el.querySelector('#inspRetryBtn')?.addEventListener('click', () => loadInspectionsCard());
+  }
 }
 // Resident transparency view: a daily/weekly/monthly summary (counts +
 // issues found), plus the five most recent as tappable rows that open the
@@ -4442,16 +4824,18 @@ function renderInspectionsCard(all) {
     const rows = all.filter(r => ms(r) >= start.getTime());
     const issues = rows.reduce((s, r) => s + (r.issueCount || 0), 0);
     const unchecked = rows.reduce((s, r) => s + (r.uncheckedCount || 0), 0);
-    return { count: rows.length, issues, unchecked };
+    const needsFix = rows.filter(r => r.managerVerificationStatus === 'needs_correction').length;
+    return { count: rows.length, issues, unchecked, needsFix };
   };
   const today = period(startOfToday);
   const week = period(startOfWeek);
   const month = period(startOfMonth);
 
   const box = (label, p) => {
-    const status = !p.count ? { text: 'not inspected', color: 'var(--ink-500,#6B7385)' }
+    const status = !p.count ? { text: 'not inspected', color: 'var(--ink-500,#636B7E)' }
       : p.issues ? { text: p.issues + ' issue' + (p.issues > 1 ? 's' : ''), color: 'var(--warning,#B8860B)' }
-      : p.unchecked ? { text: 'partially checked', color: 'var(--ink-500,#6B7385)' }
+      : p.unchecked ? { text: 'partially checked', color: 'var(--ink-500,#636B7E)' }
+      : p.needsFix ? { text: 'needs correction', color: 'var(--warning,#B8860B)' }
       : { text: 'all clear', color: 'var(--success,#2e7d5b)' };
     return `
     <div style="flex:1; min-width:90px; background:var(--paper,#FAF7F0); border:1px solid var(--line,#EAE6DC); border-radius:12px; padding:10px 12px; text-align:center;">
@@ -4474,12 +4858,13 @@ function renderInspectionsCard(all) {
       ${recent.map((r, i) => `
         <button type="button" data-insp-detail="${i}" style="width:100%; text-align:left; background:none; border:none; border-bottom:1px solid var(--line,#EAE6DC); padding:8px 0; cursor:pointer; display:flex; align-items:center; justify-content:space-between; gap:10px;">
           <span>
-            <b style="font-size:13.5px;">${escapeHtml(INSPECTION_TYPES[r.formType]?.label || r.formType)}</b>
-            <span class="t-muted" style="font-size:12.5px; display:block; margin-top:1px;">${r.tower ? 'Tower ' + escapeHtml(r.tower) + ' · ' : ''}${r.createdAt ? fmtDate(r.createdAt) : ''} · view ›</span>
+            <b style="font-size:13.5px;">${escapeHtml(INSPECTION_TYPES[r.formType]?.label || r.formType || 'Inspection')}</b>
+            <span class="t-muted" style="font-size:12.5px; display:block; margin-top:1px;">${r.tower ? 'Tower ' + escapeHtml(r.tower) + ' · ' : ''}${r.inspectionDate ? 'Inspected ' + fmtDate(r.inspectionDate + 'T12:00:00') + (r.createdAt ? ' · Filed ' + fmtDate(r.createdAt) : '') : (r.createdAt ? 'Filed ' + fmtDate(r.createdAt) : '')} · view ›</span>
           </span>
           ${Number(r.issueCount) ? `<span class="badge badge-warning">${Number(r.issueCount)} issue${Number(r.issueCount) > 1 ? 's' : ''}</span>`
             : Number(r.uncheckedCount) ? `<span class="badge badge-neutral">partially checked</span>`
             : `<span class="badge badge-success">All clear</span>`}
+          ${r.managerVerificationStatus === 'needs_correction' ? `<span class="badge badge-warning">Needs correction</span>` : r.managerVerificationStatus === 'verified' ? `<span class="badge badge-neutral">Reviewed</span>` : ''}
         </button>`).join('')}
     </div>`;
   el.querySelectorAll('[data-insp-detail]').forEach(b =>
@@ -4545,8 +4930,9 @@ function openResidentInspectionDetail(idx) {
       </div>`;
   }
 
-  const title = (INSPECTION_TYPES[r.formType]?.label || r.formType) + (r.tower ? ' — Tower ' + r.tower : '');
-  const meta = 'Filed by ' + (r.createdByName || '—') + (r.createdAt ? ' · ' + fmtDate(r.createdAt) : '');
+  const title = (INSPECTION_TYPES[r.formType]?.label || r.formType || 'Inspection') + (r.tower ? ' — Tower ' + r.tower : '');
+  const meta = 'Filed by ' + (r.createdByName || '—') + (r.inspectionDate ? ' · Inspected ' + fmtDate(r.inspectionDate + 'T12:00:00') : '') + (r.createdAt ? ' · Filed ' + fmtDate(r.createdAt) : '')
+    + (r.managerVerificationStatus === 'needs_correction' ? ' · Review: needs correction' : r.managerVerificationStatus === 'verified' ? ' · Review: verified' : ' · Review: pending');
   openInfoModal(title, `<p class="t-muted" style="font-size:12px; margin-bottom:12px;">${escapeHtml(meta)}</p>${body}${tankBody}${(body || tankBody) ? '' : '<p class="t-muted">No checklist details recorded.</p>'}`);
 }
 
@@ -4567,7 +4953,7 @@ function renderMyBookings() {
     <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--line);">
       <div>
         <b style="font-size:13.5px;">${escapeHtml(b.facilityName)}</b>
-        <span class="badge badge-${BOOKING_STATUS_BADGE_R[b.status] || 'neutral'}" style="margin-left:8px;">${escapeHtml(b.status)}</span>
+        <span class="badge badge-${BOOKING_STATUS_BADGE_R[b.status] || 'neutral'}" style="margin-left:8px;">${escapeHtml(BOOKING_STATUS_LABEL_R[b.status] || b.status)}</span>
         <div class="t-muted" style="font-size:12px; margin-top:2px;">${fmtDate(b.date)} · ${BOOKING_SLOT_LABEL_R[b.slot] || b.slot}${b.decisionNote ? ` · ${escapeHtml(b.decisionNote)}` : ''}</div>
       </div>
       ${['pending', 'approved'].includes(b.status) ? `<button class="btn btn-outline btn-sm" data-cancel-my-booking="${b.id}">Cancel</button>` : ''}
@@ -4750,6 +5136,7 @@ document.getElementById('guestForm')?.addEventListener('submit', async (e) => {
   e.preventDefault();
   const f = e.target;
   const btn = f.querySelector('button[type=submit]');
+  if (!f.guestName.value.trim()) { showToast('Please enter the guest\'s name.', 'error'); return; }
   setLoading(btn, true);
   try {
     await addDoc(collection(db, 'expectedGuests'), {
@@ -4788,11 +5175,12 @@ function renderMySuggestions() {
   el.innerHTML = rows.map(s => `
     <div style="padding:10px 0; border-bottom:1px solid var(--line);">
       <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px;">
-        <p style="font-size:13.5px; white-space:pre-wrap; margin:0;">${escapeHtml(s.text)}</p>
+        <p data-no-translate style="font-size:13.5px; white-space:pre-wrap; margin:0;">${escapeHtml(s.text)}</p>
         <span class="badge badge-neutral" style="flex-shrink:0;">${SUGGESTION_STATUS_LABEL_R[s.status] || s.status}</span>
       </div>
-      ${s.adminNote ? `<div class="t-muted" style="font-size:12px; margin-top:4px;">Committee: ${escapeHtml(s.adminNote)}</div>` : ''}
+      ${s.adminNote ? `<div class="t-muted" style="font-size:12px; margin-top:4px;"><span>Committee:</span> <span data-no-translate>${escapeHtml(s.adminNote)}</span></div>` : ''}
     </div>`).join('');
+  window.__translate?.(el);
 }
 /* ---- Report a problem ------------------------------------------------- */
 let lastReportAt = 0;
@@ -5154,6 +5542,7 @@ document.getElementById('suggestionForm')?.addEventListener('submit', async (e) 
   e.preventDefault();
   const f = e.target;
   const btn = f.querySelector('button[type=submit]');
+  if (!f.text.value.trim()) { showToast('Please write your suggestion first.', 'error'); return; }
   setLoading(btn, true);
   try {
     await addDoc(collection(db, 'suggestions'), {
@@ -5187,7 +5576,7 @@ function renderMyComplaints() {
   const rows = window.__myComplaints || [];
   const openN = rows.filter((c) => !['resolved', 'closed'].includes(c.status)).length;
   const hn = document.getElementById('homeOpenComplaints');
-  if (hn) { hn.textContent = openN ? `${openN} open` : ''; window.__translate?.(hn); }
+  if (hn) { hn.textContent = openN ? `${openN} open` : 'Raise or track'; window.__translate?.(hn); }
   if (!rows.length) {
     el.innerHTML = emptyState('No complaints', 'Nothing is pending. If something needs fixing, raise a complaint with a photo.', { compact: true, icon: 'check', action: { label: 'Raise a complaint', click: '#raiseComplaintBtn' } });
     window.__translate?.(el);
@@ -5203,7 +5592,7 @@ function renderMyComplaints() {
     <div class="detail-line" style="align-items:flex-start; flex-direction:column; gap:4px; padding:10px 0;">
       <div class="spread" style="width:100%;">
         <span><b>${escapeHtml(c.title)}</b> <span class="t-muted" style="font-size:12.5px;">(${escapeHtml(COMPLAINT_CATEGORY_LABEL_R[c.category] || c.category)})</span></span>
-        <span class="t-muted" style="font-size:12px;">${escapeHtml(COMPLAINT_STATUS_LABEL_R[c.status] || c.status)}</span>
+        <span class="badge ${({ open: 'badge-warning', in_progress: 'badge-info', resolved: 'badge-success', closed: 'badge-success', rejected: 'badge-danger' })[c.status] || 'badge-neutral'}">${escapeHtml(COMPLAINT_STATUS_LABEL_R[c.status] || c.status)}</span>
       </div>
       ${(() => {
         // Where it stands, who has it, when to expect it, and what happens
@@ -5968,7 +6357,7 @@ async function loadPayments(uid, preserveShowCount) {
   const stepsHtml = paymentStepsHtml;
 
   list.innerHTML = `<ul class="pay-timeline">` + listRows.map(p => `
-    <li class="tl-item">
+    <li class="tl-item${p.status === 'verified' ? ' tl-done' : ''}">
       <span class="tl-node ${nodeClass(p.status)}"></span>
       <div class="tl-row">
         <div>
@@ -6614,6 +7003,15 @@ document.addEventListener('click', async (e) => {
     b.disabled = false;
   }
 });
+// A notice's kind drives its coloured stripe and small label. Worked out from the
+// words in the title and body, so committee members never have to pick a category.
+function noticeKind(n) {
+  const t = `${n.titleEn || ''} ${n.bodyEn || ''} ${n.titleHi || ''}`.toLowerCase();
+  if (/\b(agm|egm|meeting|election|vote|voting|poll)\b|बैठक|सभा|चुनाव/.test(t)) return { key: 'meeting', label: 'Meeting' };
+  if (/\b(dues|payment|fee|fine|penalty|receipt)\b|maintenance (fee|due|charge|payment)|शुल्क|भुगतान/.test(t)) return { key: 'dues', label: 'Dues' };
+  if (/\b(water|lift|power|electric\w*|generator|gas|pest|cleaning|repair\w*|shut-?down|fire|security)\b|पानी|बिजली|लिफ्ट|सफाई|मरम्मत/.test(t)) return { key: 'service', label: 'Service' };
+  return { key: 'general', label: 'Notice' };
+}
 function renderNotices() {
   const listEl = document.getElementById('noticeList');
   listEl.dataset.loaded = '1';
@@ -6632,12 +7030,14 @@ function renderNotices() {
     const d = n.postedAt?.toDate ? n.postedAt.toDate() : null;
     const day = d ? String(d.getDate()).padStart(2, '0') : '—';
     const mon = d ? d.toLocaleString(lang === 'hi' ? 'hi-IN' : 'en-IN', { month: 'short' }) : '';
+    const kind = noticeKind(n);
     return `
-      <div class="notice-item">
+      <div class="notice-item nk-${kind.key}">
         <div class="notice-date" data-no-translate><div class="d">${day}</div><div class="m">${escapeHtml(mon)}</div></div>
         <div class="notice-body">
-          <h4 data-no-translate>${escapeHtml(lang === 'hi' ? (n.titleHi || n.titleEn) : n.titleEn)}</h4>
-          <p data-no-translate>${escapeHtml(lang === 'hi' ? (n.bodyHi || n.bodyEn) : n.bodyEn)}</p>
+          <div class="notice-kind">${kind.label}</div>
+          <h3 data-no-translate>${escapeHtml((lang === 'hi' ? (n.titleHi || n.titleEn) : (n.titleEn || n.titleHi)) || 'Notice')}</h3>
+          <p data-no-translate>${escapeHtml(lang === 'hi' ? (n.bodyHi || n.bodyEn) : (n.bodyEn || n.bodyHi))}</p>
           ${n.attachmentURL ? `<a href="${escapeHtml(n.attachmentURL)}" target="_blank" rel="noopener" style="font-size:12.5px; text-decoration:underline; display:inline-block; margin-top:7px;" class="t-sub">Download attachment</a>` : ''}
           <div class="notice-actions">
             ${noticeAckHtml(n)}
@@ -6765,13 +7165,14 @@ function renderCalendar() {
   const lang = document.documentElement.lang === 'hi' ? 'hi' : 'en';
   el.innerHTML = rows.map(c => {
     const d = new Date(c.date);
-    const day = String(d.getDate()).padStart(2, '0');
-    const mon = d.toLocaleString(lang === 'hi' ? 'hi-IN' : 'en-IN', { month: 'short' });
+    const okDate = !isNaN(d);
+    const day = okDate ? String(d.getDate()).padStart(2, '0') : '—';
+    const mon = okDate ? d.toLocaleString(lang === 'hi' ? 'hi-IN' : 'en-IN', { month: 'short' }) : '';
     return `
       <div class="notice-item">
         <div class="notice-date" data-no-translate><div class="d">${day}</div><div class="m">${escapeHtml(mon)}</div></div>
         <div class="notice-body">
-          <h4 data-no-translate>${CAL_TYPE_ICON[c.type] || '📌'} ${escapeHtml(c.title)}</h4>
+          <h3 data-no-translate>${CAL_TYPE_ICON[c.type] || '📌'} ${escapeHtml(c.title)}</h3>
           ${c.description ? `<p data-no-translate>${escapeHtml(c.description)}</p>` : ''}
         </div>
       </div>`;

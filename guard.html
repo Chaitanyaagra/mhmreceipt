@@ -7,11 +7,12 @@
      no Google Drive/OAuth surface, so this is the simpler of the two. -->
 <meta http-equiv="Content-Security-Policy" content="
   default-src 'self';
-  script-src 'self' 'unsafe-inline' https://www.gstatic.com;
+  script-src 'self' 'unsafe-inline' https://www.gstatic.com https://www.google.com;
   style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
   img-src 'self' data: blob:;
   font-src 'self' data: https://fonts.gstatic.com;
-  connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://www.gstatic.com;
+  connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://www.gstatic.com https://www.google.com;
+  frame-src https://www.google.com;
   worker-src 'self';
   object-src 'none';
   base-uri 'self';
@@ -20,6 +21,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Gate App — MHMRWS</title>
 <script>try{if(localStorage.getItem('mhmrws-text-size')==='large')document.documentElement.dataset.textSize='large';}catch(e){}</script>
+<script>try{if(localStorage.getItem('mhmrws-guard-theme')==='light')document.documentElement.dataset.guardTheme='light';}catch(e){}</script>
 <meta name="theme-color" content="#0A1B33">
 <link rel="icon" href="favicon-32.png">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -95,7 +97,7 @@
   .purpose-btn .ico svg{ width:30px; height:30px; }
   .purpose-btn .ico{ width:48px; height:48px; margin:0 auto 8px; border-radius:15px; background:rgba(255,201,120,.10); align-items:center; }
 
-  .q-label{ font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:rgba(255,255,255,.45); margin:18px 0 8px; }
+  .q-label{ font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:rgba(255,255,255,.58); margin:18px 0 8px; }
   .q-group:first-of-type .q-label{ margin-top:0; }
   .q-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; background:var(--navy-900); border:1px solid rgba(255,255,255,.07); border-left:3px solid #FFC978; border-radius:14px; padding:13px 14px; margin-bottom:9px; }
   .q-row b{ font-size:14px; }
@@ -117,6 +119,51 @@
   .g-field label{ display:block; font-size:12px; color:rgba(255,255,255,.6); margin-bottom:5px; }
   .g-field input, .g-field select{ width:100%; padding:11px 12px; border-radius:9px; border:1px solid rgba(255,255,255,.15); background:rgba(255,255,255,.05); color:#fff; font-size:15px; }
   .g-row2{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+
+  /* v180 — Option C: facet header; the actions a guard taps all day are now big and unmistakable */
+  #screen-main .g-header{ background:#0A1B33 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 390 250' preserveAspectRatio='xMinYMin slice'%3E%3Crect width='390' height='250' fill='%230A1B33'/%3E%3Cpolygon points='0%2C0 250%2C0 120%2C250 0%2C250' fill='%23F27B0E'/%3E%3Cpolygon points='120%2C0 390%2C0 390%2C120 200%2C250 70%2C250' fill='%23163564'/%3E%3Cpolygon points='0%2C0 170%2C0 40%2C250 0%2C250' fill='%23FF9933'/%3E%3Cpolygon points='290%2C0 390%2C0 390%2C90' fill='%23C01860'/%3E%3Cpolygon points='150%2C0 205%2C0 95%2C250 40%2C250' fill='%23FFC978'/%3E%3Cpolygon points='300%2C250 390%2C130 390%2C250' fill='%230F2547'/%3E%3C/svg%3E") left top / cover no-repeat; padding-bottom:26px; }
+  #screen-main .g-header .who b{ text-shadow:0 1px 2px rgba(10,27,51,.4), 0 2px 12px rgba(10,27,51,.35); }
+  #screen-main .g-header .who span{ background:rgba(10,27,51,.6); border-color:transparent; }
+  #logoutBtn{ background:rgba(10,27,51,.58); border-color:transparent; }
+  .exp-go, .q-row [data-checkin], .q-row [data-checkout]{ min-height:60px; min-width:112px; padding:0 22px; border-radius:16px; font-size:18px; font-weight:700; letter-spacing:.01em; }
+  .q-row [data-checkin]{ background:#1B7A4D; color:#fff; border-color:#1B7A4D; box-shadow:0 8px 18px rgba(27,122,77,.35); }
+  .q-row [data-checkout]{ background:#fff; color:var(--navy-950); border-color:#fff; }
+  .q-row{ padding:14px 16px; border-radius:18px; }
+  .q-row b{ font-size:16px; }
+
+  /* v184 — Light gate theme (daylight / sunlit gate). Opt-in with the sun button in the header,
+     remembered on this device. The dark theme above stays the default and is untouched. */
+  html[data-guard-theme="light"]{ color-scheme:light; }
+  html[data-guard-theme="light"] body{ background:#FBF6EE; color:#10192B; }
+  html[data-guard-theme="light"] #screen-main{ background:#FBF6EE; }
+  html[data-guard-theme="light"] #screen-main .g-header{ color:#fff; }
+  html[data-guard-theme="light"] .purpose-btn{ background:#fff; color:#0A1B33; border-color:#D9D3C6; box-shadow:0 6px 16px rgba(10,27,51,.10); }
+  html[data-guard-theme="light"] .purpose-btn:active{ background:#F3EBDD; }
+  html[data-guard-theme="light"] .purpose-btn[data-purpose="guest"]{ border-color:#1B7A4D; } html[data-guard-theme="light"] .purpose-btn[data-purpose="guest"] .ico{ background:rgba(27,122,77,.12); color:#14633E; }
+  html[data-guard-theme="light"] .purpose-btn[data-purpose="delivery"]{ border-color:#B45309; } html[data-guard-theme="light"] .purpose-btn[data-purpose="delivery"] .ico{ background:rgba(180,83,9,.12); color:#92400E; }
+  html[data-guard-theme="light"] .purpose-btn[data-purpose="cab"]{ border-color:#1D4ED8; } html[data-guard-theme="light"] .purpose-btn[data-purpose="cab"] .ico{ background:rgba(29,78,216,.12); color:#1E40AF; }
+  html[data-guard-theme="light"] .purpose-btn[data-purpose="service"]{ border-color:#7E22CE; } html[data-guard-theme="light"] .purpose-btn[data-purpose="service"] .ico{ background:rgba(126,34,206,.12); color:#6B21A8; }
+  html[data-guard-theme="light"] .q-label{ color:#4A5568; }
+  html[data-guard-theme="light"] .q-row{ background:#fff; border-color:#E6DFD0; border-left-color:#F27B0E; box-shadow:0 4px 12px rgba(10,27,51,.07); color:#10192B; }
+  html[data-guard-theme="light"] .q-sub{ color:#4A5568; }
+  html[data-guard-theme="light"] .q-empty{ color:#4A5568; }
+  html[data-guard-theme="light"] .q-empty::before{ border-color:rgba(242,123,14,.55); background:rgba(242,123,14,.10); }
+  html[data-guard-theme="light"] .q-row [data-checkout]{ background:#0A1B33; color:#fff; border-color:#0A1B33; }
+  html[data-guard-theme="light"] .q-row .btn-outline.on-dark{ border-color:#98A2B3; color:#0A1B33; }
+  html[data-guard-theme="light"] .q-row .btn-outline.on-dark:hover{ background:#F3EBDD; }
+  html[data-guard-theme="light"] .exp-card{ border-color:#E6DFD0; box-shadow:0 4px 12px rgba(10,27,51,.07); }
+  html[data-guard-theme="light"] .g-sheet{ background:#fff; color:#10192B; }
+  html[data-guard-theme="light"] .g-sheet-backdrop{ background:rgba(10,27,51,.45); }
+  html[data-guard-theme="light"] .g-sheet-head h3{ color:#0A1B33; }
+  html[data-guard-theme="light"] .g-sheet-head button{ color:#4A5568; }
+  html[data-guard-theme="light"] .g-field label{ color:#4A5568; }
+  html[data-guard-theme="light"] .g-field input, html[data-guard-theme="light"] .g-field select{ background:#fff; color:#10192B; border-color:#C9C2B2; }
+  #themeBtn{ min-height:40px; min-width:40px; margin-right:6px; background:rgba(10,27,51,.58); border:1px solid transparent; color:#fff; padding:8px 9px; border-radius:12px; font-size:16px; line-height:1; cursor:pointer; }
+  #themeBtn:focus-visible{ outline:3px solid #FFC978; outline-offset:2px; }
+
+  /* v180 — the seal replaces the initial, with the society name above the guard's name */
+  #screen-main .g-header .app-av{ width:52px; height:52px; font-size:0; color:transparent; background:#fff url(logo.webp) center/94% no-repeat; box-shadow:0 3px 14px rgba(10,27,51,.32); }
+  #screen-main .g-header .who::before{ content:'Max Heights Majestic'; display:block; white-space:nowrap; font-size:10.5px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; text-shadow:0 1px 2px rgba(10,27,51,.5); }
 </style>
 <script>
 /* Boot guard — if the page's main script cannot start (typically a half-updated cache: a new
@@ -190,10 +237,12 @@
 </div>
 
 <!-- ============================= MAIN ============================= -->
-<div class="screen" id="screen-main">
+<div class="screen" id="screen-main" role="main">
+  <h1 class="sr-only">MHMRWS Gate App</h1>
   <div class="g-header">
     <span class="app-av" id="guardAv" aria-hidden="true">G</span>
     <div class="who"><b id="guardNameLabel">—</b><span id="gateLabelText"></span></div>
+    <button id="themeBtn" type="button" aria-pressed="false" aria-label="Switch to light theme" title="Light / dark"><span aria-hidden="true">☀</span></button>
     <button id="textSizeBtn" class="ts-aa" type="button" aria-label="Larger text" title="Larger text" style="margin-right:8px; color:#fff; border-color:rgba(255,255,255,.4); min-width:44px;">Aa</button>
     <button id="logoutBtn">Sign Out</button>
   </div>
@@ -264,7 +313,7 @@ import {
 import {
   doc, getDoc, addDoc, updateDoc, collection, query, where, onSnapshot, serverTimestamp, writeBatch
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { showToast, escapeHtml, TOWER_IDS, flatsForTower, flatKey, getTextSize, setTextSize, todayLocalISO, guestsForGate, visitorFieldsForGuest } from './app-common.js?v=177';
+import { showToast, escapeHtml, TOWER_IDS, flatsForTower, flatKey, getTextSize, setTextSize, todayLocalISO, guestsForGate, visitorFieldsForGuest } from './app-common.js?v=189';
 import { installAppInstallPrompt } from './install-prompt.js';
 
 window.__moduleBooted = true; { var __bg = document.getElementById('bootGuard'); if (__bg) __bg.remove(); }
@@ -305,6 +354,25 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
 });
 
 document.getElementById('logoutBtn').addEventListener('click', () => signOut(auth));
+// Light / dark gate theme (sun button): remembered on this device. Dark stays the default.
+(() => {
+  const b = document.getElementById('themeBtn');
+  if (!b) return;
+  const root = document.documentElement;
+  const paint = () => {
+    const light = root.dataset.guardTheme === 'light';
+    b.setAttribute('aria-pressed', String(light));
+    b.setAttribute('aria-label', light ? 'Switch to dark theme' : 'Switch to light theme');
+    b.firstElementChild.textContent = light ? '☾' : '☀';
+  };
+  paint();
+  b.addEventListener('click', () => {
+    const light = root.dataset.guardTheme !== 'light';
+    if (light) root.dataset.guardTheme = 'light'; else delete root.dataset.guardTheme;
+    try { localStorage.setItem('mhmrws-guard-theme', light ? 'light' : 'dark'); } catch (e) {}
+    paint();
+  });
+})();
 // Larger-text switch ("Aa"): remembered on this device.
 (() => {
   const b = document.getElementById('textSizeBtn');
@@ -320,6 +388,7 @@ onAuthStateChanged(auth, async (user) => {
   if (unsubscribeExpected) { unsubscribeExpected(); unsubscribeExpected = null; }
   if (!user) {
     currentGuard = null;
+    expectedRows = []; expectedLoadFailed = false;
     document.getElementById('loginPin').value = '';
     showScreen('screen-login');
     return;
@@ -456,13 +525,15 @@ const PURPOSE_LABEL = { guest: 'Guest', delivery: 'Delivery', cab: 'Cab', servic
 let expectedRows = [];
 let expectedDay = '';
 let expectedSearch = '';
+let expectedLoadFailed = false;
 function subscribeExpected() {
   if (unsubscribeExpected) { unsubscribeExpected(); unsubscribeExpected = null; }
   expectedDay = todayLocalISO();
   unsubscribeExpected = onSnapshot(
     query(collection(db, 'expectedGuests'), where('expectedDate', '==', expectedDay)),
-    (snap) => { expectedRows = snap.docs.map(d => ({ id: d.id, ...d.data() })); renderExpected(); },
-    (err) => { console.warn('Expected guests listener failed:', err?.code || err); expectedRows = []; renderExpected(); }
+    (snap) => { expectedLoadFailed = false; expectedRows = snap.docs.map(d => ({ id: d.id, ...d.data() })); renderExpected(); },
+    // Keep the last known rows (shown as stale) — a failed listener is NOT the same as "nobody is expected".
+    (err) => { console.warn('Expected guests listener failed:', err?.code || err); expectedLoadFailed = true; renderExpected(); }
   );
 }
 // Past midnight the "today" query is stale: pick up the new day.
@@ -472,9 +543,12 @@ function renderExpected() {
   const wrap = document.getElementById('expectedWrap');
   if (!wrap) return;
   const all = guestsForGate(expectedRows, expectedDay, '');
-  if (!all.length) { wrap.innerHTML = ''; return; }
+  const failBanner = expectedLoadFailed
+    ? `<div class="exp-card" role="alert" style="border-color:#B3261E;"><div class="exp-head"><b>Expected-guest list unavailable</b></div><div class="exp-sub">${all.length ? 'Showing the last list we had — it may be out of date.' : 'Do not assume nobody is expected — check with the resident.'} <button type="button" class="btn btn-outline btn-sm" id="expRetryBtn" style="margin-left:6px; color:#10192B; border-color:#98A2B3;">Retry</button></div></div>`
+    : '';
+  if (!all.length) { wrap.innerHTML = failBanner; document.getElementById('expRetryBtn')?.addEventListener('click', () => subscribeExpected()); return; }
   const list = guestsForGate(expectedRows, expectedDay, expectedSearch);
-  wrap.innerHTML = `<div class="exp-card">
+  wrap.innerHTML = failBanner + `<div class="exp-card">
     <div class="exp-head"><b>Expected today</b><span class="exp-n">${all.length}</span></div>
     <div class="exp-sub">Announced by residents — tap Let in when they arrive.</div>
     ${all.length > 4 ? `<input type="search" id="expSearch" class="exp-search" placeholder="Search name or flat" value="${escapeHtml(expectedSearch)}" autocomplete="off" aria-label="Search expected guests">` : ''}
@@ -483,6 +557,7 @@ function renderExpected() {
       <button type="button" class="exp-go" data-let-in="${escapeHtml(g.id)}">Let in</button>
     </div>`).join('') || '<div class="exp-sub" style="padding:8px 0;">Nobody matches that search.</div>'}
   </div>`;
+  document.getElementById('expRetryBtn')?.addEventListener('click', () => subscribeExpected());
   const inp = document.getElementById('expSearch');
   if (inp) {
     inp.addEventListener('input', (e) => { expectedSearch = e.target.value; const pos = e.target.selectionStart; renderExpected(); const n = document.getElementById('expSearch'); if (n) { n.focus(); try { n.setSelectionRange(pos, pos); } catch (_) {} } });
@@ -496,7 +571,8 @@ document.getElementById('expectedWrap')?.addEventListener('click', async (e) => 
   b.disabled = true;
   try {
     const batch = writeBatch(db);
-    batch.set(doc(collection(db, 'visitors')), {
+    // The visitor entry gets the announcement's own id: the rules then allow exactly one entry per announcement.
+    batch.set(doc(db, 'visitors', g.id), {
       ...visitorFieldsForGuest(g, g.id, currentGuard.uid),
       createdAt: serverTimestamp(), decidedAt: serverTimestamp(), checkedInAt: serverTimestamp()
     });

@@ -35,7 +35,7 @@
   style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
   img-src 'self' data: blob: https://firebasestorage.googleapis.com https://*.googleusercontent.com;
   font-src 'self' data: https://fonts.gstatic.com;
-  connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://accounts.google.com https://www.gstatic.com;
+  connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://accounts.google.com https://www.gstatic.com https://www.google.com;
   frame-src https://www.google.com https://accounts.google.com;
   worker-src 'self';
   object-src 'none';
@@ -294,6 +294,45 @@
   .rp-member-option .rp-flat{ color:var(--ink-500); font-size:12.5px; margin-left:6px; }
   .rp-member-empty{ padding:12px 14px; font-size:12.5px; color:var(--ink-500); }
   @media (max-width:560px){ .num-edit-row{ grid-template-columns:1fr 1fr !important; } }
+
+  /* =====================================================================
+     v180 — Option C "geometric heritage" for the admin panel.
+     Every view's title bar becomes the facet banner; the six overview
+     numbers become big KPI tiles; the mobile bar goes light with a navy pill.
+     ===================================================================== */
+  .topbar{
+    position:relative; isolation:isolate; overflow:hidden; border-radius:22px; padding:22px 26px; color:#fff;
+    background:linear-gradient(90deg, rgba(10,27,51,.2), rgba(10,27,51,0) 45%), #0A1B33 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 120' preserveAspectRatio='none'%3E%3Crect width='1000' height='120' fill='%230A1B33'/%3E%3Cpolygon points='330%2C0 1000%2C0 1000%2C120 250%2C120' fill='%23163564'/%3E%3Cpolygon points='0%2C0 380%2C0 260%2C120 0%2C120' fill='%23F27B0E'/%3E%3Cpolygon points='0%2C0 250%2C0 130%2C120 0%2C120' fill='%23FF9933'/%3E%3Cpolygon points='250%2C0 305%2C0 185%2C120 130%2C120' fill='%23FFC978'/%3E%3Cpolygon points='880%2C0 1000%2C0 1000%2C70' fill='%23C01860'/%3E%3Cpolygon points='830%2C120 1000%2C52 1000%2C120' fill='%230F2547'/%3E%3C/svg%3E") center/100% 100% no-repeat; box-shadow:0 10px 26px rgba(10,27,51,.16);
+  }
+  .topbar .view-title{ color:#fff; font-weight:600; letter-spacing:-.01em; padding-top:0; text-shadow:0 1px 2px rgba(10,27,51,.4), 0 2px 14px rgba(10,27,51,.35); }
+  .topbar .view-title::before, .topbar .view-title::after{ display:none; }
+  .topbar .btn-outline, .topbar .btn-ghost{ background:#fff; color:var(--navy-900); border-color:transparent; }
+  .topbar .fy-select{ background-color:#fff; border-color:transparent; }
+  .stat-cards{ grid-template-columns:repeat(3,1fr); gap:14px; }
+  .stat-card{ position:relative; border-left:5px solid var(--kpi,#163564); padding:18px 18px 16px !important; }
+  .stat-card .num{ font-size:34px; font-weight:700; line-height:1.1; letter-spacing:-.01em; }
+  .stat-card .lbl{ font-size:12px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-600); margin-top:6px; }
+  .stat-cards .stat-card:nth-child(1){ --kpi:#163564; } .stat-cards .stat-card:nth-child(2){ --kpi:#C01860; }
+  .stat-cards .stat-card:nth-child(3){ --kpi:#F27B0E; } .stat-cards .stat-card:nth-child(4){ --kpi:#1B7A4D; }
+  .stat-cards .stat-card:nth-child(5){ --kpi:#1F4585; } .stat-cards .stat-card:nth-child(6){ --kpi:#7D6410; }
+  #view-overview.active{ display:flex; flex-direction:column; }
+  #view-overview > .topbar{ order:-3; }
+  #view-overview > .stat-cards{ order:-2; }
+  @media (max-width:980px){
+    .topbar{ padding:18px 18px; border-radius:20px; }
+    .stat-cards{ grid-template-columns:1fr 1fr; gap:10px; }
+    .stat-card .num{ font-size:26px; }
+    .a-tabbar{ background:#fff; border:1px solid var(--line); border-radius:22px; box-shadow:0 12px 30px rgba(10,27,51,.16); }
+    .a-tabbar button{ color:var(--ink-600); --duo:rgba(10,27,51,.1); }
+    .a-tabbar button.active{ background:var(--navy-900); color:#fff; --duo:rgba(255,255,255,.34); }
+  }
+  @media (max-width:480px){ .stat-cards{ grid-template-columns:1fr 1fr; } .stat-card .num{ font-size:23px; } .stat-card .lbl{ font-size:11px; letter-spacing:.04em; } }
+
+  /* v180 — the society's seal and name sit on every title bar */
+  .topbar{ padding-right:104px; padding-top:30px; }
+  .topbar::before{ content:'Max Heights Majestic · Resident Welfare Society'; position:absolute; left:26px; top:11px; font-size:11px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:#fff; text-shadow:0 1px 2px rgba(10,27,51,.5), 0 2px 10px rgba(10,27,51,.4); }
+  .topbar::after{ content:''; position:absolute; right:22px; top:50%; transform:translateY(-50%); width:64px; height:64px; border-radius:50%; background:#fff url(logo.webp) center/94% no-repeat; box-shadow:0 3px 14px rgba(10,27,51,.32); }
+  @media (max-width:980px){ .topbar{ padding-right:84px; padding-top:30px; } .topbar::before{ left:18px; letter-spacing:.06em; font-size:10.5px; } .topbar::after{ width:48px; height:48px; right:16px; top:34px; transform:none; } }
 </style>
 <script>
 /* Boot guard — if the page's main script cannot start (typically a half-updated cache: a new
@@ -475,6 +514,7 @@
   </aside>
 
   <main class="main-area">
+    <h1 class="sr-only">MHMRWS Admin Panel</h1>
 
     <!-- Shown only if Firebase Storage isn't reachable. Without it, photo and
          document uploads silently do nothing, so the committee needs to know
@@ -1538,7 +1578,7 @@
       <div class="settings-grid">
         <div class="card card-pad">
           <h3 style="font-size:15px; margin-bottom:14px;">Existing Admins</h3>
-          <div class="table-wrap"><table><thead><tr><th>Name</th><th>Email</th><th>Role</th><th></th></tr></thead><tbody id="adminsTableBody"></tbody></table></div>
+          <div class="table-wrap"><table><thead><tr><th>Name</th><th>Email</th><th>Role</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody id="adminsTableBody"></tbody></table></div>
         </div>
         <div class="card card-pad">
           <h3 style="font-size:15px; margin-bottom:14px;">Add New Admin</h3>
@@ -2221,7 +2261,7 @@ if ('serviceWorker' in navigator) {
      renders even if the SDK or a CDN fails to load. -->
 <script type="module">
 import { LOGO_DATA_URI } from './logo-data.js';
-import { installAutoLabels, installModalA11y, installOfflineBanner, installPasswordToggles } from './ui-a11y.js';
+import { installAutoLabels, installModalA11y, installOfflineBanner, installPasswordToggles, installCountUp } from './ui-a11y.js';
 import { hideAppLoader } from './premium.js';
 window.__MHM_LOGO = LOGO_DATA_URI;
 ['loginLogo','sidebarLogo'].forEach(id => {
@@ -2234,6 +2274,7 @@ window.__MHM_LOGO = LOGO_DATA_URI;
 installModalA11y();
 installAutoLabels();
 installOfflineBanner();
+installCountUp();
 installPasswordToggles();
 
 // Privacy Policy modal — pure DOM toggle, no Firebase needed.
@@ -2283,7 +2324,8 @@ import {
   todaysCelebrations, upcomingCelebrations, celebrationWishMessage, INSPECTION_TYPES, INSPECTION_SCHEDULE, STAFF_TRADES,
   receiptWhatsAppMessage, isRecentSignIn, loginLockRemainingMs, nextLoginFailState, LOGIN_MAX_FAILS,
   pollFlatId, pollTally, pollResultText, getTextSize, setTextSize, noticeAckSummary, NUMBER_GROUPS, EMERGENCY_NUMBERS, normalizeImportantNumbers
-} from './app-common.js?v=177';
+  , enableUnicodeText
+} from './app-common.js?v=189';
 
 /* ---------------------------------------------------------------------- */
 /*  State                                                                  */
@@ -3920,8 +3962,18 @@ document.getElementById('closeComplaintDetailModal')?.addEventListener('click', 
 // A common-area complaint the resident chose to share has a public copy in
 // issues/{sameId}. Keep its status in step; best-effort — a complaint that
 // was never shared has no copy, and that is fine.
-function mirrorIssueStatus(id, status) {
-  updateDoc(doc(db, 'issues', id), { status, updatedAt: serverTimestamp() }).catch(() => {});
+// A refusal (permission-denied / not-found) just means there is no copy; a connection-type failure on a copy
+// that exists is retried and then reported, so the neighbours' list is not silently left stale.
+const ISSUE_SYNC_TRANSIENT = new Set(['unavailable', 'deadline-exceeded', 'aborted', 'resource-exhausted', 'internal', 'cancelled']);
+async function mirrorIssueStatus(id, status) {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try { await updateDoc(doc(db, 'issues', id), { status, updatedAt: serverTimestamp() }); return; }
+    catch (e) {
+      if (!ISSUE_SYNC_TRANSIENT.has(e?.code)) return;
+      await new Promise((r) => setTimeout(r, 600 * (attempt + 1)));
+    }
+  }
+  showToast('The complaint is updated, but its public copy for neighbours could not be refreshed (connection problem) — it may still show the old status.', 'error');
 }
 
 async function updateComplaintStatus(id, newStatus, note, photoFile, previousStatus) {
@@ -4143,6 +4195,7 @@ function renderMonthlySummary() {
     try {
       const { jsPDF } = window.jspdf;
       const d = new jsPDF({ unit: 'pt', format: 'a4' });
+      await enableUnicodeText(d);
       const pageW = d.internal.pageSize.getWidth();
       let y = 60;
       d.setFont('helvetica', 'bold'); d.setFontSize(17);
@@ -5141,6 +5194,7 @@ async function erasePersonalData(m) {
       dataErasedAt: serverTimestamp(), dataErasedBy: currentAdmin.email,
       updatedAt: serverTimestamp()
     });
+    dropDirectoryEntry(m.uid || m.id);
     await logAudit(auth.currentUser, 'erase_personal_data', { memberId: m.id, name: m.name, flat: `${m.tower}-${m.flatNumber}`, petsDeleted: ownedPets.length, fileDeleteFailed, petLookupFailed });
     const partial = fileDeleteFailed || petLookupFailed;
     showToast(petLookupFailed
@@ -5332,9 +5386,17 @@ async function syncPaymentsToMemberFlat(member, { onlyPaymentIds = null, auditFr
 // bookings, and expected-guest entries (the gate matches guests to a flat).
 // Only used when the admin says the flat change is a CORRECTION — a genuine
 // move leaves history where it happened. Resolves to how many were updated.
+// A resident's entry in the opt-in neighbours directory is a copy of their name, flat and (optionally) mobile.
+// When the record behind it changes or goes away it must not linger: remove it, the resident can re-join in one tap.
+function dropDirectoryEntry(uid) {
+  if (!uid) return;
+  deleteDoc(doc(db, 'directory', uid)).catch((e) => console.warn('Directory entry cleanup failed:', e?.code || e));
+}
+
 async function syncRelatedRecordsToMemberFlat(member) {
   const uid = member.uid || member.id;
   if (!uid) return 0;
+  dropDirectoryEntry(uid);
   const norm = (v) => String(v ?? '').trim();
   const specs = [['complaints', 'raisedByUid', 'raisedByName'], ['facilityBookings', 'memberUid', 'residentName'], ['expectedGuests', 'memberUid', 'residentName']];
   const counts = {};
@@ -5753,6 +5815,7 @@ async function deactivateMember(id) {
       // Release the flat for the next resident.
       if (m.tower && m.flatNumber) tx.delete(doc(db, 'flatClaims', flatClaimId(m.tower, m.flatNumber, m.residentType)));
     });
+    dropDirectoryEntry(m.uid || id);
     await logAudit(auth.currentUser, 'deactivate_member', { id, reason });
     showToast('Member deactivated.', 'success');
     document.getElementById('memberModalBackdrop').classList.remove('open');
@@ -7301,7 +7364,7 @@ async function loadContentPanels() {
   ));
   document.getElementById('noticesEditList').innerHTML = notices.map((n, i) => `
     <div class="list-edit-item">
-      <div><b style="font-size:13.5px;">${escapeHtml(n.titleEn)}</b><div class="t-muted" style="font-size:12px;">${fmtDate(n.postedAt)}${readCounts[i] !== null ? ` · <span title="Counted when the notice was actually on a resident's screen for a couple of seconds — not proof that it was read or understood.">Seen by ${readCounts[i]}${approvedCount ? ` of ${approvedCount}` : ''} residents</span>` : ''}</div>
+      <div><b style="font-size:13.5px;">${escapeHtml(n.titleEn || n.titleHi || 'Untitled notice')}</b><div class="t-muted" style="font-size:12px;">${fmtDate(n.postedAt)}${readCounts[i] !== null ? ` · <span title="Counted when the notice was actually on a resident's screen for a couple of seconds — not proof that it was read or understood.">Seen by ${readCounts[i]}${approvedCount ? ` of ${approvedCount}` : ''} residents</span>` : ''}</div>
         ${ackSummaries[i] ? `<div style="font-size:12.5px; margin-top:4px;"><b>Confirmed "I have read this": ${ackSummaries[i].confirmed} of ${ackSummaries[i].total}</b>
           ${ackSummaries[i].pending.length ? `<details style="margin-top:4px;"><summary style="cursor:pointer; color:var(--navy-700);">Not yet confirmed (${ackSummaries[i].pending.length})</summary><div class="t-muted" style="font-size:12px; margin-top:4px; max-height:160px; overflow:auto; line-height:1.6;">${ackSummaries[i].pending.map(p => `${escapeHtml(p.tower)}-${escapeHtml(p.flat)} ${escapeHtml(p.name)}`).join('<br>')}</div></details>` : ''}</div>` : ''}
       </div>
@@ -8118,6 +8181,8 @@ document.getElementById('guardForm')?.addEventListener('submit', async (e) => {
   e.preventDefault();
   const f = e.target;
   const btn = f.querySelector('button[type="submit"]');
+  // Checked before any login is created, so a blank form cannot leave an orphan account behind.
+  if (!document.getElementById('guardName').value.trim() || !document.getElementById('guardGateLabel').value.trim()) { showToast('Please enter the guard\'s name and gate.', 'error'); return; }
   btn.disabled = true;
   const secondaryApp = initializeApp(firebaseConfig, 'Secondary_' + Date.now());
   let cred;
@@ -8300,6 +8365,7 @@ async function generateInspectionReportPDF() {
     await loadScript('./jspdf.umd.min.js');
     const { jsPDF } = window.jspdf;
     const docp = new jsPDF({ unit: 'pt', format: 'a4' });
+    await enableUnicodeText(docp);
     const pageW = docp.internal.pageSize.getWidth();
     let y = 48;
 
@@ -8322,7 +8388,7 @@ async function generateInspectionReportPDF() {
     y += 4; docp.line(48, y, pageW - 48, y); y += 12; docp.setFont('helvetica', 'normal');
     for (const r of insp) {
       if (y > 780) { docp.addPage(); y = 48; }
-      docp.text(String(INSPECTION_TYPES[r.formType]?.label || r.formType).slice(0, 26), 48, y);
+      docp.text(String(INSPECTION_TYPES[r.formType]?.label || r.formType || 'Inspection').slice(0, 26), 48, y);
       docp.text(String(r.tower || '—'), 190, y);
       docp.text(String(r.createdByName || '—').slice(0, 20), 250, y);
       docp.text(String(r.issueCount || 0), 378, y);
@@ -8369,7 +8435,7 @@ async function generateInspectionReportExcel() {
     // button had even done anything. Now it lands in the same catch below.
     await loadScript('./xlsx.full.min.js');
     const inspRows = insp.map(r => ({
-      Type: INSPECTION_TYPES[r.formType]?.label || r.formType,
+      Type: INSPECTION_TYPES[r.formType]?.label || r.formType || 'Inspection',
       Tower: r.tower || '',
       'Filed By': r.createdByName || '',
       Issues: r.issueCount || 0,
@@ -8885,7 +8951,7 @@ function openInspectionDetail(id) {
   const body = document.getElementById('inspectionDetailBody');
   const tpl = INSPECTION_TYPES[r.formType];
   document.getElementById('inspectionDetailTitle').textContent =
-    (INSPECTION_TYPE_LABEL_ADMIN[r.formType] || r.formType) + (r.tower ? ' — Tower ' + r.tower : '');
+    (INSPECTION_TYPE_LABEL_ADMIN[r.formType] || r.formType || 'Inspection') + (r.tower ? ' — Tower ' + r.tower : '');
   document.getElementById('inspectionDetailMeta').textContent =
     (r.inspectionDate ? 'Inspected ' + fmtDate(r.inspectionDate) + ' · ' : '') + 'Filed by ' + (r.createdByName || '—') + (r.createdAt ? ' · submitted ' + fmtDateTime(r.createdAt) : '')
     + (r.verifiedBy ? ' · Verified by ' + r.verifiedBy : '');
@@ -9046,6 +9112,7 @@ async function generateDetailedInspectionPDF(r) {
     await loadScript('./jspdf.umd.min.js');
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF({ unit: 'pt', format: 'a4' });
+    await enableUnicodeText(pdf);
     const pageW = pdf.internal.pageSize.getWidth();
     const marginX = 48;
     let y = 50;
@@ -9261,6 +9328,7 @@ document.getElementById('staffForm')?.addEventListener('submit', async (e) => {
   e.preventDefault();
   const f = e.target;
   const btn = f.querySelector('button[type="submit"]');
+  if (!document.getElementById('staffName').value.trim()) { showToast('Please enter the staff member\'s name.', 'error'); return; }
   btn.disabled = true;
   const secondaryApp = initializeApp(firebaseConfig, 'Secondary_' + Date.now());
   let cred;
@@ -9563,6 +9631,7 @@ document.getElementById('addMoveBtn')?.addEventListener('click', () => {
 document.getElementById('closeMoveModal')?.addEventListener('click', () => document.getElementById('moveModalBackdrop').classList.remove('open'));
 document.getElementById('moveForm')?.addEventListener('submit', async (e) => {
   e.preventDefault();
+  if (!document.getElementById('mvResident').value.trim() || !document.getElementById('mvFlat').value.trim()) { showToast('Please enter the resident\'s name and flat.', 'error'); return; }
   const type = document.getElementById('mvType').value;
   const items = MOVE_CHECKLIST_ITEMS[type] || {};
   const checklist = {};
@@ -9690,6 +9759,7 @@ document.getElementById('addOwnershipLogBtn')?.addEventListener('click', () => {
 document.getElementById('closeOwnershipModal')?.addEventListener('click', () => document.getElementById('ownershipModalBackdrop').classList.remove('open'));
 document.getElementById('ownershipForm')?.addEventListener('submit', async (e) => {
   e.preventDefault();
+  if (!document.getElementById('owTower').value.trim() || !document.getElementById('owFlat').value.trim() || !document.getElementById('owNew').value.trim()) { showToast('Tower, flat and the new owner\'s name are required.', 'error'); return; }
   try {
     await addDoc(collection(db, 'ownershipHistory'), {
       tower: document.getElementById('owTower').value.trim(),
@@ -9867,7 +9937,8 @@ async function loadPollsPanel() {
       // poll document actually being deleted could land after the cleanup
       // already ran, surviving as an orphaned vote/tally doc with no poll
       // left to explain it.
-      await updateDoc(doc(db, 'polls', pollId), { endTime: new Date() });
+      // a couple of seconds in the past, so a clock that runs ahead of the server cannot fail the rule's endTime <= request.time
+      await updateDoc(doc(db, 'polls', pollId), { endTime: new Date(Date.now() - 2000) });
       // Deleting the poll document alone leaves every vote in its votes
       // subcollection permanently orphaned — real Firestore documents with
       // a voterUid → option mapping and no poll left to explain them. The
@@ -10460,6 +10531,7 @@ document.getElementById('noticeForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const f = e.target;
   const btn = f.querySelector('button[type="submit"]');
+  if (!f.titleEn.value.trim() || !f.bodyEn.value.trim()) { showToast('Please fill in the English title and message.', 'error'); return; }
   if (btn) btn.disabled = true;
   try {
     let attachmentURL = '';
@@ -10469,7 +10541,7 @@ document.getElementById('noticeForm').addEventListener('submit', async (e) => {
       attachmentURL = await getDownloadURL(r);
     }
     await addDoc(collection(db, 'notices'), {
-      titleEn: f.titleEn.value, titleHi: f.titleHi.value, bodyEn: f.bodyEn.value, bodyHi: f.bodyHi.value,
+      titleEn: f.titleEn.value.trim(), titleHi: f.titleHi.value.trim(), bodyEn: f.bodyEn.value.trim(), bodyHi: f.bodyHi.value.trim(),
       attachmentURL, postedAt: serverTimestamp()
     });
     await logAudit(auth.currentUser, 'add_notice', { title: f.titleEn.value });
@@ -10521,6 +10593,7 @@ document.getElementById('committeeForm').addEventListener('submit', async (e) =>
   e.preventDefault();
   const f = e.target;
   const btn = f.querySelector('button[type="submit"]');
+  if (!f.name.value.trim() || !f.role.value.trim()) { showToast('Please enter the name and role.', 'error'); return; }
   if (btn) btn.disabled = true;
   const editingId = f.id.value || null;
   const existing = editingId ? allCommitteeMembers.find(c => c.id === editingId) : null;
@@ -10534,7 +10607,7 @@ document.getElementById('committeeForm').addEventListener('submit', async (e) =>
       await uploadBytes(r, f.photo.files[0]);
       photoURL = await getDownloadURL(r);
     }
-    const data = { name: f.name.value, role: f.role.value, category: f.category.value, photoURL };
+    const data = { name: f.name.value.trim(), role: f.role.value.trim(), category: f.category.value, photoURL };
     if (editingId) {
       await updateDoc(doc(db, 'committee', editingId), data);
       await logAudit(auth.currentUser, 'edit_committee', { id: editingId, name: f.name.value });

@@ -822,7 +822,9 @@ service cloud.firestore {
       // once read, the timestamp of first-read is what matters.
       match /reads/{uid} {
         allow read: if isAdmin() || isOwner(uid);
-        allow create: if isOwner(uid) && isApprovedMember();
+        allow create: if isOwner(uid) && isApprovedMember()
+                      && request.resource.data.keys().hasOnly(['readAt'])
+                      && request.resource.data.readAt == request.time;
         allow update: if false;
         allow delete: if isAdmin();
       }
@@ -1262,7 +1264,10 @@ service cloud.firestore {
     }
     function flatVotePaired(pollId) {
       let ref = /databases/$(database)/documents/polls/$(pollId)/flatVotes/$(myFlatVoteId());
-      return existsAfter(ref);
+      // The flat's vote document must be NEW in this write. existsAfter alone is also
+      // true when another family member already voted (the doc exists and is simply not
+      // part of this write), which let a second member vote with a raw write.
+      return !exists(ref) && existsAfter(ref);
     }
     // The actual fix for the tally-inflation gap: a standalone tally
     // increment, called repeatedly with nothing else, always satisfied
@@ -1275,7 +1280,10 @@ service cloud.firestore {
     function tallyPairedWithVote(pollId, optionIndex) {
       let poll = get(/databases/$(database)/documents/polls/$(pollId)).data;
       let voteRef = /databases/$(database)/documents/polls/$(pollId)/votes/$(request.auth.uid);
-      return existsAfter(voteRef) && getAfter(voteRef).data.option == poll.options[int(optionIndex)];
+      // !exists: the vote must be created IN THIS write. Without it, a resident who had
+      // already voted could call updateDoc on the tally again and again (the old vote still
+      // "exists after"), adding +1 each time.
+      return !exists(voteRef) && existsAfter(voteRef) && getAfter(voteRef).data.option == poll.options[int(optionIndex)];
     }
     match /polls/{pollId} {
       allow read: if true;
@@ -2069,10 +2077,14 @@ service cloud.firestore {
                        == get(/databases/$(database)/documents/members/$(request.auth.uid)).data.flatNumber
                     && request.resource.data.expectedDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
                     && request.resource.data.expectedDate >= todayISO()
+                    && request.resource.data.status == 'expected'
                     && isOptionalString(request.resource.data, 'purpose', 200);
+      // The owner can only CANCEL a guest who has not arrived yet. (Allowing 'expected' as the
+      // new value let a resident put an already-arrived or cancelled guest back to expected.)
       allow update: if isSignedIn() && isOwner(resource.data.memberUid)
+                    && resource.data.status == 'expected'
                     && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
-                    && request.resource.data.status in ['expected', 'cancelled'];
+                    && request.resource.data.status == 'cancelled';
       allow delete: if isAdmin() || (isSignedIn() && isOwner(resource.data.memberUid));
     }
 
@@ -2261,6 +2273,14 @@ service cloud.firestore {
                             && get(/databases/$(database)/documents/expectedGuests/$(request.resource.data.preApprovedGuestId)).data.status == 'expected'
                             && get(/databases/$(database)/documents/expectedGuests/$(request.resource.data.preApprovedGuestId)).data.tower == request.resource.data.tower
                             && get(/databases/$(database)/documents/expectedGuests/$(request.resource.data.preApprovedGuestId)).data.flatNumber == request.resource.data.flatNumber
+                            // v187 — the entry must really CONSUME the announcement, exactly once:
+                            //  - the same batch must flip it to 'arrived' (getAfter sees the post-write state), and
+                            //  - the visitor document's id IS the announcement's id, so a second entry for the
+                            //    same announcement is a second create of an existing document and is refused.
+                            //  - the visitor name must be the announced guest's name.
+                            && visitorId == request.resource.data.preApprovedGuestId
+                            && getAfter(/databases/$(database)/documents/expectedGuests/$(request.resource.data.preApprovedGuestId)).data.status == 'arrived'
+                            && request.resource.data.visitorName == get(/databases/$(database)/documents/expectedGuests/$(request.resource.data.preApprovedGuestId)).data.guestName
                             && request.resource.data.decidedAt == request.time
                             && request.resource.data.checkedInAt == request.time));
 
@@ -2281,6 +2301,8 @@ service cloud.firestore {
                       && resource.data.flatNumber == get(/databases/$(database)/documents/members/$(request.auth.uid)).data.flatNumber
                       && resource.data.status == 'pending'
                       && request.resource.data.status in ['approved', 'rejected']
+                      && request.resource.data.decidedByUid == request.auth.uid
+                      && request.resource.data.decidedAt == request.time
                       && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'decidedByUid', 'decidedAt', 'updatedAt'])
                     ) || (
                       isGuard()
@@ -2339,6 +2361,13 @@ service cloud.firestore {
       allow update: if isAdmin()
                     && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
                     && request.resource.data.status in ['open', 'in_progress', 'resolved', 'closed', 'rejected'];
+      // The staff member the complaint is assigned to moves the public copy along as well
+      // (staff.html), so a fixed problem stops showing as "being fixed" to the neighbours.
+      allow update: if isStaff()
+                    && exists(/databases/$(database)/documents/complaints/$(issueId))
+                    && get(/databases/$(database)/documents/complaints/$(issueId)).data.get('assignedToUid', '') == request.auth.uid
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
+                    && request.resource.data.status in ['in_progress', 'resolved'];
       allow delete: if isAdmin() || (isSignedIn() && resource.data.ownerUid == request.auth.uid);
 
       match /supporters/{supporterUid} {

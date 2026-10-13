@@ -355,7 +355,7 @@ tbody tr:hover{ background:#FAFBFD; }
   position:fixed; inset:0; background:rgba(10,20,40,.55); backdrop-filter:blur(2px);
   display:none; align-items:center; justify-content:center; padding:20px; z-index:80;
 }
-.modal-backdrop.open{ display:flex; animation:modal-veil .18s ease both; }
+.modal-backdrop.open{ display:flex; animation:modal-veil .25s ease both; }
 .modal{ background:var(--white); border-radius:var(--radius-lg); max-width:560px; width:100%; max-height:calc(88 * var(--vh1)); overflow-y:auto; box-shadow:var(--shadow-pop); }
 
 /* The backdrop is toggled by adding/removing .open, which flips `display` —
@@ -369,7 +369,7 @@ tbody tr:hover{ background:#FAFBFD; }
    that properly needs the <dialog> element (see the note below). An instant
    dismissal reads as responsive anyway — it is the arrival that needs to be
    explained to the eye, not the departure. */
-.modal-backdrop.open .modal{ animation:modal-rise .24s cubic-bezier(.2,.7,.3,1) both; }
+.modal-backdrop.open .modal{ animation:modal-rise .42s cubic-bezier(.22,1,.36,1) both; }
 @keyframes modal-veil{ from{ opacity:0; } }
 @keyframes modal-rise{ from{ opacity:0; transform:translateY(14px) scale(.985); } }
 
@@ -379,7 +379,7 @@ tbody tr:hover{ background:#FAFBFD; }
   .modal-backdrop{ align-items:flex-end; padding:0; }
   .modal{ max-width:none; border-radius:var(--radius-lg) var(--radius-lg) 0 0; max-height:calc(92 * var(--vh1));
           padding-bottom:env(safe-area-inset-bottom); }
-  .modal-backdrop.open .modal{ animation:modal-sheet .26s cubic-bezier(.2,.7,.3,1) both; }
+  .modal-backdrop.open .modal{ animation:modal-sheet .45s cubic-bezier(.22,1,.36,1) both; }
   @keyframes modal-sheet{ from{ transform:translateY(100%); } }
 }
 
@@ -993,9 +993,9 @@ body.logged-in #dashboard{ min-height:calc(calc(100 * var(--vh1)) - 66px); paddi
 .td-tile[role="button"], .health-metric[role="button"], .ms-item[role="button"]{ transition:transform .15s ease, box-shadow .15s ease; }
 .td-tile[role="button"]:hover, .health-metric[role="button"]:hover, .ms-item[role="button"]:hover{ transform:translateY(-2px); box-shadow:0 4px 14px rgba(0,0,0,.1); }
 .td-tile[role="button"]:focus-visible, .health-metric[role="button"]:focus-visible, .ms-item[role="button"]:focus-visible{ outline:2px solid var(--gold-500,#C9A227); outline-offset:2px; }
-.td-tile .td-label{ font-size:12px; color:var(--ink-500,#6B7385); text-transform:uppercase; letter-spacing:.03em; margin-bottom:4px; }
+.td-tile .td-label{ font-size:12px; color:var(--ink-500,#636B7E); text-transform:uppercase; letter-spacing:.03em; margin-bottom:4px; }
 .td-tile .td-value{ font-size:17px; font-weight:700; color:var(--ink-900,#101B2B); }
-.td-tile .td-note{ font-size:12px; color:var(--ink-500,#6B7385); margin-top:2px; }
+.td-tile .td-note{ font-size:12px; color:var(--ink-500,#636B7E); margin-top:2px; }
 @media (max-width:900px){ .td-grid{ grid-template-columns:repeat(2,1fr); } }
 
 /* Command Center — a row of clickable "needs attention" pills. Navy
@@ -1053,12 +1053,12 @@ body.logged-in #dashboard{ min-height:calc(calc(100 * var(--vh1)) - 66px); paddi
 .pet-card{ border:1px solid var(--line,#E2E6EF); border-radius:12px; padding:16px; margin-bottom:14px; background:var(--paper,#FAF8F3); }
 .pet-card-header{ display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
 .pet-card-header b{ font-size:14px; color:var(--navy-950,#0A1B33); }
-.pet-section-label{ font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.03em; color:var(--ink-500,#6B7385); margin:14px 0 8px; padding-top:10px; border-top:1px dashed var(--line,#E2E6EF); }
+.pet-section-label{ font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.03em; color:var(--ink-500,#636B7E); margin:14px 0 8px; padding-top:10px; border-top:1px dashed var(--line,#E2E6EF); }
 .pet-cert-checks{ display:flex; flex-direction:column; gap:6px; margin-bottom:4px; }
 .pet-toggle-row{ display:flex; gap:20px; margin-bottom:4px; }
 
 /* Complaint satisfaction rating — plain-text stars, not default button boxes. */
-.cplt-rate-row{ font-size:12.5px; color:var(--ink-500,#6B7385); }
+.cplt-rate-row{ font-size:12.5px; color:var(--ink-500,#636B7E); }
 .cplt-star{ background:none; border:none; cursor:pointer; font-size:16px; padding:0 1px; color:var(--gold-500,#C9A227); line-height:1; vertical-align:middle; }
 .cplt-star:hover{ transform:scale(1.15); }
 
@@ -1128,7 +1128,7 @@ input, select, textarea{
   background-color:#fff;
 }
 textarea{ min-height:96px; line-height:1.5; resize:vertical; }
-input::placeholder, textarea::placeholder{ color:#6B7385; }
+input::placeholder, textarea::placeholder{ color:#636B7E; }
 input:focus, select:focus, textarea:focus{ border-color:#F27B0E; box-shadow:0 0 0 4px rgba(242,123,14,.14); }
 input[type="checkbox"], input[type="radio"], input[type="file"], input[type="range"], input[type="color"]{ min-height:0; }
 input[type="checkbox"], input[type="radio"]{ accent-color:#0F2547; }
@@ -1177,6 +1177,17 @@ input:disabled, select:disabled, textarea:disabled{ background-color:#F3EFE6; co
   .step-dot{ flex:1 1 0; min-width:0; }
   .step-dot .lbl{ font-size:10.5px; letter-spacing:0; }
 }
+/* v182: at 390–430px the five uppercase labels plus four connector lines were
+   still a few px wider than the card, so "REVIEW" touched the edge. Tighter
+   label tracking and thinner connector gaps make them fit with breathing room. */
+@media (max-width:430px){
+  .step-dot{ flex:0 1 auto; min-width:0; }
+  .step-dot .lbl{ font-size:10.5px; letter-spacing:0; white-space:nowrap; }
+  .step-line{ flex:1 1 4px; min-width:4px; margin-left:3px; margin-right:3px; }
+}
+@media (max-width:360px){
+  .step-line{ margin-left:2px; margin-right:2px; }
+}
 
 /* ============================================================================
    v168 — larger text option, status steps, poll chips, motion
@@ -1187,9 +1198,9 @@ html[data-text-size="large"] body{ zoom:1.15; }
 
 /* Screens ease in when you switch tabs — 0.24s, and off for reduce-motion users
    (the global reduce-motion rule above zeroes every animation duration). */
-@keyframes viewIn{ from{ opacity:0; transform:translateY(8px); } to{ opacity:1; transform:none; } }
+@keyframes viewIn{ from{ opacity:0; transform:translateY(12px); } to{ opacity:1; transform:none; } }
 body[data-view] [data-v]{ animation:viewIn .24s ease both; }
-.view-panel.active, .screen.active{ animation:viewIn .22s ease both; }
+.view-panel.active, .screen.active{ animation:viewIn .42s cubic-bezier(.22,1,.36,1) both; }
 .btn{ transition:transform .12s ease, box-shadow .15s ease, background-color .15s ease; }
 .btn:active:not(:disabled){ transform:scale(.97); }
 
@@ -1356,10 +1367,10 @@ body.hide-amt .dh-amt, body.hide-amt .dh-rest b, body.hide-amt .dh-note, body.hi
 .qg-chip:disabled{ opacity:.5; }
 
 /* Small, quick motion. All of it is switched off by the reduced-motion rule above. */
-@keyframes mhm-view-in{ from{ opacity:0; transform:translateY(6px); } to{ opacity:1; transform:none; } }
+@keyframes mhm-view-in{ from{ opacity:0; transform:translateY(12px); } to{ opacity:1; transform:none; } }
 @keyframes mhm-pop{ 0%{ transform:scale(1); } 40%{ transform:scale(1.18); } 100%{ transform:scale(1); } }
 @keyframes mhm-chip-in{ from{ opacity:0; transform:translateX(10px); } to{ opacity:1; transform:none; } }
-body.logged-in [data-v]{ animation:mhm-view-in .2s ease-out; }
+body.logged-in [data-v]{ animation:mhm-view-in .42s cubic-bezier(.22,1,.36,1); }
 .ts-chip{ animation:mhm-chip-in .28s ease-out both; }
 .ts-chip:nth-child(2){ animation-delay:.05s; } .ts-chip:nth-child(3){ animation-delay:.1s; } .ts-chip:nth-child(4){ animation-delay:.15s; } .ts-chip:nth-child(5){ animation-delay:.2s; }
 .btn:active, .ts-chip:active, .qg-chip:active, .home-link:active{ transform:scale(.97); transition:transform .08s; }
@@ -1404,3 +1415,90 @@ html[lang="hi"] .t-muted, html[lang="hi"] .t-sub{ color:var(--ink-600); }
 
 /* Signed-in residents have no use for the landing-page photo: do not even download it (see the "returning" flag in index.html). */
 html.returning .hero-photo{ background-image:none; }
+
+/* =====================================================================
+   v180 — Option C on shared components: every sheet/modal opens with the
+   facet band and the society seal; tables and tabs pick up the palette.
+   ===================================================================== */
+.modal-head{ background:#0A1B33 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 390 250' preserveAspectRatio='xMinYMin slice'%3E%3Crect width='390' height='250' fill='%230A1B33'/%3E%3Cpolygon points='0%2C0 250%2C0 120%2C250 0%2C250' fill='%23F27B0E'/%3E%3Cpolygon points='120%2C0 390%2C0 390%2C120 200%2C250 70%2C250' fill='%23163564'/%3E%3Cpolygon points='0%2C0 170%2C0 40%2C250 0%2C250' fill='%23FF9933'/%3E%3Cpolygon points='290%2C0 390%2C0 390%2C90' fill='%23C01860'/%3E%3Cpolygon points='150%2C0 205%2C0 95%2C250 40%2C250' fill='%23FFC978'/%3E%3Cpolygon points='300%2C250 390%2C130 390%2C250' fill='%230F2547'/%3E%3C/svg%3E") left top / cover no-repeat; border-bottom:0; padding:16px 20px; color:#fff; position:relative; border-radius:24px 24px 0 0; }
+.modal-head::before{ display:none; }
+.modal-head h3, .modal-head h2{ color:#fff; display:flex; align-items:center; gap:10px; text-shadow:0 1px 2px rgba(10,27,51,.45), 0 2px 12px rgba(10,27,51,.35); }
+.modal-head h3::before, .modal-head h2::before{ content:''; width:34px; height:34px; flex:none; border-radius:50%; background:#fff url(logo.webp) center/94% no-repeat; box-shadow:0 2px 8px rgba(10,27,51,.3); }
+.modal-head .icon-btn{ background:rgba(10,27,51,.55) !important; color:#fff !important; }
+th{ letter-spacing:.04em; }
+/* A heading that only receives programmatic focus (so a screen reader announces it) is not a control: no ring. */
+h2[tabindex="-1"]:focus-visible, h3[tabindex="-1"]:focus-visible{ outline:none; }
+
+/* ============================================================================
+   v185 — PREMIUM MOTION (matches the premium look of the design: unhurried, soft, no bounce).
+   One easing for everything — a long "expo-out" tail, so things arrive fast and settle gently.
+   Entrances 420–600 ms, small distances, tiny scale (0.985 -> 1). Everything is inside
+   no-preference, and every keyframe defines only its FROM state, so with "reduce motion" on
+   nothing moves and nothing is left hidden.
+   ============================================================================ */
+:root{ --mm-ease:cubic-bezier(.22,1,.36,1); }
+@media (prefers-reduced-motion: no-preference){
+  @keyframes mmCard{ from{ opacity:0; transform:translateY(16px) scale(.985); } }
+  @keyframes mmSheet{ from{ opacity:0; transform:translateY(40px); } }
+  @keyframes mmFade{ from{ opacity:0; } }
+  @keyframes mmTitle{ from{ opacity:0; transform:translateY(8px); } }
+  @keyframes mmBanner{ from{ opacity:0; transform:translateY(-12px); } }
+  @keyframes mmSeal{ 0%{ opacity:0; transform:scale(.7); } 60%{ opacity:1; transform:scale(1.04); } 100%{ transform:scale(1); } }
+  @keyframes mmRing{ 0%{ box-shadow:0 3px 14px rgba(10,27,51,.32), 0 0 0 0 rgba(255,201,120,.55); } 100%{ box-shadow:0 3px 14px rgba(10,27,51,.32), 0 0 0 18px rgba(255,201,120,0); } }
+  @keyframes mmArt{ from{ opacity:0; transform:translateX(18px); } }
+  @keyframes mmDrift{ from{ background-position:14px 0; } }
+  @keyframes mmWipe{ from{ transform:scaleX(0); } }
+  @keyframes mmSheen{ 0%{ transform:translateX(-120%) skewX(-18deg); } 100%{ transform:translateX(320%) skewX(-18deg); } }
+  @keyframes mmDot{ 0%{ box-shadow:0 0 0 0 rgba(242,123,14,.5); } 100%{ box-shadow:0 0 0 9px rgba(242,123,14,0); } }
+  @keyframes mmTab{ from{ transform:translateY(3px) scale(.86); } }
+
+  /* --- Banner (rise + the facet art drifts into place) and the seal (soft pop, then one gold ring) --- */
+  .screen.active .g-header{ animation:mmBanner .52s var(--mm-ease) backwards, mmDrift 1.1s var(--mm-ease) backwards; }
+  .screen.active .g-header .app-av{ animation:mmSeal .6s .08s var(--mm-ease) backwards, mmRing 1.1s .7s ease-out 1 backwards; }
+  .screen.active .g-header .who{ animation:mmTitle .48s .16s var(--mm-ease) backwards; }
+  body.logged-in .geo-hd{ animation:mmBanner .52s var(--mm-ease) backwards; }
+  body.logged-in .geo-hd .geo-art{ animation:mmArt .9s .1s var(--mm-ease) backwards; }
+  body.logged-in .geo-seal{ animation:mmSeal .6s .08s var(--mm-ease) backwards, mmRing 1.1s .7s ease-out 1 backwards; }
+  .pl-seal, .hero-seal-wrap{ animation:mmSeal .6s .05s var(--mm-ease) backwards; }
+  .pl-hero h1, .pl-hero p, .pl-pill{ animation:mmTitle .48s .16s var(--mm-ease) backwards; }
+  .pl-sheet{ animation:mmSheet .5s .1s var(--mm-ease) backwards; }
+  body.logged-in:not([data-view="home"]) #viewTitle{ animation:mmTitle .48s .12s var(--mm-ease) backwards; }
+
+  /* --- Cards and rows: rise + settle, 70 ms stagger on the first six --- */
+  .purpose-grid > .purpose-btn,
+  .stat-cards > .stat-card, .type-card, .invoice-card, .committee-card, .rwa-card,
+  .np-card .np-row{ animation:mmCard .48s var(--mm-ease) backwards; }
+  .purpose-grid > :nth-child(1), .stat-cards > :nth-child(1), .type-card:nth-child(1), .np-card .np-row:nth-of-type(1){ animation-delay:.10s; }
+  .purpose-grid > :nth-child(2), .stat-cards > :nth-child(2), .type-card:nth-child(2), .np-card .np-row:nth-of-type(2){ animation-delay:.17s; }
+  .purpose-grid > :nth-child(3), .stat-cards > :nth-child(3), .type-card:nth-child(3), .np-card .np-row:nth-of-type(3){ animation-delay:.24s; }
+  .purpose-grid > :nth-child(4), .stat-cards > :nth-child(4), .type-card:nth-child(4), .np-card .np-row:nth-of-type(4){ animation-delay:.31s; }
+  .stat-cards > :nth-child(5), .type-card:nth-child(5), .np-card .np-row:nth-of-type(5){ animation-delay:.38s; }
+  .stat-cards > :nth-child(n+6), .type-card:nth-child(n+6), .np-card .np-row:nth-of-type(n+6){ animation-delay:.45s; }
+  .dues-hero{ animation:mmCard .56s var(--mm-ease) backwards; }
+
+  /* --- One light sweep across the main "Pay Now" button, once, after the card has settled --- */
+  #duesPayNowBtn.btn-primary{ position:relative; overflow:hidden; }
+  #duesPayNowBtn.btn-primary::after{ content:''; position:absolute; top:0; bottom:0; left:0; width:38%; background:linear-gradient(100deg, transparent, rgba(255,255,255,.38), transparent); transform:translateX(-120%) skewX(-18deg); animation:mmSheen .9s 1.1s var(--mm-ease) 1 backwards; pointer-events:none; }
+
+  /* --- Sheets rise from the bottom; the dim layer fades --- */
+  .g-sheet-backdrop.open{ animation:mmFade .25s ease-out backwards; }
+  .g-sheet-backdrop.open .g-sheet{ animation:mmSheet .42s var(--mm-ease) backwards; }
+  .tabbar-mobile{ animation:mmSheet .5s .05s var(--mm-ease) backwards; }
+  .tabbar-mobile a{ transition:background-color .3s var(--mm-ease), color .3s var(--mm-ease); }
+  .tabbar-mobile a.active svg{ animation:mmTab .42s var(--mm-ease) backwards; }
+
+  /* --- Bars wipe left to right; a new unread dot gives one soft ring --- */
+  .pt-bar > i{ transform-origin:left center; animation:mmWipe .7s .2s var(--mm-ease) backwards; }
+  .notif-item.is-unread .notif-dot{ animation:mmDot 1.4s ease-out 2; }
+
+  /* --- Touch + pointer feedback --- */
+  .purpose-btn, .q-row .btn, .exp-go, .btn{ transition:transform .16s var(--mm-ease), box-shadow .25s var(--mm-ease), background-color .25s var(--mm-ease), border-color .25s var(--mm-ease); }
+  .purpose-btn:active, .q-row .btn:active, .exp-go:active, .btn:active{ transform:scale(.97); }
+  @media (hover:hover){ .btn-primary:hover{ transform:translateY(-1px); } .card:hover{ box-shadow:0 14px 34px rgba(10,27,51,.12); } }
+  .card{ transition:box-shadow .3s var(--mm-ease); }
+  /* --- Staff and Admin: only containers that are SHOWN (a tab panel, a view panel, the sidebar) glide in.
+         Lists inside them are re-drawn by live updates, so they are deliberately not animated — that would flicker. --- */
+  .tab-panel, .view-panel.active > .topbar, .view-panel.active > .card, #screen-main.active .g-body{ animation:mmCard .48s var(--mm-ease) backwards; }
+  .sidebar{ animation:mmFade .5s var(--mm-ease) backwards; }
+  .sidebar a, .sidebar button{ transition:background-color .25s var(--mm-ease), color .25s var(--mm-ease), transform .2s var(--mm-ease); }
+}

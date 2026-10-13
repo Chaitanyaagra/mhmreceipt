@@ -60,7 +60,7 @@ export function showToast(message, type = 'info') {
   // The same message fired twice (a double tap, a retry loop) used to stack up as identical cards;
   // show it once and let it stay a little longer instead.
   const text = String(message ?? '');
-  const same = [...region.children].find((c) => c.textContent === text && !c.classList.contains('leaving'));
+  const same = [...region.children].find((c) => (c.dataset.src ?? c.textContent) === text && !c.classList.contains('leaving'));
   if (same) { same.dispatchEvent(new Event('toast-extend')); return; }
   // Never let a burst of messages cover the screen: keep the three newest.
   while (region.children.length >= 3) region.firstElementChild.remove();
@@ -69,7 +69,11 @@ export function showToast(message, type = 'info') {
   // No role here: the region above already announces its own changes, and
   // role="status" on both makes some screen readers read the message twice.
   el.textContent = text;
+  el.dataset.src = text;   // the English original, so a repeat is still recognised after translation
   region.appendChild(el);
+  // Hindi mode: the page's translator only runs on screens it renders, so a toast
+  // used to pop up in English even when everything around it was Hindi.
+  try { window.__translate?.(el); } catch (e) {/* English is a fine fallback */}
   let timer;
   const dismiss = () => {
     clearTimeout(timer);
@@ -665,12 +669,15 @@ export function numberToWordsINR(amount) {
 export function fmtDate(ts) {
   if (!ts) return '—';
   const d = ts.toDate ? ts.toDate() : new Date(ts);
+  // A malformed stored date (an old import, a typo) shows a dash, never the words "Invalid Date".
+  if (!d || isNaN(d)) return '—';
   return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
 export function fmtDateTime(ts) {
   if (!ts) return '—';
   const d = ts.toDate ? ts.toDate() : new Date(ts);
+  if (!d || isNaN(d)) return '—';
   return d.toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
@@ -679,7 +686,7 @@ export function fmtDateTime(ts) {
 export function tsMillis(ts) {
   if (!ts) return 0;
   const d = ts.toDate ? ts.toDate() : new Date(ts);
-  const n = d.getTime();
+  const n = d ? d.getTime() : NaN;
   return Number.isFinite(n) ? n : 0;
 }
 
@@ -1153,7 +1160,7 @@ export function shortRef(id) {
 /*  "Report a problem" — context that makes a report actionable              */
 /* ---------------------------------------------------------------------- */
 // Keep in step with CACHE_NAME in sw.js (a test checks they match).
-export const APP_VERSION = 'v177';
+export const APP_VERSION = 'v189';
 
 const __recentErrors = [];
 function __noteError(text) {
@@ -1663,6 +1670,7 @@ export async function generateRegistrationConfirmationPDF({ formData, membership
   await loadScript('./jspdf.umd.min.js');
   const { jsPDF } = window.jspdf;
   const pdf = new jsPDF({ unit: 'pt', format: 'a4' });
+  await enableUnicodeText(pdf);
   const W = pdf.internal.pageSize.getWidth();
   const H = pdf.internal.pageSize.getHeight();
   const marginX = 48;
@@ -1823,6 +1831,7 @@ export async function generateReceiptPDF({ payment, member, society, logoDataUrl
   await loadScript('./jspdf.umd.min.js');
   const { jsPDF } = window.jspdf;
   const pdf = new jsPDF({ unit: 'pt', format: 'a4' });
+  await enableUnicodeText(pdf);
   const W = pdf.internal.pageSize.getWidth();
   const marginX = 48;
   let y = 56;
@@ -1936,6 +1945,7 @@ export async function generateStatementPDF({ payments, member, society, financia
   await loadScript('./jspdf.umd.min.js');
   const { jsPDF } = window.jspdf;
   const pdf = new jsPDF({ unit: 'pt', format: 'a4' });
+  await enableUnicodeText(pdf);
   const W = pdf.internal.pageSize.getWidth();
   const H = pdf.internal.pageSize.getHeight();
   const marginX = 48;
@@ -2084,6 +2094,7 @@ export async function generateIncomeExpenditurePDF({ payments, expenses, society
   await loadScript('./jspdf.umd.min.js');
   const { jsPDF } = window.jspdf;
   const pdf = new jsPDF({ unit: 'pt', format: 'a4' });
+  await enableUnicodeText(pdf);
   const W = pdf.internal.pageSize.getWidth();
   const marginX = 48;
 
@@ -2586,6 +2597,7 @@ export async function generateMembershipCard({ member, society, logoDataUrl, fin
   await loadScript('./jspdf.umd.min.js');
   const { jsPDF } = window.jspdf;
   const pdf = new jsPDF({ unit: 'mm', format: [CARD_W, CARD_H], orientation: 'landscape' });
+  await enableUnicodeText(pdf);
   const P = CARD_PAL;
   const W = CARD_W, H = CARD_H, M = 5;
   const PANEL = 30;           // width of the facet panel on the left
@@ -4110,6 +4122,123 @@ export function noticeAckSummary(members, ackUids) {
     .map((m) => ({ tower: String(m.tower || ''), flat: String(m.flatNumber || ''), name: String(m.name || '') }))
     .sort((a, b) => a.tower.localeCompare(b.tower) || a.flat.localeCompare(b.flat, undefined, { numeric: true }) || a.name.localeCompare(b.name));
   return { total: approved.length, confirmed: approved.length - pending.length, pending };
+}
+
+/* ---------------------------------------------------------------------- */
+/*  Devanagari in PDFs                                                     */
+/* ---------------------------------------------------------------------- */
+/* jsPDF's built-in fonts (Helvetica, Times…) have no Devanagari glyphs, so a
+   resident called "आशा मेहता" came out as "6> .G9$>" on cards and receipts.
+   Embedding a full Hindi font would add ~1 MB to every PDF, and jsPDF cannot
+   shape conjuncts/matras anyway. Instead, any text line that contains
+   Devanagari is drawn by the browser (which shapes it correctly) onto a
+   transparent canvas and placed as an image at the exact spot the text call
+   asked for. Latin-only text is untouched (still real, selectable PDF text).
+   Trade-off: Hindi lines in a PDF are pictures, not selectable text. */
+const DEVA_RE = /[ऀ-ॿ]/;
+const UNI_FONT_STACK = '"Noto Sans Devanagari","Nirmala UI","Mangal","Kohinoor Devanagari","Devanagari Sangam MN","Noto Sans",sans-serif';
+const UNI_SCALE = 6; // canvas px per PDF point — ~430 dpi, crisp at print size
+const UNI_MAX_PX = 12000; // browsers silently blank canvases past ~16k–32k px
+
+export function hasDevanagari(s) {
+  return Array.isArray(s) ? s.some(hasDevanagari) : (typeof s === 'string' && DEVA_RE.test(s));
+}
+
+/* Make sure the Hindi webfont is present before any canvas drawing. Index
+   already links it; admin/staff pages do not, so add it on demand. Bounded
+   wait: offline we fall back to the device's own Devanagari font. */
+export async function ensureUnicodeFont() {
+  if (typeof document === 'undefined' || !document.fonts) return;
+  try {
+    if (!document.querySelector('link[data-uni-font]') && !/Noto\+Sans\+Devanagari/.test(document.head.innerHTML)) {
+      const l = document.createElement('link');
+      l.rel = 'stylesheet'; l.setAttribute('data-uni-font', '1');
+      l.href = 'https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;600&display=swap';
+      document.head.appendChild(l);
+    }
+    await Promise.race([
+      Promise.all([
+        document.fonts.load('400 16px "Noto Sans Devanagari"', 'अआ'),
+        document.fonts.load('600 16px "Noto Sans Devanagari"', 'अआ'),
+      ]),
+      new Promise(r => setTimeout(r, 2500)),
+    ]);
+  } catch (e) {/* fall back to system font */}
+}
+
+export async function enableUnicodeText(pdf) {
+  if (!pdf || pdf.__uniText || typeof document === 'undefined') return pdf;
+  await ensureUnicodeFont();
+  pdf.__uniText = true;
+  const k = pdf.internal.scaleFactor;
+  const origText = pdf.text.bind(pdf);
+  const origWidth = pdf.getTextWidth.bind(pdf);
+  const origSplit = pdf.splitTextToSize.bind(pdf);
+  const cv = document.createElement('canvas');
+  const cx = cv.getContext('2d');
+  const isBold = () => /bold/i.test((pdf.getFont() || {}).fontStyle || '');
+  const fontCss = (pt, bold) => `${bold ? 600 : 400} ${pt * UNI_SCALE}px ${UNI_FONT_STACK}`;
+  const measure = (str) => { cx.font = fontCss(pdf.getFontSize(), isBold()); return cx.measureText(str).width / UNI_SCALE / k; };
+
+  /* The standard PDF fonts have no rupee sign: "₹12,500" printed as "12,500"
+     (the symbol silently vanished). Plain text lines get "Rs. " instead. */
+  const fixRs = (t) => Array.isArray(t) ? t.map(fixRs) : (typeof t === 'string' ? t.replace(/₹\s?/g, 'Rs. ') : t);
+
+  pdf.getTextWidth = function (s) {
+    if (!hasDevanagari(s)) return origWidth(fixRs(s));
+    const lines = Array.isArray(s) ? s : String(s).split('\n');
+    return Math.max(...lines.map(l => (hasDevanagari(l) ? measure(l) : origWidth(l))));
+  };
+
+  pdf.splitTextToSize = function (text, maxWidth, opts) {
+    if (!hasDevanagari(text)) return origSplit(fixRs(text), maxWidth, opts);
+    const out = [];
+    for (const para of (Array.isArray(text) ? text : String(text).split('\n'))) {
+      if (!hasDevanagari(para)) { out.push(...origSplit(fixRs(para), maxWidth, opts)); continue; }
+      let line = '';
+      for (const word of String(para).split(/\s+/).filter(Boolean)) {
+        const trial = line ? line + ' ' + word : word;
+        if (line && measure(trial) > maxWidth) { out.push(line); line = word; } else line = trial;
+      }
+      if (line) out.push(line);
+    }
+    return out;
+  };
+
+  pdf.text = function (text, x, y, opts, ...rest) {
+    if (!hasDevanagari(text)) return origText(fixRs(text), x, y, opts, ...rest);
+    const o = (opts && typeof opts === 'object') ? opts : {};
+    const align = o.align || 'left';
+    const pt = pdf.getFontSize();
+    const bold = isBold();
+    const color = pdf.getTextColor();
+    let lines = Array.isArray(text) ? text : String(text).split('\n');
+    if (o.maxWidth) lines = lines.flatMap(l => pdf.splitTextToSize(l, o.maxWidth));
+    const lh = pt * (pdf.getLineHeightFactor ? pdf.getLineHeightFactor() : 1.15) / k;
+    lines.forEach((line, i) => {
+      const ly = y + i * lh;
+      if (!hasDevanagari(line)) { origText(fixRs(line), x, ly, { align }); return; }
+      // A very long unwrapped line would exceed the canvas size limit and come
+      // out blank; draw it at a lower resolution instead of dropping it.
+      cx.font = fontCss(pt, bold);
+      const wide = cx.measureText(line).width / UNI_SCALE;           // width in px at 1 px/pt
+      const sc = Math.max(1, Math.min(UNI_SCALE, UNI_MAX_PX / Math.max(wide, 1)));
+      const fontAt = `${bold ? 600 : 400} ${pt * sc}px ${UNI_FONT_STACK}`;
+      cx.font = fontAt;
+      const wPx = Math.ceil(cx.measureText(line).width) + 4;
+      const asc = pt * 1.05 * sc, hPx = Math.ceil(pt * 1.75 * sc);
+      cv.width = wPx; cv.height = hPx;
+      cx.font = fontAt;
+      cx.fillStyle = color || '#000000';
+      cx.textBaseline = 'alphabetic';
+      cx.fillText(line, 2, asc);
+      const wU = wPx / sc / k, hU = hPx / sc / k;
+      const x0 = align === 'center' ? x - wU / 2 : align === 'right' ? x - wU : x;
+      pdf.addImage(cv.toDataURL('image/png'), 'PNG', x0 - 2 / sc / k, ly - asc / sc / k, wU, hU);
+    });
+    return pdf;
+  };
+  return pdf;
 }
 
 ensureIconSprite();

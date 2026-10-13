@@ -5,11 +5,12 @@
 <!-- Same policy as index.html/admin.html/guard.html. -->
 <meta http-equiv="Content-Security-Policy" content="
   default-src 'self';
-  script-src 'self' 'unsafe-inline' https://www.gstatic.com;
+  script-src 'self' 'unsafe-inline' https://www.gstatic.com https://www.google.com;
   style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
   img-src 'self' data: blob:;
   font-src 'self' data: https://fonts.gstatic.com;
-  connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://www.gstatic.com;
+  connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://www.gstatic.com https://www.google.com;
+  frame-src https://www.google.com;
   worker-src 'self';
   object-src 'none';
   base-uri 'self';
@@ -76,6 +77,39 @@
   .chk-note{ padding:0 14px 10px; }
   .chk-note input{ width:100%; font-size:12px; padding:7px 10px; border-radius:7px; border:1px solid var(--line); }
   .cx-row{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:12px 14px; margin-bottom:8px; }
+
+  /* v180 — Option C "geometric heritage": facet header, light floating tab bar with a navy pill */
+  .st-header{ background:#0A1B33 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 390 250' preserveAspectRatio='xMinYMin slice'%3E%3Crect width='390' height='250' fill='%230A1B33'/%3E%3Cpolygon points='0%2C0 250%2C0 120%2C250 0%2C250' fill='%23F27B0E'/%3E%3Cpolygon points='120%2C0 390%2C0 390%2C120 200%2C250 70%2C250' fill='%23163564'/%3E%3Cpolygon points='0%2C0 170%2C0 40%2C250 0%2C250' fill='%23FF9933'/%3E%3Cpolygon points='290%2C0 390%2C0 390%2C90' fill='%23C01860'/%3E%3Cpolygon points='150%2C0 205%2C0 95%2C250 40%2C250' fill='%23FFC978'/%3E%3Cpolygon points='300%2C250 390%2C130 390%2C250' fill='%230F2547'/%3E%3C/svg%3E") left top / cover no-repeat; border-radius:0 0 26px 26px; padding-bottom:26px; }
+  .st-header .who b{ color:#fff; text-shadow:0 1px 2px rgba(10,27,51,.4), 0 2px 12px rgba(10,27,51,.35); }
+  .st-header .who span{ background:rgba(10,27,51,.6); border-color:transparent; color:#FFC978; }
+  .st-header button{ background:rgba(10,27,51,.58); border-color:transparent; }
+  .st-tabs{ background:#fff; border:1px solid var(--line); border-radius:22px; box-shadow:0 12px 30px rgba(10,27,51,.16); }
+  .st-tab{ color:var(--ink-600); --duo:rgba(10,27,51,.1); }
+  .st-tab.active{ background:var(--navy-900); color:#fff; --duo:rgba(255,255,255,.34); }
+
+  /* v183 — Canva-style page title, stat tiles and status-accented cards */
+  .st-pagehead{ margin:2px 2px 14px; }
+  .st-pagehead h2{ font-family:var(--font-display, Georgia, serif); font-size:27px; line-height:1.15; color:var(--navy-950); margin:0 0 3px; }
+  .st-pagehead p{ margin:0; font-size:13.5px; color:var(--ink-600); }
+  .st-stats{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px; }
+  .st-stat{ display:flex; align-items:center; gap:10px; background:#fff; border:1px solid var(--line); border-radius:18px; padding:14px 12px; box-shadow:0 4px 14px rgba(10,27,51,.06); }
+  .st-stat-ic{ flex:none; width:38px; height:38px; border-radius:12px; display:grid; place-items:center; background:#FFF1D6; color:#B25E00; }
+  .st-stat-ic svg.ic{ width:20px; height:20px; }
+  .st-stat.is-alert .st-stat-ic{ background:#FDECEC; color:var(--danger); }
+  .st-stat.is-ok .st-stat-ic{ background:#E5F4EB; color:var(--success); }
+  .st-stat-n{ font-family:var(--font-display, Georgia, serif); font-size:26px; font-weight:800; line-height:1; color:var(--navy-950); }
+  .st-stat.is-alert .st-stat-n{ color:var(--danger); }
+  .st-stat.is-ok .st-stat-n{ color:var(--success); }
+  .st-stat-l{ font-size:12.5px; color:var(--ink-600); margin-top:3px; }
+  .cx-row{ border-left-width:4px; }
+  .cx-row.cx-st-open{ border-left-color:#F27B0E; }
+  .cx-row.cx-st-in_progress{ border-left-color:#1F4585; }
+  .cx-row.cx-st-resolved, .cx-row.cx-st-closed{ border-left-color:#1E7B4A; }
+  .cx-row.cx-st-rejected{ border-left-color:#A9B0BF; }
+
+  /* v180 — the seal replaces the initial, with the society name above the person's name */
+  .st-header .app-av{ width:52px; height:52px; font-size:0; color:transparent; background:#fff url(logo.webp) center/94% no-repeat; box-shadow:0 3px 14px rgba(10,27,51,.32); }
+  .st-header .who::before{ content:'Max Heights Majestic'; display:block; white-space:nowrap; font-size:10.5px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; text-shadow:0 1px 2px rgba(10,27,51,.5); }
 </style>
 <script>
 /* Boot guard — if the page's main script cannot start (typically a half-updated cache: a new
@@ -144,7 +178,8 @@
 </div>
 
 <!-- ============================= MAIN ============================= -->
-<div class="screen" id="screen-main">
+<div class="screen" id="screen-main" role="main">
+  <h1 class="sr-only">MHMRWS Staff App</h1>
   <div class="st-shell">
     <div class="st-header">
       <span class="app-av" id="staffAv" aria-hidden="true">S</span>
@@ -160,6 +195,7 @@
       <button class="st-tab" data-tab="team" id="teamTabBtn" style="display:none;"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#ic-users"/></svg>Team</button>
     </div>
     <div class="st-body">
+      <div class="st-pagehead" id="stPageHead"><h2 id="stPageTitle"></h2><p id="stPageSub"></p></div>
       <div class="tab-panel" id="tab-home"></div>
       <div class="tab-panel" id="tab-inspect" style="display:none;"></div>
       <div class="tab-panel" id="tab-history" style="display:none;"></div>
@@ -207,9 +243,9 @@ import {
   doc, getDoc, addDoc, setDoc, updateDoc, collection, query, where, getDocs, orderBy, serverTimestamp, writeBatch
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 import {
-  ref as storageRef, uploadBytes, getDownloadURL
+  ref as storageRef, uploadBytes, getDownloadURL, deleteObject
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-storage.js";
-import { showToast, escapeHtml, fmtDate, fmtDateTime, TOWER_IDS, TOWER_PLAN, INSPECTION_TYPES, INSPECTION_SCHEDULE, INSPECTION_CRITICAL_ITEMS, DEFECT_TAG_OPTIONS, inspectionSectionToComplaintCategory, STAFF_TRADES, dateToLocalISO, todayLocalISO, complaintUrgency, COMPLAINT_SLA_HOURS, icon, emptyState, getTextSize, setTextSize } from './app-common.js?v=177';
+import { showToast, escapeHtml, fmtDate, fmtDateTime, TOWER_IDS, TOWER_PLAN, INSPECTION_TYPES, INSPECTION_SCHEDULE, INSPECTION_CRITICAL_ITEMS, DEFECT_TAG_OPTIONS, inspectionSectionToComplaintCategory, STAFF_TRADES, dateToLocalISO, todayLocalISO, complaintUrgency, COMPLAINT_SLA_HOURS, icon, emptyState, getTextSize, setTextSize } from './app-common.js?v=189';
 import { installAppInstallPrompt } from './install-prompt.js';
 
 window.__moduleBooted = true; { var __bg = document.getElementById('bootGuard'); if (__bg) __bg.remove(); }
@@ -268,8 +304,16 @@ function showScreen(id) {
   document.getElementById(id)?.classList.add('active');
 }
 let currentStaffTab = 'home';
+const ST_PAGEHEAD = {
+  home: ['Today’s work', 'Your inspections and complaints at a glance.'],
+  inspect: ['Start an inspection', 'Pick a checklist and walk the tower.'],
+  history: ['Inspection history', 'Everything you have filed so far.'],
+  complaints: ['Complaints', 'Open one, move it forward, add a photo.'],
+  team: ['Your team', 'Assign towers and checklists to supervisors.']
+};
 function showTab(name) {
   currentStaffTab = name;
+  { const h = ST_PAGEHEAD[name] || ['', '']; const t = document.getElementById('stPageTitle'), u = document.getElementById('stPageSub'); if (t) t.textContent = h[0]; if (u) u.textContent = h[1]; }
   document.querySelectorAll('.st-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
   document.querySelectorAll('.tab-panel').forEach(p => p.style.display = 'none');
   document.getElementById('tab-' + name).style.display = 'block';
@@ -332,6 +376,8 @@ onAuthStateChanged(auth, async (user) => {
     inspectionsLoadFailed = false;
     complaintsLoadFailed = false;
     inspectionsForReview = [];
+    reviewLoadFailed = false;
+    liUploadCache = null;
     allStaffList = [];
     allInspectionAssignments = [];
     showScreen('screen-login');
@@ -339,6 +385,7 @@ onAuthStateChanged(auth, async (user) => {
   }
   try {
     const snap = await getDoc(doc(db, 'staff', user.uid));
+    if (auth.currentUser?.uid !== user.uid) return;   // signed out / switched while the profile was loading
     if (!snap.exists() || snap.data().active === false) {
       const errEl = document.getElementById('loginError');
       errEl.textContent = 'This staff account is not active. Contact the committee.';
@@ -353,6 +400,7 @@ onAuthStateChanged(auth, async (user) => {
     document.getElementById('teamTabBtn').style.display = currentStaff.role === 'manager' ? '' : 'none';
     showScreen('screen-main');
     await Promise.all([loadMyInspections(), loadComplaints(), loadInspectionAssignments(), loadInspectionsForReview()]);
+    if (auth.currentUser?.uid !== user.uid || currentStaff?.uid !== user.uid) return;   // a different (or no) account is signed in now
     showTab('home');
   } catch (err) {
     console.error('Staff profile load failed:', err);
@@ -368,16 +416,20 @@ onAuthStateChanged(auth, async (user) => {
 /* ---------------------------------------------------------------------- */
 let inspectionsLoadFailed = false;
 async function loadMyInspections() {
+  const me = currentStaff;
   try {
     const snap = await getDocs(query(collection(db, 'inspections'), where('createdByUid', '==', currentStaff.uid)));
     myInspections = snap.docs.map(d => ({ id: d.id, ...d.data() }))
       .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+    if (currentStaff !== me) { myInspections = []; return; }   // account changed while this was loading — drop the result
     inspectionsLoadFailed = false;
-  } catch (e) { console.warn('Inspection history load failed:', e?.code || e); myInspections = []; inspectionsLoadFailed = true; }
+  } catch (e) { if (currentStaff !== me) return; console.warn('Inspection history load failed:', e?.code || e); myInspections = []; inspectionsLoadFailed = true; }
 }
 let inspectionsForReview = [];
+let reviewLoadFailed = false;
 async function loadInspectionsForReview() {
   if (currentStaff.role !== 'manager') return;
+  const me = currentStaff;
   try {
     const cutoff = Date.now() - 30 * 86400000;
     const [flaggedSnap, recentSnap] = await Promise.all([
@@ -389,11 +441,17 @@ async function loadInspectionsForReview() {
     inspectionsForReview = [...byId.values()]
       .filter((r) => !r.managerVerificationStatus)
       .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
-  } catch (e) { console.warn('Inspections-for-review load failed:', e?.code || e); inspectionsForReview = []; }
+    if (currentStaff !== me) return;   // signed out / switched account while this was in flight
+    reviewLoadFailed = false;
+  } catch (e) {
+    if (currentStaff !== me) return;
+    console.warn('Inspections-for-review load failed:', e?.code || e); inspectionsForReview = []; reviewLoadFailed = true;
+  }
 }
 let allStaffList = [];
 let complaintsLoadFailed = false;
 async function loadComplaints() {
+  const me = currentStaff;
   try {
     // A Managing Staff triages the whole queue; a Supervisor may only read
     // complaints assigned to them (enforced by the rule now, not just the
@@ -407,13 +465,15 @@ async function loadComplaints() {
     }
     myComplaints = snap.docs.map(d => ({ id: d.id, ...d.data() }))
       .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+    if (currentStaff !== me) { myComplaints = []; return; }   // account changed while this was loading — drop the result
     complaintsLoadFailed = false;
-  } catch (e) { console.warn('Complaints load failed:', e?.code || e); myComplaints = []; complaintsLoadFailed = true; }
+  } catch (e) { if (currentStaff !== me) return; console.warn('Complaints load failed:', e?.code || e); myComplaints = []; complaintsLoadFailed = true; }
 
   // Managing Staff needs the staff list to assign complaints to supervisors.
-  if (currentStaff.role === 'manager' && !allStaffList.length) {
+  if (currentStaff === me && me.role === 'manager' && !allStaffList.length) {
     try {
-      allStaffList = (await getDocs(collection(db, 'staff'))).docs.map(d => ({ id: d.id, ...d.data() }));
+      const list = (await getDocs(collection(db, 'staff'))).docs.map(d => ({ id: d.id, ...d.data() }));
+      if (currentStaff === me) allStaffList = list;
     } catch (e) { console.warn('Staff list load failed:', e?.code || e); }
   }
 }
@@ -421,10 +481,14 @@ async function loadComplaints() {
 let allInspectionAssignments = [];
 let inspectionAssignmentsLoadFailed = false;
 async function loadInspectionAssignments() {
+  const me = currentStaff;
   try {
-    allInspectionAssignments = (await getDocs(collection(db, 'inspectionAssignments'))).docs.map(d => ({ id: d.id, ...d.data() }));
+    const rows = (await getDocs(collection(db, 'inspectionAssignments'))).docs.map(d => ({ id: d.id, ...d.data() }));
+    if (currentStaff !== me) return;   // account changed while this was loading — drop the result
+    allInspectionAssignments = rows;
     inspectionAssignmentsLoadFailed = false;
   } catch (e) {
+    if (currentStaff !== me) return;
     console.warn('Inspection assignments load failed:', e?.code || e);
     allInspectionAssignments = [];
     inspectionAssignmentsLoadFailed = true;
@@ -477,6 +541,7 @@ async function verifyInspection(inspectionId, status) {
 }
 
 function renderTeam() {
+  if (!currentStaff) return;   // signed out while a request was still in flight
   const el = document.getElementById('tab-team');
   const supervisors = allStaffList.filter(s => s.active !== false && s.role === 'supervisor');
   const slots = allAssignableSlots();
@@ -484,10 +549,11 @@ function renderTeam() {
     <div class="card card-pad" style="margin-bottom:12px;">
       <h3 style="font-size:15px; margin-bottom:4px;">Review Submitted Inspections</h3>
       <p class="t-muted" style="font-size:12px; margin-bottom:${inspectionsForReview.length ? '10px' : '0'};">Mark a filed inspection as reviewed, from your own login — a typed "Verified By" name on the form isn't a real review. Last 30 days, not yet reviewed.</p>
-      ${!inspectionsForReview.length ? `<p class="t-muted" style="font-size:12.5px;">Nothing waiting on review right now.</p>` : inspectionsForReview.map((r, i) => `
+      ${reviewLoadFailed ? `<div role="alert" style="padding:10px 12px; background:#FDEDED; border-radius:8px; font-size:12.5px;">Could not load the inspections waiting on review — please check your connection. <button type="button" class="link-btn" id="retryReviewBtn">Retry</button></div>`
+      : !inspectionsForReview.length ? `<p class="t-muted" style="font-size:12.5px;">Nothing waiting on review right now.</p>` : inspectionsForReview.map((r, i) => `
         <div style="border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin-top:8px;">
           <div class="spread">
-            <b style="font-size:13px;">${escapeHtml(INSPECTION_TYPES[r.formType]?.label || r.formType)}${r.tower ? ' — Tower ' + escapeHtml(r.tower) : ''}</b>
+            <b style="font-size:13px;">${escapeHtml(INSPECTION_TYPES[r.formType]?.label || r.formType || 'Inspection')}${r.tower ? ' — Tower ' + escapeHtml(r.tower) : ''}</b>
             <span class="t-muted" style="font-size:12px;">${r.createdAt ? fmtDateTime(r.createdAt) : ''}</span>
           </div>
           <div class="t-muted" style="font-size:12.5px; margin:2px 0 8px;">Filed by ${escapeHtml(r.createdByName || '—')}${Number(r.issueCount) ? ` · ${Number(r.issueCount)} issue${Number(r.issueCount) > 1 ? 's' : ''}` : ''}${Number(r.uncheckedCount) ? ` · ${Number(r.uncheckedCount)} unchecked` : ''}</div>
@@ -499,7 +565,7 @@ function renderTeam() {
     </div>
     <div class="card card-pad" style="margin-bottom:12px;">
       <h3 style="font-size:15px; margin-bottom:4px;">Assign Inspections</h3>
-      <p class="t-muted" style="font-size:12px;">Decide who's responsible for each daily and weekly check. Leave "Unassigned" and any supervisor (and you) can still pick it up from New Inspection.</p>
+      <p class="t-muted" style="font-size:12px;">Decide who's responsible for each daily and weekly check. Only the person you pick sees that inspection under New Inspection. If you leave it "Unassigned", supervisors cannot file it — only you (Managing Staff) can.</p>
     </div>
     ${!supervisors.length ? `<p class="t-muted" style="font-size:12.5px;">No supervisors added yet — add one from the admin panel's Facility Staff section first.</p>` : ''}
     ${slots.map(slot => {
@@ -517,6 +583,7 @@ function renderTeam() {
     }).join('')}
   `;
   el.querySelectorAll('select[data-slot]').forEach(sel => sel.addEventListener('change', () => saveAssignment(sel)));
+  document.getElementById('retryReviewBtn')?.addEventListener('click', () => loadInspectionsForReview().then(() => { if (currentStaff) renderTeam(); }));
   el.querySelectorAll('[data-verify-insp]').forEach(b => b.onclick = () => verifyInspection(inspectionsForReview[Number(b.dataset.verifyInsp)].id, 'verified'));
   el.querySelectorAll('[data-correct-insp]').forEach(b => b.onclick = () => verifyInspection(inspectionsForReview[Number(b.dataset.correctInsp)].id, 'needs_correction'));
 }
@@ -555,6 +622,7 @@ async function saveAssignment(sel) {
 /* ---------------------------------------------------------------------- */
 let homeView = 'main';
 function renderHome() {
+  if (!currentStaff) return;   // signed out while a request was still in flight
   if (homeView === 'logIssue') { renderLogIssueForm(); return; }
   const openComplaints = myComplaints.filter(c => c.status === 'open' || c.status === 'in_progress').length;
   const complaintLabel = currentStaff.role === 'manager' ? 'Open complaints' : 'Assigned to me';
@@ -565,11 +633,9 @@ function renderHome() {
       <b style="font-size:13px;">Nothing assigned to you yet</b>
       <p class="t-muted" style="font-size:12px; margin-top:4px;">Your Managing Staff hasn't assigned you a tower or checklist yet — ask them to set it up from their Team tab.</p>
     </div>` : ''}
-    <div class="card card-pad" style="margin-bottom:12px;">
-      <div style="display:flex; justify-content:space-between; align-items:center;">
-        <div><div class="t-muted" style="font-size:12.5px;">Inspections filed</div><div style="font-size:22px; font-weight:800;">${inspectionsLoadFailed ? '—' : myInspections.length}</div>${inspectionsLoadFailed ? '<div style="font-size:11px; color:var(--danger);">couldn\'t load</div>' : ''}</div>
-        <div><div class="t-muted" style="font-size:12.5px;">${complaintLabel}</div><div style="font-size:22px; font-weight:800; color:${openComplaints ? 'var(--danger)' : 'var(--success)'};">${openComplaints}</div></div>
-      </div>
+    <div class="st-stats">
+      <div class="st-stat"><span class="st-stat-ic" aria-hidden="true">${icon('check')}</span><div><div class="st-stat-n">${inspectionsLoadFailed ? '—' : myInspections.length}</div><div class="st-stat-l">Inspections filed</div>${inspectionsLoadFailed ? '<div style="font-size:11px; color:var(--danger);">couldn\'t load</div>' : ''}</div></div>
+      <div class="st-stat ${complaintsLoadFailed ? '' : (openComplaints ? 'is-alert' : 'is-ok')}"><span class="st-stat-ic" aria-hidden="true">${icon('chat')}</span><div><div class="st-stat-n">${complaintsLoadFailed ? '—' : openComplaints}</div><div class="st-stat-l">${complaintLabel}</div>${complaintsLoadFailed ? '<div style="font-size:11px; color:var(--danger);">couldn\'t load · <button type="button" class="link-btn" id="homeRetryComplaints" style="font-size:11px;">Retry</button></div>' : ''}</div></div>
     </div>
     ${(() => {
       const hasAnyAssignment = currentStaff.role === 'manager'
@@ -582,6 +648,7 @@ function renderHome() {
     <button class="btn btn-outline" style="width:100%;" data-goto="complaints">View Complaints</button>
   `;
   el.querySelectorAll('[data-goto]').forEach(b => b.onclick = () => showTab(b.dataset.goto));
+  document.getElementById('homeRetryComplaints')?.addEventListener('click', () => loadComplaints().then(() => { if (homeView === 'main') renderHome(); }));
   document.getElementById('logIssueBtn').onclick = () => { homeView = 'logIssue'; renderHome(); };
 }
 
@@ -596,8 +663,8 @@ function renderLogIssueForm() {
       <b style="font-size:14.5px;">Log an Issue</b>
       <p class="t-muted" style="font-size:12px; margin-top:4px;">For anything you noticed that isn't part of a checklist right now.</p>
     </div>
-    <div class="field"><label for="liTitle">What's the issue?</label><input type="text" id="liTitle" placeholder="e.g. Broken tile near Gate 2"></div>
-    <div class="field"><label for="liDesc">Details</label><textarea id="liDesc" rows="3" placeholder="Describe what you saw…"></textarea></div>
+    <div class="field"><label for="liTitle">What's the issue?</label><input type="text" id="liTitle" maxlength="200" placeholder="e.g. Broken tile near Gate 2"></div>
+    <div class="field"><label for="liDesc">Details</label><textarea id="liDesc" rows="3" maxlength="2000" placeholder="Describe what you saw…"></textarea></div>
     <div class="field"><label for="liCategory">Category</label>
       <select id="liCategory">
         ${['security', 'housekeeping', 'maintenance', 'electrical', 'plumbing', 'noise', 'parking', 'other'].map(c => `<option value="${c}">${c[0].toUpperCase() + c.slice(1)}</option>`).join('')}
@@ -625,6 +692,7 @@ function renderLogIssueForm() {
   document.getElementById('liSubmitBtn').onclick = submitLogIssue;
 }
 
+let liUploadCache = null;   // { file, url } — an upload that could not be removed after a failed save
 async function submitLogIssue() {
   const title = document.getElementById('liTitle').value.trim();
   const description = document.getElementById('liDesc').value.trim();
@@ -635,16 +703,28 @@ async function submitLogIssue() {
   const photoFile = document.getElementById('liPhoto').files?.[0];
   if (!title) { showToast('Please describe the issue.', 'error'); return; }
   if (!description) { showToast('Please add some details.', 'error'); return; }
+  if (title.length > 200) { showToast(`The title is ${title.length} characters — please keep it to 200 or fewer.`, 'error'); return; }
+  if (description.length > 2000) { showToast(`The details are ${description.length} characters — please keep them to 2,000 or fewer.`, 'error'); return; }
   if (priority === 'high' && !photoFile) { showToast('High priority issues need a photo.', 'error'); return; }
+  // Same limits Storage enforces — refused instantly, before any upload starts.
+  if (photoFile && photoFile.size >= 8 * 1024 * 1024) { showToast(`That photo is ${(photoFile.size / 1024 / 1024).toFixed(1)} MB — please choose one under 8 MB.`, 'error'); return; }
+  if (photoFile && !/^image\//.test(photoFile.type || '')) { showToast('Please attach an image file.', 'error'); return; }
 
   const btn = document.getElementById('liSubmitBtn');
   btn.disabled = true; btn.textContent = 'Submitting…';
+  const owner = currentStaff;
+  let uploadedRef = null;
   try {
     let photoURL = null;
     if (photoFile) {
-      const r = storageRef(storage, `complaintPhotos/${currentStaff.uid}/issue_${Date.now()}`);
-      await uploadBytes(r, photoFile);
-      photoURL = await getDownloadURL(r);
+      // A previous attempt with this same file already uploaded it (and could not remove it): reuse, don't upload twice.
+      if (liUploadCache && liUploadCache.file === photoFile) { photoURL = liUploadCache.url; }
+      else {
+        const r = storageRef(storage, `complaintPhotos/${currentStaff.uid}/issue_${Date.now()}`);
+        await uploadBytes(r, photoFile);
+        uploadedRef = r;
+        photoURL = await getDownloadURL(r);
+      }
     }
     const payload = {
       raisedByUid: currentStaff.uid, title, description, category, status: 'open', source: 'staff-manual', priority,
@@ -654,12 +734,18 @@ async function submitLogIssue() {
     if (tower) payload.tower = tower;
     if (location) payload.location = location;
     await addDoc(collection(db, 'complaints'), payload);
+    liUploadCache = null;
     showToast('Issue logged.', 'success');
+    if (currentStaff !== owner) return;
     homeView = 'main';
     await loadComplaints();
-    renderHome();
+    if (currentStaff === owner) renderHome();
   } catch (err) {
     console.error('Log issue failed:', err);
+    if (uploadedRef) {
+      const removed = await discardUploadedPhoto(uploadedRef);
+      if (!removed) { try { liUploadCache = { file: photoFile, url: await getDownloadURL(uploadedRef) }; } catch {} }
+    }
     showToast(`Could not submit${err?.code ? ` (${err.code})` : ''} — please try again.`, 'error');
     btn.disabled = false; btn.textContent = 'Submit';
   }
@@ -688,7 +774,7 @@ function renderInspectPicker() {
   el.innerHTML = `
     ${savedDraft ? `
       <div style="padding:12px; background:#FDF3E2; border-radius:10px; margin-bottom:14px;">
-        <b style="font-size:13px;">You have an unfinished ${escapeHtml(INSPECTION_TYPES[savedDraft.formType]?.label || savedDraft.formType)}${savedDraft.tower ? ' — Tower ' + escapeHtml(savedDraft.tower) : ''}</b>
+        <b style="font-size:13px;">You have an unfinished ${escapeHtml(INSPECTION_TYPES[savedDraft.formType]?.label || savedDraft.formType || 'Inspection')}${savedDraft.tower ? ' — Tower ' + escapeHtml(savedDraft.tower) : ''}</b>
         <div class="t-muted" style="font-size:12.5px; margin:2px 0 8px;">Last saved ${savedDraftAgo < 1 ? 'just now' : savedDraftAgo + ' min ago'} — not yet submitted. Any photo not already uploaded will need to be re-attached.</div>
         <div style="display:flex; gap:8px;">
           <button type="button" class="btn btn-primary btn-sm" id="resumeDraftBtn">Resume</button>
@@ -870,7 +956,7 @@ function renderChecklist() {
       <div class="chk-section-head">Verification</div>
       <div style="padding:10px 12px;">
         <div class="field"><label for="inspDate">Date of Inspection</label><input type="date" id="inspDate" value="${escapeHtml(draft.inspectionDate || '')}" max="${todayLocalISO()}"></div>
-        <div class="field"><label for="inspVerifiedBy">Verified By (name)</label><input type="text" id="inspVerifiedBy" placeholder="Your name" value="${escapeHtml(draft.verifiedBy)}"></div>
+        <div class="field"><label for="inspVerifiedBy">Verified By (name)</label><input type="text" id="inspVerifiedBy" maxlength="200" placeholder="Your name" value="${escapeHtml(draft.verifiedBy)}"></div>
         <label style="display:block; font-size:12.5px; font-weight:600; margin:8px 0 4px;">Signature</label>
         <canvas id="sigPad" style="width:100%; height:130px; border:1px solid var(--line, #E2E6EF); border-radius:8px; touch-action:none; background:#fff;"></canvas>
         <button type="button" class="btn btn-outline btn-sm" id="sigClearBtn" style="margin-top:6px;">Clear Signature</button>
@@ -882,6 +968,15 @@ function renderChecklist() {
   if (towerSel) {
     draft.tower = draft.tower || towerSel.value;
     towerSel.addEventListener('change', () => {
+      if (draft.formType === 'daily-tower' && draft.tower && towerSel.value !== draft.tower) {
+        // Switching tower rebuilds the floor-wise list; entries already made on the old one would be lost silently.
+        const floors = draft.sections.slice(0, -1);
+        const hasWork = floors.some(sec => sec.items.some(it => it.status || (it.note && it.note.trim()) || it.photoFile || it.photoURL || (it.tags && it.tags.length)));
+        if (hasWork && !confirm(`Switching to Tower ${towerSel.value} clears what you have entered for Tower ${draft.tower} (floor-wise statuses, notes and photos). Continue?`)) {
+          towerSel.value = draft.tower;
+          return;
+        }
+      }
       draft.tower = towerSel.value;
       if (draft.formType === 'daily-tower') {
         const additionalAreas = draft.sections[draft.sections.length - 1]; // tower-independent, preserved as-is
@@ -912,7 +1007,9 @@ function renderChecklist() {
     if (warn) warn.style.display = (inp.value && isNaN(parseFloat(inp.value))) ? 'block' : 'none';
   }));
   document.getElementById('inspChangeTypeBtn')?.addEventListener('click', () => {
+    if (inspectionSubmitInFlight) { showToast('Submitting — please wait until it finishes.', 'error'); return; }
     if (!confirm('Discard this in-progress checklist and pick a different inspection type?')) return;
+    if (inspectionSubmitInFlight) return;
     draft = null;
     clearSavedDraft();
     renderInspectPicker();
@@ -987,9 +1084,15 @@ function initSignaturePad() {
   // from the draft, a signature drawn before that would silently vanish
   // the moment the user touched anything else on the form afterward.
   if (draft.signatureDataUrl) {
+    // Bind the async draw to THIS canvas and THIS saved signature: if the form re-rendered or the pad was cleared
+    // before the image finished loading, the stale image must not be painted onto a newer canvas.
     const img = new Image();
-    img.onload = () => sigCtx.drawImage(img, 0, 0, rect.width, rect.height);
-    img.src = draft.signatureDataUrl;
+    const ctxAtStart = sigCtx, urlAtStart = draft.signatureDataUrl, draftAtStart = draft;
+    img.onload = () => {
+      if (sigCtx !== ctxAtStart || !canvas.isConnected || draft !== draftAtStart || draft.signatureDataUrl !== urlAtStart) return;
+      ctxAtStart.drawImage(img, 0, 0, rect.width, rect.height);
+    };
+    img.src = urlAtStart;
   }
   const posFromEvent = (e) => {
     const r = canvas.getBoundingClientRect();
@@ -1033,6 +1136,7 @@ async function submitInspection() {
   if (!draft.inspectionDate) { showToast('Please select the date of inspection.', 'error'); return; }
   if (draft.inspectionDate > todayLocalISO()) { showToast('The date of inspection cannot be in the future.', 'error'); return; }
   if (!draft.verifiedBy || !draft.verifiedBy.trim()) { showToast('Please enter who verified this inspection.', 'error'); return; }
+  if (draft.verifiedBy.trim().length > 200) { showToast(`The "Verified By" name is ${draft.verifiedBy.trim().length} characters — please keep it to 200 or fewer.`, 'error'); return; }
   const allItems = draft.sections.flatMap(sec => sec.items.map(it => ({ ...it, section: sec.title })));
   const tankUnchecked = draft.tankData ? Object.values(draft.tankData).reduce((sum, checks) => sum + checks.filter((v) => v === null).length, 0) : 0;
   const unchecked = allItems.filter(it => !it.status).length + tankUnchecked;
@@ -1063,6 +1167,10 @@ async function submitInspection() {
   // "Change inspection type", which sets draft=null) can alter what
   // actually gets submitted, or crash mid-upload reading a field off null.
   const snap = structuredClone(draft);
+  // The exact draft object this submission belongs to. After every await below, only touch the live
+  // `draft` if it is STILL this object — the staff member may have discarded it or started another one.
+  const submittedDraft = draft;
+  const liveDraftIsMine = () => draft !== null && draft === submittedDraft;
   try {
     const itemsNeedingUpload = snap.sections.flatMap((sec, si) => sec.items.map((it, ii) => ({ it, si, ii })))
       .filter(({ it }) => it.status === 'issue' && it.photoFile && !it.photoURL)
@@ -1075,17 +1183,16 @@ async function submitInspection() {
           .map(({ slot, tower: t, ci }) => ({ photoFile: slot.photoFile, label: `Tower ${t} — ${tankCheckLabels[ci]}`, priority: 'high', _tank: { tower: t, ci } })))
       : [];
     const allItemsNeedingUpload = [...itemsNeedingUpload, ...tankItemsNeedingUpload];
-    const draftStillMatches = draft && draft.formType === snap.formType && draft.tower === snap.tower;
     const uploadResults = await Promise.allSettled(allItemsNeedingUpload.map(async (it) => {
       const r = storageRef(storage, `complaintPhotos/${currentStaff.uid}/issue_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`);
       await uploadBytes(r, it.photoFile);
       const url = await getDownloadURL(r);
       if (it._tank) {
         snap.tankPhotos[it._tank.tower][it._tank.ci].photoURL = url;
-        if (draftStillMatches) draft.tankPhotos?.[it._tank.tower]?.[it._tank.ci] && (draft.tankPhotos[it._tank.tower][it._tank.ci].photoURL = url);
+        if (liveDraftIsMine()) draft.tankPhotos?.[it._tank.tower]?.[it._tank.ci] && (draft.tankPhotos[it._tank.tower][it._tank.ci].photoURL = url);
       } else {
         snap.sections[it._section.si].items[it._section.ii].photoURL = url;
-        if (draftStillMatches) draft.sections?.[it._section.si]?.items?.[it._section.ii] && (draft.sections[it._section.si].items[it._section.ii].photoURL = url);
+        if (liveDraftIsMine()) draft.sections?.[it._section.si]?.items?.[it._section.ii] && (draft.sections[it._section.si].items[it._section.ii].photoURL = url);
       }
     }));
     const failedRequiredItem = allItemsNeedingUpload.find((it, i) => uploadResults[i].status === 'rejected' && it.priority === 'high');
@@ -1180,10 +1287,11 @@ async function submitInspection() {
     showToast('Inspection submitted' + (issues.length ? ' — ' + issues.length + ' issue(s) logged.' : '.')
       + (failedOptionalCount ? ` (${failedOptionalCount} photo${failedOptionalCount > 1 ? 's' : ''} could not be uploaded — the inspection itself can't be edited, but you can add ${failedOptionalCount > 1 ? 'them' : 'it'} from the Complaints tab, on the complaint this created.)` : ''),
       failedOptionalCount ? 'error' : 'success');
-    draft = null;
-    clearSavedDraft();
+    // Clear the checklist only if it is still the one that was just submitted. If the staff member has
+    // already started a different checklist meanwhile, that new work must survive.
+    if (liveDraftIsMine()) { draft = null; clearSavedDraft(); }
     await Promise.all([loadMyInspections(), loadComplaints()]);
-    showTab('history');
+    if (draft === null) showTab('history');
   } catch (err) {
     console.error('Submit inspection failed:', err);
     showToast(`Could not submit${err?.code ? ` (${err.code})` : ''} — please try again.`, 'error');
@@ -1208,7 +1316,7 @@ function renderHistory() {
     <div class="cx-row">
       <div style="display:flex; justify-content:space-between; align-items:start;">
         <div>
-          <b style="font-size:13.5px;">${escapeHtml(INSPECTION_TYPES[r.formType]?.label || r.formType)}</b>
+          <b style="font-size:13.5px;">${escapeHtml(INSPECTION_TYPES[r.formType]?.label || r.formType || 'Inspection')}</b>
           <div class="t-muted" style="font-size:12.5px; margin-top:2px;">${r.tower ? 'Tower ' + escapeHtml(r.tower) + ' · ' : ''}${r.createdAt ? fmtDateTime(r.createdAt) : ''}</div>
         </div>
         ${Number(r.issueCount) ? `<span class="badge badge-danger">${Number(r.issueCount)} issue${Number(r.issueCount) > 1 ? 's' : ''}</span>`
@@ -1251,6 +1359,7 @@ function recurringCount(c) {
 }
 
 function renderComplaints() {
+  if (!currentStaff) return;   // signed out while a request was still in flight
   const el = document.getElementById('tab-complaints');
   const isManager = currentStaff.role === 'manager';
   if (complaintsLoadFailed) {
@@ -1259,7 +1368,7 @@ function renderComplaints() {
     return;
   }
   if (!myComplaints.length) {
-    el.innerHTML = `<p class="t-muted" style="font-size:13px; text-align:center; padding:28px 12px;">${isManager ? 'No complaints on record.' : 'No complaints assigned to you yet. A Managing Staff or the committee will assign them.'}</p>`;
+    el.innerHTML = emptyState(isManager ? 'No complaints on record' : 'Nothing assigned to you yet', isManager ? 'Complaints raised by residents and from inspections will appear here.' : 'A Managing Staff or the committee will assign complaints to you.', { icon: 'chat' });
     return;
   }
   el.innerHTML = myComplaints.map(c => {
@@ -1271,7 +1380,7 @@ function renderComplaints() {
     // otherwise the manager assigns first.
     const canAct = c.assignedToUid === currentStaff.uid && COMPLAINT_STATUS_NEXT[c.status];
     return `
-    <div class="cx-row">
+    <div class="cx-row cx-st-${escapeHtml(String(c.status || 'open'))}">
       <div style="display:flex; justify-content:space-between; align-items:start; gap:8px;">
         <div style="min-width:0;">
           <b style="font-size:13.5px;">${escapeHtml(c.title)}</b>
@@ -1369,9 +1478,11 @@ async function assignComplaintFromStaff(id, staff, targetDate) {
 async function addStaffComplaintPhoto(complaintId, file) {
   if (file.size >= 8 * 1024 * 1024) { showToast('That photo is too large — please choose one under 8 MB.', 'error'); return; }
   showToast('Uploading photo…', 'success');
+  let uploaded = null;
   try {
     const r = storageRef(storage, `complaintPhotos/${currentStaff.uid}/complaint_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`);
     await uploadBytes(r, file);
+    uploaded = r;
     const photoURL = await getDownloadURL(r);
     await updateDoc(doc(db, 'complaints', complaintId), { photoURL, updatedAt: serverTimestamp() });
     showToast('Photo added.', 'success');
@@ -1379,27 +1490,57 @@ async function addStaffComplaintPhoto(complaintId, file) {
     renderComplaints();
   } catch (err) {
     console.error('Adding complaint photo failed:', err);
+    if (uploaded) await discardUploadedPhoto(uploaded);
     showToast(`Could not add the photo${err?.code ? ` (${err.code})` : ''} — please try again.`, 'error');
   }
 }
 
 const complaintAdvanceInFlight = new Set();
+/* A photo that was uploaded but whose record then failed to save would sit in Storage with nothing pointing at it
+   (and a retry would upload a second one). Remove it right away; if even that fails, hand the ref back so the
+   caller can reuse it on the retry instead of uploading again. */
+async function discardUploadedPhoto(r) {
+  try { await deleteObject(r); return true; } catch (e) { console.warn('Could not remove an unused upload:', e?.code || e); return false; }
+}
+/* A shared common-area complaint has a public copy in issues/{id}; keep it in step. Most complaints have no
+   copy — for those the update is simply refused (permission-denied / not-found) and that is normal, so it is
+   not an error. A connection-type failure on a copy that does exist IS an error: retry, then report it. */
+const ISSUE_SYNC_TRANSIENT = new Set(['unavailable', 'deadline-exceeded', 'aborted', 'resource-exhausted', 'internal', 'cancelled']);
+async function syncIssueCopy(id, status) {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try { await updateDoc(doc(db, 'issues', id), { status, updatedAt: serverTimestamp() }); return true; }
+    catch (e) {
+      if (!ISSUE_SYNC_TRANSIENT.has(e?.code)) { console.info('No public copy to update for', id, e?.code || e); return true; }
+      await new Promise((r) => setTimeout(r, 600 * (attempt + 1)));
+    }
+  }
+  console.warn('Public issue copy could not be synced for', id);
+  return false;
+}
+
 async function advanceComplaint(id, nextStatus, note, photoFile) {
+  let uploadedRes = null;
   try {
     const payload = { status: nextStatus, updatedAt: serverTimestamp() };
     if (note) payload.resolutionNote = note;
     if (photoFile) {
       const r = storageRef(storage, `complaintPhotos/${currentStaff.uid}/resolution_${Date.now()}`);
       await uploadBytes(r, photoFile);
+      uploadedRes = r;
       payload.resolutionPhotoURL = await getDownloadURL(r);
     }
     if (nextStatus === 'resolved') payload.resolvedAt = serverTimestamp();
     await updateDoc(doc(db, 'complaints', id), payload);
+    // A shared common-area complaint has a public copy in issues/{id}; keep it in step (best effort — most complaints have none).
+    let copySynced = true;
+    if (nextStatus === 'in_progress' || nextStatus === 'resolved') copySynced = await syncIssueCopy(id, nextStatus);
     showToast(nextStatus === 'resolved' ? 'Marked resolved — the resident will be asked to confirm.' : 'Updated.', 'success');
+    if (!copySynced) showToast('The complaint is updated, but its public copy for neighbours could not be refreshed (connection problem) — it may still show the old status. Open it and update again once you are online.', 'error');
     await loadComplaints();
     renderComplaints();
   } catch (err) {
     console.error('Update complaint failed:', err);
+    if (uploadedRes) await discardUploadedPhoto(uploadedRes);
     showToast('Could not update — please try again.', 'error');
   }
 }

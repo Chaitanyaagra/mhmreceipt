@@ -83,7 +83,7 @@ export const app = initializeApp(firebaseConfig);
    Leaving the placeholder in place is safe: App Check simply stays off and the
    portal behaves exactly as before.
    -------------------------------------------------------------------------- */
-export const RECAPTCHA_ENTERPRISE_SITE_KEY = "REPLACE_WITH_YOUR_RECAPTCHA_ENTERPRISE_SITE_KEY";
+export const RECAPTCHA_ENTERPRISE_SITE_KEY = "6LdMw-wtAAAAAOFocV7-qCn8mQDMJQYQmdwXJmOb";
 
 export const APP_CHECK_ENABLED = !RECAPTCHA_ENTERPRISE_SITE_KEY.startsWith("REPLACE_WITH");
 if (APP_CHECK_ENABLED) {

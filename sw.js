@@ -8,7 +8,7 @@
    Bump CACHE_NAME on any future structural change to force a clean cache.
    ========================================================================== */
 
-const CACHE_NAME = 'mhmrws-shell-v177';
+const CACHE_NAME = 'mhmrws-shell-v189';
 // Pinned Firebase SDK version used across every page (index/admin/staff/guard/
 // verify) — a specific version's content never changes, so caching these is
 // as safe as caching the vendored libraries below, and without this the app
@@ -20,6 +20,9 @@ const FIREBASE_SDK_FILES = [
   'https://www.gstatic.com/firebasejs/12.18.0/firebase-storage.js',
   'https://www.gstatic.com/firebasejs/12.18.0/firebase-app-check.js'
 ];
+function isPinnedFirebaseModule(url) {
+  return url.origin === 'https://www.gstatic.com' && url.pathname.startsWith('/firebasejs/12.18.0/') && url.pathname.endsWith('.js');
+}
 // Export libraries (~1.6 MB together) are lazy-loaded on first use so they
 // never block page load — but "first use" could be while offline, with
 // nothing cached yet. Precached here at service-worker install instead
@@ -41,7 +44,7 @@ const SHELL_FILES = [
   './verify.html',
   './styles.css',
   './firebase-config.js',
-  './app-common.js?v=177',
+  './app-common.js?v=189',
   './avatar-placeholder.js',
   './premium.js',
   './ui-a11y.js',
@@ -101,7 +104,10 @@ self.addEventListener('fetch', (event) => {
   // reasoning as the vendored libraries below (a specific version's content
   // never changes). Everything else cross-origin (Google APIs, other CDN
   // scripts) still always goes straight to the network.
-  if (FIREBASE_SDK_FILES.includes(event.request.url)) {
+  // R03 (v187): not just the five entry files — ANY .js module of this pinned SDK version. If an entry module
+  // imports a child chunk, that chunk is cached the first time it is fetched online, so a cold offline start
+  // finds the whole dependency graph. Safe for the same reason as above: a pinned version never changes.
+  if (isPinnedFirebaseModule(url)) {
     event.respondWith(
       caches.match(event.request).then((cached) => {
         if (cached) return cached;
