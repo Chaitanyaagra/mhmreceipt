@@ -49,6 +49,7 @@
 <meta name="theme-color" content="#0A1B33">
 <link rel="manifest" href="manifest-admin.json">
 <link rel="icon" href="favicon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -148,7 +149,9 @@
   .month-summary #msWhatsAppBtn{ border-color:rgba(255,255,255,.35); color:#fff; }
   .month-summary #msWhatsAppBtn:hover{ background:rgba(255,255,255,.10); box-shadow:none; }
   @media (max-width:820px){ .month-summary .ms-grid{ grid-template-columns:repeat(2,1fr); } }
-  .stat-cards{ display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:22px; }
+  .fam-vrow{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; justify-content:space-between; padding:6px 0; border-top:1px solid var(--line); font-size:13.5px; }
+  .fam-vrow:first-child{ border-top:0; }
+  .stat-cards{ display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:22px; }
   .stat-card .num{ font-family:var(--font-display); font-size:26px; color:var(--navy-950); font-weight:600; }
   .stat-card .lbl{ font-size:12px; color:var(--ink-400); margin-top:2px; }
   .chart-grid{ display:grid; grid-template-columns:1.3fr 1fr; gap:18px; margin-bottom:22px; }
@@ -552,6 +555,12 @@
       -->
       <div class="cc-strip" id="commandCenterStrip"></div>
 
+      <!-- Canva "Admin To-Do list": the individual items behind the counts above, most urgent first. -->
+      <div class="card card-pad todo-card" id="adminTodoCard" style="display:none;">
+        <h3 style="font-size:15px; margin-bottom:10px;">Admin To-Do list</h3>
+        <div class="table-wrap"><table class="todo-table"><thead><tr><th>Task</th><th>Priority</th><th>Raised by</th><th>Due</th><th></th></tr></thead><tbody id="adminTodoBody"></tbody></table></div>
+      </div>
+
       <!-- Society Health Score — every number here is a real, labelled
            fraction (visible on hover/beside the %), never an opaque score
            with nothing behind it. A metric with no underlying data (e.g.
@@ -651,6 +660,9 @@
       </div>
 
       <div class="stat-cards">
+        <div class="card card-pad stat-card"><div class="num" id="statTotalFlats">—</div><div class="lbl">Total Flats</div></div>
+        <div class="card card-pad stat-card"><div class="num" id="statOpenComplaints">—</div><div class="lbl">Open Complaints</div></div>
+        <div class="card card-pad stat-card"><div class="num" id="statVisitorsToday">—</div><div class="lbl">Visitors Today</div></div>
         <div class="card card-pad stat-card"><div class="num" id="statTotalMembers">—</div><div class="lbl">Approved Members</div></div>
         <div class="card card-pad stat-card"><div class="num" id="statPendingApprovals">—</div><div class="lbl">Pending Approvals</div></div>
         <div class="card card-pad stat-card"><div class="num" id="statPendingPayments">—</div><div class="lbl">Pending Payments</div></div>
@@ -984,6 +996,11 @@
                 </select>
               </div>
             </div>
+            <div class="form-2col">
+              <div class="field"><label for="cal-start">Starts <span class="t-muted">(optional)</span></label><input type="time" name="startTime" id="cal-start"></div>
+              <div class="field"><label for="cal-end">Ends <span class="t-muted">(optional)</span></label><input type="time" name="endTime" id="cal-end"></div>
+            </div>
+            <div class="field"><label for="cal-venue">Venue <span class="t-muted">(optional)</span></label><input name="venue" id="cal-venue" maxlength="120" placeholder="e.g. Clubhouse, Tower 4"></div>
             <div class="field"><label for="cal-desc">Description <span class="t-muted" style="font-weight:400;">(optional)</span></label><textarea name="description" id="cal-desc" rows="2" maxlength="500"></textarea></div>
             <button class="btn btn-primary" type="submit">Add to Calendar</button>
           </form>
@@ -1443,6 +1460,7 @@
             <div class="field"><label for="fld-regNumber-4">Registration Number</label><input name="regNumber" id="fld-regNumber-4"></div>
             <div class="field"><label for="fld-address-5">Address (used for map + receipts)</label><textarea name="address" rows="2" id="fld-address-5"></textarea></div>
             <div class="field"><label for="fld-contactPhone-6">Contact Phone</label><input name="contactPhone" id="fld-contactPhone-6"></div>
+            <div class="field"><label for="fld-officeHours-7">Office hours <span class="t-muted" style="font-weight:400;">(shown to residents)</span></label><textarea name="officeHours" rows="2" maxlength="200" placeholder="Mon – Sat: 9:30 AM – 6:30 PM&#10;Sunday &amp; public holidays: Closed" id="fld-officeHours-7"></textarea></div>
             <div class="field"><label for="fld-contactEmail-7">Contact Email</label><input name="contactEmail" type="email" id="fld-contactEmail-7"></div>
             <button class="btn btn-primary" type="submit">Save Society Info</button>
           </form>
@@ -2049,6 +2067,12 @@
           <input type="hidden" id="rpMemberUid">
           <div id="rpMemberDropdown" class="rp-member-dropdown"></div>
           <div class="hint" id="rpMemberHint">Only approved members appear in this list.</div>
+          <div class="rp-id-card" id="rpIdCard" hidden>
+            <span class="rp-id-av" id="rpIdAv" aria-hidden="true"></span>
+            <div class="rp-id-main"><b id="rpIdName"></b><span id="rpIdFlat"></span><small id="rpIdMid"></small></div>
+            <span class="rp-id-tick" aria-label="Member selected">&#10003;</span>
+          </div>
+          <div class="rp-id-warn" id="rpIdWarn" hidden>&#9888; Check the name, tower and flat above before you save.</div>
         </div>
         <div class="form-2col">
           <div class="field" id="rpTypeWrap">
@@ -2206,6 +2230,15 @@
             <option>Forms</option><option>Circular</option><option>Other</option>
           </select>
         </div>
+        <fieldset class="field aud-set"><legend>Who should be able to see this document?</legend>
+          <label class="aud-card"><input type="radio" name="audience" value="residents" checked>
+            <span class="aud-ic" aria-hidden="true">&#128274;</span><span class="aud-tx"><b>Residents only</b><small>Only logged-in, approved residents can view.</small></span></label>
+          <label class="aud-card aud-public"><input type="radio" name="audience" value="public">
+            <span class="aud-ic" aria-hidden="true">&#127760;</span><span class="aud-tx"><b>Public &mdash; anyone with the link</b><small>Opens without a login. Not for internal papers.</small></span><span class="aud-warn" aria-hidden="true">&#9888;</span></label>
+          <label class="aud-card"><input type="radio" name="audience" value="committee">
+            <span class="aud-ic" aria-hidden="true">&#128737;</span><span class="aud-tx"><b>Committee only</b><small>Visible only to admins in this panel. Residents never see it.</small></span></label>
+          <div class="hint" id="docAudienceHint">Choose carefully — you can delete and re-upload to change it later.</div>
+        </fieldset>
         <div class="field"><label for="docFile">Upload file</label>
           <input type="file" id="docFile" name="file" accept=".pdf,.doc,.docx,.xls,.xlsx,image/*">
           <div class="hint">Firebase Storage not set up? Add a link below instead — one of the two is required.</div>
@@ -2260,7 +2293,7 @@ if ('serviceWorker' in navigator) {
 <!-- Standalone branding module — no Firebase dependency, so the seal
      renders even if the SDK or a CDN fails to load. -->
 <script type="module">
-import { LOGO_DATA_URI } from './logo-data.js';
+import { LOGO_DATA_URI, getLogoDataUri } from './logo-data.js';
 import { installAutoLabels, installModalA11y, installOfflineBanner, installPasswordToggles, installCountUp } from './ui-a11y.js';
 import { hideAppLoader } from './premium.js';
 window.__MHM_LOGO = LOGO_DATA_URI;
@@ -2293,7 +2326,7 @@ try {
 </script>
 
 <script type="module">
-import { auth, db, storage, firebaseConfig, GOOGLE_OAUTH_CLIENT_ID, SOCIETY } from './firebase-config.js';
+import { auth, db, storage, firebaseConfig, GOOGLE_OAUTH_CLIENT_ID, SOCIETY, wipeDeviceTraces } from './firebase-config.js';
 import {
   initializeApp, deleteApp
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
@@ -2309,7 +2342,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-storage.js";
 import { imgTag } from './html-helpers.js';
 import {
-  loadScript, showToast, escapeHtml, smartMatch, fmtDate, fmtDateTime, formatINR, currentFinancialYear, financialYearForDate, financialYearOptions,
+  totalFlats, familyKey, loadScript, showToast, escapeHtml, smartMatch, fmtDate, fmtDateTime, formatINR, currentFinancialYear, financialYearForDate, financialYearOptions,
   complaintUrgency, COMPLAINT_SLA_HOURS,
   generateMemberId, generateReceiptNumber, generateReceiptNumberAtomic, logAudit, flushAuditOutbox, generateReceiptPDF, generateIncomeExpenditurePDF, exportToExcel, parseExcelFile, PAYMENT_DEFAULTS, sanitizeUrl, safeStorageFilename, flatClaimId, findBlockingFlatClaim, generatePetId,
   encryptFile, decryptToBlob, backupToDrive, waLink, waShareText, serializeForExport,
@@ -2325,7 +2358,9 @@ import {
   receiptWhatsAppMessage, isRecentSignIn, loginLockRemainingMs, nextLoginFailState, LOGIN_MAX_FAILS,
   pollFlatId, pollTally, pollResultText, getTextSize, setTextSize, noticeAckSummary, NUMBER_GROUPS, EMERGENCY_NUMBERS, normalizeImportantNumbers
   , enableUnicodeText
-} from './app-common.js?v=189';
+  , eventTimeText
+  , sealOnWhiteDisc
+} from './app-common.js?v=212';
 
 /* ---------------------------------------------------------------------- */
 /*  State                                                                  */
@@ -2518,8 +2553,17 @@ async function ensureRecentSignIn() {
   paint();
   b.addEventListener('click', () => { setTextSize(getTextSize() === 'large' ? 'normal' : 'large'); paint(); });
 })();
+/* The society seal for the corner of an admin-made PDF — the same artwork the receipts and membership card use.
+   The PDF is still fine without it if the image can't be read. */
+async function stampSeal(pdf, cx, cy, r) {
+  try {
+    const seal = await sealOnWhiteDisc(await getLogoDataUri());
+    if (seal) pdf.addImage(seal, 'JPEG', cx - r, cy - r, r * 2, r * 2);
+  } catch (e) { /* no seal, same PDF */ }
+}
 document.getElementById('logoutBtn').addEventListener('click', async () => {
   try { await signOut(auth); } catch (e) { console.warn('Sign-out failed:', e); }
+  await wipeDeviceTraces();   // shared-device privacy: drop the cached copy of this session's records
   location.reload();   // return to a clean login screen regardless
 });
 
@@ -2588,6 +2632,7 @@ async function endIdleSession() {
   // Reload regardless — this is what actually returns the person to a clean
   // login screen with the "session timed out" message; it must not be
   // skipped just because the sign-out call itself had trouble.
+  await wipeDeviceTraces();
   sessionStorage.setItem('mhmrws-timed-out', '1');
   location.reload();
 }
@@ -3569,6 +3614,64 @@ function upcomingRecurringBills(expenses) {
     .sort((a, b) => a.daysUntil - b.daysUntil);
 }
 
+
+/* Canva dashboard cards: Total Flats, Open Complaints, Visitors Today. Complaints are already loaded for the
+   Complaints tab; today's visitors are a small date-bounded read, so the overview never pulls the whole log. */
+let visitorsTodayCache = { day: '', n: null };
+function renderOverviewExtras() {
+  const set = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+  set('statTotalFlats', totalFlats());
+  set('statOpenComplaints', Array.isArray(allComplaints) ? allComplaints.filter((c) => !['resolved', 'closed', 'rejected'].includes(c.status)).length : '—');
+  const day = new Date().toDateString();
+  if (visitorsTodayCache.day === day && visitorsTodayCache.n !== null) { set('statVisitorsToday', visitorsTodayCache.n); return; }
+  const start = new Date(); start.setHours(0, 0, 0, 0);
+  getDocs(query(collection(db, 'visitors'), where('createdAt', '>=', start)))
+    .then((snap) => { visitorsTodayCache = { day, n: snap.size }; set('statVisitorsToday', snap.size); })
+    .catch((e) => { console.warn('Visitors today failed:', e?.code || e); set('statVisitorsToday', '—'); });
+}
+
+/* Admin To-Do list (Canva): the individual things waiting on the committee, most urgent first. Built from data the
+   dashboard already holds; each row's button opens the screen where it is dealt with. */
+function renderAdminTodo() {
+  const card = document.getElementById('adminTodoCard'), body = document.getElementById('adminTodoBody');
+  if (!card || !body) return;
+  const ms = (t) => t?.toMillis ? t.toMillis() : t?.seconds ? t.seconds * 1000 : t ? new Date(t).getTime() : null;
+  const DAY = 86400000, now = Date.now();
+  const rank = { High: 0, Medium: 1, Low: 2 };
+  const items = [];
+  if (can('approveMembers')) {
+    (allComplaints || []).filter((c) => ['open', 'in_progress'].includes(c.status)).forEach((c) => {
+      const u = complaintUrgency(c);
+      const created = ms(c.createdAt);
+      const sla = (COMPLAINT_SLA_HOURS[c.category] ?? 48) * 3600000;
+      const due = c.targetDate ? new Date(c.targetDate + 'T23:59:59').getTime() : (created ? created + sla : null);
+      const pr = (u === 'breached' || c.urgency === 'high' || c.priority === 'high') ? 'High' : (u === 'due_soon' || c.urgency === 'medium' || c.priority === 'medium') ? 'Medium' : 'Low';
+      items.push({ task: `Complaint: ${c.title || 'Untitled'}`, pr, by: `${c.raisedByName || 'Resident'}${c.tower ? ` · ${c.tower}-${c.flatNumber || ''}` : ''}`, due, label: 'Open', go: () => { switchView('complaints'); openComplaintDetail(c.id); } });
+    });
+    allMembers.filter((m) => m.status === 'pending').forEach((m) => {
+      const created = ms(m.createdAt); const due = created ? created + 5 * DAY : null;
+      items.push({ task: `Approve registration — ${m.name || 'New resident'}`, pr: due && due < now ? 'High' : 'Medium', by: `${m.name || ''} · ${m.tower || ''}-${m.flatNumber || ''}`, due, label: 'Review', go: () => openMemberModal(m.id) });
+    });
+  }
+  if (can('verifyPayments')) {
+    allPayments.filter((p) => p.status === 'pending_approval' || p.status === 'pending_verification').forEach((p) => {
+      const sub = ms(p.submittedAt); const due = sub ? sub + 2 * DAY : null;
+      items.push({ task: `Verify payment ${formatINR(p.amount || 0)}${p.type ? ` (${p.type})` : ''}`, pr: due && due < now ? 'High' : 'Medium', by: `${p.residentName || 'Resident'} · ${p.tower || ''}-${p.flatNumber || ''}`, due, label: 'Verify', go: () => { switchView('payments'); document.querySelector('[data-ptab="pending"]')?.click(); } });
+    });
+  }
+  items.sort((a, b) => (rank[a.pr] - rank[b.pr]) || ((a.due ?? Infinity) - (b.due ?? Infinity)));
+  const top = items.slice(0, 8);
+  card.style.display = top.length ? '' : 'none';
+  window.__todoActions = top.map((t) => t.go);
+  body.innerHTML = top.map((t, i) => `<tr>
+    <td data-label="Task">${escapeHtml(t.task)}</td>
+    <td data-label="Priority"><span class="badge ${t.pr === 'High' ? 'badge-danger' : t.pr === 'Medium' ? 'badge-warning' : 'badge-neutral'}">${t.pr}</span></td>
+    <td data-label="Raised by">${escapeHtml(t.by)}</td>
+    <td data-label="Due">${t.due ? fmtDate({ toDate: () => new Date(t.due) }) : '—'}</td>
+    <td data-label=""><button type="button" class="btn btn-outline btn-sm" data-todo="${i}">${t.label}</button></td></tr>`).join('');
+  body.querySelectorAll('[data-todo]').forEach((b) => b.addEventListener('click', () => window.__todoActions[Number(b.dataset.todo)]?.()));
+}
+
 function renderOverview() {
   const approved = allMembers.filter(m => m.status === 'approved');
   const pendingApprovals = allMembers.filter(m => m.status === 'pending');
@@ -3578,9 +3681,11 @@ function renderOverview() {
 
   renderTreasurerDashboard();
   renderCommandCenter(pendingApprovals.length, pendingPayments.length);
+  renderAdminTodo();
   renderHealthScore();
 
   document.getElementById('statTotalMembers').textContent = approved.length;
+  renderOverviewExtras();
   document.getElementById('statPendingApprovals').textContent = pendingApprovals.length;
   document.getElementById('statPendingPayments').textContent = pendingPayments.length;
   document.getElementById('statCollected').textContent = formatINR(collected);
@@ -3757,6 +3862,7 @@ function recurringCount(c) {
 async function loadComplaints() {
   try {
     allComplaints = (await getDocs(collection(db, 'complaints'))).docs.map(d => ({ id: d.id, ...d.data() }));
+    try { renderOverviewExtras(); renderAdminTodo(); } catch (_) { /* overview not drawn yet */ }
   } catch (e) {
     console.warn('Complaints read failed:', e?.code || e);
     allComplaints = [];
@@ -3801,7 +3907,7 @@ function renderComplaints() {
       <td data-label="Flat">${escapeHtml(c.tower || '—')}-${escapeHtml(c.flatNumber || '—')}</td>
       <td data-label="Category">${escapeHtml(COMPLAINT_CATEGORY_LABEL[c.category] || c.category || '—')}</td>
       <td data-label="Title">${escapeHtml(c.title)}</td>
-      <td data-label="Status"><span class="badge ${COMPLAINT_STATUS_BADGE[c.status] || 'badge-neutral'}">${escapeHtml(COMPLAINT_STATUS_LABEL[c.status] || c.status)}</span>${sla && SLA_BADGE[sla] ? SLA_BADGE[sla] : ''}${(window.__meToo || {})[c.id] ? `<span class="badge badge-info" style="margin-left:6px;" title="Neighbours who tapped Me too on this common-area issue">👥 +${(window.__meToo || {})[c.id]} Me too</span>` : ''}${recurringCount(c) >= 2 ? '<span class="badge badge-warning" style="margin-left:6px;" title="Recurring — same issue reported before within 30 days">🔁 Recurring</span>' : ''}</td>
+      <td data-label="Status"><span class="badge ${COMPLAINT_STATUS_BADGE[c.status] || 'badge-neutral'}">${escapeHtml(COMPLAINT_STATUS_LABEL[c.status] || c.status)}</span>${sla && SLA_BADGE[sla] ? SLA_BADGE[sla] : ''}${(window.__meToo || {})[c.id] ? `<span class="badge badge-info" style="margin-left:6px;" title="Neighbours who tapped Me too on this common-area issue">👥 +${(window.__meToo || {})[c.id]} Me too</span>` : ''}${recurringCount(c) >= 2 ? '<span class="badge badge-warning" style="margin-left:6px;" title="Recurring — same issue reported before within 30 days">🔁 Recurring</span>' : ''}${c.urgency === 'high' && !['resolved', 'closed', 'rejected'].includes(c.status) ? '<span class="badge badge-danger" style="margin-left:6px;" title="The resident marked this High urgency (within 24 hours)">High urgency</span>' : ''}</td>
       <td data-label="Raised On">${fmtDate(c.createdAt)}</td>
     </tr>`;
   }).join('') || `<tr><td colspan="6" class="t-muted">No complaints.</td></tr>`;
@@ -3909,9 +4015,10 @@ function openComplaintDetail(id) {
     <div class="detail-line"><span>Flat</span><span>${escapeHtml(c.tower || '—')}-${escapeHtml(c.flatNumber || '—')}</span></div>
     ${c.location ? `<div class="detail-line"><span>Location</span><span>${c.location === 'common' ? 'Common Area' : 'Inside Flat'}</span></div>` : ''}
     <div class="detail-line"><span>Category</span><span>${escapeHtml(COMPLAINT_CATEGORY_LABEL[c.category] || c.category || '—')}</span></div>
+    ${c.urgency ? `<div class="detail-line"><span>Resident says</span><span><span class="badge ${c.urgency === 'high' ? 'badge-danger' : c.urgency === 'medium' ? 'badge-warning' : 'badge-neutral'}">${({ low: 'Low · within 7 days', medium: 'Medium · within 3 days', high: 'High · within 24 hours' })[c.urgency] || escapeHtml(c.urgency)}</span></span></div>` : ''}
     <div class="detail-line"><span>Raised On</span><span>${fmtDate(c.createdAt)}</span></div>
     <div style="margin:12px 0;"><div class="t-muted" style="font-size:12px; margin-bottom:4px;">Description</div><p style="font-size:13.5px; white-space:pre-wrap;">${escapeHtml(c.description)}</p></div>
-    ${c.photoURL ? `${imgTag(c.photoURL, 'alt="" style="max-width:100%; border-radius:8px; margin-bottom:12px;"')}` : ''}
+    ${(Array.isArray(c.photoURLs) && c.photoURLs.length ? c.photoURLs : c.photoURL ? [c.photoURL] : []).map((u) => imgTag(u, 'alt="" style="max-width:100%; border-radius:8px; margin-bottom:12px;"')).join('')}
     ${c.resolutionNote ? `<div style="margin-bottom:12px;"><div class="t-muted" style="font-size:12px; margin-bottom:4px;">Resolution Note</div><p style="font-size:13.5px;">${escapeHtml(c.resolutionNote)}</p></div>` : ''}
     ${c.resolutionPhotoURL ? `<div style="margin-bottom:12px;"><div class="t-muted" style="font-size:12px; margin-bottom:4px;">Resolution Photo</div>${imgTag(c.resolutionPhotoURL, 'alt="" style="max-width:100%; border-radius:8px;"')}</div>` : ''}
     ${c.satisfactionRating ? `<div class="t-muted" style="font-size:12.5px; margin-bottom:12px;">Resident Rating: ${'⭐'.repeat(c.satisfactionRating)}</div>` : ''}
@@ -3937,7 +4044,7 @@ function openComplaintDetail(id) {
           <option value="rejected">Rejected</option>
         </select>
       </div>
-      <div class="field"><label for="complaintNote">Note <span class="t-muted" style="font-weight:400;">(optional, shown to the resident)</span></label><textarea id="complaintNote" rows="2" maxlength="500"></textarea></div>
+      <div class="field"><label for="complaintNote">Note <span class="t-muted" style="font-weight:400;">(shown to the resident — required when closing or rejecting)</span></label><textarea id="complaintNote" rows="2" maxlength="500"></textarea></div>
       <div class="field"><label for="complaintResolutionPhoto">Resolution Photo <span class="t-muted" style="font-weight:400;">(optional — evidence it's fixed)</span></label><input type="file" id="complaintResolutionPhoto" accept="image/*"></div>
       <button class="btn btn-primary btn-block" id="complaintStatusSaveBtn">Save</button>
     ` : ''}
@@ -3952,6 +4059,12 @@ function openComplaintDetail(id) {
     const newStatus = document.getElementById('complaintStatusSelect').value;
     const note = document.getElementById('complaintNote').value.trim();
     const photoFile = document.getElementById('complaintResolutionPhoto')?.files?.[0] || null;
+    // v210: closing or rejecting ends the matter for the resident, so the reason must be written down.
+    if ((newStatus === 'closed' || newStatus === 'rejected') && c.status !== newStatus && note.length < 5) {
+      showToast(`Please write why this complaint is being ${newStatus === 'closed' ? 'closed' : 'rejected'} (a few words is enough) — the resident will see it.`, 'error');
+      document.getElementById('complaintNote')?.focus();
+      return;
+    }
     updateComplaintStatus(id, newStatus, note, photoFile, c.status);
   });
   document.getElementById('complaintDetailModalBackdrop').classList.add('open');
@@ -4198,6 +4311,7 @@ function renderMonthlySummary() {
       await enableUnicodeText(d);
       const pageW = d.internal.pageSize.getWidth();
       let y = 60;
+      await stampSeal(d, 60 + 22, y - 6, 22);
       d.setFont('helvetica', 'bold'); d.setFontSize(17);
       d.text('Max Heights Majestic RWS', pageW / 2, y, { align: 'center' }); y += 24;
       d.setFontSize(13); d.setFont('helvetica', 'normal');
@@ -4483,13 +4597,50 @@ function expenseStatusBadge(e) {
 // mistake (wrong amount entered, duplicate entry, expense that turned out
 // not to apply). The reason is mandatory and shows on the ledger row, same
 // as a voided payment.
+/* v210 — one confirmation dialog for risky admin actions (void, reject, deactivate, make-public).
+   It names the exact record in a small table (who, flat, amount, receipt) so a wrong row is noticed BEFORE the
+   click, takes the written reason in the same step, and returns { reason } — or null if cancelled. Replaces the
+   native prompt()+confirm() pair, which showed the details in two different places and could not be styled. */
+function actionDialog({ title, intro = '', rows = [], reasonLabel = '', reasonRequired = false, minReason = 3, maxReason = 500, confirmLabel = 'Confirm', danger = true }) {
+  return new Promise((resolve) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'modal-backdrop open no-print'; wrap.setAttribute('data-no-dirty', '1');
+    wrap.innerHTML = `<div class="modal action-dialog" role="alertdialog" aria-modal="true" aria-labelledby="adTitle" style="max-width:430px;">
+      <div class="modal-body">
+        <div class="ad-icon ${danger ? 'is-danger' : 'is-warn'}" aria-hidden="true">!</div>
+        <h3 id="adTitle" class="ad-title">${escapeHtml(title)}</h3>
+        ${intro ? `<p class="ad-intro">${escapeHtml(intro)}</p>` : ''}
+        ${rows.length ? `<dl class="ad-rows">${rows.filter((r) => r && r[1] !== undefined && r[1] !== null && r[1] !== '').map(([k, v]) => `<div><dt>${escapeHtml(k)}</dt><dd>${escapeHtml(String(v))}</dd></div>`).join('')}</dl>` : ''}
+        ${reasonLabel ? `<div class="field" style="margin-top:12px;"><label for="adReason">${escapeHtml(reasonLabel)}</label><textarea id="adReason" rows="2" maxlength="${maxReason}"></textarea><div class="field-err" id="adErr" role="alert" hidden></div></div>` : ''}
+        <div class="ad-btns"><button type="button" class="btn btn-outline" data-ad="cancel">Cancel</button><button type="button" class="btn ${danger ? 'btn-danger-solid' : 'btn-primary'}" data-ad="ok">${escapeHtml(confirmLabel)}</button></div>
+      </div></div>`;
+    document.body.appendChild(wrap);
+    const reasonEl = wrap.querySelector('#adReason'), errEl = wrap.querySelector('#adErr');
+    const finish = (v) => { document.removeEventListener('keydown', onKey, true); wrap.remove(); resolve(v); };
+    const onKey = (e) => { if (e.key === 'Escape') { e.stopPropagation(); finish(null); } };
+    document.addEventListener('keydown', onKey, true);
+    wrap.querySelector('[data-ad="cancel"]').addEventListener('click', () => finish(null));
+    wrap.addEventListener('click', (e) => { if (e.target === wrap) finish(null); });
+    wrap.querySelector('[data-ad="ok"]').addEventListener('click', () => {
+      const reason = (reasonEl?.value || '').trim();
+      if (reasonEl && reasonRequired && reason.length < minReason) {
+        errEl.textContent = 'Please write a reason (a few words is enough).'; errEl.hidden = false; reasonEl.focus(); return;
+      }
+      finish({ reason });
+    });
+    (reasonEl || wrap.querySelector('[data-ad="cancel"]')).focus();
+  });
+}
+
 async function voidExpenseEntry(e) {
   if (!e) return;
-  let reason = prompt(`Reason for voiding "${e.description}" (${formatINR(e.amount)}):`);
-  if (reason === null) return;
-  if (!reason.trim()) { showToast('A reason is required to void an expense.', 'error'); return; }
-  if (reason.length > 300) { reason = reason.slice(0, 300); showToast('Reason was shortened to 300 characters.', 'info'); }
-  if (!confirm(`Once voided, this will no longer count toward spending. Confirm?`)) return;
+  const res = await actionDialog({
+    title: 'Void this expense?', intro: 'It will no longer count toward spending. This cannot be undone.',
+    rows: [['Entry', e.description], ['Amount', formatINR(e.amount)], ['Category', e.category]],
+    reasonLabel: 'Reason (required)', reasonRequired: true, maxReason: 300, confirmLabel: 'Void expense'
+  });
+  if (!res) return;
+  const reason = res.reason;
   try {
     await updateDoc(doc(db, 'expenses', e.id), {
       status: 'voided', voidReason: reason.trim(),
@@ -4672,7 +4823,7 @@ document.getElementById('expenseForm')?.addEventListener('submit', async (e) => 
     isRecurring: f.isRecurring.checked,
     recurringFrequency: f.isRecurring.checked ? f.recurringFrequency.value : null
   };
-  const err = validateExpense(payload);
+  const err = validateExpense({ ...payload, amount: f.amount.value });
   if (err) return showToast(err, 'error');
 
   const when = new Date(f.date.value);
@@ -4892,7 +5043,7 @@ function renderMembersTable() {
       <td data-label="Resident"><a href="#" class="name-link" data-view-member="${m.id}">${escapeHtml(m.name)}</a></td>
       <td data-label="Flat / Tower">${escapeHtml(m.flatNumber)} / ${escapeHtml(m.tower)}</td>
       <td data-label="Mobile">${escapeHtml(m.mobile)}</td>
-      <td data-label="Status">${statusBadgeHtml[m.status] || ''}</td>
+      <td data-label="Status">${statusBadgeHtml[m.status] || ''}${m.status === 'rejected' && m.resubmittedAt ? ' <span class="badge badge-info" title="The resident edited their details and resubmitted">Resubmitted</span>' : ''}</td>
       <td data-label="Member ID" class="mono">${escapeHtml(m.memberID || '—')}</td>
     </tr>
   `).join('');
@@ -4950,7 +5101,7 @@ function renderMemberDetailView(m) {
     <div class="row" style="gap:14px; margin-bottom:16px;">
       <div class="seal seal-md">${imgTag(m.photoURL || window.__MHM_LOGO, 'alt=""')}</div>
       <div><b style="font-size:15.5px;">${escapeHtml(m.name)}</b><div class="t-sub" style="font-size:12.5px;">${escapeHtml(m.fatherHusbandName || '')}</div></div>
-      <div style="margin-left:auto;">${statusBadgeHtml[m.status] || ''}</div>
+      <div style="margin-left:auto;">${statusBadgeHtml[m.status] || ''}${m.status === 'rejected' && m.resubmittedAt ? ' <span class="badge badge-info">Resubmitted</span>' : ''}</div>
     </div>
     <div class="vrow-list" style="font-size:13.5px;">
       <div class="vrow"><span class="t-muted">Flat / Tower</span><span>${escapeHtml(m.flatNumber)} / ${escapeHtml(m.tower)}</span></div>
@@ -4964,6 +5115,7 @@ function renderMemberDetailView(m) {
       <div class="vrow"><span class="t-muted">Date of Birth</span><span>${m.dob ? fmtDate({toDate:()=>new Date(m.dob)}) : '—'}</span></div>
       <div class="vrow"><span class="t-muted">Anniversary</span><span>${m.anniversary ? fmtDate({toDate:()=>new Date(m.anniversary)}) : '—'}</span></div>
       <div class="vrow"><span class="t-muted">Family Members</span><span>${(m.familyMembers && m.familyMembers.length) ? m.familyMembers.map(fm => escapeHtml(fm.name) + (fm.relation ? ` (${escapeHtml(fm.relation)})` : '')).join(', ') : '—'}</span></div>
+      ${(m.familyMembers && m.familyMembers.length) ? `<div class="vrow" style="display:block;"><span class="t-muted" style="display:block; margin-bottom:6px;">Family verification</span><div id="famVerifyBox" class="fam-verify"><span class="t-muted" style="font-size:12.5px;">Loading…</span></div></div>` : ''}
       <div class="vrow"><span class="t-muted">Vehicles</span><span>${(m.vehicles && m.vehicles.length) ? m.vehicles.map(v => {
         const parts = [escapeHtml(v.vehicleNumber)];
         if (v.vehicleType) parts.push(v.vehicleType === '2-wheeler' ? '2W' : '4W');
@@ -5003,6 +5155,36 @@ function renderMemberDetailView(m) {
   document.getElementById('deactivateBtn')?.addEventListener('click', () => deactivateMember(m.id));
   document.getElementById('editMemberBtn')?.addEventListener('click', () => renderMemberEditForm(m));
   document.getElementById('erasePersonalDataBtn')?.addEventListener('click', () => erasePersonalData(m));
+  if (document.getElementById('famVerifyBox')) loadFamilyVerifyBox(m);
+}
+/* Family verification: the committee ticks off the family members it has actually checked. Stored in
+   familyVerifications/{memberUid} (committee-write only), keyed by familyKey() so renaming un-verifies. */
+async function loadFamilyVerifyBox(m) {
+  const box = document.getElementById('famVerifyBox'); if (!box) return;
+  const uid = m.uid || m.id;
+  let keys = [];
+  try { const snap = await getDoc(doc(db, 'familyVerifications', uid)); if (snap.exists() && Array.isArray(snap.data().keys)) keys = snap.data().keys; }
+  catch (e) { box.innerHTML = '<span class="t-muted" style="font-size:12.5px;">Could not load.</span>'; return; }
+  const canEdit = can('approveMembers');
+  const draw = () => {
+    box.innerHTML = (m.familyMembers || []).map((fm, i) => {
+      const ok = keys.includes(familyKey(fm));
+      return `<div class="fam-vrow"><span>${escapeHtml(fm.name || '—')}${fm.relation ? ` <span class="t-muted">(${escapeHtml(fm.relation)})</span>` : ''}</span>
+        <span class="badge ${ok ? 'badge-success' : 'badge-neutral'}">${ok ? 'Verified' : 'Not verified'}</span>
+        ${canEdit ? `<button type="button" class="btn btn-outline btn-sm" data-fam-toggle="${i}">${ok ? 'Unverify' : 'Verify'}</button>` : ''}</div>`;
+    }).join('');
+    box.querySelectorAll('[data-fam-toggle]').forEach((b) => b.addEventListener('click', async () => {
+      const fm = m.familyMembers[Number(b.dataset.famToggle)]; const k = familyKey(fm);
+      const next = keys.includes(k) ? keys.filter((x) => x !== k) : [...keys, k];
+      b.disabled = true;
+      try {
+        await setDoc(doc(db, 'familyVerifications', uid), { keys: next, updatedAt: serverTimestamp(), updatedBy: auth.currentUser.uid });
+        keys = next; draw();
+        logAudit(auth.currentUser, 'family_verification', { memberUid: uid, member: fm.name || '', verified: next.includes(k) });
+      } catch (e) { showToast('Could not update.', 'error'); b.disabled = false; }
+    }));
+  };
+  draw();
 }
 document.getElementById('closeMemberModal').addEventListener('click', () => document.getElementById('memberModalBackdrop').classList.remove('open'));
 
@@ -5386,8 +5568,8 @@ async function syncPaymentsToMemberFlat(member, { onlyPaymentIds = null, auditFr
 // bookings, and expected-guest entries (the gate matches guests to a flat).
 // Only used when the admin says the flat change is a CORRECTION — a genuine
 // move leaves history where it happened. Resolves to how many were updated.
-// A resident's entry in the opt-in neighbours directory is a copy of their name, flat and (optionally) mobile.
-// When the record behind it changes or goes away it must not linger: remove it, the resident can re-join in one tap.
+// A resident's entry in the neighbours directory (mobile number opt-in) is a copy of their name, flat and (optionally) mobile.
+// When the record behind it changes or goes away it must not linger: remove it. Since v193 the resident's app rebuilds it on the next sign-in (an approved resident is always listed).
 function dropDirectoryEntry(uid) {
   if (!uid) return;
   deleteDoc(doc(db, 'directory', uid)).catch((e) => console.warn('Directory entry cleanup failed:', e?.code || e));
@@ -5785,9 +5967,14 @@ async function rejectMember(id) {
   }
 }
 async function deactivateMember(id) {
-  const reason = prompt('Reason for deactivating (history will be retained):');
-  if (reason === null) return;
   const m = allMembers.find(x => x.id === id) || {};
+  const res = await actionDialog({
+    title: 'Deactivate this member?', intro: 'Their membership card stops verifying at the gate right away. History is kept.',
+    rows: [['Name', m.name || '—'], ['Tower · Flat', `${m.tower || '—'} · ${m.flatNumber || '—'}`], ['Member ID', m.memberID]],
+    reasonLabel: 'Reason (kept in history)', reasonRequired: true, confirmLabel: 'Deactivate'
+  });
+  if (!res) return;
+  const reason = res.reason;
   try {
     await runTransaction(db, async (tx) => {
       // If this member was the one billed for the flat's maintenance, the
@@ -6384,6 +6571,7 @@ function renderPaymentDetailView(p) {
       <div class="vrow"><span class="t-muted">Status</span><span>${escapeHtml(paymentStatusLabel(p.status))}</span></div>
       ${p.receiptNumber ? `<div class="vrow"><span class="t-muted">Receipt No.</span><span class="mono">${escapeHtml(p.receiptNumber)}</span></div>` : ''}
       ${p.remarks ? `<div class="vrow"><span class="t-muted">Remarks</span><span>${escapeHtml(p.remarks)}</span></div>` : ''}
+      ${p.residentNote ? `<div class="vrow"><span class="t-muted">Resident's note</span><span>${escapeHtml(p.residentNote)}</span></div>` : ''}
       <div class="vrow"><span class="t-muted">Submitted</span><span>${fmtDateTime(p.submittedAt)}</span></div>
     </div>
     ${flatMismatch ? `
@@ -6440,11 +6628,14 @@ function renderPaymentDetailView(p) {
 // all filter on status === 'verified' specifically, so 'voided' falls out
 // of every total with no separate exclusion logic needed anywhere else.
 async function voidPaymentEntry(p) {
-  let reason = prompt(`Reason for voiding ${p.residentName}'s ${formatINR(p.amount)} payment:`);
-  if (reason === null) return;
-  if (!reason.trim()) { showToast('A reason is required to void a payment.', 'error'); return; }
-  if (reason.length > 500) { reason = reason.slice(0, 500); showToast('Reason was shortened to 500 characters.', 'info'); }
-  if (!confirm(`Once voided, this payment will no longer count toward anyone's dues. Confirm?`)) return;
+  const res = await actionDialog({
+    title: 'Void this payment?',
+    intro: "It will stop counting toward anyone's dues and its public receipt will show as voided. This cannot be undone.",
+    rows: [['Resident', p.residentName || '—'], ['Tower · Flat', `${p.tower || '—'} · ${p.flatNumber || '—'}`], ['Amount', formatINR(p.amount)], ['Receipt', p.receiptNumber], ['Financial year', p.financialYear]],
+    reasonLabel: 'Reason (required)', reasonRequired: true, confirmLabel: 'Void payment'
+  });
+  if (!res) return;
+  const reason = res.reason;
   try {
     // Both writes now share one transaction — previously the payment status
     // and its public receipt were updated as two independent calls, so a
@@ -6753,9 +6944,14 @@ async function verifyPayment(id) {
   }
 }
 async function rejectPayment(id) {
-  let reason = prompt('Reason for rejection:');
-  if (reason === null) return;
-  if (reason.length > 500) { reason = reason.slice(0, 500); showToast('Reason was shortened to 500 characters.', 'info'); }
+  const rp = allPayments.find(x => x.id === id) || {};
+  const res = await actionDialog({
+    title: 'Reject this payment?', intro: 'The resident will see the reason you write and can submit it again.',
+    rows: [['Resident', rp.residentName || '—'], ['Tower · Flat', `${rp.tower || '—'} · ${rp.flatNumber || '—'}`], ['Amount', formatINR(rp.amount)], ['UTR / cheque', rp.utrOrChequeNo]],
+    reasonLabel: 'Reason for rejection (required)', reasonRequired: true, confirmLabel: 'Reject payment'
+  });
+  if (!res) return;
+  const reason = res.reason;
   try {
     await updateDoc(doc(db, 'payments', id), { status: 'rejected', rejectionReason: reason, updatedAt: serverTimestamp() });
     await logAudit(auth.currentUser, 'reject_payment', { paymentId: id, reason });
@@ -6791,6 +6987,7 @@ function openRecordPaymentModal(reassignFromSuspense = null) {
   f.reset();
   document.getElementById('rpChequeWrap').style.display = 'none';
   document.getElementById('rpMemberUid').value = '';
+  window.__rpShowIdentity?.(null);
   // f.reset() unchecks the box but doesn't fire 'change', so the field-
   // visibility tied to that event needs setting back explicitly here too.
   document.getElementById('rpMemberWrap').style.display = 'block';
@@ -6861,8 +7058,21 @@ function openRecordPaymentModal(reassignFromSuspense = null) {
     dropdown.classList.add('open');
   }
 
+  // v210: once a member is picked, show WHO it is in plain, large type (name, tower, flat, ID) — the one place
+  // where a wrong pick would put somebody else's money against the wrong flat.
+  const idCard = document.getElementById('rpIdCard'), idWarn = document.getElementById('rpIdWarn');
+  window.__rpShowIdentity = (member) => {
+    if (!idCard) return;
+    if (!member) { idCard.hidden = true; idWarn.hidden = true; return; }
+    document.getElementById('rpIdAv').textContent = ((member.name || '?').trim()[0] || '?').toUpperCase();
+    document.getElementById('rpIdName').textContent = member.name || '—';
+    document.getElementById('rpIdFlat').textContent = `Tower ${member.tower || '—'} · Flat ${member.flatNumber || '—'}${member.residentType ? ' · ' + (member.residentType === 'tenant' ? 'Tenant' : 'Owner') : ''}`;
+    document.getElementById('rpIdMid').textContent = member.memberID || '';
+    idCard.hidden = false; idWarn.hidden = false;
+  };
   input.addEventListener('input', () => {
     uidField.value = ''; // typing invalidates any prior selection
+    window.__rpShowIdentity(null);
     renderOptions(input.value);
   });
   input.addEventListener('focus', () => renderOptions(input.value));
@@ -6873,6 +7083,7 @@ function openRecordPaymentModal(reassignFromSuspense = null) {
     if (!member) return;
     input.value = `${member.name} — ${member.tower}-${member.flatNumber}`;
     uidField.value = opt.dataset.uid;
+    window.__rpShowIdentity(member);
     dropdown.classList.remove('open');
     checkMembershipAmountAndDuplicate();
   });
@@ -7310,15 +7521,23 @@ async function loadNumbersEditor() {
   const box = document.getElementById('numbersEditor');
   if (!box) return;
   let items = [];
+  box.dataset.loadFailed = '';
   try {
     const snap = await getDoc(doc(db, 'settings', 'importantNumbers'));
     if (snap.exists()) items = snap.data().items || [];
-  } catch (e) { console.warn('Important numbers read failed:', e?.code || e); }
+  } catch (e) {
+    console.warn('Important numbers read failed:', e?.code || e);
+    // v210: a failed read must NOT look like "no numbers yet" — saving from that blank editor would wipe the real list.
+    box.dataset.loadFailed = '1';
+    box.innerHTML = emptyState("Could not load the important numbers", 'Saving is switched off so the existing list is not overwritten. Check your connection and try again.', { compact: true });
+    return;
+  }
   const clean = normalizeImportantNumbers(items);
   box.innerHTML = clean.map(numberRowHtml).join('') || '<p class="t-muted" id="numbersEmpty" style="font-size:13px;">No numbers added yet.</p>';
 }
 document.getElementById('addNumberRowBtn')?.addEventListener('click', () => {
   const box = document.getElementById('numbersEditor');
+  if (box?.dataset.loadFailed === '1') { showToast('The list could not be loaded — reload and try again before adding numbers.', 'error'); return; }
   document.getElementById('numbersEmpty')?.remove();
   box.insertAdjacentHTML('beforeend', numberRowHtml({ group: 'maintenance' }));
   box.lastElementChild.querySelector('.ne-label').focus();
@@ -7329,6 +7548,7 @@ document.getElementById('numbersEditor')?.addEventListener('click', (e) => {
 });
 document.getElementById('saveNumbersBtn')?.addEventListener('click', async (e) => {
   const btn = e.currentTarget;
+  if (document.getElementById('numbersEditor')?.dataset.loadFailed === '1') { showToast('The list could not be loaded, so saving is off — it would overwrite the real numbers. Reload and try again.', 'error'); return; }
   const raw = [...document.querySelectorAll('#numbersEditor .num-edit-row')].map(r => ({
     label: r.querySelector('.ne-label').value, phone: r.querySelector('.ne-phone').value, group: r.querySelector('.ne-group').value
   }));
@@ -7450,7 +7670,7 @@ async function loadCalendarPanel() {
     <div class="list-edit-item">
       <div>
         <b style="font-size:13.5px;">${CAL_TYPE_ICON[c.type] || '📌'} ${escapeHtml(c.title)}</b>
-        <div class="t-muted" style="font-size:12px;">${c.date ? fmtDate({ toDate: () => new Date(c.date) }) : '—'}${c.description ? ' · ' + escapeHtml(c.description) : ''}</div>
+        <div class="t-muted" style="font-size:12px;">${c.date ? fmtDate({ toDate: () => new Date(c.date) }) : '—'}${eventTimeText(c) ? ' · ' + escapeHtml(eventTimeText(c)) : ''}${c.venue ? ' · ' + escapeHtml(c.venue) : ''}${c.description ? ' · ' + escapeHtml(c.description) : ''}</div>
       </div>
       ${canEdit ? `<button class="btn btn-danger btn-sm" data-del-calendar="${c.id}">Delete</button>` : ''}
     </div>`).join('') || '<p class="t-muted" style="font-size:13px;">Nothing on the calendar yet.</p>';
@@ -7480,6 +7700,7 @@ document.getElementById('calendarForm')?.addEventListener('submit', async (e) =>
   try {
     await addDoc(collection(db, 'calendarEvents'), {
       title, date: dateVal, type: f.type.value, description: f.description.value.trim(),
+      startTime: f.startTime.value || null, endTime: f.endTime.value || null, venue: f.venue.value.trim() || null,
       createdAt: serverTimestamp()
     });
     await logAudit(auth.currentUser, 'add_calendar_entry', { title, date: dateVal, type: f.type.value });
@@ -7984,7 +8205,7 @@ function renderSuggestionsTable() {
     <tr>
       <td data-label="Resident">${escapeHtml(s.residentName || '—')}</td>
       <td data-label="Flat">${escapeHtml(s.flatNumber || '—')}</td>
-      <td data-label="Suggestion" style="max-width:280px; white-space:pre-wrap;">${escapeHtml(s.text)}</td>
+      <td data-label="Suggestion" style="max-width:280px; white-space:pre-wrap;">${s.category ? `<span class="badge badge-neutral" style="margin-bottom:4px;">${escapeHtml(s.category)}</span> ` : ''}${s.contactMe ? '<span class="badge badge-success" style="margin-bottom:4px;">OK to contact</span> ' : ''}${escapeHtml(s.text)}${s.photoURL ? ` <a href="${escapeHtml(s.photoURL)}" target="_blank" rel="noopener">[screenshot]</a>` : ''}</td>
       <td data-label="Status">
         ${can('approveMembers') ? `
           <select data-suggestion-status="${s.id}" style="font-size:12.5px; padding:4px;">
@@ -8369,6 +8590,7 @@ async function generateInspectionReportPDF() {
     const pageW = docp.internal.pageSize.getWidth();
     let y = 48;
 
+    await stampSeal(docp, 48 + 20, y - 4, 20);
     docp.setFont('helvetica', 'bold'); docp.setFontSize(16);
     docp.text('Max Heights Majestic RWS', pageW / 2, y, { align: 'center' }); y += 20;
     docp.setFontSize(12); docp.setFont('helvetica', 'normal');
@@ -8584,7 +8806,7 @@ function renderInspectionSchedule() {
   const pendingTodayCount = totalToday - doneToday;
   const pendingWeekCount = mepSections.filter(s => !s.done).length + dueThisWeekFlat.filter(d => !d.done).length;
 
-  const pill = (status) => status === 'ok' ? '✅' : status === 'issue' ? '🔴' : '⬜';
+  const pill = (status) => status === 'ok' ? '✅' : status === 'issue' ? '🔴' : status === 'na' ? '➖' : '⬜';
   const line = (d) => {
     const items = Object.values(INSPECTION_TYPES[d.formType]?.sections || {}).flatMap(sec => sec.items);
     const filedItems = d.rec ? (d.rec.sections || []).flatMap(sec => sec.items) : [];
@@ -8962,8 +9184,8 @@ function openInspectionDetail(id) {
   const statusPill = (status) => {
     if (status === 'ok' || status === true) return '<span class="badge badge-success" style="font-size:11.5px;">OK</span>';
     if (status === 'issue' || status === false) return '<span class="badge badge-danger" style="font-size:11.5px;">Issue</span>';
-    // Spelled out: a bare dash reads as "not applicable" — this form has no
-    // N/A, so anything not marked OK or Issue simply wasn't checked.
+    if (status === 'na') return '<span class="badge badge-neutral" style="font-size:11.5px;">N/A</span>';
+    // Anything else that is not OK / Issue / N/A simply wasn't checked — say so in words.
     return `<span class="badge badge-neutral" style="font-size:11.5px;">${inspectionStatusMark(status) === 'NOT CHECKED' ? 'Not checked' : '—'}</span>`;
   };
   // Every item gets its own row — not just a rolled-up count of what was
@@ -8993,7 +9215,7 @@ function openInspectionDetail(id) {
     const issues = [], skipped = [];
     (r.sections || []).forEach((sec) => (sec.items || []).forEach((it) => {
       if (it.status === 'issue') issues.push({ ...it, label: `${sec.title} — ${it.label}` });
-      else if (it.status !== 'ok') skipped.push(`${sec.title} — ${it.label}`);
+      else if (it.status !== 'ok' && it.status !== 'na') skipped.push(`${sec.title} — ${it.label}`);
     }));
     if (r.tankData && tpl?.tankChecks) {
       Object.entries(r.tankData).forEach(([tower, checks]) => (checks || []).forEach((v, ci) => {
@@ -9198,6 +9420,7 @@ async function generateDetailedInspectionPDF(r) {
     };
 
     pdf.setFont('helvetica', 'bold'); pdf.setFontSize(15);
+    await stampSeal(pdf, marginX + 20, y - 4, 20);
     pdf.text('Max Heights Majestic RWS', pageW / 2, y, { align: 'center' }); y += 18;
     pdf.setFontSize(11); pdf.setFont('helvetica', 'normal');
     pdf.text('Detailed Inspection Record', pageW / 2, y, { align: 'center' }); y += 22;
@@ -9219,7 +9442,7 @@ async function generateDetailedInspectionPDF(r) {
     }
     {
       const c = inspectionItemCounts(r);
-      writeLines(`Checklist: ${c.ok} OK  ·  ${c.issue} issue${c.issue === 1 ? '' : 's'}  ·  ${c.unchecked} not checked`, marginX, fullW, { lineH: 13, bold: true });
+      writeLines(`Checklist: ${c.ok} OK  ·  ${c.issue} issue${c.issue === 1 ? '' : 's'}${c.na ? `  ·  ${c.na} N/A` : ''}  ·  ${c.unchecked} not checked`, marginX, fullW, { lineH: 13, bold: true });
     }
     y += 10;
 
@@ -10444,13 +10667,21 @@ async function loadDocuments() {
   const el = document.getElementById('docsEditList');
   if (!el) return;
   try {
-    const rows = (await getDocs(query(collection(db, 'documents'), orderBy('addedAt', 'desc'))))
-      .docs.map(d => ({ id: d.id, ...d.data() }));
+    const [pubSnap, comSnap] = await Promise.all([
+      getDocs(query(collection(db, 'documents'), orderBy('addedAt', 'desc'))),
+      getDocs(query(collection(db, 'committeeDocuments'), orderBy('addedAt', 'desc'))).catch(() => ({ docs: [] }))   // rules not deployed yet → just no committee list
+    ]);
+    const ms = (x) => (x?.addedAt?.toMillis ? x.addedAt.toMillis() : 0);
+    const rows = [
+      ...pubSnap.docs.map(d => ({ id: d.id, _col: 'documents', ...d.data() })),
+      ...comSnap.docs.map(d => ({ id: d.id, _col: 'committeeDocuments', audience: 'committee', ...d.data() }))
+    ].sort((a, b) => ms(b) - ms(a));
+    const AUD = { public: 'Public', residents: 'Residents', committee: 'Committee only' };
     el.innerHTML = rows.map(d => `
       <div class="list-edit-item">
         <div style="min-width:0;">
           <b style="font-size:13.5px;">${escapeHtml(d.title)}</b>
-          <div class="t-muted" style="font-size:12px;">${escapeHtml(d.category || 'Document')} &middot; ${d.source === 'link' ? 'link' : 'uploaded'} &middot; ${fmtDate(d.addedAt)}</div>
+          <div class="t-muted" style="font-size:12px;"><b>${escapeHtml(AUD[d.audience] || 'Public (older upload)')}</b> &middot; ${escapeHtml(d.category || 'Document')} &middot; ${d.source === 'link' ? 'link' : 'uploaded'} &middot; ${fmtDate(d.addedAt)}</div>
         </div>
         <button class="btn btn-danger btn-sm" data-del-doc="${d.id}">Delete</button>
       </div>`).join('') || '<p class="t-muted" style="font-size:13px;">No documents yet.</p>';
@@ -10459,7 +10690,7 @@ async function loadDocuments() {
       b.disabled = true;
       try {
         const docItem = rows.find((x) => x.id === b.dataset.delDoc);
-        await deleteDoc(doc(db, 'documents', b.dataset.delDoc));
+        await deleteDoc(doc(db, docItem?._col || 'documents', b.dataset.delDoc));
         if (docItem?.source === 'upload' && docItem.url) {
           try { await deleteObject(storageRef(storage, docItem.url)); }
           catch (fileErr) { console.warn('Document file delete failed (Firestore record already removed):', fileErr?.code || fileErr); }
@@ -10493,12 +10724,20 @@ document.getElementById('docForm')?.addEventListener('submit', async (e) => {
   if (!file && !link) return showToast('Please upload a file or enter a link — one is required.', 'error');
   if (f.link.value.trim() && !link) return showToast('Link must be a valid http:// or https:// URL.', 'error');
 
+  const audience = ['public', 'residents', 'committee'].includes(f.audience?.value) ? f.audience.value : 'residents';
+  // A public document can be opened by anybody, so the admin must say yes to that explicitly.
+  if (audience === 'public') {
+    const ok = await actionDialog({ title: 'Make this document PUBLIC?', intro: 'Anyone with the link can open it — no login. Do not use this for internal letters, minutes or anything about individual residents.', rows: [['Title', f.title.value.trim()], ['Category', f.category.value]], confirmLabel: 'Make public', danger: false });
+    if (!ok) return;
+  }
+  const folder = audience === 'committee' ? 'committeeDocs' : audience === 'public' ? 'publicDocs' : 'memberDocs';
+  const targetCol = audience === 'committee' ? 'committeeDocuments' : 'documents';
   btn.disabled = true;
   try {
     let url = link, source = 'link';
     if (file) {
       try {
-        const r = storageRef(storage, `publicDocs/${safeStorageFilename(file.name)}`);
+        const r = storageRef(storage, `${folder}/${safeStorageFilename(file.name)}`);
         await uploadBytes(r, file);
         url = await getDownloadURL(r);
         source = 'upload';
@@ -10512,11 +10751,12 @@ document.getElementById('docForm')?.addEventListener('submit', async (e) => {
         showToast('Upload failed — saved using the link instead.', 'error');
       }
     }
-    await addDoc(collection(db, 'documents'), {
+    await addDoc(collection(db, targetCol), {
       title: f.title.value.trim(), category: f.category.value,
-      url, source, addedAt: serverTimestamp()
+      url, source, addedAt: serverTimestamp(),
+      ...(audience === 'committee' ? {} : { audience })
     });
-    await logAudit(auth.currentUser, 'add_document', { title: f.title.value, source });
+    await logAudit(auth.currentUser, 'add_document', { title: f.title.value, source, audience });
     showToast('Document added.', 'success');
     document.getElementById('docModalBackdrop').classList.remove('open');
     f.reset(); loadDocuments();
@@ -10912,13 +11152,16 @@ document.getElementById('zipExportBtn').addEventListener('click', async () => {
       society = societySnap.exists() ? societySnap.data() : { fullName: SOCIETY.fullName };
     } catch (e) { society = { fullName: SOCIETY.fullName }; }
 
+    // The seal for every receipt in the ZIP (they used to come out without it).
+    let zipLogo = null;
+    try { zipLogo = await getLogoDataUri(); } catch (e) { /* receipts still build without it */ }
     const failed = [];
     const plannedTotal = files.length + verifiedThisMonth.length;
     let receiptsDone = 0;
     for (const p of verifiedThisMonth) {
       try {
         const mem = allMembers.find(x => x.uid === p.memberUid) || {};
-        const blob = await generateReceiptPDF({ payment: p, member: mem, society, logoDataUrl: null, save: false });
+        const blob = await generateReceiptPDF({ payment: p, member: mem, society, logoDataUrl: zipLogo, save: false });
         files.push({ blob, name: `Receipts/${p.receiptNumber}.pdf` });
       } catch (e) {
         // Previously swallowed with no tracking at all — an incomplete ZIP
@@ -10993,6 +11236,7 @@ async function loadSettingsForms() {
     f.regNumber.value = s.regNumber || SOCIETY_DEFAULTS.regNumber;
     f.address.value = s.address || SOCIETY_DEFAULTS.address;
     f.contactPhone.value = s.contactPhone || '';
+    f.officeHours.value = s.officeHours || '';
     f.contactEmail.value = s.contactEmail || '';
     if (!societySnap.exists()) {
       showToast('Society info pre-filled — jaanch kar "Save Society Info" dabayein.', 'info');
@@ -11191,7 +11435,7 @@ document.getElementById('societySettingsForm').addEventListener('submit', async 
   try {
     await setDoc(doc(db, 'settings', 'society'), {
       name: f.name.value, regNumber: f.regNumber.value, address: f.address.value,
-      contactPhone: f.contactPhone.value, contactEmail: f.contactEmail.value, updatedAt: serverTimestamp()
+      contactPhone: f.contactPhone.value, contactEmail: f.contactEmail.value, officeHours: f.officeHours.value.trim().slice(0, 200), updatedAt: serverTimestamp()
     }, { merge: true });
     await logAudit(auth.currentUser, 'update_society_settings', {});
     showToast('Society info saved.', 'success');

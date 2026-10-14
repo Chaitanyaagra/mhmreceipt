@@ -21,9 +21,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Gate App — MHMRWS</title>
 <script>try{if(localStorage.getItem('mhmrws-text-size')==='large')document.documentElement.dataset.textSize='large';}catch(e){}</script>
-<script>try{if(localStorage.getItem('mhmrws-guard-theme')==='light')document.documentElement.dataset.guardTheme='light';}catch(e){}</script>
+<script>/* Light is the default (the Canva gate screen); a guard who chose Dark keeps it. */try{if(localStorage.getItem('mhmrws-guard-theme')!=='dark')document.documentElement.dataset.guardTheme='light';}catch(e){document.documentElement.dataset.guardTheme='light';}</script>
 <meta name="theme-color" content="#0A1B33">
 <link rel="icon" href="favicon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="manifest" href="manifest-guard.json">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -104,7 +105,7 @@
   .q-sub{ font-size:12px; color:rgba(255,255,255,.5); margin-top:2px; }
   /* Pinch-zoom stays on (older guards need it); this stops the double-tap zoom on buttons instead. */
   button, a, input, select, textarea{ touch-action:manipulation; }
-  .q-empty::before{ content:''; display:block; width:56px; height:56px; margin:0 auto 14px; border-radius:50%; border:1.5px solid rgba(255,201,120,.45); background:rgba(255,201,120,.08); }
+  .q-empty::before{ content:''; display:block; width:56px; height:56px; margin:0 auto 14px; border-radius:50%; border:1.5px solid rgba(255,201,120,.45); background:rgba(255,201,120,.08) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23F5A53A' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='8' r='3.4'/%3E%3Cpath d='M5 20c.8-3.6 3.6-5.4 7-5.4s6.2 1.8 7 5.4'/%3E%3C/svg%3E") center/26px 26px no-repeat; }
   .q-empty{ text-align:center; color:rgba(255,255,255,.62); font-size:13px; padding:40px 0; }
   .q-row .btn{ flex-shrink:0; padding:8px 14px; font-size:12.5px; }
 
@@ -163,7 +164,42 @@
 
   /* v180 — the seal replaces the initial, with the society name above the guard's name */
   #screen-main .g-header .app-av{ width:52px; height:52px; font-size:0; color:transparent; background:#fff url(logo.webp) center/94% no-repeat; box-shadow:0 3px 14px rgba(10,27,51,.32); }
-  #screen-main .g-header .who::before{ content:'Max Heights Majestic'; display:block; white-space:nowrap; font-size:10.5px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; text-shadow:0 1px 2px rgba(10,27,51,.5); }
+  #screen-main .g-header .who::before{ content:'Max Heights Majestic'; display:block; white-space:normal; line-height:1.2; margin-bottom:2px; font-size:10.5px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; text-shadow:0 1px 2px rgba(10,27,51,.5); }
+  /* v195: on a phone the society name used to run underneath the theme button — let it wrap and slim the header's buttons so nothing overlaps. */
+  #screen-main .g-header .who{ overflow:hidden; }
+  @media (max-width:480px){
+    #screen-main .g-header{ gap:8px; padding-inline:12px; }
+    #screen-main .g-header .app-av{ width:44px; height:44px; flex:0 0 44px; }
+    #screen-main .g-header .who::before{ font-size:10.5px; letter-spacing:.04em; }
+    #themeBtn{ margin-right:0; min-width:40px; padding:8px 6px; }
+    #textSizeBtn{ margin-right:0 !important; min-width:40px !important; padding-inline:6px; }
+    #logoutBtn{ padding:8px 10px; }
+  }
+
+  /* v198 — Canva "Gate guard": verified-visitor card with one big LET IN */
+  .exp-main[data-verify]{ cursor:pointer; }
+  .verify-card{ display:none; position:fixed; inset:0; z-index:60; background:rgba(10,27,51,.72); align-items:flex-end; justify-content:center; }
+  .verify-card.open{ display:flex; }
+  .vc-sheet{ width:100%; max-width:520px; background:#FAF7F2; color:#0A1B33; border-radius:24px 24px 0 0; padding:18px 16px 22px; box-shadow:0 -12px 40px rgba(0,0,0,.35); }
+  .vc-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; font-family:Georgia,'Times New Roman',serif; font-size:22px; }
+  .vc-head button{ min-width:44px; min-height:44px; border:0; border-radius:12px; background:#fff; font-size:18px; cursor:pointer; }
+  .vc-top{ display:flex; gap:12px; justify-content:space-between; align-items:flex-start; background:#fff; border:1px solid #E7DFD0; border-radius:18px; padding:14px; }
+  .vc-name{ font-family:Georgia,'Times New Roman',serif; font-size:26px; font-weight:700; margin-bottom:8px; overflow-wrap:anywhere; }
+  .vc-row{ display:flex; flex-direction:column; margin-bottom:6px; }
+  .vc-row span{ font-size:12px; color:#5B6478; text-transform:uppercase; letter-spacing:.05em; }
+  .vc-row b{ font-size:17px; }
+  .vc-status{ text-align:center; color:#1B7A4D; flex-shrink:0; }
+  .vc-status small{ display:block; font-size:12px; color:#5B6478; letter-spacing:.08em; text-transform:uppercase; }
+  .vc-status b{ display:block; font-size:19px; line-height:1.15; margin:4px 0 8px; }
+  .vc-tick{ display:inline-flex; width:46px; height:46px; border:3px solid #1B7A4D; border-radius:50%; align-items:center; justify-content:center; font-size:26px; font-weight:800; }
+  .vc-note{ margin-top:10px; padding:10px 12px; border-radius:12px; background:#FFF3E2; font-size:14px; }
+  .vc-letin{ display:block; width:100%; min-height:72px; margin-top:14px; border:0; border-radius:16px; background:#1B7A4D; color:#fff; font-size:30px; font-weight:800; letter-spacing:.04em; cursor:pointer; box-shadow:0 10px 22px rgba(27,122,77,.35); }
+  .vc-letin:disabled{ opacity:.6; }
+  .vc-checkout{ display:block; width:100%; min-height:72px; margin-top:14px; border:2px solid #8C1D40; border-radius:16px; background:#fff; color:#8C1D40; font-size:20px; font-weight:800; letter-spacing:.03em; cursor:pointer; }
+  .vc-checkout[hidden], .vc-letin[hidden]{ display:none; }
+  .vc-inside{ color:#0F2547; }
+  .vc-inside .vc-tick{ border-color:#0F2547; }
+  .vc-back{ display:block; width:100%; min-height:52px; margin-top:10px; border:1.5px solid #8C1D40; border-radius:14px; background:#fff; color:#8C1D40; font-size:16px; font-weight:700; cursor:pointer; }
 </style>
 <script>
 /* Boot guard — if the page's main script cannot start (typically a half-updated cache: a new
@@ -255,6 +291,15 @@
     </div>
 
     <div id="expectedWrap"></div>
+    <div id="verifyCard" class="verify-card" role="dialog" aria-modal="true" aria-label="Verified visitor">
+      <div class="vc-sheet">
+        <div class="vc-head"><b>Gate guard</b><button type="button" id="vcClose" aria-label="Close">✕</button></div>
+        <div class="vc-body"></div>
+        <button type="button" id="vcLetIn" class="vc-letin">LET IN</button>
+        <button type="button" id="vcCheckOut" class="vc-checkout" hidden>CHECK OUT THIS VISITOR</button>
+        <button type="button" class="vc-back" id="vcClose2">Go back</button>
+      </div>
+    </div>
 
     <div id="queueWrap"><p class="q-empty">Loading…</p></div>
   </div>
@@ -306,14 +351,14 @@ installAutoLabels();
 </script>
 
 <script type="module">
-import { auth, db } from './firebase-config.js';
+import { auth, db, wipeDeviceTraces } from './firebase-config.js';
 import {
   signInWithEmailAndPassword, onAuthStateChanged, signOut
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
 import {
   doc, getDoc, addDoc, updateDoc, collection, query, where, onSnapshot, serverTimestamp, writeBatch
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { showToast, escapeHtml, TOWER_IDS, flatsForTower, flatKey, getTextSize, setTextSize, todayLocalISO, guestsForGate, visitorFieldsForGuest } from './app-common.js?v=189';
+import { showToast, escapeHtml, TOWER_IDS, flatsForTower, flatKey, getTextSize, setTextSize, todayLocalISO, guestsForGate, visitorFieldsForGuest, guestPassId } from './app-common.js?v=212';
 import { installAppInstallPrompt } from './install-prompt.js';
 
 window.__moduleBooted = true; { var __bg = document.getElementById('bootGuard'); if (__bg) __bg.remove(); }
@@ -353,7 +398,11 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
   }
 });
 
-document.getElementById('logoutBtn').addEventListener('click', () => signOut(auth));
+document.getElementById('logoutBtn').addEventListener('click', async () => {
+  try { await signOut(auth); } catch (e) { console.warn('Sign-out failed:', e); }
+  await wipeDeviceTraces();   // shared-device privacy: drop the cached copy of this session's records
+  location.reload();
+});
 // Light / dark gate theme (sun button): remembered on this device. Dark stays the default.
 (() => {
   const b = document.getElementById('themeBtn');
@@ -551,9 +600,9 @@ function renderExpected() {
   wrap.innerHTML = failBanner + `<div class="exp-card">
     <div class="exp-head"><b>Expected today</b><span class="exp-n">${all.length}</span></div>
     <div class="exp-sub">Announced by residents — tap Let in when they arrive.</div>
-    ${all.length > 4 ? `<input type="search" id="expSearch" class="exp-search" placeholder="Search name or flat" value="${escapeHtml(expectedSearch)}" autocomplete="off" aria-label="Search expected guests">` : ''}
+    ${all.length > 4 ? `<input type="search" id="expSearch" class="exp-search" placeholder="Search name, flat or Pass ID" value="${escapeHtml(expectedSearch)}" autocomplete="off" aria-label="Search expected guests">` : ''}
     ${list.map(g => `<div class="exp-row">
-      <div class="exp-main"><b>${escapeHtml(g.guestName)}</b><span>${escapeHtml(g.tower)} · ${escapeHtml(g.flatNumber)}${g.residentName ? ` · ${escapeHtml(g.residentName)}` : ''}${g.purpose ? ` · ${escapeHtml(g.purpose)}` : ''}</span></div>
+      <div class="exp-main" data-verify="${escapeHtml(g.id)}" role="button" tabindex="0" aria-label="Open visitor details"><b>${escapeHtml(g.guestName)}</b><span>${escapeHtml(g.tower)} · ${escapeHtml(g.flatNumber)}${g.residentName ? ` · ${escapeHtml(g.residentName)}` : ''}${g.purpose ? ` · ${escapeHtml(g.purpose)}` : ''}${g.expectedTime ? ` · ${escapeHtml(g.expectedTime)}` : ''}${g.vehicleNumber ? ` · ${escapeHtml(g.vehicleNumber)}` : ''}${guestPassId(g) ? ` · ${escapeHtml(guestPassId(g))}` : ''}</span></div>
       <button type="button" class="exp-go" data-let-in="${escapeHtml(g.id)}">Let in</button>
     </div>`).join('') || '<div class="exp-sub" style="padding:8px 0;">Nobody matches that search.</div>'}
   </div>`;
@@ -563,12 +612,9 @@ function renderExpected() {
     inp.addEventListener('input', (e) => { expectedSearch = e.target.value; const pos = e.target.selectionStart; renderExpected(); const n = document.getElementById('expSearch'); if (n) { n.focus(); try { n.setSelectionRange(pos, pos); } catch (_) {} } });
   }
 }
-document.getElementById('expectedWrap')?.addEventListener('click', async (e) => {
-  const b = e.target.closest?.('[data-let-in]');
-  if (!b || !currentGuard) return;
-  const g = expectedRows.find(x => x.id === b.dataset.letIn);
-  if (!g) return;
-  b.disabled = true;
+async function letInGuest(g, b) {
+  if (!g || !currentGuard) return;
+  if (b) b.disabled = true;
   try {
     const batch = writeBatch(db);
     // The visitor entry gets the announcement's own id: the rules then allow exactly one entry per announcement.
@@ -580,12 +626,82 @@ document.getElementById('expectedWrap')?.addEventListener('click', async (e) => 
     await batch.commit();
     expectedRows = expectedRows.map(x => x.id === g.id ? { ...x, status: 'arrived' } : x);
     renderExpected();
+    closeVerify();
     showToast(`${g.guestName} let in.`, 'success');
   } catch (err) {
     console.error('Let in failed:', err);
     showToast(`Could not let in${err?.code ? ` (${err.code})` : ''} — send for approval instead.`, 'error');
-    b.disabled = false;
+    if (b) b.disabled = false;
   }
+}
+/* The "verified visitor" card (Canva): a resident announced this person, so the gate sees who they are visiting
+   and why, with one big Let in button. Tapping Let in on the list still works as the fast path. */
+function openVerify(g) {
+  if (!g) return;
+  const el = document.getElementById('verifyCard');
+  const row = (k, v) => v ? `<div class="vc-row"><span>${k}</span><b>${escapeHtml(v)}</b></div>` : '';
+  el.querySelector('.vc-body').innerHTML = `
+    <div class="vc-top">
+      <div class="vc-id"><div class="vc-name">${escapeHtml(g.guestName)}</div>
+        ${row('Visiting', `${g.tower || ''}-${g.flatNumber || ''}${g.residentName ? ` · ${g.residentName}` : ''}`)}
+        ${row('Purpose', g.purpose ? (PURPOSE_LABEL[String(g.purpose).toLowerCase()] || g.purpose) : '')}
+        ${row('Pass ID', guestPassId(g))}
+        ${row('Expected', g.expectedTime || '')}
+        ${row('Vehicle', g.vehicleNumber || '')}
+      </div>
+      <div class="vc-status"><small>Status</small><b>VERIFIED<br>VISITOR</b><span class="vc-tick">✓</span></div>
+    </div>
+    ${g.note ? `<div class="vc-note">${escapeHtml(g.note)}</div>` : ''}`;
+  el.dataset.guestId = g.id; el.dataset.mode = 'in';
+  document.getElementById('vcLetIn').hidden = false; document.getElementById('vcCheckOut').hidden = true;
+  el.classList.add('open');
+  el.querySelector('#vcLetIn')?.focus({ preventScroll: true });
+}
+function openVerifyInside(r) {
+  if (!r) return;
+  const el = document.getElementById('verifyCard');
+  const row = (k, v) => v ? `<div class="vc-row"><span>${k}</span><b>${escapeHtml(v)}</b></div>` : '';
+  const at = r.checkedInAt?.seconds ? new Date(r.checkedInAt.seconds * 1000).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '';
+  el.querySelector('.vc-body').innerHTML = `
+    <div class="vc-top">
+      <div class="vc-id"><div class="vc-name">${escapeHtml(r.visitorName)}</div>
+        ${row('Visiting', `${r.tower || ''}-${r.flatNumber || ''}`)}
+        ${row('Purpose', PURPOSE_LABEL[r.purpose] || r.purpose || '')}
+        ${row('Entry time', at)}
+      </div>
+      <div class="vc-status vc-inside"><small>Status</small><b>INSIDE<br>NOW</b><span class="vc-tick">✓</span></div>
+    </div>`;
+  el.dataset.guestId = r.id; el.dataset.mode = 'out';
+  document.getElementById('vcLetIn').hidden = true; document.getElementById('vcCheckOut').hidden = false;
+  el.classList.add('open');
+  document.getElementById('vcCheckOut')?.focus({ preventScroll: true });
+}
+function closeVerify() { const el = document.getElementById('verifyCard'); if (el) { el.classList.remove('open'); delete el.dataset.guestId; } }
+document.getElementById('vcLetIn')?.addEventListener('click', (e) => {
+  const id = document.getElementById('verifyCard').dataset.guestId;
+  letInGuest(expectedRows.find(x => x.id === id), e.currentTarget);
+});
+document.getElementById('vcCheckOut')?.addEventListener('click', async (e) => {
+  const id = document.getElementById('verifyCard').dataset.guestId; if (!id) return;
+  e.currentTarget.disabled = true;
+  await checkOut(id);
+  e.currentTarget.disabled = false; closeVerify();
+});
+document.getElementById('queueWrap')?.addEventListener('click', (e) => {
+  const v = e.target.closest?.('[data-verify-inside]');
+  if (v) openVerifyInside(lastQueueRows.find((r) => r.id === v.dataset.verifyInside));
+});
+document.getElementById('vcClose')?.addEventListener('click', closeVerify);
+document.getElementById('vcClose2')?.addEventListener('click', closeVerify);
+document.getElementById('expectedWrap')?.addEventListener('click', async (e) => {
+  const v = e.target.closest?.('[data-verify]');
+  if (v && !e.target.closest('[data-let-in]')) { openVerify(expectedRows.find(x => x.id === v.dataset.verify)); return; }
+  const b = e.target.closest?.('[data-let-in]');
+  if (!b) return;
+  await letInGuest(expectedRows.find(x => x.id === b.dataset.letIn), b);
+});
+document.getElementById('expectedWrap')?.addEventListener('keydown', (e) => {
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.matches?.('[data-verify]')) { e.preventDefault(); openVerify(expectedRows.find(x => x.id === e.target.dataset.verify)); }
 });
 
 function subscribeVisitors() {
@@ -628,7 +744,7 @@ function renderQueue(rows) {
     { key: 'pending', label: 'Sent — waiting for the resident', items: rows.filter(r => r.status === 'pending') },
     { key: 'approved', label: 'Approved — let them in', items: rows.filter(r => r.status === 'approved' && !isApprovalExpired(r)) },
     { key: 'expired', label: 'Approval expired — ask the resident again', items: rows.filter(isApprovalExpired) },
-    { key: 'checked_in', label: 'Currently inside', items: rows.filter(r => r.status === 'checked_in') }
+    { key: 'checked_in', label: 'Current visitors', items: rows.filter(r => r.status === 'checked_in') }
   ];
   const wrap = document.getElementById('queueWrap');
   if (!groups.some(g => g.items.length)) {
@@ -649,7 +765,7 @@ function renderQueue(rows) {
 function rowHtml(r) {
   return `
     <div class="q-row">
-      <div>
+      <div${r.status === 'checked_in' ? ` data-verify-inside="${r.id}" role="button" tabindex="0" aria-label="Open visitor details" style="cursor:pointer;"` : ''}>
         <b>${escapeHtml(r.visitorName)}</b>
         <div class="q-sub">${PURPOSE_LABEL[r.purpose] || escapeHtml(r.purpose || '')} · ${escapeHtml(r.tower || '')}-${escapeHtml(r.flatNumber || '')}</div>
       </div>

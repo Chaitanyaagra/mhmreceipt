@@ -8,7 +8,7 @@
    Bump CACHE_NAME on any future structural change to force a clean cache.
    ========================================================================== */
 
-const CACHE_NAME = 'mhmrws-shell-v189';
+const CACHE_NAME = 'mhmrws-shell-v212';
 // Pinned Firebase SDK version used across every page (index/admin/staff/guard/
 // verify) — a specific version's content never changes, so caching these is
 // as safe as caching the vendored libraries below, and without this the app
@@ -44,7 +44,7 @@ const SHELL_FILES = [
   './verify.html',
   './styles.css',
   './firebase-config.js',
-  './app-common.js?v=189',
+  './app-common.js?v=212',
   './avatar-placeholder.js',
   './premium.js',
   './ui-a11y.js',
@@ -79,17 +79,24 @@ self.addEventListener('install', (event) => {
           // cache:'reload' skips the browser's own HTTP cache (GitHub Pages lets it keep files
           // for 10 minutes) so a fresh install can never precache a stale copy of one file next
           // to a fresh copy of another — the half-updated state that stops the app starting.
-          cache.add(new Request(url, { cache: 'reload' })).catch((err) => console.warn('[sw] could not cache', url, err))
+          cache.add(new Request(url, { cache: 'reload' })).then(() => null).catch((err) => { console.warn('[sw] could not cache', url, err); return url; })
         )
       ))
-      .then(() => self.skipWaiting())
+      .then((failed) => {
+        // v208: a missing optional asset is tolerated, but if the CORE app files did not all arrive this
+        // worker must not take over — it would run the new version with a half-filled cache. Failing the
+        // install keeps the previous, complete version in charge; the browser retries on the next visit.
+        const core = ['./index.html', './styles.css', './app-common.js?v=212', './ui-a11y.js'];
+        if (failed.some((u) => core.includes(u))) throw new Error('[sw] core files missing — keeping the previous version');
+        return self.skipWaiting();
+      })
   );
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
+      Promise.all(keys.filter((k) => k.startsWith('mhmrws-shell-') && k !== CACHE_NAME).map((k) => caches.delete(k)))
     ).then(() => self.clients.claim())
   );
 });
@@ -186,7 +193,17 @@ self.addEventListener('fetch', (event) => {
           }
           return response;
         })
-        .catch(() => cached); // offline: fall back to whatever we had
+        .catch(async () => {
+          // offline: fall back to whatever we had. A page navigation with nothing cached gets the
+          // cached app shell (never `undefined`, which the browser shows as a raw network error);
+          // a missing script/style/data file gets an honest 503 rather than a made-up page.
+          if (cached) return cached;
+          if (event.request.mode === 'navigate') {
+            const shell = await caches.match('./index.html');
+            if (shell) return shell;
+          }
+          return new Response('Offline', { status: 503, statusText: 'Offline', headers: { 'Content-Type': 'text/plain' } });
+        });
       // Registered with waitUntil() too — respondWith() alone only keeps
       // the worker alive until the response is sent (serving `cached`
       // instantly); without this, the browser could terminate the worker

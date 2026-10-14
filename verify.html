@@ -46,6 +46,7 @@
 <title>Verify — MHMRWS</title>
 <meta name="robots" content="noindex">
 <link rel="icon" href="favicon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <meta name="color-scheme" content="light">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -68,20 +69,60 @@
   .vcard{ position:relative; z-index:1; box-shadow:0 18px 40px rgba(10,27,51,.2); border:1px solid #EAE6DC; border-radius:24px; }
   .v-society{ font-family:var(--font-display); font-weight:600; font-size:18px; color:var(--navy-950); margin-bottom:16px; line-height:1.25; }
   .v-society span{ display:block; font-family:var(--font-body); font-weight:500; font-size:12.5px; color:var(--ink-600); margin-top:2px; }
+
+  /* v196 — Canva "Verify receipt": society header on the band, a lookup form, a result card with icon rows */
+  body{ display:block; padding:0 16px 40px; }
+  body::before{ height:200px; }
+  .v-top{ position:relative; z-index:1; display:flex; align-items:center; gap:12px; max-width:440px; margin:0 auto; padding:22px 0 18px; color:#fff; }
+  .v-top img{ width:56px; height:56px; border-radius:50%; background:#fff; flex:none; }
+  .v-top b{ display:block; font-family:var(--font-display); font-size:19px; line-height:1.2; }
+  .v-top small{ display:block; font-size:12.5px; opacity:.92; margin-top:3px; }
+  .vcard{ max-width:440px; margin:0 auto; padding:22px 18px 18px; text-align:left; }
+  .vcard h1.v-h{ font-family:var(--font-display); font-size:32px; line-height:1.1; margin:0 0 6px; color:var(--navy-900); }
+  .v-lead{ margin:0 0 14px; font-size:14px; color:var(--ink-600); }
+  .v-form{ border:1px solid var(--line); border-radius:14px; padding:12px; background:#fff; }
+  .v-form label{ display:block; font-size:12.5px; font-weight:600; color:var(--ink-600); margin-bottom:6px; }
+  .v-form .v-in{ display:flex; gap:8px; }
+  .v-form input{ flex:1; min-width:0; height:48px; border:1px solid var(--line); border-radius:10px; padding:0 12px; font:inherit; font-size:14px; background:#F6F3EC; }
+  .v-form button{ height:48px; padding:0 20px; border:0; border-radius:10px; background:var(--saffron-600); color:#fff; font:inherit; font-weight:700; cursor:pointer; }
+  .v-form .v-hint{ margin:8px 0 0; font-size:12px; color:var(--ink-400); }
+  .v-form .v-err{ margin:8px 0 0; font-size:12.5px; color:var(--danger); }
+  .v-result{ margin-top:14px; border:1px solid #BFE0CB; background:#F4FBF6; border-radius:16px; overflow:hidden; }
+  .v-result.is-bad{ border-color:#EBC3CB; background:#FFF8F9; }
+  .v-result-head{ display:flex; align-items:center; gap:12px; padding:14px; }
+  .v-result-head .seal{ margin:0; flex:none; width:52px; height:52px; }
+  .v-result-head h2{ margin:0; font-family:var(--font-display); font-size:22px; line-height:1.15; }
+  .v-result-head p{ margin:2px 0 0; font-size:13.5px; color:var(--ink-600); }
+  .v-result .vrow{ padding:12px 14px; background:#fff; border-top:1px solid var(--line); align-items:center; }
+  .v-result .vrow span:first-child{ display:flex; align-items:center; gap:10px; }
+  .v-result .vrow .ic{ width:18px; height:18px; color:var(--saffron-600); }
+  .v-again{ display:flex; align-items:center; justify-content:center; gap:8px; width:100%; margin-top:14px; min-height:50px; border:1.5px solid var(--saffron-500); border-radius:14px; background:#fff; color:var(--saffron-600); font:inherit; font-weight:700; cursor:pointer; }
+  .v-again .ic{ width:18px; height:18px; }
+  .v-again[hidden], .v-result[hidden], .v-form[hidden]{ display:none; }
+  .v-spin{ display:flex; align-items:center; gap:10px; padding:16px 14px; color:var(--ink-600); font-size:14px; }
 </style>
 </head>
 <body>
 
+  <header class="v-top">
+    <img id="verifyLogo" alt="MHMRWS seal" width="56" height="56">
+    <div><b>Max Heights Majestic</b><small>Resident Welfare Society · Jaipur · 7 towers · 454 flats</small></div>
+  </header>
   <main class="vcard" id="card">
-    <img id="verifyLogo" alt="MHMRWS seal" width="96" height="96" style="border-radius:50%; margin:0 auto 12px; display:block;">
-    <div class="v-society">Max Heights Majestic<span>Resident Welfare Society · Jaipur</span></div>
-    <div class="seal seal-lg" id="sealBox">
-      <div class="spinner" style="color:var(--navy-800);"></div>
-    </div>
-    <h1 class="vstate-title" id="stateTitle">Checking receipt…</h1>
-    <p class="t-muted" id="stateSub" style="margin-bottom:18px;">Ek pal ruko, hum record verify kar rahe hain.</p>
-    <div id="details" style="display:none;"></div>
-    <div class="brand-foot">MHMRWS Digital Portal · Official Verification</div>
+    <h1 class="v-h" id="pageTitle">Verify receipt</h1>
+    <p class="v-lead" id="pageLead">Check that a payment receipt or membership card is genuine.</p>
+    <form class="v-form" id="vForm" autocomplete="off" novalidate>
+      <label for="vCode">Receipt verification code or link</label>
+      <div class="v-in"><input id="vCode" name="code" inputmode="text" placeholder="Paste the link or code from the receipt QR" spellcheck="false"><button type="submit">Verify</button></div>
+      <p class="v-hint">Scanning the QR on the receipt opens this page already filled in.</p>
+      <p class="v-err" id="vErr" role="alert" hidden></p>
+    </form>
+    <section class="v-result" id="vResult" aria-live="polite" hidden>
+      <div class="v-result-head"><div class="seal seal-lg" id="sealBox"></div><div><h2 id="stateTitle"></h2><p id="stateSub"></p></div></div>
+      <div id="details"></div>
+    </section>
+    <button type="button" class="v-again" id="vAgain" hidden><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.5-5.8"/><path d="M20 4v5h-5"/></svg>Verify another receipt</button>
+    <div class="brand-foot" style="text-align:center;">MHMRWS Digital Portal · Official Verification</div>
   </main>
 
 <script type="module">
@@ -93,7 +134,7 @@ document.getElementById('verifyLogo').src = LOGO_DATA_URI;
 <script type="module">
 import { db } from './firebase-config.js';
 import { doc, getDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-import { escapeHtml, fmtDate, formatINR } from './app-common.js?v=189';
+import { escapeHtml, fmtDate, formatINR } from './app-common.js?v=212';
 
 /* The QR codes now carry an unguessable token (?r= / ?m=) instead of the
    sequential receipt or member number, so the public records cannot be walked
@@ -108,13 +149,48 @@ const sealBox = document.getElementById('sealBox');
 const stateTitle = document.getElementById('stateTitle');
 const stateSub = document.getElementById('stateSub');
 const details = document.getElementById('details');
+const resultBox = document.getElementById('vResult');
+const form = document.getElementById('vForm');
+const codeInput = document.getElementById('vCode');
+const errBox = document.getElementById('vErr');
+const againBtn = document.getElementById('vAgain');
+
+const IC = {
+  user: '<path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"/><path d="M4 20c0-4 3.6-6 8-6s8 2 8 6"/>',
+  building: '<path d="M5 21V4h9v17M14 9h5v12M3 21h18M8 8h3M8 12h3M8 16h3"/>',
+  rupee: '<path d="M7 5h10M7 9h10M7 5c5 0 7 2 7 4s-2 4-7 4l6 6"/>',
+  calendar: '<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/>',
+  file: '<path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4M10 12h5M10 16h5"/>',
+  card: '<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 11h18"/>'
+};
+const row = (ic, label, value, cls = '') =>
+  `<div class="vrow"><span><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${IC[ic]}</svg>${label}</span><span class="${cls}">${value}</span></div>`;
+
+function show(kind) {   // 'ok' | 'bad'
+  resultBox.hidden = false;
+  resultBox.classList.toggle('is-bad', kind === 'bad');
+  againBtn.hidden = false;
+  form.hidden = true;
+  document.getElementById('pageLead').hidden = true;
+}
+function reset() {
+  resultBox.hidden = true; againBtn.hidden = true; form.hidden = false;
+  document.getElementById('pageLead').hidden = false;
+  errBox.hidden = true; codeInput.value = '';
+  // Drop the receipt/member from the address so a refresh doesn't re-verify it.
+  try { history.replaceState(null, '', location.pathname); } catch (e) {}
+  codeInput.focus();
+}
+againBtn.addEventListener('click', reset);
 
 function renderNotFound(reason, title = 'Receipt Not Found') {
+  show('bad');
   sealBox.innerHTML = '<span style="font-size:28px;">✕</span>';
   sealBox.style.color = 'var(--danger)';
   stateTitle.textContent = title;
   stateTitle.style.color = 'var(--danger)';
   stateSub.textContent = reason || 'Yeh receipt number hamare record mein nahi mila. Number dobara jaanch lein.';
+  details.innerHTML = '';
 }
 
 function renderVerified(data) {
@@ -123,6 +199,7 @@ function renderVerified(data) {
   // so this page can say VOIDED here, which is more protective against
   // someone reusing an old receipt than a generic "not found" would be.
   const isVoided = data.status === 'Voided';
+  show(isVoided ? 'bad' : 'ok');
   sealBox.innerHTML = isVoided
     ? '<span style="font-size:30px;color:var(--danger,#C0392B);">⊘</span>'
     : '<span style="font-size:30px;color:var(--success);">✓</span>';
@@ -131,15 +208,14 @@ function renderVerified(data) {
   stateSub.textContent = isVoided
     ? 'Yeh receipt void kar di gayi hai — ab valid nahi hai.'
     : 'Yeh receipt MHMRWS ke official record se match karti hai.';
-  details.style.display = 'block';
   details.innerHTML = `
-    <div class="vrow"><span>Receipt No.</span><span class="mono">${escapeHtml(data.receiptNumber)}</span></div>
-    <div class="vrow"><span>Resident</span><span>${escapeHtml(data.residentName || '—')}</span></div>
-    <div class="vrow"><span>Flat / Tower</span><span>${escapeHtml(data.flatNumber || '—')} / ${escapeHtml(data.tower || '—')}</span></div>
-    <div class="vrow"><span>Amount</span><span>${formatINR(data.amount)}</span></div>
-    <div class="vrow"><span>Financial Year</span><span>${escapeHtml(data.financialYear || '—')}</span></div>
-    <div class="vrow"><span>Date</span><span>${fmtDate(data.verifiedAt)}</span></div>
-    <div class="vrow"><span>Status</span><span class="${isVoided ? 't-danger' : 't-success'}">${isVoided ? '⊘ Voided' : '✓ Verified'}</span></div>
+    ${row('file', 'Receipt No.', `<span class="mono">${escapeHtml(data.receiptNumber)}</span>`)}
+    ${row('user', 'Resident', escapeHtml(data.residentName || '—'))}
+    ${row('building', 'Flat / Tower', `${escapeHtml(data.flatNumber || '—')} / ${escapeHtml(data.tower || '—')}`)}
+    ${row('rupee', 'Amount', formatINR(data.amount))}
+    ${row('card', 'Financial Year', escapeHtml(data.financialYear || '—'))}
+    ${row('calendar', 'Receipt date', fmtDate(data.verifiedAt))}
+    ${row('file', 'Status', isVoided ? '⊘ Voided' : '✓ Verified', isVoided ? 't-danger' : 't-success')}
   `;
 }
 
@@ -147,6 +223,7 @@ function renderMember(data) {
   // A card whose member has since been deactivated must read as invalid at
   // the gate, even though the record still exists.
   const active = data.status === 'approved';
+  show(active ? 'ok' : 'bad');
   sealBox.innerHTML = active
     ? '<span style="font-size:30px;color:var(--success);">&#10003;</span>'
     : '<span style="font-size:28px;color:var(--danger);">&#10005;</span>';
@@ -155,36 +232,65 @@ function renderMember(data) {
   stateSub.textContent = active
     ? 'Yeh card MHMRWS ke official record se match karta hai.'
     : 'Yeh membership ab active nahi hai. Office se sampark karein.';
-  details.style.display = 'block';
   details.innerHTML = `
-    <div class="vrow"><span>Member ID</span><span class="mono">${escapeHtml(data.memberID)}</span></div>
-    <div class="vrow"><span>Name</span><span>${escapeHtml(data.name || '—')}</span></div>
-    <div class="vrow"><span>Tower / Flat</span><span>${escapeHtml(data.tower || '—')} / ${escapeHtml(data.flatNumber || '—')}</span></div>
-    <div class="vrow"><span>Type</span><span>${escapeHtml((data.residentType || '—').replace(/^\w/, c => c.toUpperCase()))}</span></div>
-    <div class="vrow"><span>Status</span><span class="${active ? 't-success' : 't-danger'}">${active ? 'Active' : 'Inactive'}</span></div>
+    ${row('card', 'Member ID', `<span class="mono">${escapeHtml(data.memberID)}</span>`)}
+    ${row('user', 'Name', escapeHtml(data.name || '—'))}
+    ${row('building', 'Tower / Flat', `${escapeHtml(data.tower || '—')} / ${escapeHtml(data.flatNumber || '—')}`)}
+    ${row('file', 'Type', escapeHtml((data.residentType || '—').replace(/^\w/, c => c.toUpperCase())))}
+    ${row('file', 'Status', active ? 'Active' : 'Inactive', active ? 't-success' : 't-danger')}
   `;
 }
 
-(async function run() {
-  if (!receiptKey && !memberKey) {
-    renderNotFound('Is link mein koi receipt ya member number nahi mila.', 'Invalid Link');
-    return;
-  }
+async function lookup(rKey, mKey) {
+  document.getElementById('pageTitle').textContent = mKey ? 'Verify membership' : 'Verify receipt';
+  show('ok');
+  resultBox.classList.remove('is-bad');
+  sealBox.innerHTML = '<div class="spinner" style="color:var(--navy-800);"></div>';
+  stateTitle.textContent = 'Checking…'; stateTitle.style.color = '';
+  stateSub.textContent = 'Ek pal ruko, hum record verify kar rahe hain.';
+  details.innerHTML = '';
+  againBtn.hidden = true;
   try {
-    if (memberKey) {
-      const snap = await getDoc(doc(db, 'membersPublic', memberKey));
+    if (mKey) {
+      const snap = await getDoc(doc(db, 'membersPublic', mKey));
       if (snap.exists()) renderMember(snap.data());
       else renderNotFound('Yeh membership hamare record mein nahi mili.', 'Membership Not Found');
       return;
     }
-    const snap = await getDoc(doc(db, 'receiptsPublic', receiptKey));
+    const snap = await getDoc(doc(db, 'receiptsPublic', rKey));
     if (snap.exists()) renderVerified(snap.data());
     else renderNotFound();
   } catch (e) {
     console.error(e);
     renderNotFound('Verification service abhi available nahi hai. Baad mein try karein.', 'Verification Unavailable');
   }
-})();
+}
+
+/* The box takes either the full link printed on the receipt / card QR, or just
+   the code at the end of it. (The receipt NUMBER alone is deliberately not
+   enough: records are looked up by an unguessable token so nobody can walk
+   them one number at a time.) */
+function parseCode(raw) {
+  const t = String(raw || '').trim();
+  if (!t) return null;
+  try {
+    const u = new URL(t, location.href);
+    const m = u.searchParams.get('m') || u.searchParams.get('member');
+    const r = u.searchParams.get('r') || u.searchParams.get('receipt');
+    if (m) return { m }; if (r) return { r };
+  } catch (e) { /* not a URL — treat as a bare code */ }
+  return /^[A-Za-z0-9_-]{8,}$/.test(t) ? { r: t } : null;
+}
+form.addEventListener('submit', (e) => {
+  e.preventDefault();
+  const k = parseCode(codeInput.value);
+  if (!k) { errBox.textContent = 'Please paste the full link or the code from the receipt.'; errBox.hidden = false; codeInput.focus(); return; }
+  errBox.hidden = true;
+  lookup(k.r, k.m);
+});
+
+if (receiptKey || memberKey) lookup(receiptKey, memberKey);
+else { form.hidden = false; }
 </script>
 </body>
 </html>

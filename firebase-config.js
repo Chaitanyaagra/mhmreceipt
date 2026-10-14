@@ -46,7 +46,7 @@ const SOCIETY = {
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
 import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app-check.js";
 import { getAuth, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
-import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
+import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager, terminate, clearIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 import { getStorage } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-storage.js";
 
 export const app = initializeApp(firebaseConfig);
@@ -114,6 +114,23 @@ export const db = (() => {
   }
 })();
 export const storage = getStorage(app);
+
+/* v209 — shared-phone privacy. Firestore keeps a copy of everything it has read in this browser's IndexedDB so
+   the app works offline; after someone signs out, the NEXT person on the same phone must not be able to find
+   the previous resident's records in it. Call this right after signOut() and then reload the page (the
+   database handle is shut down here, so the page must start afresh). It never throws and never waits more
+   than ~2.5 s, so a stuck cleanup can not trap anyone on a logout screen. Per-user drafts that are keyed to
+   a uid (inspection drafts, file-cleanup queues) are left alone on purpose — only the signed-out person's
+   own login brings them back. */
+export async function wipeDeviceTraces() {
+  try { localStorage.removeItem('mhmrws_reg_draft'); } catch (e) { /* storage blocked: nothing to clear */ }
+  try {
+    await Promise.race([
+      (async () => { await terminate(db); await clearIndexedDbPersistence(db); })(),
+      new Promise((resolve) => setTimeout(resolve, 2500))
+    ]);
+  } catch (e) { /* another tab still holds the cache, or persistence was never on: nothing more to do */ }
+}
 export { GOOGLE_OAUTH_CLIENT_ID, SOCIETY, firebaseConfig };
 
 setPersistence(auth, browserLocalPersistence).catch(() => {/* falls back to session persistence silently */});

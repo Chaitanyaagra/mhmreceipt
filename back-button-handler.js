@@ -52,6 +52,37 @@
     return closed;
   }
 
+  // In-page links such as <a href="#about"> ("About", "Login / Register" on the public site) are NOT a back
+  // press. Browsers can still fire popstate for them, which used to show "Press back again to exit" and stack
+  // extra history entries. Handle them in place: scroll there, update the hash WITHOUT adding a history entry.
+  document.addEventListener('click', (e) => {
+    if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    const a = e.target.closest && e.target.closest('a[href^="#"]');
+    if (!a || a.target === '_blank') return;
+    const href = a.getAttribute('href');
+    if (href === '#' || href.length < 2) return;      // placeholders ("#") are handled by the page itself
+    let id;
+    try { id = decodeURIComponent(href.slice(1)); } catch (_) { return; }
+    const target = document.getElementById(id) || (id === 'top' ? document.body : null);
+    if (!target) return;
+    e.preventDefault();
+    const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (id === 'top') window.scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' });
+    else target.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+    try { history.replaceState(history.state, '', '#' + encodeURIComponent(id)); } catch (_) {}
+    // Keyboard / screen-reader users land on the section they chose.
+    try {
+      if (id !== 'top') {
+        if (!target.hasAttribute('tabindex') && !/^(A|BUTTON|INPUT|SELECT|TEXTAREA)$/.test(target.tagName)) target.setAttribute('tabindex', '-1');
+        target.focus({ preventScroll: true });
+      }
+    } catch (_) {}
+  });
+
+  // Safety net for anything that changes location.hash from script: that is not a back press either.
+  let hashChangedAt = 0;
+  window.addEventListener('hashchange', () => { hashChangedAt = Date.now(); });
+
   let lastBackAt = 0;
   function pushTrap() {
     try { history.pushState({ __trap: true }, ''); } catch (_) {}
@@ -61,6 +92,7 @@
   window.addEventListener('load', () => { pushTrap(); });
 
   window.addEventListener('popstate', () => {
+    if (Date.now() - hashChangedAt < 150) return;   // a fragment (#section) navigation, not Back
     // 1) A modal open? Close it and re-arm. Never exits.
     if (closeTopOpenModal() || closeOtherOverlays()) {
       pushTrap();

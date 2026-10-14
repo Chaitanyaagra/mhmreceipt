@@ -47,8 +47,18 @@
   // upload, a payment/inspection submit) that this shared file has no
   // other way to know about — checked alongside the rest, not a
   // replacement for it.
+  // v208: a form field edited in the last 3 minutes counts as "mid-something" even when focus has moved to a
+  // button or dropdown — otherwise a reload could wipe a half-filled admin / guard form. Time-limited on purpose,
+  // so a form someone abandoned can never hold an update back forever.
+  let lastEditAt = 0;
+  document.addEventListener('input', (e) => {
+    const t = e.target;
+    if (t && t.closest && t.closest('form, .modal, .modal-sheet, .g-sheet') && !(t.type && ['search', 'checkbox', 'radio'].includes(t.type))) lastEditAt = Date.now();
+  }, true);
+  document.addEventListener('submit', () => { lastEditAt = 0; }, true);
   function isMidSomething() {
     if (window.__appBusy) return true;
+    if (lastEditAt && Date.now() - lastEditAt < 180000) return true;
     if (document.querySelector('.modal-backdrop.open')) return true;
     const el = document.activeElement;
     if (!el) return false;

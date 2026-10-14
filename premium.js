@@ -126,3 +126,39 @@ if (typeof window !== 'undefined') {
   window.__successHTML = successHTML;
   window.__hideAppLoader = hideAppLoader;
 }
+
+/* ---- Sliding tab pill ------------------------------------------------------
+   The gold "you are here" highlight in the bottom tab bar glides from the old
+   tab to the new one instead of jumping. It is one absolutely-positioned
+   element moved with transform only. Nothing else about the tabs changes, and
+   if this never runs (reduced motion, old browser) the tab's own highlight
+   simply stays as before — `has-pill` is what hides it, and it is added only
+   once the pill is actually in place. */
+export function initTabPill(nav) {
+  try {
+    if (REDUCED || !nav || nav.dataset.pill) return;
+    const ul = nav.querySelector('ul');
+    if (!ul || typeof ResizeObserver === 'undefined') return;
+    nav.dataset.pill = '1';
+    ul.classList.add('tab-pill-host');
+    const pill = document.createElement('i');
+    pill.className = 'tab-pill';
+    pill.setAttribute('aria-hidden', 'true');
+    ul.prepend(pill);
+    const place = (animate) => {
+      const a = ul.querySelector('a.active');
+      const r = a && a.getBoundingClientRect();
+      if (!r || !r.width) { pill.style.opacity = '0'; nav.classList.remove('has-pill'); return; }
+      const u = ul.getBoundingClientRect();
+      pill.style.transition = animate ? '' : 'none';
+      pill.style.width = r.width + 'px';
+      pill.style.height = r.height + 'px';
+      pill.style.transform = 'translate(' + (r.left - u.left) + 'px,' + (r.top - u.top) + 'px)';
+      pill.style.opacity = '1';
+      nav.classList.add('has-pill');
+    };
+    place(false);
+    new MutationObserver(() => place(true)).observe(ul, { subtree: true, attributes: true, attributeFilter: ['class'] });
+    new ResizeObserver(() => place(false)).observe(ul);
+  } catch (e) { /* purely cosmetic — never break the app over it */ }
+}

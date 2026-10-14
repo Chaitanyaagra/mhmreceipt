@@ -21,6 +21,7 @@
 <script>try{if(localStorage.getItem('mhmrws-text-size')==='large')document.documentElement.dataset.textSize='large';}catch(e){}</script>
 <meta name="theme-color" content="#0A1B33">
 <link rel="icon" href="favicon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="manifest" href="manifest-staff.json">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -74,6 +75,9 @@
   .chk-btn{ padding:9px 14px; min-height:42px; min-width:52px; border-radius:12px; font-size:13px; font-weight:700; border:1.5px solid #D9D3C6; background:#fff; color:var(--ink-500); }
   .chk-btn.ok-on{ background:var(--success-bg); color:var(--success); border-color:var(--success-line); }
   .chk-btn.issue-on{ background:var(--danger-bg); color:var(--danger); border-color:var(--danger-line); }
+  .chk-btn.na-on{ background:#EEF0F4; color:#3D4A63; border-color:#9AA4B8; }
+  .chk-nc{ display:block; margin-top:3px; font-size:11.5px; font-weight:700; color:#6B7488; letter-spacing:.02em; }
+  .chk-warn{ margin:10px 0 0; padding:10px 12px; border-radius:12px; background:#FFF4DC; border:1px solid #E8C77A; color:#6B4A00; font-size:13px; line-height:1.4; }
   .chk-note{ padding:0 14px 10px; }
   .chk-note input{ width:100%; font-size:12px; padding:7px 10px; border-radius:7px; border:1px solid var(--line); }
   .cx-row{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:12px 14px; margin-bottom:8px; }
@@ -235,7 +239,7 @@ installAutoLabels();
 </script>
 
 <script type="module">
-import { auth, db, storage } from './firebase-config.js';
+import { auth, db, storage, wipeDeviceTraces } from './firebase-config.js';
 import {
   signInWithEmailAndPassword, onAuthStateChanged, signOut
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
@@ -245,7 +249,7 @@ import {
 import {
   ref as storageRef, uploadBytes, getDownloadURL, deleteObject
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-storage.js";
-import { showToast, escapeHtml, fmtDate, fmtDateTime, TOWER_IDS, TOWER_PLAN, INSPECTION_TYPES, INSPECTION_SCHEDULE, INSPECTION_CRITICAL_ITEMS, DEFECT_TAG_OPTIONS, inspectionSectionToComplaintCategory, STAFF_TRADES, dateToLocalISO, todayLocalISO, complaintUrgency, COMPLAINT_SLA_HOURS, icon, emptyState, getTextSize, setTextSize } from './app-common.js?v=189';
+import { showToast, escapeHtml, fmtDate, fmtDateTime, TOWER_IDS, TOWER_PLAN, INSPECTION_TYPES, INSPECTION_SCHEDULE, INSPECTION_CRITICAL_ITEMS, DEFECT_TAG_OPTIONS, inspectionSectionToComplaintCategory, STAFF_TRADES, dateToLocalISO, todayLocalISO, complaintUrgency, COMPLAINT_SLA_HOURS, icon, emptyState, getTextSize, setTextSize } from './app-common.js?v=212';
 import { installAppInstallPrompt } from './install-prompt.js';
 
 window.__moduleBooted = true; { var __bg = document.getElementById('bootGuard'); if (__bg) __bg.remove(); }
@@ -354,7 +358,11 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
     btn.disabled = false;
   }
 });
-document.getElementById('logoutBtn').addEventListener('click', () => signOut(auth));
+document.getElementById('logoutBtn').addEventListener('click', async () => {
+  try { await signOut(auth); } catch (e) { console.warn('Sign-out failed:', e); }
+  await wipeDeviceTraces();   // shared-device privacy: drop the cached copy of this session's records
+  location.reload();
+});
 // Larger-text switch ("Aa"): remembered on this device.
 (() => {
   const b = document.getElementById('textSizeBtn');
@@ -832,7 +840,7 @@ function startInspection(formType) {
       items: sec.items.map(label => ({ label, status: null, note: '', priority: INSPECTION_CRITICAL_ITEMS.has(label) ? 'high' : 'medium' }))
     }));
   }
-  draft = { formType, tower: null, sections, needsTower: formType === 'daily-tower', verifiedBy: '', signatureDataUrl: null, inspectionDate: dateToLocalISO(new Date()) };
+  draft = { formType, tower: null, sections, needsTower: formType === 'daily-tower', verifiedBy: '', signatureDataUrl: null, inspectionDate: todayLocalISO() };
   if (formType === 'weekly-mep') {
     draft.tankData = {};
     draft.tankPhotos = {};
@@ -860,6 +868,13 @@ function renderChecklist() {
   const totalItems = draft.sections.reduce((s, sec) => s + sec.items.length, 0);
   const doneItems = draft.sections.reduce((s, sec) => s + sec.items.filter(i => i.status).length, 0);
   const issueCount = draft.sections.reduce((s, sec) => s + sec.items.filter(i => i.status === 'issue').length, 0);
+  const tankNotChecked = draft.tankData ? Object.values(draft.tankData).reduce((n, checks) => n + checks.filter((v) => v === null).length, 0) : 0;
+  const notCheckedNow = (totalItems - doneItems) + tankNotChecked;
+  // Progress bar: glides from where it was on the previous draw to where it is now
+  // (the panel is re-drawn on every tap, so the previous value is remembered here).
+  const progNow = totalItems ? doneItems / totalItems : 0;
+  const progFrom = typeof window.__chkProg === 'number' ? window.__chkProg : 0;
+  window.__chkProg = progNow;
 
   el.innerHTML = `
     <div class="card card-pad" style="margin-bottom:12px;">
@@ -870,7 +885,8 @@ function renderChecklist() {
           <label for="inspTower">Tower</label>
           <select id="inspTower">${TOWER_IDS.filter(t => isSlotAvailableToMe('daily-tower', t)).map(t => `<option value="${escapeHtml(t)}" ${draft.tower === t ? 'selected' : ''}>${escapeHtml(t)}</option>`).join('')}</select>
         </div>` : ''}
-      <div class="t-muted" style="font-size:12.5px; margin-top:8px;">${doneItems}/${totalItems} checked${issueCount ? ' · ' + issueCount + ' issue' + (issueCount > 1 ? 's' : '') + ' flagged' : ''}</div>
+      <div class="t-muted" style="font-size:12.5px; margin-top:8px;">${doneItems}/${totalItems} checked${notCheckedNow ? ' · ' + notCheckedNow + ' not checked' : ''}${issueCount ? ' · ' + issueCount + ' issue' + (issueCount > 1 ? 's' : '') + ' flagged' : ''}</div>
+      <div class="chk-prog${issueCount ? ' has-issue' : ''}" role="progressbar" aria-label="Checklist progress" aria-valuemin="0" aria-valuemax="${totalItems}" aria-valuenow="${doneItems}"><i style="--to:${progNow.toFixed(4)}; --from:${progFrom.toFixed(4)}"></i></div>
     </div>
     ${draft.sections.map((sec, si) => `
       <div class="chk-section">
@@ -878,10 +894,11 @@ function renderChecklist() {
         ${sec.items.map((it, ii) => `
           <div>
             <div class="chk-row">
-              <span class="chk-label">${escapeHtml(it.label)}</span>
+              <span class="chk-label">${escapeHtml(it.label)}${it.status ? '' : '<span class="chk-nc">Not checked</span>'}</span>
               <span class="chk-toggle">
                 <button type="button" class="chk-btn ${it.status === 'ok' ? 'ok-on' : ''}" data-mark="${si}:${ii}:ok">OK</button>
                 <button type="button" class="chk-btn ${it.status === 'issue' ? 'issue-on' : ''}" data-mark="${si}:${ii}:issue">Issue</button>
+                <button type="button" class="chk-btn ${it.status === 'na' ? 'na-on' : ''}" data-mark="${si}:${ii}:na" title="Not applicable — this check does not apply here" aria-label="Not applicable">N/A</button>
               </span>
             </div>
             ${it.status === 'issue' ? `
@@ -962,6 +979,7 @@ function renderChecklist() {
         <button type="button" class="btn btn-outline btn-sm" id="sigClearBtn" style="margin-top:6px;">Clear Signature</button>
       </div>
     </div>
+    ${notCheckedNow ? `<div class="chk-warn" role="status"><b>${notCheckedNow} item${notCheckedNow > 1 ? 's are' : ' is'} still Not checked.</b> They will be saved as <i>not checked</i> — never as OK. Mark OK, Issue or N/A, or submit anyway.</div>` : ''}
     <button class="btn btn-primary" style="width:100%; margin-top:8px;" id="submitInspBtn" ${inspectionSubmitInFlight ? 'disabled' : ''}>${inspectionSubmitInFlight ? 'Submitting…' : 'Submit Inspection' + (issueCount ? ' (' + issueCount + ' issue' + (issueCount > 1 ? 's' : '') + ' will be logged as complaints)' : '')}</button>
   `;
   const towerSel = document.getElementById('inspTower');
@@ -988,8 +1006,8 @@ function renderChecklist() {
   el.querySelectorAll('[data-mark]').forEach(b => b.onclick = () => {
     const [si, ii, status] = b.dataset.mark.split(':');
     const it = draft.sections[si].items[ii];
-    it.status = status;
-    if (status !== 'issue') { it.photoFile = null; it.photoURL = null; it.tags = []; }
+    it.status = it.status === status ? null : status;   // tapping the chosen answer again puts it back to Not checked
+    if (it.status !== 'issue') { it.photoFile = null; it.photoURL = null; it.tags = []; }
     renderChecklist();
   });
   el.querySelectorAll('[data-note]').forEach(inp => inp.addEventListener('input', () => {
@@ -1140,7 +1158,7 @@ async function submitInspection() {
   const allItems = draft.sections.flatMap(sec => sec.items.map(it => ({ ...it, section: sec.title })));
   const tankUnchecked = draft.tankData ? Object.values(draft.tankData).reduce((sum, checks) => sum + checks.filter((v) => v === null).length, 0) : 0;
   const unchecked = allItems.filter(it => !it.status).length + tankUnchecked;
-  if (unchecked > 0 && !confirm(unchecked + ' item(s) not marked yet. Submit anyway?')) return;
+  if (unchecked > 0 && !confirm(unchecked + ' item(s) are still NOT CHECKED and will be saved as not checked (not as OK). Submit anyway?')) return;
   const missingRequiredPhoto = allItems.find(it => it.status === 'issue' && it.priority === 'high' && !it.photoFile && !it.photoURL);
   if (missingRequiredPhoto) { showToast(`"${missingRequiredPhoto.label}" is a critical item marked Issue — please attach a photo before submitting.`, 'error'); return; }
   if (draft.formType === 'weekly-mep' && draft.tankData) {

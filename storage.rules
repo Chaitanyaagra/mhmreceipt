@@ -165,6 +165,23 @@ service firebase.storage {
     // /documents/{uid}/ rule above with uid="public". That happens to be
     // harmless today, but two rules governing one file is the kind of thing
     // that turns into a leak the next time someone edits them.
+    // v209 — files for the other two document audiences. A download link carries its own secret token, so the
+    // real protection is that the record pointing at the file (Firestore documents / committeeDocuments) is
+    // not listable by the wrong audience; these read rules keep direct path access closed as well.
+    match /memberDocs/{fileName} {
+      allow read: if isSignedIn();
+      allow create, update: if isAdmin()
+                   && request.resource.size < 20 * 1024 * 1024
+                   && isImageOrPdf();
+      allow delete: if isAdmin();
+    }
+    match /committeeDocs/{fileName} {
+      allow read: if isAdmin();
+      allow create, update: if isAdmin()
+                   && request.resource.size < 20 * 1024 * 1024
+                   && isImageOrPdf();
+      allow delete: if isAdmin();
+    }
     match /publicDocs/{fileName} {
       allow read: if true;
       allow create, update: if isAdmin()

@@ -272,6 +272,21 @@ export function installAutoLabels(root = document) {
       const n = nameFor(el);
       if (n) el.setAttribute('aria-label', n);
     });
+    // v208: glyph-only buttons (✕ / × / ← / ☰) are announced as the symbol itself. Name them from
+    // the dialog they belong to, e.g. "Close Payment details", so a screen reader says what they do.
+    root.querySelectorAll('button:not([aria-label]):not([aria-labelledby])').forEach((b) => {
+      const g = (b.textContent || '').replace(/\s+/g, '');
+      if (!g || g.length > 2 || /[A-Za-z0-9\u0900-\u097F]/.test(g.replace(/^[xX]$/, ''))) return;
+      let name = '';
+      if (/^[✕✖×xX✗⨯]$/.test(g)) {
+        const box = b.closest('.modal, .modal-sheet, [role=dialog], .g-sheet, .modal-backdrop');
+        const h = box && box.querySelector('h1,h2,h3');
+        const t = h ? clean(h.textContent).slice(0, 60) : '';
+        name = t ? `Close ${t}` : 'Close';
+      } else if (/^[←‹<]$/.test(g)) name = 'Back';
+      else if (/^[☰≡]$/.test(g)) name = 'Menu';
+      if (name) { b.setAttribute('aria-label', name); if (!b.title) b.title = name; }
+    });
     // A table that scrolls sideways must be reachable from the keyboard too.
     root.querySelectorAll('.table-wrap:not([tabindex])').forEach((w) => w.setAttribute('tabindex', '0'));
   }
@@ -320,4 +335,61 @@ export function installCountUp() {
   };
   new MutationObserver((muts) => { for (const mu of muts) mu.addedNodes.forEach(scan); })
     .observe(document.body, { childList: true, subtree: true });
+}
+
+
+/* v210 — the "Try again" button on a failed-to-load state (see emptyState in app-common.js). */
+if (typeof document !== 'undefined') {
+  document.addEventListener('click', (e) => { if (e.target.closest && e.target.closest('[data-empty-reload]')) location.reload(); });
+}
+
+
+/* v210 — wrong phone clock. Timestamps the app stores come from the SERVER, but a few date fields (the
+   inspection date, "today" limits on bookings) are read from the phone. If the phone is days off, those would be
+   wrong, so: measure the difference once from the web server's own Date header (a tiny HEAD request that is
+   skipped offline), use the corrected "now" for those fields, and tell the person plainly to fix the clock. */
+if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+  window.__clockSkewMs = 0;
+  window.__serverNow = () => new Date(Date.now() + (window.__clockSkewMs || 0));
+  const SKEW_LIMIT_MS = 10 * 60 * 1000;
+  const human = (ms) => {
+    const m = Math.round(Math.abs(ms) / 60000);
+    if (m >= 2 * 24 * 60) return `${Math.round(m / 1440)} days`;
+    if (m >= 120) return `${Math.round(m / 60)} hours`;
+    return `${m} minutes`;
+  };
+  window.__checkClock = async function checkClock() {
+    try {
+      if (navigator.onLine === false) return null;
+      const t0 = Date.now();
+      const r = await fetch('./manifest.json', { method: 'HEAD', cache: 'no-store' });
+      const t1 = Date.now();
+      const hdr = r.headers.get('date');
+      if (!hdr) return null;
+      const server = new Date(hdr).getTime();
+      if (!Number.isFinite(server)) return null;
+      const skew = server - (t0 + t1) / 2;          // positive: the phone is BEHIND the server
+      window.__clockSkewMs = Math.abs(skew) > SKEW_LIMIT_MS ? skew : 0;
+      if (Math.abs(skew) > SKEW_LIMIT_MS && !document.getElementById('clockSkewBanner')) {
+        const b = document.createElement('div');
+        b.id = 'clockSkewBanner'; b.setAttribute('role', 'alert');
+        b.style.cssText = 'position:fixed;left:10px;right:10px;top:10px;z-index:9998;background:#FFF4DC;color:#5E3F00;border:1px solid #E8C77A;border-radius:14px;padding:12px 14px;font:600 13.5px/1.4 system-ui,sans-serif;display:flex;gap:10px;align-items:flex-start;box-shadow:0 8px 24px rgba(0,0,0,.18)';
+        b.innerHTML = `<span style="flex:1;">Your phone's date or time looks ${skew > 0 ? 'behind' : 'ahead'} by about ${human(skew)}. Please correct it in your phone's Settings — the app uses the server's time for records, and dates you pick may otherwise be wrong.</span><button type="button" aria-label="Dismiss the date warning" style="border:0;background:transparent;font-size:18px;line-height:1;color:#5E3F00;padding:2px 6px;">&#10005;</button>`;
+        b.querySelector('button').addEventListener('click', () => b.remove());
+        const fix = document.createElement('button');
+        fix.type = 'button'; fix.textContent = 'Fix';
+        fix.style.cssText = 'border:1px solid #5E3F00;background:#5E3F00;color:#FFF4DC;border-radius:10px;font:700 13px/1 system-ui,sans-serif;padding:8px 12px;min-height:36px;';
+        fix.addEventListener('click', () => {
+          const t = b.querySelector('span');
+          t.textContent = "Open your phone's Settings → Date & time, and switch on \"Set automatically\" (and the time zone). Then come back and reload this page.";
+          fix.textContent = 'Reload'; fix.onclick = () => location.reload();
+        });
+        b.insertBefore(fix, b.querySelector('button'));
+        document.body.appendChild(b);
+      }
+      return skew;
+    } catch (e) { return null; }
+  };
+  const start = () => setTimeout(() => window.__checkClock(), 2500);
+  if (document.readyState === 'complete') start(); else window.addEventListener('load', start, { once: true });
 }

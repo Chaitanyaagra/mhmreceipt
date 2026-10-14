@@ -171,8 +171,14 @@ export function complaintUrgency(c) {
  * Validates a payment before submission.
  * @returns {string|null} an error message, or null when the payment is valid.
  */
+/** A typed amount must look like an amount: digits with an optional decimal part. Number() alone would accept
+ *  "0x10" (16), "1e3" (1000) or a blank (0) as if the person had meant them. */
+function plainAmount(raw) {
+  if (typeof raw === 'string') return /^\s*-?\d+(\.\d+)?\s*$/.test(raw) ? Number(raw) : NaN;
+  return typeof raw === 'number' ? raw : NaN;
+}
 export function validatePayment({ amount, mode, utr, isOffline }) {
-  const amt = Number(amount);
+  const amt = plainAmount(amount);
   if (!Number.isFinite(amt)) return 'Amount must be a valid number.';
   if (amt < LIMITS.amountMin) return 'Amount must be at least ₹1.';
   if (amt > LIMITS.amountMax) return `Amount cannot exceed ₹${LIMITS.amountMax.toLocaleString('en-IN')}. Please contact the office for amounts this large.`;
@@ -293,6 +299,10 @@ export function expectedDue(member, financialYear, maintenanceSettings) {
   return Number.isFinite(Number(amount)) ? Number(amount) : 0;
 }
 
+/** Money is added in paise: ₹100.10 + ₹200.20 must be ₹300.30, not 300.30000000000004, or a ledger and the
+ *  receipt for the same payment can disagree by a paisa. */
+export function round2(n) { const x = Number(n); return Number.isFinite(x) ? Math.round(x * 100) / 100 : 0; }
+
 /** Total verified payments by one member for a financial year. */
 export function paidSoFar(payments, memberUid, financialYear) {
   return (payments || [])
@@ -307,7 +317,7 @@ export function paidSoFar(payments, memberUid, financialYear) {
               // field and is maintenance by the same convention used when
               // writing new payments elsewhere in the app.
               && (!p.type || p.type === 'maintenance'))
-    .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+    .reduce((sum, p) => round2(sum + (Number(p.amount) || 0)), 0);
 }
 
 /**
@@ -331,7 +341,7 @@ export function duesFor(member, payments, financialYear, maintenanceSettings) {
   }
   const expected = expectedDue(member, financialYear, maintenanceSettings);
   const paid = paidSoFar(payments, member?.uid, financialYear);
-  const outstanding = Math.max(0, expected - paid);
+  const outstanding = Math.max(0, round2(expected - paid));
   let status;
   if (expected === 0) status = 'no_rate';
   else if (paid === 0) status = 'unpaid';
@@ -619,11 +629,12 @@ export function treasurerDashboardStats(payments, expenses) {
 
 /** Validates an expense before it is written. Mirrors the security rules. */
 export function validateExpense({ description, amount, category, mode, paidTo }) {
-  const amt = Number(amount);
+  const amt = plainAmount(amount);
   if (!String(description || '').trim()) return 'Expense description is required.';
   if (String(description).length > 200) return 'Description is too long.';
   if (!Number.isFinite(amt) || amt <= 0) return 'Please enter a valid amount.';
   if (amt > 10000000) return 'Amount cannot exceed ₹1,00,00,000.';
+  if (Math.abs(Math.round(amt * 100) - amt * 100) > 1e-6) return 'Amount cannot have more than two decimal places.';
   if (!EXPENSE_CATEGORIES.includes(category)) return 'Invalid category.';
   if (!EXPENSE_MODES.includes(mode)) return 'Invalid payment mode.';
   if (String(paidTo || '').length > 120) return 'Paid To name is too long.';
@@ -634,7 +645,7 @@ export function validateExpense({ description, amount, category, mode, paidTo })
 /*  Formatting                                                             */
 /* ---------------------------------------------------------------------- */
 export function formatINR(amount) {
-  const n = Number(amount) || 0;
+  const n = Number.isFinite(Number(amount)) ? Number(amount) : 0;
   // Whole-rupee amounts (the overwhelming majority) show with no decimals,
   // same as before — but an amount that actually carries paise (validation
   // allows up to 2 decimal places) must not get silently rounded away on
@@ -644,13 +655,21 @@ export function formatINR(amount) {
 }
 
 export function numberToWordsINR(amount) {
-  let num = Math.round(Number(amount) || 0);
-  if (num === 0) return 'Zero Rupees Only';
+  // Paise are spoken, not rounded away: ₹500.50 is "Five Hundred Rupees and Fifty Paise Only" — a receipt for
+  // 500.50 must not read as 500 (or, at .50 and above, 501).
+  const total = round2(amount);
+  const sign = total < 0 ? 'Minus ' : '';
+  const abs = Math.abs(total);
+  let num = Math.floor(abs + 1e-9);
+  const paise = Math.round((abs - num) * 100);
   const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten',
     'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
   const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
   const two = (n) => (n < 20 ? ones[n] : tens[Math.floor(n / 10)] + (n % 10 ? ' ' + ones[n % 10] : ''));
   const three = (n) => (n < 100 ? two(n) : ones[Math.floor(n / 100)] + ' Hundred' + (n % 100 ? ' ' + two(n % 100) : ''));
+  const rupees = num;
+  // Beyond 999 crore the word tables run out; show the figure instead of printing "undefined".
+  if (num >= 10000000000) return `${sign}${num.toLocaleString('en-IN')} Rupees${paise ? ' and ' + two(paise) + (paise === 1 ? ' Paisa' : ' Paise') : ''} Only`;
   const crore = Math.floor(num / 10000000); num %= 10000000;
   const lakh = Math.floor(num / 100000); num %= 100000;
   const thousand = Math.floor(num / 1000); num %= 1000;
@@ -662,8 +681,10 @@ export function numberToWordsINR(amount) {
   if (hundred) parts.push(three(hundred));
   // "One Rupee Only", not "One Rupees Only" — this line is printed on every
   // receipt, so the grammar is worth getting right.
-  const unit = (Math.round(Number(amount) || 0) === 1) ? 'Rupee' : 'Rupees';
-  return parts.join(' ') + ` ${unit} Only`;
+  const unit = rupees === 1 ? 'Rupee' : 'Rupees';
+  const paiseWords = paise ? two(paise) + (paise === 1 ? ' Paisa' : ' Paise') : '';
+  if (rupees === 0) return paise ? `${sign}${paiseWords} Only` : 'Zero Rupees Only';
+  return `${sign}${parts.join(' ')} ${unit}${paise ? ' and ' + paiseWords : ''} Only`;
 }
 
 export function fmtDate(ts) {
@@ -1136,6 +1157,7 @@ export function downloadFileName(title, url, mimeType) {
 export function inspectionStatusMark(status) {
   if (status === 'ok' || status === true) return 'OK';
   if (status === 'issue' || status === false) return 'ISSUE';
+  if (status === 'na') return 'N/A';
   return 'NOT CHECKED';
 }
 
@@ -1160,7 +1182,7 @@ export function shortRef(id) {
 /*  "Report a problem" — context that makes a report actionable              */
 /* ---------------------------------------------------------------------- */
 // Keep in step with CACHE_NAME in sw.js (a test checks they match).
-export const APP_VERSION = 'v189';
+export const APP_VERSION = 'v212';
 
 const __recentErrors = [];
 function __noteError(text) {
@@ -1286,11 +1308,14 @@ export function scorableComplaints(list) {
  *  performance used to count `sections` only, so a weekly inspection with
  *  every tank check skipped could still show 100% checked. */
 export function inspectionItemCounts(record) {
-  let ok = 0, issue = 0, unchecked = 0;
+  // v210: `na` = "Not applicable" (a deliberate answer, e.g. no lift in this tower). It is neither OK nor
+  // unchecked, so it must not inflate the OK count or make a finished checklist look incomplete.
+  let ok = 0, issue = 0, unchecked = 0, na = 0;
   for (const sec of (record?.sections || [])) {
     for (const it of (sec?.items || [])) {
       if (it?.status === 'ok') ok++;
       else if (it?.status === 'issue') issue++;
+      else if (it?.status === 'na') na++;
       else unchecked++;
     }
   }
@@ -1303,7 +1328,7 @@ export function inspectionItemCounts(record) {
       }
     }
   }
-  return { ok, issue, unchecked };
+  return { ok, issue, unchecked, na };
 }
 
 // Calendar date as YYYY-MM-DD in the DEVICE's own local timezone.
@@ -1320,7 +1345,8 @@ export function dateToLocalISO(d) {
   return `${y}-${m}-${day}`;
 }
 export function todayLocalISO() {
-  return dateToLocalISO(new Date());
+  // v210: when the phone's clock is far off, ui-a11y.js measures the gap against the server and exposes the corrected "now".
+  return dateToLocalISO((typeof window !== 'undefined' && typeof window.__serverNow === 'function') ? window.__serverNow() : new Date());
 }
 
 export function flatClaimId(tower, flatNumber, residentType) {
@@ -1827,7 +1853,78 @@ export function receiptIdentity(payment, member) {
   };
 }
 
-export async function generateReceiptPDF({ payment, member, society, logoDataUrl, save = true }) {
+/* v210 — resident ledger for one financial year.
+   Rows run oldest → newest with a running balance (positive = still due, negative = paid in advance):
+     opening balance carried from earlier years → this year's demand → every payment.
+   Only VERIFIED maintenance payments move the balance. Pending / voided / rejected ones are listed too, greyed and
+   marked "not counted", so a resident can see where a payment is instead of wondering. The opening balance only
+   looks at earlier years that had a rate set AND that ended after the resident joined — the society never billed
+   anyone for years before their membership. */
+export function buildLedger(member, payments, financialYear, maintenanceSettings) {
+  const startYear = parseInt(String(financialYear).split('-')[0], 10);
+  const fyLabel = (y) => `${y}-${String(y + 1).slice(-2)}`;
+  const isMaint = (p) => !p.type || p.type === 'maintenance';
+  const mine = (payments || []).filter((p) => isMaint(p) && (!p.memberUid || !member?.uid || p.memberUid === member.uid));
+  const joined = tsMillis(member?.createdAt || member?.approvedAt);
+  let opening = 0;
+  const priorYears = Object.keys(maintenanceSettings?.rates || {}).map((k) => parseInt(k.split('-')[0], 10)).filter((y) => y < startYear).sort((a, b) => a - b);
+  for (const y of priorYears) {
+    const fy = fyLabel(y);
+    if (joined && new Date(y + 1, 2, 31, 23, 59, 59).getTime() < joined) continue;   // ended before they joined
+    const exp = expectedDue(member, fy, maintenanceSettings);
+    const paid = mine.filter((p) => p.status === 'verified' && p.financialYear === fy).reduce((a, p) => round2(a + (Number(p.amount) || 0)), 0);
+    opening = round2(opening + exp - paid);
+  }
+  const demand = member?.maintenanceResponsible === false ? 0 : expectedDue(member, financialYear, maintenanceSettings);
+  const rows = [];
+  let bal = opening;
+  if (opening !== 0) rows.push({ kind: 'opening', date: new Date(startYear, 3, 1), label: opening > 0 ? 'Opening balance — carried forward from earlier years' : 'Opening advance — carried forward from earlier years', debit: opening > 0 ? opening : 0, credit: opening < 0 ? -opening : 0, balance: bal });
+  if (demand > 0) { bal = round2(bal + demand); rows.push({ kind: 'demand', date: new Date(startYear, 3, 1), label: `Yearly maintenance — FY ${financialYear}`, debit: demand, credit: 0, balance: bal }); }
+  const when = (p) => tsMillis(p.verifiedAt || p.submittedAt || p.createdAt);
+  const inYear = mine.filter((p) => p.financialYear === financialYear).sort((a, b) => when(a) - when(b));
+  for (const p of inYear) {
+    const date = when(p) ? new Date(when(p)) : null;
+    const ref = p.receiptNumber || p.utrOrChequeNo || '';
+    if (p.status === 'verified') {
+      bal = round2(bal - (Number(p.amount) || 0));
+      rows.push({ kind: 'payment', date, label: `Payment received${p.mode ? ' (' + String(p.mode).toUpperCase() + ')' : ''}`, ref, debit: 0, credit: Number(p.amount) || 0, balance: bal });
+    } else if (['pending', 'rejected', 'voided'].includes(p.status)) {
+      const why = p.status === 'pending' ? 'Pending verification' : p.status === 'rejected' ? 'Rejected' : 'Voided';
+      rows.push({ kind: 'info', date, label: `${why} — not counted${p.status === 'pending' ? ' yet' : ''}`, ref, debit: 0, credit: 0, amountShown: Number(p.amount) || 0, balance: null });
+    }
+  }
+  const closing = bal;
+  return { financialYear, rows, opening, demand, closing,
+    paid: round2(inYear.filter((p) => p.status === 'verified').reduce((a, p) => a + (Number(p.amount) || 0), 0)),
+    state: closing > 0 ? 'due' : closing < 0 ? 'advance' : (demand > 0 || opening !== 0 ? 'cleared' : 'no_rate') };
+}
+
+/* v209 — what a receipt is FOR and where the account stands after it.
+   Maintenance here is one yearly amount per flat (not monthly), so the useful facts are: which fee/year this
+   payment went to, and — for maintenance — the yearly charge, the total verified up to and including this
+   payment, and the balance or advance that leaves. Computed from the payments already on screen; nothing stored. */
+export function receiptPosition(payment, member, payments, maintenanceSettings) {
+  const type = payment?.type || 'maintenance';
+  const forWhat = type === 'membership' ? 'Membership fee (one-time)'
+    : type === 'event' ? (payment?.eventName || 'Event fee')
+    : `Maintenance · FY ${payment?.financialYear || '—'}`;
+  if (type !== 'maintenance' || member?.maintenanceResponsible === false) return { forWhat };
+  const expected = expectedDue(member, payment.financialYear, maintenanceSettings);
+  if (!(expected > 0)) return { forWhat };
+  const cut = tsMillis(payment.verifiedAt || payment.submittedAt);
+  const paid = (payments || [])
+    .filter((p) => p.status === 'verified' && p.financialYear === payment.financialYear
+      && (!p.type || p.type === 'maintenance')
+      && (!p.memberUid || !payment.memberUid || p.memberUid === payment.memberUid)
+      && tsMillis(p.verifiedAt || p.submittedAt) <= cut)
+    .reduce((sum, p) => round2(sum + (Number(p.amount) || 0)), 0);
+  const balance = Math.max(0, round2(expected - paid)), advance = Math.max(0, round2(paid - expected));
+  const summary = advance > 0 ? `Advance ${formatINR(advance)}` : balance > 0 ? `Balance due ${formatINR(balance)}` : 'Fully paid — nothing due';
+  return { forWhat, expected, paid, balance, advance, summary,
+    detail: `Yearly maintenance ${formatINR(expected)}; paid up to this receipt ${formatINR(paid)}.` };
+}
+
+export async function generateReceiptPDF({ payment, member, society, logoDataUrl, save = true, position = null }) {
   await loadScript('./jspdf.umd.min.js');
   const { jsPDF } = window.jspdf;
   const pdf = new jsPDF({ unit: 'pt', format: 'a4' });
@@ -1891,6 +1988,11 @@ export async function generateReceiptPDF({ payment, member, society, logoDataUrl
   y += rowGap * 2;
   kv('Payment Mode', (payment.mode || '').toUpperCase(), marginX, y);
   kv('Transaction / UTR No.', payment.utrOrChequeNo || '—', col2X, y);
+  if (position && position.forWhat) {
+    y += rowGap * 2;
+    kv('Paid For', position.forWhat, marginX, y);
+    if (position.summary) kv('Account after this payment', position.summary, col2X, y);
+  }
   y += rowGap * 2.4;
 
   pdf.setDrawColor(201, 162, 39);
@@ -1924,6 +2026,7 @@ export async function generateReceiptPDF({ payment, member, society, logoDataUrl
   pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8.5); pdf.setTextColor(124, 135, 156);
   pdf.text('This is a system-generated receipt from the MHMRWS Digital Portal.', marginX, y);
   pdf.text(`Verify anytime at: ${verifyUrlFor(payment)}`, marginX, y + 13);
+  if (position && position.detail) pdf.text(position.detail, marginX, y + 26);
 
   if (save) {
     deliverPdf(pdf, `Receipt-${payment.receiptNumber}.pdf`);
@@ -1941,6 +2044,81 @@ export async function generateReceiptPDF({ payment, member, society, logoDataUrl
 /*  total, in the same navy-and-gold identity as the receipt, and paginates */
 /*  automatically once a year has more rows than fit on a page.             */
 /* ---------------------------------------------------------------------- */
+/* v210 — the ledger as a PDF: same navy header as the receipt, one table, running balance. */
+export async function generateLedgerPDF({ ledger, member, society, logoDataUrl, save = true }) {
+  await loadScript('./jspdf.umd.min.js');
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({ unit: 'pt', format: 'a4' });
+  await enableUnicodeText(pdf);
+  const W = pdf.internal.pageSize.getWidth(), H = pdf.internal.pageSize.getHeight();
+  const mx = 40;
+  const header = async () => {
+    pdf.setFillColor(10, 27, 51); pdf.rect(0, 0, W, 84, 'F');
+    if (logoDataUrl) {
+      try {
+        const seal = await sealOnWhiteDisc(logoDataUrl);
+        if (seal) { pdf.setFillColor(255, 255, 255); pdf.circle(mx + 22, 42, 23, 'F'); pdf.addImage(seal, 'JPEG', mx + 22 - 21.5, 42 - 21.5, 43, 43); }
+      } catch (e) { /* ledger is still valid without the seal */ }
+    }
+    pdf.setTextColor(255, 255, 255); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(12);
+    pdf.text(society.fullName || 'Resident Welfare Society', mx + 56, 40, { maxWidth: W - mx * 2 - 160 });
+    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9.5);
+    pdf.text(`Reg. No: ${society.regNumber || '—'}`, mx + 56, 56);
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(11);
+    pdf.text('MAINTENANCE LEDGER', W - mx, 40, { align: 'right' });
+    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9.5);
+    pdf.text(`FY ${ledger.financialYear}`, W - mx, 56, { align: 'right' });
+  };
+  await header();
+  const who = receiptIdentity({}, member);
+  let y = 112;
+  pdf.setTextColor(16, 25, 43); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(12);
+  pdf.text(String(who.name || '—'), mx, y);
+  pdf.setFont('helvetica', 'normal'); pdf.setFontSize(10); pdf.setTextColor(90, 100, 120);
+  pdf.text(`Tower ${who.tower || '—'} · Flat ${who.flatNumber || '—'}   |   Member ID ${who.memberID || '—'}`, mx, y + 15);
+  pdf.text(`Statement date: ${fmtDate(new Date())}`, W - mx, y + 15, { align: 'right' });
+  y += 40;
+  const cols = { date: mx, label: mx + 66, ref: mx + 258, debit: W - mx - 130, credit: W - mx - 66, bal: W - mx };
+  const head = () => {
+    pdf.setFillColor(237, 241, 248); pdf.rect(mx - 6, y - 12, W - mx * 2 + 12, 20, 'F');
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(8.5); pdf.setTextColor(60, 72, 96);
+    pdf.text('DATE', cols.date, y); pdf.text('DETAILS', cols.label, y); pdf.text('REF', cols.ref, y);
+    pdf.text('DEBIT', cols.debit, y, { align: 'right' }); pdf.text('CREDIT', cols.credit, y, { align: 'right' }); pdf.text('BALANCE', cols.bal, y, { align: 'right' });
+    y += 20;
+  };
+  head();
+  const money = (n) => formatINR(n).replace('₹', 'Rs. ');
+  const balText = (n) => n === null ? '' : (n > 0 ? `${money(n)} due` : n < 0 ? `${money(-n)} adv.` : 'Rs. 0');
+  for (const r of ledger.rows) {
+    const lines = pdf.splitTextToSize(r.label, 180);
+    const rowH = Math.max(18, lines.length * 11 + 6);
+    if (y + rowH > H - 90) { pdf.addPage(); await header(); y = 112; head(); }
+    const grey = r.kind === 'info';
+    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9); pdf.setTextColor(grey ? 140 : 16, grey ? 148 : 25, grey ? 165 : 43);
+    pdf.text(r.date ? fmtDate(r.date) : '—', cols.date, y);
+    pdf.text(lines, cols.label, y);
+    pdf.text(String(r.ref || '').slice(0, 22), cols.ref, y);
+    if (grey) pdf.text(`(${money(r.amountShown)})`, cols.credit, y, { align: 'right' });
+    else {
+      if (r.debit) pdf.text(money(r.debit), cols.debit, y, { align: 'right' });
+      if (r.credit) pdf.text(money(r.credit), cols.credit, y, { align: 'right' });
+      pdf.text(balText(r.balance), cols.bal, y, { align: 'right' });
+    }
+    pdf.setDrawColor(226, 230, 239); pdf.setLineWidth(0.5); pdf.line(mx - 6, y + rowH - 12, W - mx + 6, y + rowH - 12);
+    y += rowH;
+  }
+  if (y + 60 > H - 60) { pdf.addPage(); await header(); y = 112; }
+  y += 6;
+  pdf.setFillColor(10, 27, 51); pdf.roundedRect(mx - 6, y - 6, W - mx * 2 + 12, 34, 6, 6, 'F');
+  pdf.setTextColor(255, 255, 255); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(11);
+  const closeText = ledger.state === 'due' ? `Closing balance: ${money(ledger.closing)} DUE` : ledger.state === 'advance' ? `Closing balance: ${money(-ledger.closing)} PAID IN ADVANCE` : 'Closing balance: Rs. 0 — fully paid';
+  pdf.text(closeText, mx + 8, y + 15);
+  pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8); pdf.setTextColor(124, 135, 156);
+  pdf.text('System-generated from verified payment records of the MHMRWS Digital Portal. Pending, rejected and voided entries are shown in grey and are not counted.', mx, y + 48, { maxWidth: W - mx * 2 });
+  if (save) { deliverPdf(pdf, `Ledger-FY${ledger.financialYear}.pdf`); return null; }
+  return pdf.output('blob');
+}
+
 export async function generateStatementPDF({ payments, member, society, financialYear, logoDataUrl, save = true }) {
   await loadScript('./jspdf.umd.min.js');
   const { jsPDF } = window.jspdf;
@@ -2271,12 +2449,17 @@ export function emptyState(heading, detail = '', { compact = false, icon: iconNa
     <path d="M8.5 12.2l2.4 2.4 4.6-4.8" fill="none" stroke="var(--gold-700)" stroke-width="1.4"
       stroke-linecap="round" stroke-linejoin="round"/></svg>`;
   // v171: a friendly "nothing here yet" names what will appear and, where it makes sense, offers the first step.
+  // v210: "could not load" must never look like "there is nothing here" — it gets its own warning icon, colour and
+  // a Try again button, so someone on a bad connection does not conclude their records are gone.
+  const failed = /^(could not|couldn.t|failed|unable)/i.test(String(heading));
+  if (failed) { iconName = 'warn'; }
   const art = iconName && ICON_NAMES.includes(iconName)
-    ? `<div class="empty-art" aria-hidden="true">${icon(iconName)}</div>` : seal;
+    ? `<div class="empty-art${failed ? ' empty-art-fail' : ''}" aria-hidden="true">${icon(iconName)}</div>` : seal;
   const btn = action && action.label && action.click
     ? `<button type="button" class="btn btn-outline btn-sm empty-cta" data-empty-click="${escapeHtml(action.click)}">${escapeHtml(action.label)}</button>` : '';
-  return `<div class="empty${compact ? ' empty-sm' : ''}">${art}
-    <h4>${escapeHtml(heading)}</h4>${detail ? `<p>${escapeHtml(detail)}</p>` : ''}${btn}</div>`;
+  const retry = failed && !btn ? `<button type="button" class="btn btn-outline btn-sm empty-cta" data-empty-reload>Try again</button>` : '';
+  return `<div class="empty${compact ? ' empty-sm' : ''}${failed ? ' empty-fail' : ''}"${failed ? ' role="alert"' : ''}>${art}
+    <h4>${escapeHtml(heading)}</h4>${detail ? `<p>${escapeHtml(detail)}</p>` : ''}${btn}${retry}</div>`;
 }
 
 /* Mark a form field as invalid with a message directly beneath it. Expects the
@@ -2429,7 +2612,7 @@ export function serializeForExport(rows) {
 /*  Uses whatever paper size the person's print dialog/printer offers, so  */
 /*  this is what actually covers A4 / Half-A4 / 3" thermal in practice.    */
 /* ---------------------------------------------------------------------- */
-export async function printReceipt({ payment, member, society, logoDataUrl }) {
+export async function printReceipt({ payment, member, society, logoDataUrl, position = null }) {
   let qrImg = '';
   try { qrImg = await generateQR(verifyUrlFor(payment), 200); } catch (e) {/* print still works without the QR */}
 
@@ -2455,6 +2638,8 @@ export async function printReceipt({ payment, member, society, logoDataUrl }) {
         <div><b>Financial Year</b>${escapeHtml(payment.financialYear || '—')}</div>
         <div><b>Payment Mode</b>${escapeHtml((payment.mode || '').toUpperCase())}</div>
         <div><b>Transaction / UTR No.</b>${escapeHtml(payment.utrOrChequeNo || '—')}</div>
+        ${position && position.forWhat ? `<div><b>Paid For</b>${escapeHtml(position.forWhat)}</div>` : ''}
+        ${position && position.summary ? `<div><b>Account after this payment</b>${escapeHtml(position.summary)}</div>` : ''}
       </div>
       <div class="pr-amount">
         <div>
@@ -2466,7 +2651,7 @@ export async function printReceipt({ payment, member, society, logoDataUrl }) {
       </div>
       <div class="pr-foot">
         This is a system-generated receipt from the MHMRWS Digital Portal.<br>
-        Verify anytime at: ${escapeHtml(verifyUrlFor(payment))}
+        Verify anytime at: ${escapeHtml(verifyUrlFor(payment))}${position && position.detail ? `<br>${escapeHtml(position.detail)}` : ''}
       </div>
     </div>
   `;
@@ -3380,6 +3565,58 @@ export function profileCompleteness(member) {
   return { pct: Math.round((done / items.length) * 100), missing: items.filter(i => !i.done) };
 }
 
+/** Stable id of a family-member entry for the committee's "verified" list. Editing the name or relation changes it,
+ *  so a resident cannot keep a verified badge after swapping in a different person. */
+export function familyKey(fm) {
+  const n = String(fm?.name || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  const r = String(fm?.relation || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  return `${n}|${r}`.slice(0, 120);
+}
+/** "6:30 PM" from "18:30" (the value of an <input type=time>). Empty / invalid -> ''. */
+export function fmtClock(t) {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(String(t || '').trim());
+  if (!m) return '';
+  const h = Number(m[1]), mi = m[2];
+  if (h > 23 || Number(mi) > 59) return '';
+  return `${h % 12 || 12}:${mi} ${h < 12 ? 'AM' : 'PM'}`;
+}
+/** "6:30 PM – 8:30 PM" / "6:30 PM" / '' for a calendar event. */
+export function eventTimeText(c) {
+  const a = fmtClock(c?.startTime), b = fmtClock(c?.endTime);
+  return a && b ? `${a} – ${b}` : a;
+}
+/** A one-event .ics file (RFC 5545) for "Add to Calendar". Timed events use floating local time, so the phone shows
+ *  them at the clock time the society printed; events with no time become all-day. Returns '' for a bad date. */
+export function buildEventICS(c, now = new Date()) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(c?.date || ''));
+  if (!m) return '';
+  const esc = (v) => String(v || '').replace(/\\/g, '\\\\').replace(/\r?\n/g, '\\n').replace(/([,;])/g, '\\$1');
+  const ymd = m[1] + m[2] + m[3];
+  const hm = (t) => { const x = /^(\d{1,2}):(\d{2})$/.exec(String(t || '')); return x ? String(x[1]).padStart(2, '0') + x[2] + '00' : ''; };
+  const st = hm(c.startTime);
+  let en = hm(c.endTime);
+  const stamp = now.toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '');
+  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//MHMRWS//Resident Portal//EN', 'CALSCALE:GREGORIAN', 'BEGIN:VEVENT',
+    `UID:${ymd}-${esc(String(c.title || 'event').toLowerCase().replace(/[^a-z0-9]+/g, '-')).slice(0, 40)}@mhmrws.org`, `DTSTAMP:${stamp}`];
+  if (st) {
+    if (!en || en <= st) en = String(Math.min(23, Number(st.slice(0, 2)) + 1)).padStart(2, '0') + st.slice(2);   // default: one hour
+    lines.push(`DTSTART:${ymd}T${st}`, `DTEND:${ymd}T${en}`);
+  } else {
+    const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3] + 1));
+    lines.push(`DTSTART;VALUE=DATE:${ymd}`, `DTEND;VALUE=DATE:${d.toISOString().slice(0, 10).replace(/-/g, '')}`);
+  }
+  lines.push(`SUMMARY:${esc(c.title)}`);
+  if (c.venue) lines.push(`LOCATION:${esc(c.venue)}`);
+  if (c.description) lines.push(`DESCRIPTION:${esc(c.description)}`);
+  lines.push('END:VEVENT', 'END:VCALENDAR');
+  return lines.join('\r\n') + '\r\n';
+}
+/** The short pass number shown to a resident for a guest they announced: G-YYMMDD-XXXX. */
+export function guestPassId(g) {
+  const d = String(g?.expectedDate || '').replace(/-/g, '').slice(2);
+  const tail = String(g?.id || '').replace(/[^A-Za-z0-9]/g, '').slice(-4).toUpperCase();
+  return d.length === 6 && tail ? `G-${d}-${tail}` : '';
+}
 export function petVaccinationStatus(pet) {
   if (!pet.nextVaccinationDue) return { status: 'unknown', daysUntil: null };
   const due = new Date(pet.nextVaccinationDue);
@@ -3636,6 +3873,7 @@ const ICON_SHAPES = {
   lift: '<rect class="u" x="5.5" y="3.5" width="13" height="17" rx="1.5"/><rect x="5.5" y="3.5" width="13" height="17" rx="1.5"/><path d="M12 3.5v17M8 9.8l1.4-1.8 1.4 1.8M13.2 14.2l1.4 1.8 1.4-1.8"/>',
   drop: '<path class="u" d="M12 3.5s6 6.2 6 10.5a6 6 0 0 1-12 0c0-4.3 6-10.5 6-10.5z"/><path d="M12 3.5s6 6.2 6 10.5a6 6 0 0 1-12 0c0-4.3 6-10.5 6-10.5zM9 14a3 3 0 0 0 2.2 2.8"/>',
   bolt: '<path class="u" d="M13.5 3.5L5.5 13.5h5.5l-1 7 8-10h-5.5z"/><path d="M13.5 3.5L5.5 13.5h5.5l-1 7 8-10h-5.5z"/>',
+  warn: '<path class="u" d="M12 3.8L21 19.5H3z"/><path d="M12 3.8L21 19.5H3z"/><path d="M12 10v4.2M12 16.9v.1"/>',
   check: '<circle class="u" cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="9"/><path d="M8 12.3l2.8 2.8 5.4-5.6"/>',
   clock: '<circle class="u" cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="9"/><path d="M12 7.2V12l3.2 2"/>',
   mail: '<rect class="u" x="3.5" y="5.5" width="17" height="13" rx="2.5"/><rect x="3.5" y="5.5" width="17" height="13" rx="2.5"/><path d="M4.5 7.5l7.5 5.5 7.5-5.5"/>',
@@ -3656,12 +3894,53 @@ const ICON_SHAPES = {
   alert: '<path class="u" d="M12 4l9 15.5H3z"/><path d="M12 4l9 15.5H3zM12 10v4M12 17h.01"/>'
 };
 
+/* v191 — two-tone line icons (from the Canva icon sheet): the main outline stays in the text colour and ONE
+   detail of each icon (the door, the tick, the clapper, the arrow…) takes the accent line colour --duo-line.
+   Where --duo-line is not set it is simply the text colour, so nothing changes outside the tinted tiles.
+   Rules: n = the n-th drawing element of the icon; { el, sub } = only those sub-paths (split at each "M") of
+   element el are accent. Indices count every element, including the soft "u" fills. */
+const ICON_ACCENT = {
+  home: [3], rupee: [2], chat: [2], grid: [4], bell: [2],
+  building: [{ el: 1, sub: [3, 4, 5] }], user: [3], file: [{ el: 1, sub: [2, 3] }], shield: [{ el: 1, sub: [1] }],
+  door: [2], car: [2], paw: [2, 3, 4, 5], users: [4, 5], calendar: [{ el: 1, sub: [4] }],
+  idcard: [{ el: 3, sub: [1, 2] }], bulb: [{ el: 1, sub: [1, 2] }], chart: [4], receipt: [2],
+  download: [{ el: 1, sub: [0, 1] }], share: [{ el: 1, sub: [0, 1] }], qr: [4], globe: [2],
+  logout: [{ el: 1, sub: [1, 2] }], siren: [{ el: 1, sub: [2, 3, 4] }], lift: [2], drop: [{ el: 1, sub: [1] }],
+  check: [2], clock: [2], mail: [2], eye: [2], lock: [{ el: 2, sub: [1] }], unlock: [{ el: 2, sub: [1] }],
+  search: [2], gear: [2], archive: [{ el: 2, sub: [1] }], pin: [2], edit: [{ el: 1, sub: [1] }],
+  trash: [{ el: 1, sub: [1, 2] }], alert: [{ el: 1, sub: [1, 2] }]
+};
+/** Marks the accent parts of one icon with class="a". Exported for the tests. */
+export function accentIconShapes(name, shapes) {
+  const rules = ICON_ACCENT[name];
+  if (!rules) return shapes;
+  const els = shapes.match(/<(?:path|circle|rect)\b[^>]*\/>/g) || [];
+  let out = shapes;
+  const replaced = new Map();
+  rules.forEach((r) => {
+    const idx = typeof r === 'number' ? r : r.el;
+    const el = els[idx];
+    if (!el || el.includes('class="u"')) return;
+    if (typeof r === 'number') { replaced.set(idx, el.replace(/^<(\w+)/, '<$1 class="a"')); return; }
+    const m = el.match(/^<path d="([^"]*)"([^>]*)\/>$/);
+    if (!m) return;
+    const parts = m[1].split(/(?=M)/);
+    const keep = parts.filter((_, i) => !r.sub.includes(i)).join('');
+    const acc = parts.filter((_, i) => r.sub.includes(i)).join('');
+    replaced.set(idx, (keep ? `<path d="${keep}"${m[2]}/>` : '') + (acc ? `<path class="a" d="${acc}"${m[2]}/>` : ''));
+  });
+  // replace by position, one element at a time, so identical strings elsewhere are never touched
+  let i = 0;
+  out = shapes.replace(/<(?:path|circle|rect)\b[^>]*\/>/g, (e) => { const k = i++; return replaced.has(k) ? replaced.get(k) : e; });
+  return out;
+}
+
 export const ICON_NAMES = Object.keys(ICON_SHAPES);
 
 /** The <symbol> sprite as markup (ids are ic-<name>). */
 export function iconSpriteMarkup() {
   const sym = ICON_NAMES.map((n) =>
-    `<symbol id="ic-${n}" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${ICON_SHAPES[n].replace(/class="u"/g, 'style="fill:var(--duo,#FFC978);stroke:none"')}</g></symbol>`
+    `<symbol id="ic-${n}" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${accentIconShapes(n, ICON_SHAPES[n]).replace(/class="u"/g, 'style="fill:var(--duo,#FFC978);stroke:none"').replace(/class="a"/g, 'style="stroke:var(--duo-line,currentColor)"')}</g></symbol>`
   ).join('');
   return `<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>${sym}</defs></svg>`;
 }
@@ -4028,7 +4307,7 @@ export function guestsForGate(rows, todayISO, search = '') {
   const q = String(search || '').trim().toLowerCase();
   return (rows || [])
     .filter((g) => g && g.status === 'expected' && g.expectedDate === todayISO)
-    .filter((g) => !q || `${g.guestName} ${g.tower} ${g.flatNumber} ${g.tower}-${g.flatNumber} ${g.residentName || ''}`.toLowerCase().includes(q))
+    .filter((g) => !q || `${g.guestName} ${g.tower} ${g.flatNumber} ${g.tower}-${g.flatNumber} ${g.residentName || ''} ${guestPassId(g)}`.toLowerCase().includes(q))
     .sort((a, b) => String(a.tower).localeCompare(String(b.tower)) || String(a.flatNumber).localeCompare(String(b.flatNumber), undefined, { numeric: true }) || String(a.guestName).localeCompare(String(b.guestName)));
 }
 /** The visitors/ fields for letting an announced guest in (timestamps are added by the caller). */
@@ -4060,11 +4339,20 @@ export function meTooLabel(n) {
 }
 
 /* ---- v172: neighbours directory (opt-in) -------------------------------------------- */
-export function directoryEntryFor(member, { showMobile = false } = {}) {
-  return {
-    name: String(member?.name ?? ''), tower: String(member?.tower ?? ''), flatNumber: String(member?.flatNumber ?? ''),
+export const DIRECTORY_TAGS = { family: 'Family', pet: 'Pet Parent', senior: 'Senior Citizen' };
+/** The resident's own listing. Defaults stay as before (name, tower, flat, no mobile); the extra keys are written only when
+ *  the resident chose them: hideFlat (tower and flat are blanked, not just visually hidden) and tags (self-declared). */
+export function directoryEntryFor(member, { showMobile = false, hideFlat = false, tags = [] } = {}) {
+  const e = {
+    name: String(member?.name ?? ''),
+    tower: hideFlat ? '' : String(member?.tower ?? ''),
+    flatNumber: hideFlat ? '' : String(member?.flatNumber ?? ''),
     mobile: showMobile ? String(member?.mobile ?? '') : ''
   };
+  if (hideFlat) e.hideFlat = true;
+  const t = [...new Set((Array.isArray(tags) ? tags : []).filter((k) => Object.prototype.hasOwnProperty.call(DIRECTORY_TAGS, k)))];
+  if (t.length) e.tags = t;
+  return e;
 }
 export function filterDirectory(rows, search = '') {
   const q = String(search || '').trim().toLowerCase().replace(/\s+/g, ' ');

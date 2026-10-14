@@ -1073,7 +1073,12 @@ service cloud.firestore {
                       // impersonating a staff-filed one.
                       && request.resource.data.keys().hasOnly(
                            ['raisedByUid', 'raisedByName', 'tower', 'flatNumber', 'category', 'location',
-                            'title', 'description', 'photoURL', 'status', 'createdAt', 'updatedAt'])
+                            'title', 'description', 'photoURL', 'photoURLs', 'urgency', 'status', 'createdAt', 'updatedAt'])
+                      // How urgent the RESIDENT says it is (the committee's own 'priority' stays admin-only),
+                      // and up to five photos — the first is also kept in photoURL.
+                      && (!('urgency' in request.resource.data) || request.resource.data.urgency in ['low', 'medium', 'high'])
+                      && (!('photoURLs' in request.resource.data)
+                          || (request.resource.data.photoURLs is list && request.resource.data.photoURLs.size() <= 5))
                     ) || (
                       isStaff()
                       && request.resource.data.raisedByUid == request.auth.uid
@@ -1873,8 +1878,27 @@ service cloud.firestore {
     // Bylaws, AGM minutes, audited accounts. Deliberately world-readable:
     // these are the documents residents would otherwise have to collect from
     // the office, and several are things a prospective buyer may also ask for.
+    // v209 — document audience. Each record carries audience: 'public' | 'residents'.
+    //   public    → anyone, no login (also every record written before audiences existed — status quo)
+    //   residents → approved members and admins only
+    // A client that is not an approved member must therefore ask for audience == 'public' explicitly
+    // (a query has to be provably allowed by the rule); the resident app falls back to exactly that.
+    // Committee-only papers are NOT in this collection at all — see committeeDocuments below.
     match /documents/{docId} {
-      allow read: if true;
+      allow read: if resource.data.get('audience', 'public') == 'public'
+                  || isApprovedMember()
+                  || isAdmin();
+      allow create, update: if canApproveMembers()
+                            && isNonEmptyString(request.resource.data.title, 120)
+                            && isNonEmptyString(request.resource.data.url, 2000)
+                            && request.resource.data.get('audience', 'public') in ['public', 'residents'];
+      allow delete: if canApproveMembers();
+    }
+
+    // v209 — internal letters, minutes and notes: committee (admins) only. Kept in a separate collection so
+    // a mistake in the audience dropdown can never make one of these publicly listable.
+    match /committeeDocuments/{docId} {
+      allow read: if isAdmin();
       allow create, update: if canApproveMembers()
                             && isNonEmptyString(request.resource.data.title, 120)
                             && isNonEmptyString(request.resource.data.url, 2000);
@@ -2102,6 +2126,21 @@ service cloud.firestore {
                     && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'adminNote', 'updatedAt'])
                     && request.resource.data.status in ['submitted', 'under_review', 'considered', 'declined'];
       allow delete: if isAdmin();
+    }
+
+    // ---- Family verification (Canva "Verified" chip) ------------------------------
+    // The committee ticks off family members it has actually checked. The list lives in
+    // its own document — NOT inside members/{uid} — because a resident may edit their own
+    // member document, and could otherwise mark themselves verified. Each entry is a
+    // familyKey() string (name|relation), so renaming a member un-verifies them.
+    match /familyVerifications/{uid} {
+      allow read: if isAdmin() || (isSignedIn() && request.auth.uid == uid);
+      allow create, update: if canApproveMembers()
+                    && request.resource.data.keys().hasOnly(['keys', 'updatedAt', 'updatedBy'])
+                    && request.resource.data.keys is list
+                    && request.resource.data.keys.size() <= 30
+                    && request.resource.data.updatedBy == request.auth.uid;
+      allow delete: if canApproveMembers();
     }
 
     // ---- Problem reports ("Report a problem" button in the resident app) ---------
@@ -2393,10 +2432,19 @@ service cloud.firestore {
                           || exists(/databases/$(database)/documents/directory/$(request.auth.uid))));
       allow create, update: if isApprovedMember()
                     && dirUid == request.auth.uid
-                    && request.resource.data.keys().hasOnly(['name', 'tower', 'flatNumber', 'mobile', 'updatedAt'])
+                    && request.resource.data.keys().hasOnly(['name', 'tower', 'flatNumber', 'mobile', 'hideFlat', 'tags', 'updatedAt'])
                     && request.resource.data.name == get(/databases/$(database)/documents/members/$(request.auth.uid)).data.name
-                    && request.resource.data.tower == get(/databases/$(database)/documents/members/$(request.auth.uid)).data.tower
-                    && request.resource.data.flatNumber == get(/databases/$(database)/documents/members/$(request.auth.uid)).data.flatNumber
+                    // v202: a resident may hide their tower and flat (both blank, hideFlat true); otherwise they must be their own.
+                    && ((request.resource.data.tower == get(/databases/$(database)/documents/members/$(request.auth.uid)).data.tower
+                         && request.resource.data.flatNumber == get(/databases/$(database)/documents/members/$(request.auth.uid)).data.flatNumber
+                         && !('hideFlat' in request.resource.data))
+                        || (request.resource.data.get('hideFlat', false) == true
+                            && request.resource.data.tower == '' && request.resource.data.flatNumber == ''))
+                    // v202: optional self-declared tags, from a fixed list.
+                    && (!('tags' in request.resource.data)
+                        || (request.resource.data.tags is list
+                            && request.resource.data.tags.size() <= 3
+                            && request.resource.data.tags.hasOnly(['family', 'pet', 'senior'])))
                     && (request.resource.data.mobile == null
                         || request.resource.data.mobile == ''
                         || request.resource.data.mobile == get(/databases/$(database)/documents/members/$(request.auth.uid)).data.mobile)
