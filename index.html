@@ -71,7 +71,7 @@
      Firebase SDK files it imports. (A module's imports are otherwise only discovered once the
      module itself has arrived, one slow round trip after another.) The URLs must match the
      imports exactly — the ?v= below is the release number the tests keep in step. -->
-<link rel="modulepreload" fetchpriority="low" href="./app-common.js?v=212">
+<link rel="modulepreload" fetchpriority="low" href="./app-common.js?v=213">
 <link rel="modulepreload" fetchpriority="low" href="./firebase-config.js">
 <link rel="modulepreload" fetchpriority="low" href="https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js">
 <link rel="modulepreload" fetchpriority="low" href="https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js">
@@ -1865,6 +1865,20 @@ body.logged-in:not([data-view="home"]) .geo-brand-t{ padding:4px 9px; max-width:
   </div>
 </div>
 
+<!-- Payment option popup: tapping UPI / Bank Transfer / Cash / Cheque opens ONLY that option's details here,
+     so the Make a Payment page stays short and nobody has to scroll to find them. -->
+<div class="modal-backdrop no-print" id="payModeBackdrop">
+  <div class="modal pay-mode-sheet" role="dialog" aria-modal="true" aria-labelledby="payModeTitle">
+    <div class="pms-handle" aria-hidden="true"></div>
+    <div class="pms-head">
+      <img src="logo.webp" alt="" width="36" height="36" class="pms-seal">
+      <h3 id="payModeTitle">Pay</h3>
+      <button type="button" class="icon-btn pms-close" id="closePayMode" aria-label="Close">✕</button>
+    </div>
+    <div class="pms-body" id="payDetailForm"></div>
+  </div>
+</div>
+
 <!-- Success celebration modal — shown with an animated tick + confetti after a
      successful registration or payment. Auto-closes; also closable manually. -->
 <!-- Shown just before a registration is sent: a wrong tower/flat is the most
@@ -2536,7 +2550,7 @@ import {
   initFamilyMembersEditor, addFamilyMemberRow, collectFamilyMembers,
   initVehiclesEditor, addVehicleRow, collectVehicles,
   initPetsEditor, addPetCard, collectPets, petVaccinationStatus, familyKey, DIRECTORY_TAGS, eventTimeText, buildEventICS, guestPassId, profileCompleteness, flatClaimId, findBlockingFlatClaim, generatePetId, rentAgreementStatus, flatKey, INSPECTION_TYPES, todayLocalISO
-} from './app-common.js?v=212';
+} from './app-common.js?v=213';
 import { installAppInstallPrompt } from './install-prompt.js';
 
 // The "install this app" prompt runs from here (not the branding block above)
@@ -4985,6 +4999,7 @@ function debounceReload(fn, ms = 600) {
 function isOwnActionInProgress() {
   return document.getElementById('successModalBackdrop')?.classList.contains('open')
       || document.getElementById('paymentModalBackdrop')?.classList.contains('open')
+      || document.getElementById('payModeBackdrop')?.classList.contains('open')
       || document.getElementById('complaintModalBackdrop')?.classList.contains('open')
       || document.getElementById('bookingModalBackdrop')?.classList.contains('open');
 }
@@ -7307,14 +7322,15 @@ async function openPaymentModal() {
     ${eventsHtml}
     ${nothingPayable ? `<p class="t-sub" style="font-size:13.5px; text-align:center; margin-top:10px;">Everything outstanding already has a payment submitted and awaiting verification.</p>` : `
     ${typeToggle}
-    <div class="pp-sec-h"><span class="pp-n">1</span>How are you paying?</div>
+    <div id="payAmountHolder"></div>
+    <div class="pp-sec-h pp-sec-pay">How are you paying?</div>
     <div class="pp-methods">
-    <div class="pay-option" data-mode="upi" role="button" tabindex="0"><svg viewBox="0 0 24 24"><use href="#ic-qr"/></svg><div><b>UPI / QR</b><div class="t-muted">Scan &amp; pay</div></div></div>
-    <div class="pay-option" data-mode="netbanking" role="button" tabindex="0"><svg viewBox="0 0 24 24"><use href="#i-bank"/></svg><div><b>Bank Transfer</b><div class="t-muted">NEFT / IMPS</div></div></div>
-    <div class="pay-option" data-mode="cash" role="button" tabindex="0"><svg viewBox="0 0 24 24"><use href="#i-cash"/></svg><div><b>Cash</b><div class="t-muted">At the office</div></div></div>
-    <div class="pay-option" data-mode="cheque" role="button" tabindex="0"><svg viewBox="0 0 24 24"><use href="#i-cheque"/></svg><div><b>Cheque</b><div class="t-muted">At the office</div></div></div>
+    <div class="pay-option" data-mode="upi" role="button" tabindex="0" aria-haspopup="dialog"><svg viewBox="0 0 24 24"><use href="#ic-qr"/></svg><div><b>UPI / QR</b><div class="t-muted">Scan &amp; pay</div></div></div>
+    <div class="pay-option" data-mode="netbanking" role="button" tabindex="0" aria-haspopup="dialog"><svg viewBox="0 0 24 24"><use href="#i-bank"/></svg><div><b>Bank Transfer</b><div class="t-muted">NEFT / IMPS</div></div></div>
+    <div class="pay-option" data-mode="cash" role="button" tabindex="0" aria-haspopup="dialog"><svg viewBox="0 0 24 24"><use href="#i-cash"/></svg><div><b>Cash</b><div class="t-muted">At the office</div></div></div>
+    <div class="pay-option" data-mode="cheque" role="button" tabindex="0" aria-haspopup="dialog"><svg viewBox="0 0 24 24"><use href="#i-cheque"/></svg><div><b>Cheque</b><div class="t-muted">At the office</div></div></div>
     </div>
-    <div id="payDetailForm"></div>`}
+    <p class="pp-tap-hint">Tap an option — its details open in a popup.</p>`}
   `;
   window.__translate(body);
   document.getElementById('paymentModalBackdrop').classList.add('open');
@@ -7349,27 +7365,92 @@ async function openPaymentModal() {
       payContext.eventId = tbtn.dataset.eventId || null;
       payContext.eventName = tbtn.dataset.eventName || null;
       payContext.eventFY = tbtn.dataset.eventFy || null;
-      // If a mode was already chosen, re-render the amount block for the new type.
-      const sel = body.querySelector('.pay-option.selected');
-      if (sel) renderPayDetailForm(sel.dataset.mode, paySettings, payContext);
+      renderAmountBlock(payContext);   // the amount block follows the chosen type
     });
   });
+  renderAmountBlock(payContext);
 
   body.querySelectorAll('.pay-option').forEach(opt => {
     opt.addEventListener('click', () => {
+      // The popup is only useful once there is an amount to pay: ask for it first, right where it is typed.
+      const amtEl = document.getElementById('payAmount');
+      if (!(Number(amtEl?.value) > 0)) {
+        const wrap = document.getElementById('amountFieldWrap');
+        if (wrap) wrap.style.display = 'block';
+        showToast('Enter the amount you want to pay first.', 'error');
+        amtEl?.focus();
+        return;
+      }
       body.querySelectorAll('.pay-option').forEach(o => o.classList.remove('selected'));
       opt.classList.add('selected');
       renderPayDetailForm(opt.dataset.mode, paySettings, payContext);
     });
     opt.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); opt.click(); } });
   });
-  // One page: everything (amount, how to pay, reference, proof, note) is already
-  // on screen when it opens — UPI is pre-selected, the other options are one tap away.
-  body.querySelector('.pay-option[data-mode="upi"]')?.click();
+  // Nothing is pre-selected: the page stays short, and the popup opens when a way to pay is tapped.
+}
+
+function renderAmountBlock(payContext) {
+  const holder = document.getElementById('payAmountHolder');
+  if (!holder) return;
+  const dues = { outstanding: payContext.outstanding };
+  const hasRate = payContext.hasRate;
+  window.__payType = payContext.type;   // read by submitPayment
+  window.__payEventId = payContext.eventId || null;
+  window.__payEventName = payContext.eventName || null;
+  window.__payEventFY = payContext.eventFY || null;
+  const showDue = dues.outstanding > 0 && payContext.type !== 'membership';
+  holder.innerHTML = `
+    <div class="pp-hero pp-hero-top"><span>Amount to Pay</span><b id="ppAmtShow">${dues.outstanding > 0 ? formatINR(dues.outstanding) : '₹ —'}</b></div>
+    <div class="amount-block">
+      ${showDue ? `
+        <div class="amount-presets">
+          <button type="button" class="amount-preset selected" data-preset="full" data-amt="${dues.outstanding}">
+            <div class="pa-top">Full amount due</div>
+            <div class="pa-amt">${formatINR(dues.outstanding)}</div>
+          </button>
+          <button type="button" class="amount-preset" data-preset="custom">
+            <div class="pa-top">Different amount</div>
+            <div class="pa-amt">Choose</div>
+          </button>
+        </div>
+      ` : ''}
+      <div class="field" id="amountFieldWrap"${showDue ? ' style="display:none;"' : ''}>
+        <label for="payAmount">Amount (₹)</label>
+        <input type="number" id="payAmount" min="1" required inputmode="numeric"
+               value="${dues.outstanding > 0 ? dues.outstanding : ''}"${payContext.type === 'membership' ? ' readonly style="background:var(--surface-2,#F3F4F7); cursor:not-allowed;"' : ''}>
+        ${payContext.type === 'membership'
+          ? `<div class="hint">The membership fee is a fixed one-time amount and can't be changed here.</div>`
+          : dues.outstanding > 0
+          ? `<div class="hint">You can pay less than the full amount due — the remainder will stay outstanding.</div>`
+          : (hasRate ? `<div class="hint">Maintenance is fully cleared for this year. You can pay in advance or make another payment.</div>` : '')}
+      </div>
+    </div>`;
+  // "Full amount due" locks the amount to the outstanding figure; "Different amount" reveals the
+  // editable field. Locking is the default so the common case — pay exactly what you owe — needs no typing.
+  const presets = holder.querySelectorAll('.amount-preset');
+  const amtWrap = document.getElementById('amountFieldWrap');
+  const amtInput = document.getElementById('payAmount');
+  const showAmt = () => { const el = document.getElementById('ppAmtShow'); const v = Number(amtInput.value); if (el) el.textContent = v > 0 ? formatINR(v) : '₹ —'; };
+  amtInput.addEventListener('input', showAmt);
+  presets.forEach(btn => btn.addEventListener('click', () => {
+    presets.forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    if (btn.dataset.preset === 'full') {
+      amtInput.value = btn.dataset.amt; showAmt();
+      amtWrap.style.display = 'none';
+    } else {
+      amtWrap.style.display = 'block';
+      amtInput.value = ''; showAmt();
+      amtInput.focus();
+    }
+  }));
+  window.__translate(holder);
 }
 
 function renderPayDetailForm(mode, paySettings, payContext) {
   const holder = document.getElementById('payDetailForm');
+  const backdrop = document.getElementById('payModeBackdrop');
   const isOffline = mode === 'cash' || mode === 'cheque';
   // payContext carries the type ('membership'|'maintenance') and its outstanding.
   const dues = { outstanding: payContext.outstanding };
@@ -7428,37 +7509,13 @@ function renderPayDetailForm(mode, paySettings, payContext) {
       <p class="t-sub" style="font-size:13.5px; margin:0 0 10px;">Please visit the RWA office with your ${mode}. After paying, upload a clear photo of the ${mode === 'cheque' ? 'cheque / receipt' : 'cash receipt'} below if you have one.</p>
       ${paySettings.officeAddress ? `<div class="pay-detail-box"><div class="pdl"><span>Office</span><span>${escapeHtml(paySettings.officeAddress)}</span></div></div>` : ''}
     </div>`;
-  const showDue = dues.outstanding > 0 && payContext.type !== 'membership';
+  const MODE_TITLES = { upi: 'Pay with UPI', netbanking: 'Pay by Bank Transfer', cash: 'Pay Cash at Office', cheque: 'Pay by Cheque' };
+  document.getElementById('payModeTitle').textContent = MODE_TITLES[mode] || 'Pay';
+  const typedAmt = Number(document.getElementById('payAmount')?.value) || 0;
   holder.innerHTML = `
-    <div class="pp-flow">
-      <div class="pp-hero"><span>Amount to Pay</span><b id="ppAmtShow">${dues.outstanding > 0 ? formatINR(dues.outstanding) : '₹ —'}</b></div>
-      <div class="amount-block">
-        ${showDue ? `
-          <div class="amount-presets">
-            <button type="button" class="amount-preset selected" data-preset="full" data-amt="${dues.outstanding}">
-              <div class="pa-top">Full amount due</div>
-              <div class="pa-amt">${formatINR(dues.outstanding)}</div>
-            </button>
-            <button type="button" class="amount-preset" data-preset="custom">
-              <div class="pa-top">Different amount</div>
-              <div class="pa-amt">Choose</div>
-            </button>
-          </div>
-        ` : ''}
-        <div class="field" id="amountFieldWrap"${showDue ? ' style="display:none;"' : ''}>
-          <label for="payAmount">Amount (₹)</label>
-          <input type="number" id="payAmount" min="1" required inputmode="numeric"
-                 value="${dues.outstanding > 0 ? dues.outstanding : ''}"${payContext.type === 'membership' ? ' readonly style="background:var(--surface-2,#F3F4F7); cursor:not-allowed;"' : ''}>
-          ${payContext.type === 'membership'
-            ? `<div class="hint">The membership fee is a fixed one-time amount and can't be changed here.</div>`
-            : dues.outstanding > 0
-            ? `<div class="hint">You can pay less than the full amount due — the remainder will stay outstanding.</div>`
-            : (hasRate ? `<div class="hint">Maintenance is fully cleared for this year. You can pay in advance or make another payment.</div>` : '')}
-        </div>
-      </div>
-      <div class="pp-sec-h"><span class="pp-n">2</span>${isOffline ? 'Where to pay' : 'Pay using any of these'}</div>
-      ${isOffline ? officeCard : upiCard + bankCard}
-      <div class="pp-sec-h"><span class="pp-n">3</span>${isOffline ? 'Receipt (optional)' : 'Payment details'}</div>
+    <div class="pp-flow pms-flow">
+      <div class="pms-amt"><span>Amount to pay</span><b id="pmsAmt">${typedAmt > 0 ? formatINR(typedAmt) : '₹ —'}</b></div>
+      ${isOffline ? officeCard : mode === 'netbanking' ? bankCard : upiCard}
       <div class="pp-card">
         ${!isOffline ? `<div class="field">
           <label for="payUtr">UTR / Transaction ID</label>
@@ -7466,7 +7523,7 @@ function renderPayDetailForm(mode, paySettings, payContext) {
           <div class="utr-live" id="payUtrLive" aria-live="polite"></div>
           <div class="hint">Whichever your payment app shows you — the bank's UTR/RRN number, or your UPI app's own Transaction ID. Either is fine.</div>
         </div>` : ''}
-        <div class="field"><label for="payProof">${isOffline ? 'Photo of the receipt' : 'Upload payment screenshot / receipt'} <span class="t-muted" style="font-weight:400;">(optional)</span></label>
+        <div class="field"><label for="payProof">${isOffline ? (mode === 'cheque' ? 'Photo of the cheque / receipt' : 'Photo of the receipt') : 'Upload payment screenshot / receipt'} <span class="t-muted" style="font-weight:400;">(optional)</span></label>
           <input type="file" id="payProof" accept="image/*,application/pdf">
           <div class="hint">JPG, PNG or PDF — max 5 MB.</div></div>
         <div class="field"><label for="payNote">Payment note <span class="t-muted" style="font-weight:400;">(optional)</span></label>
@@ -7475,28 +7532,10 @@ function renderPayDetailForm(mode, paySettings, payContext) {
       <button class="btn btn-primary btn-block" id="submitPaymentBtn">${isOffline ? 'Submit — I Will Pay at Office' : 'Submit payment proof'}</button>
     </div>
   `;
-  // Preset toggle: "Full amount due" locks the amount to the outstanding figure;
-  // "Different amount" reveals the editable field. Locking is the default so the
-  // common case — pay exactly what you owe — is one tap with no typing.
-  const presets = holder.querySelectorAll('.amount-preset');
-  const amtWrap = document.getElementById('amountFieldWrap');
-  const amtInput = document.getElementById('payAmount');
-  const showAmt = () => { const el = document.getElementById('ppAmtShow'); const v = Number(amtInput.value); if (el) el.textContent = v > 0 ? formatINR(v) : '₹ —'; };
-  amtInput.addEventListener('input', showAmt);
-  presets.forEach(btn => btn.addEventListener('click', () => {
-    presets.forEach(b => b.classList.remove('selected'));
-    btn.classList.add('selected');
-    if (btn.dataset.preset === 'full') {
-      amtInput.value = btn.dataset.amt; showAmt();
-      amtWrap.style.display = 'none';           // locked to the outstanding
-    } else {
-      amtWrap.style.display = 'block';          // let them type a different sum
-      amtInput.value = '';
-      amtInput.focus();
-    }
-  }));
-
   window.__translate(holder);
+  window.__translate(document.getElementById('payModeTitle'));
+  holder.parentElement.scrollTop = 0;
+  backdrop.classList.add('open');
   document.getElementById('submitPaymentBtn').addEventListener('click', () => submitPayment(mode));
 
   if (canLaunchUpi) {
@@ -7674,6 +7713,7 @@ async function submitPayment(mode) {
       }
     }
 
+    document.getElementById('payModeBackdrop').classList.remove('open');
     document.getElementById('paymentModalBackdrop').classList.remove('open');
     {
       const forWhat = paymentData.type === 'membership' ? 'Membership fee'
@@ -7701,7 +7741,9 @@ async function submitPayment(mode) {
     showToast('Something went wrong — please try again.', 'error');
   } finally { setLoading(btn, false); paymentInFlight = false; window.__appBusy = false; }
 }
-document.getElementById('closePaymentModal').addEventListener('click', () => document.getElementById('paymentModalBackdrop').classList.remove('open'));
+document.getElementById('closePaymentModal').addEventListener('click', () => { document.getElementById('payModeBackdrop').classList.remove('open'); document.getElementById('paymentModalBackdrop').classList.remove('open'); });
+document.getElementById('closePayMode').addEventListener('click', () => document.getElementById('payModeBackdrop').classList.remove('open'));
+document.getElementById('payModeBackdrop').addEventListener('click', (e) => { if (e.target.id === 'payModeBackdrop') e.target.classList.remove('open'); });
 
 /* ---- Public content ---- */
 async function loadNotices() {

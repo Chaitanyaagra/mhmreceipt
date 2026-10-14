@@ -8,7 +8,7 @@
    Bump CACHE_NAME on any future structural change to force a clean cache.
    ========================================================================== */
 
-const CACHE_NAME = 'mhmrws-shell-v212';
+const CACHE_NAME = 'mhmrws-shell-v213';
 // Pinned Firebase SDK version used across every page (index/admin/staff/guard/
 // verify) — a specific version's content never changes, so caching these is
 // as safe as caching the vendored libraries below, and without this the app
@@ -44,7 +44,7 @@ const SHELL_FILES = [
   './verify.html',
   './styles.css',
   './firebase-config.js',
-  './app-common.js?v=212',
+  './app-common.js?v=213',
   './avatar-placeholder.js',
   './premium.js',
   './ui-a11y.js',
@@ -86,7 +86,7 @@ self.addEventListener('install', (event) => {
         // v208: a missing optional asset is tolerated, but if the CORE app files did not all arrive this
         // worker must not take over — it would run the new version with a half-filled cache. Failing the
         // install keeps the previous, complete version in charge; the browser retries on the next visit.
-        const core = ['./index.html', './styles.css', './app-common.js?v=212', './ui-a11y.js'];
+        const core = ['./index.html', './styles.css', './app-common.js?v=213', './ui-a11y.js'];
         if (failed.some((u) => core.includes(u))) throw new Error('[sw] core files missing — keeping the previous version');
         return self.skipWaiting();
       })

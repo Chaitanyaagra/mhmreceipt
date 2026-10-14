@@ -2284,3 +2284,32 @@ body.logged-in main section[data-v]:not(#dashboard){ background:transparent !imp
 .aud-ic{ flex:0 0 30px; height:30px; display:grid; place-items:center; font-size:18px; }
 .aud-tx{ flex:1; min-width:0; display:flex; flex-direction:column; } .aud-tx b{ font-size:14.5px; color:var(--navy-900); } .aud-tx small{ font-size:12.5px; color:var(--ink-600); }
 .aud-public .aud-tx b, .aud-public .aud-tx small{ color:#B45309; } .aud-warn{ color:#E8861A; font-size:20px; }
+
+/* =====================================================================
+   v213 — Make a Payment stays short: each payment option opens in its own popup
+   ===================================================================== */
+.pp-hero-top{ margin-top:0; }
+.pp-tap-hint{ margin:10px 2px 0; font-size:12.5px; line-height:1.4; color:var(--ink-600); text-align:center; }
+#payModeBackdrop{ z-index:90; }
+.pay-mode-sheet{ padding:0 !important; background:#fff; }
+.pms-handle{ width:40px; height:4px; border-radius:4px; background:#D8D3C6; margin:8px auto 0; }
+.pms-head{ position:sticky; top:0; z-index:2; display:flex; align-items:center; gap:10px; padding:10px 14px 10px 16px; background:#fff; border-bottom:1px solid var(--line); }
+.pms-seal{ width:36px; height:36px; border-radius:50%; object-fit:cover; flex:none; background:#fff; box-shadow:0 0 0 1px #ECE6DA; }
+.pms-head h3{ flex:1; margin:0; min-width:0; font-family:var(--font-display, Georgia, serif); font-size:19px; line-height:1.15; color:#0A1B33; }
+.pms-close{ flex:none; width:44px; height:44px; font-size:18px; }
+.pms-body{ padding:14px 16px 20px; }
+.pms-flow{ margin:0; }
+.pms-amt{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 14px; margin-bottom:12px; border-radius:12px; background:#FFF8EE; border:1px solid #F5D9A8; }
+.pms-amt span{ font-size:13px; color:#4A566B; }
+.pms-amt b{ font-size:20px; color:#0A1B33; font-variant-numeric:tabular-nums; }
+.pay-mode-sheet .pp-card{ margin-bottom:12px; }
+@media (min-width:641px){ .pms-handle{ display:none; } .pay-mode-sheet{ max-width:480px; } }
+/* compact amount block so the four ways to pay sit on the first screen */
+#payAmountHolder .pp-hero{ padding:10px 14px; }
+#payAmountHolder .pp-hero b{ font-size:22px; }
+#payAmountHolder .amount-block{ margin-top:8px; }
+#payAmountHolder .amount-presets{ margin-bottom:6px; flex-wrap:nowrap; }
+#payAmountHolder .amount-preset{ min-width:0; padding:8px 10px; min-height:0; }
+#payAmountHolder .pa-amt{ font-size:14px; }
+.pp-sec-pay{ margin:14px 0 8px; }
+.pay-mode-sheet .pp-flow .amount-block{ margin-top:0; }

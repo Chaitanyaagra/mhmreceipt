@@ -1182,7 +1182,7 @@ export function shortRef(id) {
 /*  "Report a problem" — context that makes a report actionable              */
 /* ---------------------------------------------------------------------- */
 // Keep in step with CACHE_NAME in sw.js (a test checks they match).
-export const APP_VERSION = 'v212';
+export const APP_VERSION = 'v213';
 
 const __recentErrors = [];
 function __noteError(text) {
