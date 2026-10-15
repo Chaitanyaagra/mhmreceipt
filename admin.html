@@ -146,8 +146,9 @@
   .month-summary .ms-num.ms-warn{ color:var(--gold-300,#E4C765); }
   .month-summary .ms-num.ms-danger{ color:#FF9B8A; }
   .month-summary .ms-lbl{ font-size:12px; color:rgba(255,255,255,.65); margin-top:3px; }
-  .month-summary #msWhatsAppBtn{ border-color:rgba(255,255,255,.35); color:#fff; }
-  .month-summary #msWhatsAppBtn:hover{ background:rgba(255,255,255,.10); box-shadow:none; }
+  /* .btn-outline is white in the redesign; white text on it was invisible until hover. Give it a see-through light fill on the dark card. */
+  .month-summary #msWhatsAppBtn{ background:rgba(255,255,255,.12); border-color:rgba(255,255,255,.5); color:#fff; }
+  .month-summary #msWhatsAppBtn:hover{ background:rgba(255,255,255,.24); box-shadow:none; }
   @media (max-width:820px){ .month-summary .ms-grid{ grid-template-columns:repeat(2,1fr); } }
   .fam-vrow{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; justify-content:space-between; padding:6px 0; border-top:1px solid var(--line); font-size:13.5px; }
   .fam-vrow:first-child{ border-top:0; }
@@ -2360,7 +2361,7 @@ import {
   , enableUnicodeText
   , eventTimeText
   , sealOnWhiteDisc
-} from './app-common.js?v=213';
+} from './app-common.js?v=215';
 
 /* ---------------------------------------------------------------------- */
 /*  State                                                                  */
@@ -4103,13 +4104,27 @@ async function updateComplaintStatus(id, newStatus, note, photoFile, previousSta
     // resolved, must never touch the original resolution-event time.
     if (newStatus === 'resolved' && previousStatus !== 'resolved') patch.resolvedAt = serverTimestamp();
     if (newStatus === 'closed') patch.closedAt = serverTimestamp();
-    await updateDoc(doc(db, 'complaints', id), patch);
+    const cRef = doc(db, 'complaints', id);
+    await runTransaction(db, async (tx) => {
+      // If another admin moved this complaint on since this screen loaded
+      // (e.g. resolved it), don't silently overwrite their update.
+      const live = await tx.get(cRef);
+      if (!live.exists()) throw staleError('removed');
+      if (previousStatus !== undefined && (live.data().status || 'open') !== (previousStatus || 'open')) throw staleError(live.data().status);
+      tx.update(cRef, patch);
+    });
     mirrorIssueStatus(id, newStatus);
     await logAudit(auth.currentUser, 'update_complaint_status', { complaintId: id, newStatus });
     showToast('Complaint status updated.', 'success');
     document.getElementById('complaintDetailModalBackdrop').classList.remove('open');
     await loadComplaints();
   } catch (err) {
+    if (err?.message === 'STALE_ACTION') {
+      showToast(staleMessage(err, 'complaint'), 'error');
+      document.getElementById('complaintDetailModalBackdrop').classList.remove('open');
+      await loadComplaints();
+      return;
+    }
     console.error('Update complaint failed:', err);
     const code = err?.code || '';
     showToast(`Could not save${code ? ` (${code})` : ''}.`, 'error');
@@ -4883,7 +4898,11 @@ document.getElementById('expenseForm')?.addEventListener('submit', async (e) => 
 document.getElementById('exportExpensesBtn')?.addEventListener('click', () => {
   exportToExcel(serializeForExport(allExpenses.filter(e => e.financialYear === selectedFY)).map(e => ({
     Date: e.date, Description: e.description, Category: e.category,
-    PaidTo: e.paidTo, Mode: e.mode, Reference: e.reference, Amount: e.amount, AddedBy: e.addedBy
+    PaidTo: e.paidTo, Mode: e.mode, Reference: e.reference, Amount: e.amount, AddedBy: e.addedBy,
+    // Pending / rejected / voided rows are listed too, so a plain SUM of Amount
+    // would overstate what was spent. Status + Counted make the real total filterable.
+    Status: e.status || 'approved',
+    Counted: (e.status && ['pending_approval', 'rejected', 'voided'].includes(e.status)) ? 'No' : 'Yes'
   })), `expenses-${selectedFY}.xlsx`, 'Expenses');
 });
 
@@ -5695,6 +5714,8 @@ async function submitMemberEdit(e, original) {
       const otherClaimRef = doc(db, 'flatClaims', flatClaimId(tower, flatNumber, otherSide));
 
       await runTransaction(db, async (tx) => {
+        const liveMe = await tx.get(doc(db, 'members', original.id));
+        if (liveMe.exists() && editedElsewhere(liveMe.data(), original)) throw new Error('EDITED_ELSEWHERE');
         const claim = await tx.get(newClaimRef);
         if (claim.exists() && claim.data().memberDocId !== original.id) throw new Error('FLAT_TAKEN');
         const otherClaim = await tx.get(otherClaimRef);
@@ -5750,16 +5771,16 @@ async function submitMemberEdit(e, original) {
       // each meant a failed second write left the public/QR record showing
       // the old name while the member record had the new one. A batch makes
       // both land or neither.
-      if (original.status === 'approved' && original.publicToken) {
-        const batch = writeBatch(db);
-        batch.update(doc(db, 'members', original.id), patch);
-        batch.update(doc(db, 'membersPublic', original.publicToken), {
-          name: patch.name, tower, flatNumber, residentType: patch.residentType, updatedAt: serverTimestamp()
-        });
-        await batch.commit();
-      } else {
-        await updateDoc(doc(db, 'members', original.id), patch);
-      }
+      await runTransaction(db, async (tx) => {
+        const liveMe = await tx.get(doc(db, 'members', original.id));
+        if (liveMe.exists() && editedElsewhere(liveMe.data(), original)) throw new Error('EDITED_ELSEWHERE');
+        tx.update(doc(db, 'members', original.id), patch);
+        if (original.status === 'approved' && original.publicToken) {
+          tx.update(doc(db, 'membersPublic', original.publicToken), {
+            name: patch.name, tower, flatNumber, residentType: patch.residentType, updatedAt: serverTimestamp()
+          });
+        }
+      });
     }
     await logAudit(auth.currentUser, 'edit_member', { memberId: original.id, flatChanged });
 
@@ -5786,7 +5807,11 @@ async function submitMemberEdit(e, original) {
     document.getElementById('memberModalBackdrop').classList.remove('open');
     await reloadMembers(); renderMembersTable(); renderOverview(); populateTowerFilter();
   } catch (err) {
-    if (err.message === 'FLAT_TAKEN') {
+    if (err.message === 'EDITED_ELSEWHERE') {
+      showToast('Someone else saved changes to this member while you had it open, so nothing was saved here. The latest details have been loaded — please make your change again.', 'error');
+      document.getElementById('memberModalBackdrop').classList.remove('open');
+      await reloadMembers(); renderMembersTable();
+    } else if (err.message === 'FLAT_TAKEN') {
       showToast('This flat was just allotted to someone else. Please refresh the page and try again.', 'error');
     } else {
       console.error('Edit member failed:', err);
@@ -5874,6 +5899,12 @@ async function approveMember(id) {
     let memberID;
 
     await runTransaction(db, async (tx) => {
+      // Re-read the live member: if another admin already approved or rejected
+      // this registration, stop — re-approving would mint a second Member ID
+      // and QR token and orphan the first card.
+      const liveMember = await tx.get(doc(db, 'members', id));
+      if (!liveMember.exists()) throw staleError('removed');
+      if (liveMember.data().status !== 'pending') throw staleError(liveMember.data().status, liveMember.data().approvedBy);
       const claim = await tx.get(claimRef);
       if (claim.exists() && claim.data().memberDocId !== id) throw new Error('FLAT_TAKEN');
       // Whoever already holds the flat's OTHER slot (if anyone) is presumably
@@ -5931,7 +5962,12 @@ async function approveMember(id) {
       `${m.name} ki registration approve ho gayi — WhatsApp par bataana chahenge?`
     );
   } catch (err) {
-    if (err.message === 'FLAT_TAKEN') {
+    if (err.message === 'STALE_ACTION') {
+      showToast(staleMessage(err, 'registration'), 'error');
+      document.getElementById('memberModalBackdrop').classList.remove('open');
+      await reloadMembers(); renderMembersTable(); renderOverview();
+      if (document.getElementById('view-approvals')?.classList.contains('active')) renderApprovalCenter();
+    } else if (err.message === 'FLAT_TAKEN') {
       showToast('This flat was just allotted to someone else. Please refresh the page and try again.', 'error');
     } else {
       console.error('Approve member failed:', err);
@@ -5948,19 +5984,31 @@ async function rejectMember(id) {
   if (reason.length > 500) { reason = reason.slice(0, 500); showToast('Reason was shortened to 500 characters.', 'info'); }
   const m = allMembers.find(x => x.id === id) || {};
   try {
-    const batch = writeBatch(db);
-    batch.update(doc(db, 'members', id), { status: 'rejected', rejectionReason: reason, updatedAt: serverTimestamp() });
     const rejKey = publicKeyForMember(m);
-    if (rejKey) batch.set(doc(db, 'membersPublic', rejKey), { status: 'rejected', updatedAt: serverTimestamp() }, { merge: true });
-    // Free the flat so whoever actually lives there can be approved for it.
-    if (m.tower && m.flatNumber) batch.delete(doc(db, 'flatClaims', flatClaimId(m.tower, m.flatNumber, m.residentType)));
-    await batch.commit();
+    await runTransaction(db, async (tx) => {
+      // Only a still-pending registration can be rejected. If another admin
+      // approved it meanwhile, rejecting now would delete a live flat claim.
+      const live = await tx.get(doc(db, 'members', id));
+      if (!live.exists()) throw staleError('removed');
+      if (live.data().status !== 'pending') throw staleError(live.data().status, live.data().approvedBy);
+      tx.update(doc(db, 'members', id), { status: 'rejected', rejectionReason: reason, updatedAt: serverTimestamp() });
+      if (rejKey) tx.set(doc(db, 'membersPublic', rejKey), { status: 'rejected', updatedAt: serverTimestamp() }, { merge: true });
+      // Free the flat so whoever actually lives there can be approved for it.
+      if (m.tower && m.flatNumber) tx.delete(doc(db, 'flatClaims', flatClaimId(m.tower, m.flatNumber, m.residentType)));
+    });
     await logAudit(auth.currentUser, 'reject_member', { id, reason });
     showToast('Registration has been rejected.', 'success');
     document.getElementById('memberModalBackdrop').classList.remove('open');
     await reloadMembers(); renderMembersTable(); renderOverview();
     if (document.getElementById('view-approvals')?.classList.contains('active')) renderApprovalCenter();
   } catch (err) {
+    if (err?.message === 'STALE_ACTION') {
+      showToast(staleMessage(err, 'registration'), 'error');
+      document.getElementById('memberModalBackdrop').classList.remove('open');
+      await reloadMembers(); renderMembersTable(); renderOverview();
+      if (document.getElementById('view-approvals')?.classList.contains('active')) renderApprovalCenter();
+      return;
+    }
     console.error('Reject member failed:', err);
     const code = err?.code || '';
     showToast(`Could not reject${code ? ` (${code})` : ''}. Please try again.`, 'error');
@@ -6519,7 +6567,10 @@ document.getElementById('savePetAdminBtn')?.addEventListener('click', async () =
 document.getElementById('exportPaymentsBtn').addEventListener('click', () => {
   exportToExcel(serializeForExport(allPayments).map(p => ({
     Resident: p.residentName, Flat: p.flatNumber, Tower: p.tower, Amount: p.amount, Mode: p.mode,
-    Status: p.status, ReceiptNo: p.receiptNumber, FY: p.financialYear, TransactionDate: p.transactionDate || '', Submitted: p.submittedAt
+    Status: p.status, ReceiptNo: p.receiptNumber, FY: p.financialYear, TransactionDate: p.transactionDate || '', Submitted: p.submittedAt,
+    // Rejected / pending / voided rows are in the sheet too — Counted says which
+    // rows are real, receipted money, so a SUM over Counted = Yes matches the app.
+    Counted: p.status === 'verified' ? 'Yes' : 'No'
   })), 'payments.xlsx', 'Payments');
 });
 
@@ -6645,6 +6696,9 @@ async function voidPaymentEntry(p) {
     // without a counter to burn: two related writes that must both happen
     // or neither should.
     await runTransaction(db, async (tx) => {
+      const liveSnap = await tx.get(doc(db, 'payments', p.id));
+      if (!liveSnap.exists()) throw staleError('removed');
+      if (liveSnap.data().status !== 'verified') throw staleError(liveSnap.data().status, liveSnap.data().voidedBy);
       tx.update(doc(db, 'payments', p.id), {
         status: 'voided', voidReason: reason.trim(),
         // Must be the LIVE Firebase Auth email, not the (possibly stale)
@@ -6668,6 +6722,12 @@ async function voidPaymentEntry(p) {
     document.getElementById('paymentDetailModalBackdrop').classList.remove('open');
     await reloadPayments(); renderPendingPayments(); renderAllPayments(); renderOverview(); renderDefaulters(); renderMembershipDues();
   } catch (err) {
+    if (err?.message === 'STALE_ACTION') {
+      showToast(staleMessage(err, 'payment'), 'error');
+      document.getElementById('paymentDetailModalBackdrop').classList.remove('open');
+      await reloadPayments(); renderPendingPayments(); renderAllPayments(); renderOverview();
+      return;
+    }
     console.error('Void payment failed:', err);
     const code = err?.code || '';
     showToast(`Could not void${code ? ` (${code})` : ''}.`, 'error');
@@ -6891,6 +6951,23 @@ document.getElementById('rpType')?.addEventListener('change', (e) => {
    does the counter increment and both writes as one transaction, so either
    the payment is verified with a matching public receipt, or nothing here
    changed and the admin can just try again. */
+/* Two admins can have the same item open at once. Whoever acts second used to
+   get either a bare "permission-denied" or (for member approval) a silent
+   re-approval that re-issued the Member ID and QR token. Every approve /
+   reject / void now re-reads the live record inside its transaction and, if
+   someone else already acted, stops with a plain message instead. */
+function staleError(status, by) { const e = new Error('STALE_ACTION'); e.staleStatus = status; e.staleBy = by || ''; return e; }
+function staleMessage(e, noun) {
+  const who = e.staleBy ? ` by ${e.staleBy}` : '';
+  return `This ${noun} was already ${e.staleStatus || 'changed'}${who} — another admin got there first. Nothing was changed; the list has been refreshed.`;
+}
+const PAY_PENDING = ['pending_approval', 'pending_verification'];
+/* True when someone else saved this record after the edit screen loaded it. */
+function editedElsewhere(liveData, loaded) {
+  const ms = (t) => (t && typeof t.toMillis === 'function') ? t.toMillis() : (t && t.seconds != null ? t.seconds * 1000 : null);
+  const a = ms(liveData && liveData.updatedAt), b = ms(loaded && loaded.updatedAt);
+  return a != null && b != null && a !== b;
+}
 async function verifyPayment(id) {
   const p = allPayments.find(x => x.id === id);
   if (!p) return;
@@ -6920,7 +6997,10 @@ async function verifyPayment(id) {
       },
       async (tx) => {
         const freshSnap = await tx.get(payRef);
-        return freshSnap.exists() ? freshSnap.data() : p;
+        if (!freshSnap.exists()) throw staleError('removed');
+        const fd = freshSnap.data();
+        if (!PAY_PENDING.includes(fd.status)) throw staleError(fd.status, fd.verifiedBy || fd.voidedBy);
+        return fd;
       }
     );
 
@@ -6937,6 +7017,13 @@ async function verifyPayment(id) {
       `${p.residentName} ka payment verify ho gaya — receipt WhatsApp par bhejna chahenge?`
     );
   } catch (e) {
+    if (e?.message === 'STALE_ACTION') {
+      showToast(staleMessage(e, 'payment'), 'error');
+      document.getElementById('paymentDetailModalBackdrop').classList.remove('open');
+      await reloadPayments(); renderPendingPayments(); renderAllPayments(); updateNavBadges();
+      if (document.getElementById('view-approvals')?.classList.contains('active')) renderApprovalCenter();
+      return;
+    }
     console.error('Verify payment failed:', e);
     const code = e?.code || '';
     showToast(`Could not verify${code ? ` (${code})` : ''} — the payment is unchanged. Please try again.`, 'error');
@@ -6953,7 +7040,14 @@ async function rejectPayment(id) {
   if (!res) return;
   const reason = res.reason;
   try {
-    await updateDoc(doc(db, 'payments', id), { status: 'rejected', rejectionReason: reason, updatedAt: serverTimestamp() });
+    const rejRef = doc(db, 'payments', id);
+    await runTransaction(db, async (tx) => {
+      const snap = await tx.get(rejRef);
+      if (!snap.exists()) throw staleError('removed');
+      const d = snap.data();
+      if (!PAY_PENDING.includes(d.status)) throw staleError(d.status, d.verifiedBy || d.voidedBy);
+      tx.update(rejRef, { status: 'rejected', rejectionReason: reason, updatedAt: serverTimestamp() });
+    });
     await logAudit(auth.currentUser, 'reject_payment', { paymentId: id, reason });
     showToast('Payment has been rejected.', 'success');
     document.getElementById('paymentDetailModalBackdrop').classList.remove('open');
@@ -6961,6 +7055,13 @@ async function rejectPayment(id) {
     updateNavBadges();
     if (document.getElementById('view-approvals')?.classList.contains('active')) renderApprovalCenter();
   } catch (err) {
+    if (err?.message === 'STALE_ACTION') {
+      showToast(staleMessage(err, 'payment'), 'error');
+      document.getElementById('paymentDetailModalBackdrop').classList.remove('open');
+      await reloadPayments(); renderPendingPayments(); renderAllPayments(); updateNavBadges();
+      if (document.getElementById('view-approvals')?.classList.contains('active')) renderApprovalCenter();
+      return;
+    }
     console.error('Reject payment failed:', err);
     const code = err?.code || '';
     showToast(`Could not reject payment${code ? ` (${code})` : ''}.`, 'error');

@@ -550,12 +550,12 @@ export function expenseSummary(expenses, financialYear) {
     && e.status !== 'rejected'
     && e.status !== 'voided'
   );
-  const total = rows.reduce((s, e) => s + (Number(e.amount) || 0), 0);
+  const total = round2(rows.reduce((s, e) => s + (Number(e.amount) || 0), 0));
 
   const byCategory = {};
   rows.forEach(e => {
     const k = e.category || 'Other';
-    byCategory[k] = (byCategory[k] || 0) + (Number(e.amount) || 0);
+    byCategory[k] = round2((byCategory[k] || 0) + (Number(e.amount) || 0));
   });
 
   const categories = Object.entries(byCategory)
@@ -567,7 +567,7 @@ export function expenseSummary(expenses, financialYear) {
     const d = e.date?.toDate ? e.date.toDate() : (e.date ? new Date(e.date) : null);
     if (!d) return;
     const k = d.toLocaleString('en-IN', { month: 'short', year: '2-digit' });
-    byMonth[k] = (byMonth[k] || 0) + (Number(e.amount) || 0);
+    byMonth[k] = round2((byMonth[k] || 0) + (Number(e.amount) || 0));
   });
 
   return { total, count: rows.length, categories, byMonth };
@@ -1182,7 +1182,7 @@ export function shortRef(id) {
 /*  "Report a problem" — context that makes a report actionable              */
 /* ---------------------------------------------------------------------- */
 // Keep in step with CACHE_NAME in sw.js (a test checks they match).
-export const APP_VERSION = 'v213';
+export const APP_VERSION = 'v215';
 
 const __recentErrors = [];
 function __noteError(text) {
@@ -2285,15 +2285,15 @@ export async function generateIncomeExpenditurePDF({ payments, expenses, society
   const incomeByType = {};
   verified.forEach(p => {
     const k = p.type === 'membership' ? 'Membership Fees' : p.type === 'event' ? 'Event Collections' : 'Maintenance';
-    incomeByType[k] = (incomeByType[k] || 0) + (Number(p.amount) || 0);
+    incomeByType[k] = round2((incomeByType[k] || 0) + (Number(p.amount) || 0));
   });
   const incomeRows = Object.entries(incomeByType).sort((a, b) => b[1] - a[1]);
-  const totalIncome = incomeRows.reduce((s, [, amt]) => s + amt, 0);
+  const totalIncome = round2(incomeRows.reduce((s, [, amt]) => s + amt, 0));
 
   const expSummary = expenseSummary(expenses, financialYear);
   const expenseRows = expSummary.categories;   // already sorted, largest first
   const totalExpenditure = expSummary.total;
-  const net = totalIncome - totalExpenditure;
+  const net = round2(totalIncome - totalExpenditure);
 
   const drawHeader = async () => {
     pdf.setFillColor(10, 27, 51);

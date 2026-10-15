@@ -71,7 +71,7 @@
      Firebase SDK files it imports. (A module's imports are otherwise only discovered once the
      module itself has arrived, one slow round trip after another.) The URLs must match the
      imports exactly — the ?v= below is the release number the tests keep in step. -->
-<link rel="modulepreload" fetchpriority="low" href="./app-common.js?v=213">
+<link rel="modulepreload" fetchpriority="low" href="./app-common.js?v=215">
 <link rel="modulepreload" fetchpriority="low" href="./firebase-config.js">
 <link rel="modulepreload" fetchpriority="low" href="https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js">
 <link rel="modulepreload" fetchpriority="low" href="https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js">
@@ -2550,7 +2550,7 @@ import {
   initFamilyMembersEditor, addFamilyMemberRow, collectFamilyMembers,
   initVehiclesEditor, addVehicleRow, collectVehicles,
   initPetsEditor, addPetCard, collectPets, petVaccinationStatus, familyKey, DIRECTORY_TAGS, eventTimeText, buildEventICS, guestPassId, profileCompleteness, flatClaimId, findBlockingFlatClaim, generatePetId, rentAgreementStatus, flatKey, INSPECTION_TYPES, todayLocalISO
-} from './app-common.js?v=213';
+} from './app-common.js?v=215';
 import { installAppInstallPrompt } from './install-prompt.js';
 
 // The "install this app" prompt runs from here (not the branding block above)
@@ -5087,11 +5087,11 @@ function renderGateCard(rows) {
         <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 0; border-bottom:1px solid var(--line,#EAE6DC);">
           <div style="min-width:0;">
             <b style="font-size:14px;">${escapeHtml(r.visitorName)}</b>
-            <div class="t-muted" style="font-size:12px; margin-top:2px;">${GATE_PURPOSE_LABEL[r.purpose] || escapeHtml(r.purpose || '')}${r.visitorPhone ? ' · ' + escapeHtml(r.visitorPhone) : ''}${(() => { const m = minutesWaiting(r.createdAt); return m === null ? '' : ` · <span>Waiting</span> ${m < 1 ? '<1' : m} min`; })()}</div>
+            <div class="t-muted" style="font-size:12px; margin-top:2px;">${GATE_PURPOSE_LABEL[r.purpose] || escapeHtml(r.purpose || '')}${r.visitorPhone ? ' · ' + escapeHtml(r.visitorPhone) : ''}${(() => { const m = minutesWaiting(r.createdAt); return m === null ? '' : m >= 1440 ? ` · <span>Old request</span> (${Math.floor(m / 1440)} day${m >= 2880 ? 's' : ''} ago — the guard needs to ask again)` : m >= 60 ? ` · <span>Waiting</span> ${Math.floor(m / 60)} h` : ` · <span>Waiting</span> ${m < 1 ? '<1' : m} min`; })()}</div>
           </div>
           <div style="display:flex; gap:6px; flex-shrink:0;">
-            <button class="btn btn-primary btn-sm" data-gate-decide="${r.id}" data-gate-status="approved">Let In</button>
-            <button class="btn btn-outline btn-sm" data-gate-decide="${r.id}" data-gate-status="rejected">Deny</button>
+            ${(minutesWaiting(r.createdAt) ?? 0) >= 1440 ? '' : `<button class="btn btn-primary btn-sm" data-gate-decide="${r.id}" data-gate-status="approved">Let In</button>`}
+            <button class="btn btn-outline btn-sm" data-gate-decide="${r.id}" data-gate-status="rejected">${(minutesWaiting(r.createdAt) ?? 0) >= 1440 ? 'Dismiss' : 'Deny'}</button>
           </div>
         </div>`).join('') : '<p class="t-muted" style="font-size:13px;">No one waiting right now.</p>'}
       ${recent.length ? `

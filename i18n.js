@@ -54,6 +54,8 @@ export const HI = {
   'Assigned to': 'ज़िम्मेदार',
   'Expected by': 'अपेक्षित तिथि',
   'Waiting': 'प्रतीक्षा में',
+  'Old request': 'पुराना अनुरोध',
+  'Dismiss': 'हटाएँ',
   'Waiting for the committee to assign someone.': 'समिति द्वारा किसी को ज़िम्मेदारी सौंपे जाने की प्रतीक्षा है।',
   'Assigned — work will start soon.': 'ज़िम्मेदारी सौंप दी गई है — काम जल्द शुरू होगा।',
   'Work is in progress.': 'काम चल रहा है।',
